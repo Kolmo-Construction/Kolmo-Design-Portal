@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Loader2, MessageSquare } from "lucide-react";
+import { Plus, Loader2, MessageSquare, CheckCircle2, ImageIcon, Building2 } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Dashboard() {
@@ -212,7 +212,7 @@ export default function Dashboard() {
               ) : updates.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <div className="rounded-full bg-green-50 p-3 mb-4">
-                    <Image className="h-6 w-6 text-green-600" />
+                    <ImageIcon className="h-6 w-6 text-green-600" />
                   </div>
                   <p className="text-slate-500">No updates yet</p>
                 </div>
