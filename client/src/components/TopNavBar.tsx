@@ -35,15 +35,15 @@ export default function TopNavBar({ open, setOpen }: TopNavBarProps) {
       // Reset user data in context
       queryClient.setQueryData(["/api/user"], null);
       
-      // Force navigate to login page
+      // IMPORTANT: Use full page reload to clear all React state and force a complete reset
       console.log("Logout successful, redirecting to auth page");
-      navigate("/auth");
+      window.location.href = '/auth';
     })
     .catch(err => {
       console.error("Logout error:", err);
       // Even on error, clear cache and redirect to ensure user can log out
       queryClient.setQueryData(["/api/user"], null);
-      navigate("/auth");
+      window.location.href = '/auth';
     });
   };
 
