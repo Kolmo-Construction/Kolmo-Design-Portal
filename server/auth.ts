@@ -48,13 +48,14 @@ export function setupAuth(app: Express) {
   
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "buildportal-dev-secret",
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     store: storage.sessionStore,
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: 'lax'
     }
   };
 
@@ -283,16 +284,37 @@ export function setupAuth(app: Express) {
   });
 
   // Standard login - will be used primarily by admins
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    // Remove password and magic link data from response
-    const { password, magicLinkToken, magicLinkExpiry, ...userWithoutSensitiveData } = req.user as SelectUser;
-    res.status(200).json(userWithoutSensitiveData);
+  app.post("/api/login", (req, res, next) => {
+    passport.authenticate("local", (err: Error | null, user: SelectUser | false, info: { message: string } | undefined) => {
+      if (err) return next(err);
+      
+      if (!user) {
+        return res.status(401).json({ message: "Invalid username or password" });
+      }
+      
+      req.login(user, (err) => {
+        if (err) return next(err);
+        
+        // Remove password and magic link data from response
+        const { password, magicLinkToken, magicLinkExpiry, ...userWithoutSensitiveData } = user as SelectUser;
+        res.status(200).json(userWithoutSensitiveData);
+      });
+    })(req, res, next);
   });
 
   app.post("/api/logout", (req, res, next) => {
+    if (!req.isAuthenticated()) {
+      return res.status(200).json({ message: "Not logged in" });
+    }
+    
     req.logout((err) => {
       if (err) return next(err);
-      res.sendStatus(200);
+      
+      req.session.destroy((err) => {
+        if (err) return next(err);
+        res.clearCookie('connect.sid');
+        res.status(200).json({ message: "Logged out successfully" });
+      });
     });
   });
 
