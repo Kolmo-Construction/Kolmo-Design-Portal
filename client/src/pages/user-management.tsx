@@ -11,7 +11,7 @@ import {
 import { getQueryFn, apiRequest } from "@/lib/queryClient";
 import TopNavBar from "@/components/TopNavBar";
 import Sidebar from "@/components/Sidebar";
-import { User } from "@shared/schema";
+import { User, Project } from "@shared/schema";
 import {
   Card,
   CardContent,
@@ -50,6 +50,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Select, 
   SelectContent, 
@@ -83,6 +84,7 @@ const newUserSchema = z.object({
   role: z.enum(["admin", "projectManager", "client"], {
     required_error: "Role is required",
   }),
+  projectIds: z.array(z.number()).optional(),
 });
 
 type NewUserFormValues = z.infer<typeof newUserSchema>;
@@ -110,6 +112,15 @@ export default function UserManagement() {
     refetch: refetchUsers,
   } = useQuery<User[], Error>({
     queryKey: ["/api/admin/users"],
+    queryFn: getQueryFn({ on401: "throw" }),
+  });
+  
+  // Get all projects for assignment
+  const {
+    data: projects,
+    isLoading: projectsLoading,
+  } = useQuery<Project[], Error>({
+    queryKey: ["/api/projects"],
     queryFn: getQueryFn({ on401: "throw" }),
   });
 
@@ -373,7 +384,12 @@ export default function UserManagement() {
                       <FormItem>
                         <FormLabel>Role</FormLabel>
                         <Select 
-                          onValueChange={field.onChange} 
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            if (value !== "client") {
+                              form.setValue("projectIds", []);
+                            }
+                          }} 
                           defaultValue={field.value}
                         >
                           <FormControl>
@@ -394,6 +410,76 @@ export default function UserManagement() {
                       </FormItem>
                     )}
                   />
+                  
+                  {form.watch("role") === "client" && (
+                    <FormField
+                      control={form.control}
+                      name="projectIds"
+                      render={() => (
+                        <FormItem>
+                          <div className="mb-4">
+                            <FormLabel className="text-base">Assign Projects</FormLabel>
+                            <FormDescription>
+                              Select which projects this client can access
+                            </FormDescription>
+                          </div>
+                          <div className="space-y-2">
+                            {projectsLoading ? (
+                              <div className="py-2">
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-2 inline" />
+                                <span className="text-sm text-muted-foreground">Loading projects...</span>
+                              </div>
+                            ) : projects && projects.length > 0 ? (
+                              projects.map((project) => (
+                                <FormField
+                                  key={project.id}
+                                  control={form.control}
+                                  name="projectIds"
+                                  render={({ field }) => {
+                                    return (
+                                      <FormItem
+                                        key={project.id}
+                                        className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"
+                                      >
+                                        <FormControl>
+                                          <Checkbox
+                                            checked={field.value?.includes(project.id)}
+                                            onCheckedChange={(checked) => {
+                                              const currentValues = field.value || [];
+                                              return checked
+                                                ? field.onChange([...currentValues, project.id])
+                                                : field.onChange(
+                                                    currentValues.filter(
+                                                      (value) => value !== project.id
+                                                    )
+                                                  );
+                                            }}
+                                          />
+                                        </FormControl>
+                                        <div className="space-y-1 leading-none">
+                                          <FormLabel className="font-medium">
+                                            {project.name}
+                                          </FormLabel>
+                                          <FormDescription>
+                                            {project.address}, {project.city}, {project.state}
+                                          </FormDescription>
+                                        </div>
+                                      </FormItem>
+                                    );
+                                  }}
+                                />
+                              ))
+                            ) : (
+                              <div className="text-sm text-muted-foreground py-2">
+                                No projects available. Create projects before adding clients.
+                              </div>
+                            )}
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                   
                   {createMagicLinkMutation.isError && (
                     <Alert variant="destructive">
