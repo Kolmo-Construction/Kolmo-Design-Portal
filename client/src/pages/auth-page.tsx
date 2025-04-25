@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation, useParams } from "wouter";
+import { queryClient } from "@/lib/queryClient";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -104,8 +105,14 @@ export default function AuthPage({ isMagicLink = false }: AuthPageProps) {
 
   const onLoginSubmit = (values: LoginFormValues) => {
     loginMutation.mutate(values, {
-      onSuccess: () => {
-        navigate("/");
+      onSuccess: (userData) => {
+        console.log("Login successful, redirecting to dashboard", userData);
+        // Force refresh user data in the auth context
+        queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+        // Use timeout to ensure state updates before navigation
+        setTimeout(() => {
+          navigate("/");
+        }, 100);
       },
     });
   };

@@ -1,5 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
-import { Menu, Bell } from "lucide-react";
+import { Menu, Bell, Loader2 } from "lucide-react";
+import { useLocation } from "wouter";
+import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -18,9 +20,20 @@ interface TopNavBarProps {
 
 export default function TopNavBar({ open, setOpen }: TopNavBarProps) {
   const { user, logoutMutation } = useAuth();
+  const [, navigate] = useLocation();
 
   const handleLogout = () => {
-    logoutMutation.mutate();
+    logoutMutation.mutate(undefined, {
+      onSuccess: () => {
+        // Clear any cached user data
+        queryClient.setQueryData(["/api/user"], null);
+        queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+        // Force navigate to login page
+        setTimeout(() => {
+          navigate("/auth");
+        }, 100);
+      }
+    });
   };
 
   return (
@@ -73,8 +86,8 @@ export default function TopNavBar({ open, setOpen }: TopNavBarProps) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <a href="/settings" className="w-full">Settings</a>
+              <DropdownMenuItem onClick={() => navigate("/settings")}>
+                Settings
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleLogout} disabled={logoutMutation.isPending}>
                 {logoutMutation.isPending ? "Logging out..." : "Logout"}
