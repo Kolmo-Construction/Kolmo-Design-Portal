@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { 
   useQuery, 
+  useMutation,
   useQueryClient 
 } from "@tanstack/react-query";
 import { getQueryFn, apiRequest } from "@/lib/queryClient";
@@ -44,7 +45,18 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogClose,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -71,7 +83,9 @@ import {
   Copy, 
   Loader2, 
   Plus, 
-  RotateCw, 
+  RotateCw,
+  Trash2,
+  Key,
   Users 
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -89,18 +103,32 @@ const newUserSchema = z.object({
 
 type NewUserFormValues = z.infer<typeof newUserSchema>;
 
+const resetPasswordSchema = z.object({
+  newPassword: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string().min(8, "Password must be at least 8 characters"),
+}).refine(data => data.newPassword === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
+
+type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
+
 export default function UserManagement() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("users");
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [isCreateUserDialogOpen, setIsCreateUserDialogOpen] = useState(false);
+  const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
+  const [isDeleteUserDialogOpen, setIsDeleteUserDialogOpen] = useState(false);
+  const [userToManage, setUserToManage] = useState<User | null>(null);
   const [createdMagicLink, setCreatedMagicLink] = useState<string | null>(null);
   const { toast } = useToast();
-  const { user, createMagicLinkMutation } = useAuth();
+  const { user: currentUser, createMagicLinkMutation } = useAuth();
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
 
   // Redirect if not an admin
-  if (user && user.role !== "admin") {
+  if (currentUser && currentUser.role !== "admin") {
     navigate("/");
     return null;
   }
@@ -143,6 +171,56 @@ export default function UserManagement() {
   } = useQuery<{ configured: boolean }, Error>({
     queryKey: ["/api/admin/email-config"],
     queryFn: getQueryFn({ on401: "throw" }),
+  });
+  
+  // Password reset mutation
+  const resetPasswordMutation = useMutation({
+    mutationFn: async ({ userId, newPassword }: { userId: number, newPassword: string }) => {
+      const res = await apiRequest(
+        "POST", 
+        `/api/admin/users/${userId}/reset-password`, 
+        { newPassword }
+      );
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Password reset successful",
+        description: "The user's password has been reset",
+      });
+      setIsResetPasswordDialogOpen(false);
+      refetchUsers();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Password reset failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const res = await apiRequest("DELETE", `/api/admin/users/${userId}`);
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "User deleted",
+        description: "The user has been deleted successfully",
+      });
+      setIsDeleteUserDialogOpen(false);
+      refetchUsers();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Delete failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   });
 
   // Get selected client's details
@@ -195,6 +273,35 @@ export default function UserManagement() {
     setIsCreateUserDialogOpen(false);
     setCreatedMagicLink(null);
     form.reset();
+  };
+  
+  // Reset password form
+  const resetPasswordForm = useForm<ResetPasswordFormValues>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: {
+      newPassword: "",
+      confirmPassword: "",
+    },
+  });
+  
+  const handleResetPassword = (data: ResetPasswordFormValues) => {
+    if (!userToManage) return;
+    
+    resetPasswordMutation.mutate({
+      userId: userToManage.id,
+      newPassword: data.newPassword
+    });
+  };
+  
+  const openResetPasswordDialog = (selectedUser: User) => {
+    setUserToManage(selectedUser);
+    resetPasswordForm.reset();
+    setIsResetPasswordDialogOpen(true);
+  };
+  
+  const openDeleteUserDialog = (selectedUser: User) => {
+    setUserToManage(selectedUser);
+    setIsDeleteUserDialogOpen(true);
   };
 
   return (
@@ -397,7 +504,7 @@ export default function UserManagement() {
                               </Badge>
                             )}
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right space-x-1">
                             {user.role === "client" && (
                               <Button 
                                 variant="ghost" 
@@ -410,6 +517,32 @@ export default function UserManagement() {
                               >
                                 <Building2 className="h-3.5 w-3.5" />
                                 View Projects
+                              </Button>
+                            )}
+                            
+                            {/* Don't allow resetting own password through this interface */}
+                            {user.id !== currentUser?.id && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openResetPasswordDialog(user)}
+                                className="gap-1 text-xs"
+                              >
+                                <Key className="h-3.5 w-3.5" />
+                                Reset Password
+                              </Button>
+                            )}
+                            
+                            {/* Don't allow deleting own account */}
+                            {user.id !== currentUser?.id && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openDeleteUserDialog(user)}
+                                className="gap-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Delete
                               </Button>
                             )}
                           </TableCell>
