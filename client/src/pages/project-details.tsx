@@ -43,7 +43,7 @@ import {
 export default function ProjectDetails() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const params = useParams();
-  const projectId = parseInt(params.id);
+  const projectId = params.id ? parseInt(params.id) : 0;
   
   // Fetch project details
   const { 

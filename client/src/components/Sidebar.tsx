@@ -96,20 +96,37 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
             <Separator className="my-2" />
             
             {user?.role === "admin" && (
-              <Link href="/user-management">
-                <a 
-                  className={cn(
-                    "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                    location === "/user-management" 
-                      ? "bg-primary-50 text-primary-600 border-l-2 border-primary-600" 
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                  )}
-                  onClick={closeSidebarOnMobile}
-                >
-                  <Users className="h-5 w-5 mr-3" />
-                  User Management
-                </a>
-              </Link>
+              <>
+                <Link href="/project-management">
+                  <a 
+                    className={cn(
+                      "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                      location === "/project-management" 
+                        ? "bg-primary-50 text-primary-600 border-l-2 border-primary-600" 
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    )}
+                    onClick={closeSidebarOnMobile}
+                  >
+                    <Building2 className="h-5 w-5 mr-3" />
+                    Project Management
+                  </a>
+                </Link>
+                
+                <Link href="/user-management">
+                  <a 
+                    className={cn(
+                      "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                      location === "/user-management" 
+                        ? "bg-primary-50 text-primary-600 border-l-2 border-primary-600" 
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    )}
+                    onClick={closeSidebarOnMobile}
+                  >
+                    <Users className="h-5 w-5 mr-3" />
+                    User Management
+                  </a>
+                </Link>
+              </>
             )}
             
             <Link href="/settings">
