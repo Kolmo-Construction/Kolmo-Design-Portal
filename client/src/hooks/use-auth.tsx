@@ -106,14 +106,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/logout");
+      const res = await apiRequest("POST", "/api/logout");
+      return await res.json();
     },
     onSuccess: () => {
+      // Clear user data cache
       queryClient.setQueryData(["/api/user"], null);
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      
+      // Invalidate all other protected routes data
+      queryClient.invalidateQueries();
+      
+      toast({
+        title: "Logged out successfully",
+        description: "You have been securely logged out of your account.",
+      });
     },
     onError: (error: Error) => {
+      // Even if the server logout failed, clear local cache to prevent UI confusion
+      queryClient.setQueryData(["/api/user"], null);
+      
       toast({
-        title: "Logout failed",
+        title: "Logout issue",
         description: error.message,
         variant: "destructive",
       });
