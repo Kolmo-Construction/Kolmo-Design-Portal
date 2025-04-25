@@ -172,9 +172,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: (data: MagicLinkCreationResponse) => {
       if (data.warning) {
         toast({
-          title: "Magic link created with warning",
-          description: data.warning,
-          variant: "warning",
+          title: "Magic link created but not emailed",
+          description: "Email service is not configured. The magic link must be manually shared with the user.",
+          variant: "default",
         });
       } else {
         toast({

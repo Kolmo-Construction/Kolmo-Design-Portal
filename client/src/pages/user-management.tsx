@@ -154,7 +154,10 @@ export default function UserManagement() {
   const onSubmit = (data: NewUserFormValues) => {
     createMagicLinkMutation.mutate(data, {
       onSuccess: (response) => {
-        setCreatedMagicLink(response.magicLink);
+        // Only set magic link if it's available
+        if (response.magicLink) {
+          setCreatedMagicLink(response.magicLink);
+        }
         refetchUsers();
         // Don't close the dialog so the admin can copy the magic link
       },
@@ -435,7 +438,7 @@ export default function UserManagement() {
                       {createdMagicLink}
                     </div>
                     <Button
-                      onClick={() => copyToClipboard(createdMagicLink)}
+                      onClick={() => createdMagicLink && copyToClipboard(createdMagicLink)}
                       variant="outline"
                       size="icon"
                       className="rounded-l-none h-9"
@@ -444,7 +447,9 @@ export default function UserManagement() {
                     </Button>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    The magic link has been emailed to the user with instructions.
+                    {createMagicLinkMutation.data?.warning 
+                      ? "Email service is not configured. Please manually share this link with the user." 
+                      : "The magic link has been emailed to the user with instructions."}
                   </p>
                 </div>
                 
