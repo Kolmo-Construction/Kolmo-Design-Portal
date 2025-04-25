@@ -23,10 +23,10 @@ function Router() {
   return (
     <Switch>
       <Route path="/auth">
-        <AuthPage />
+        {() => <AuthPage />}
       </Route>
       <Route path="/auth/magic-link/:token">
-        <AuthPage isMagicLink={true} />
+        {() => <AuthPage isMagicLink={true} />}
       </Route>
       <ProtectedRoute path="/setup-profile" component={SetupProfile} />
       <ProtectedRoute path="/" component={Dashboard} />
@@ -39,8 +39,9 @@ function Router() {
       <ProtectedRoute path="/schedule" component={Schedule} />
       <ProtectedRoute path="/selections" component={Selections} />
       <ProtectedRoute path="/settings" component={Settings} />
+      <ProtectedRoute path="/user-management" component={UserManagement} />
       <Route>
-        <NotFound />
+        {() => <NotFound />}
       </Route>
     </Switch>
   );

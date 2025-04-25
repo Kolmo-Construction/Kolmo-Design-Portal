@@ -249,7 +249,7 @@ export default function UserManagement() {
                         </TableCell>
                         <TableCell>
                           {user.isActivated ? (
-                            <Badge variant="success" className="bg-green-100 text-green-800 hover:bg-green-200">
+                            <Badge variant="outline" className="bg-green-100 text-green-800 hover:bg-green-200">
                               Active
                             </Badge>
                           ) : (

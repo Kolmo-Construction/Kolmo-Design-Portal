@@ -270,4 +270,27 @@ export function setupAuth(app: Express) {
     
     res.status(200).json({ isAdmin: true });
   });
+
+  // Get all users - admin only
+  app.get("/api/admin/users", async (req, res) => {
+    try {
+      // Check if admin
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const users = await storage.getAllUsers();
+      
+      // Remove sensitive information from response
+      const sanitizedUsers = users.map(user => {
+        const { password, magicLinkToken, magicLinkExpiry, ...userWithoutSensitiveData } = user;
+        return userWithoutSensitiveData;
+      });
+      
+      res.status(200).json(sanitizedUsers);
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
 }
