@@ -146,7 +146,7 @@ export function setupAuth(app: Express) {
         return res.status(403).json({ message: "Admin access required" });
       }
       
-      const { email, firstName, lastName, role = "client" } = req.body;
+      const { email, firstName, lastName, role = "client", projectIds = [] } = req.body;
       
       if (!email || !firstName || !lastName) {
         return res.status(400).json({ message: "Email, first name, and last name are required" });
@@ -179,6 +179,20 @@ export function setupAuth(app: Express) {
           magicLinkExpiry: expiry,
           isActivated: false
         });
+      }
+      
+      // If this is a client user and there are project IDs, associate them with projects
+      if (role === "client" && projectIds.length > 0 && Array.isArray(projectIds)) {
+        try {
+          // Create client-project associations
+          for (const projectId of projectIds) {
+            await storage.assignClientToProject(user.id, projectId);
+          }
+          console.log(`Assigned client ${user.id} to ${projectIds.length} projects`);
+        } catch (error) {
+          console.error("Error assigning client to projects:", error);
+          // Continue with the response even if project assignment fails
+        }
       }
       
       // In a real application, you would send the magic link via email here
