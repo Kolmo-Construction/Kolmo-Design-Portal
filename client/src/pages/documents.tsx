@@ -258,7 +258,7 @@ export default function Documents() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={refetchDocuments}
+                    onClick={() => refetchDocuments()}
                     disabled={!startDate && !endDate}
                   >
                     <RefreshCcw className="mr-2 h-4 w-4" />

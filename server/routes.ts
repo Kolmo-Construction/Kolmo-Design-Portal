@@ -34,6 +34,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
   setupAuth(app);
 
+  // Development-only route to create an admin user
+  if (process.env.NODE_ENV === 'development') {
+    app.post("/api/dev/create-admin", async (req, res) => {
+      try {
+        // Hash password
+        const crypto = await import('crypto');
+        const scrypt = (await import('util')).promisify(crypto.scrypt);
+        
+        // Generate salt and hash password
+        const salt = crypto.randomBytes(16).toString("hex");
+        const buf = (await scrypt("admin123", salt, 64)) as Buffer;
+        const hashedPassword = `${buf.toString("hex")}.${salt}`;
+        
+        // Check if admin user already exists
+        const existingAdmin = await storage.getUserByUsername("admin");
+        
+        if (existingAdmin) {
+          return res.status(200).json({ 
+            message: "Admin user already exists", 
+            user: {
+              id: existingAdmin.id,
+              username: existingAdmin.username,
+              email: existingAdmin.email,
+              role: existingAdmin.role
+            }
+          });
+        }
+        
+        // Create admin user
+        const adminUser = await storage.createUser({
+          username: "admin",
+          password: hashedPassword,
+          email: "admin@example.com",
+          firstName: "Admin",
+          lastName: "User",
+          role: "admin",
+          magicLinkToken: null,
+          magicLinkExpiry: null,
+          isActivated: true
+        });
+        
+        // Return success response without sensitive data
+        res.status(201).json({
+          message: "Admin user created successfully",
+          user: {
+            id: adminUser.id,
+            username: adminUser.username,
+            email: adminUser.email,
+            role: adminUser.role
+          }
+        });
+      } catch (error) {
+        console.error("Error creating admin user:", error);
+        res.status(500).json({ message: "Error creating admin user" });
+      }
+    });
+  }
+
   // Project routes
   app.get("/api/projects", isAuthenticated, async (req, res) => {
     try {
