@@ -6,7 +6,7 @@ import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
 import Projects from "@/pages/projects";
-import ProjectDetails from "@/pages/project-details";
+import ProjectDetails from "@/pages/ProjectDetails";
 import ProjectManagement from "@/pages/project-management";
 import Documents from "@/pages/documents";
 import Financials from "@/pages/financials";
