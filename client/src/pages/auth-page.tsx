@@ -46,6 +46,7 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [forgotPasswordSubmitting, setForgotPasswordSubmitting] = useState(false);
   const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false);
+  const [forgotPasswordError, setForgotPasswordError] = useState('');
   const { 
     user, 
     loginMutation, 
@@ -416,6 +417,53 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
     );
   }
 
+  // Handle forgot password submission
+  const handleForgotPassword = () => {
+    setForgotPasswordError('');
+    setForgotPasswordSubmitting(true);
+    
+    // Basic validation
+    if (!forgotPasswordEmail || !forgotPasswordEmail.includes('@')) {
+      setForgotPasswordError('Please enter a valid email address');
+      setForgotPasswordSubmitting(false);
+      return;
+    }
+    
+    // Submit request to API
+    fetch('/api/password-reset-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: forgotPasswordEmail })
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('Failed to send reset link');
+      return res.json();
+    })
+    .then(() => {
+      setForgotPasswordSuccess(true);
+      // Keep dialog open to show success message
+    })
+    .catch(err => {
+      console.error('Error requesting password reset:', err);
+      setForgotPasswordError('Failed to send reset link. Please try again.');
+    })
+    .finally(() => {
+      setForgotPasswordSubmitting(false);
+    });
+  };
+  
+  // Reset forgot password dialog state when closed
+  const handleForgotPasswordDialogClose = () => {
+    setForgotPasswordDialogOpen(false);
+    // Reset the state after a delay to avoid visual glitches
+    setTimeout(() => {
+      setForgotPasswordEmail('');
+      setForgotPasswordError('');
+      setForgotPasswordSuccess(false);
+      setForgotPasswordSubmitting(false);
+    }, 300);
+  };
+
   // Regular auth form for non-magic link access
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
@@ -675,30 +723,7 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
             {!forgotPasswordSuccess ? (
               <form onSubmit={(e) => {
                 e.preventDefault();
-                setForgotPasswordSubmitting(true);
-                
-                // Make API call to request password reset
-                fetch('/api/password-reset-request', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ email: forgotPasswordEmail })
-                })
-                .then(res => {
-                  if (!res.ok) throw new Error('Failed to send reset link');
-                  return res.json();
-                })
-                .then(() => {
-                  setForgotPasswordSuccess(true);
-                })
-                .catch(err => {
-                  console.error("Password reset error:", err);
-                  // We still show success even if there's an error for security reasons
-                  // This prevents email enumeration attacks
-                  setForgotPasswordSuccess(true);
-                })
-                .finally(() => {
-                  setForgotPasswordSubmitting(false);
-                });
+                handleForgotPassword();
               }}>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
@@ -717,7 +742,7 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setForgotPasswordDialogOpen(false)}
+                    onClick={handleForgotPasswordDialogClose}
                   >
                     Cancel
                   </Button>
