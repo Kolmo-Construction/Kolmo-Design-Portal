@@ -71,6 +71,22 @@ export function CreateTaskDialog({
     },
   });
 
+  // Helper function to safely format dates
+  const safeFormatDate = (value: any) => {
+    if (!value) return "";
+    try {
+      if (typeof value === 'string') {
+        return formatDate(value, "PPP");
+      } else if (value instanceof Date) {
+        return formatDate(value.toISOString(), "PPP");
+      }
+      return "Invalid date";
+    } catch (err) {
+      console.error("Date formatting error:", err);
+      return "Date error";
+    }
+  };
+
   // Handle form submission
   const handleFormSubmit = (values: InsertTask) => {
     console.log("Form submitted:", values);
@@ -204,7 +220,7 @@ export function CreateTaskDialog({
                             )}
                           >
                             {field.value 
-                              ? formatDate(field.value, "PPP") 
+                              ? safeFormatDate(field.value)
                               : <span>Pick a date</span>
                             }
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
@@ -243,7 +259,7 @@ export function CreateTaskDialog({
                             )}
                           >
                             {field.value 
-                              ? formatDate(field.value, "PPP") 
+                              ? safeFormatDate(field.value)
                               : <span>Pick a date</span>
                             }
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
