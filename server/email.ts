@@ -116,12 +116,14 @@ export async function sendMagicLinkEmail({
   email, 
   firstName, 
   token,
-  resetPassword = false
+  resetPassword = false,
+  isNewUser = false
 }: {
   email: string;
   firstName: string;
   token: string;
   resetPassword?: boolean;
+  isNewUser?: boolean;
 }): Promise<boolean> {
   // In Replit environment, use the public URL; otherwise fallback to localhost
   let baseUrl = process.env.BASE_URL;
@@ -140,7 +142,7 @@ export async function sendMagicLinkEmail({
     : `/magic-link/${token}`;
   
   const magicLink = `${baseUrl}${path}`;
-  const isNewUser = !resetPassword && token.includes('new-user');
+  // isNewUser should be passed as a parameter from auth.ts, not derived from token
   
   const subject = resetPassword
     ? 'Reset Your Construction Client Portal Password'

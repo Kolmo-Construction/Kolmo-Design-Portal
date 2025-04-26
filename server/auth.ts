@@ -210,12 +210,12 @@ export function setupAuth(app: Express) {
       let emailSent = false;
       
       if (isEmailServiceConfigured()) {
-        emailSent = await sendMagicLinkEmail(
+        emailSent = await sendMagicLinkEmail({
           email,
           firstName,
-          magicLink,
+          token: magicLink,
           isNewUser
-        );
+        });
       } else {
         console.warn('Email service not configured. Magic link will not be sent.');
       }

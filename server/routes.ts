@@ -465,17 +465,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/projects/:projectId/documents", isAdmin, async (req, res) => {
+  app.post("/api/projects/:projectId/documents", isAuthenticated, async (req, res) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
+      
+      const user = req.user!;
+      
+      // Check if user has permission to upload documents for this project
+      if (user.role === "client") {
+        return res.status(403).json({ message: "Clients cannot upload documents" });
+      } else if (user.role === "projectManager") {
+        // Project managers can only upload documents for their projects
+        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
+        if (!hasAccess) {
+          return res.status(403).json({ message: "You don't have access to this project" });
+        }
+      }
+      // Admins bypass the check
 
       const documentData = insertDocumentSchema.parse({
         ...req.body,
         projectId,
-        uploadedById: req.user!.id
+        uploadedById: user.id
       });
       
       const newDocument = await storage.createDocument(documentData);
@@ -604,17 +618,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/projects/:projectId/updates", isAdmin, async (req, res) => {
+  app.post("/api/projects/:projectId/updates", isAuthenticated, async (req, res) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
+      
+      const user = req.user!;
+      
+      // Check if user has permission to create updates for this project
+      if (user.role === "client") {
+        return res.status(403).json({ message: "Clients cannot create progress updates" });
+      } else if (user.role === "projectManager") {
+        // Project managers can only create updates for their projects
+        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
+        if (!hasAccess) {
+          return res.status(403).json({ message: "You don't have access to this project" });
+        }
+      }
+      // Admins bypass the check
 
       const updateData = insertProgressUpdateSchema.parse({
         ...req.body,
         projectId,
-        createdById: req.user!.id
+        createdById: user.id
       });
       
       const newUpdate = await storage.createProgressUpdate(updateData);
@@ -649,12 +677,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/projects/:projectId/milestones", isAdmin, async (req, res) => {
+  app.post("/api/projects/:projectId/milestones", isAuthenticated, async (req, res) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
+      
+      const user = req.user!;
+      
+      // Check if user has permission to create milestones for this project
+      if (user.role === "client") {
+        return res.status(403).json({ message: "Clients cannot create milestones" });
+      } else if (user.role === "projectManager") {
+        // Project managers can only create milestones for their projects
+        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
+        if (!hasAccess) {
+          return res.status(403).json({ message: "You don't have access to this project" });
+        }
+      }
+      // Admins bypass the check
 
       const milestoneData = insertMilestoneSchema.parse({
         ...req.body,
@@ -693,12 +735,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/projects/:projectId/selections", isAdmin, async (req, res) => {
+  app.post("/api/projects/:projectId/selections", isAuthenticated, async (req, res) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
+      
+      const user = req.user!;
+      
+      // Check if user has permission to create selections for this project
+      if (user.role === "client") {
+        return res.status(403).json({ message: "Clients cannot create selections" });
+      } else if (user.role === "projectManager") {
+        // Project managers can only create selections for their projects
+        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
+        if (!hasAccess) {
+          return res.status(403).json({ message: "You don't have access to this project" });
+        }
+      }
+      // Admins bypass the check
 
       const selectionData = insertSelectionSchema.parse({
         ...req.body,
