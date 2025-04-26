@@ -742,7 +742,7 @@ export default function ProjectManagement() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
                           {projectManagers.map((manager) => (
                             <SelectItem key={manager.id} value={manager.id.toString()}>
                               {manager.firstName} {manager.lastName}
@@ -1169,7 +1169,7 @@ export default function ProjectManagement() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
                           {projectManagers.map((manager) => (
                             <SelectItem key={manager.id} value={manager.id.toString()}>
                               {manager.firstName} {manager.lastName}
