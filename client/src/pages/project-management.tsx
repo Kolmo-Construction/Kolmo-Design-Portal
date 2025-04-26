@@ -254,28 +254,54 @@ export default function ProjectManagement() {
 
   // Handle create project submission
   const onCreateSubmit = (values: ProjectFormValues) => {
-    // Process values (convert string to number for totalBudget)
+    // Clean and format data BEFORE submitting
     const formattedValues = {
       ...values,
-      totalBudget: typeof values.totalBudget === 'string' ? parseFloat(values.totalBudget) : values.totalBudget,
+      // Remove '$', ',', spaces and convert to number
+      totalBudget: parseFloat(String(values.totalBudget).replace(/[^0-9.]/g, '')),
+      // Format dates to ISO strings (or ensure they are Date objects if backend handles them)
+      startDate: values.startDate ? new Date(values.startDate).toISOString() : undefined,
+      estimatedCompletionDate: values.estimatedCompletionDate ? new Date(values.estimatedCompletionDate).toISOString() : undefined,
+      actualCompletionDate: values.actualCompletionDate ? new Date(values.actualCompletionDate).toISOString() : undefined,
+      // Ensure optional projectManagerId is number or undefined
+      projectManagerId: values.projectManagerId ? Number(values.projectManagerId) : undefined,
     };
     
-    createProjectMutation.mutate(formattedValues);
+    // Validate the formatted number just in case
+    if (isNaN(formattedValues.totalBudget) || formattedValues.totalBudget <= 0) {
+      createForm.setError("totalBudget", { type: "manual", message: "Invalid budget amount." });
+      return;
+    }
+    
+    createProjectMutation.mutate(formattedValues); // Submit cleaned data
   };
 
   // Handle edit project submission
   const onEditSubmit = (values: ProjectFormValues) => {
     if (!selectedProject) return;
     
-    // Process values (convert string to number for totalBudget)
+    // Clean and format data BEFORE submitting
     const formattedValues = {
       ...values,
-      totalBudget: typeof values.totalBudget === 'string' ? parseFloat(values.totalBudget) : values.totalBudget,
+      // Remove '$', ',', spaces and convert to number
+      totalBudget: parseFloat(String(values.totalBudget).replace(/[^0-9.]/g, '')),
+      // Format dates to ISO strings (or ensure they are Date objects if backend handles them)
+      startDate: values.startDate ? new Date(values.startDate).toISOString() : undefined,
+      estimatedCompletionDate: values.estimatedCompletionDate ? new Date(values.estimatedCompletionDate).toISOString() : undefined,
+      actualCompletionDate: values.actualCompletionDate ? new Date(values.actualCompletionDate).toISOString() : undefined,
+      // Ensure optional projectManagerId is number or undefined
+      projectManagerId: values.projectManagerId ? Number(values.projectManagerId) : undefined,
     };
+    
+    // Validate the formatted number just in case
+    if (isNaN(formattedValues.totalBudget) || formattedValues.totalBudget <= 0) {
+      editForm.setError("totalBudget", { type: "manual", message: "Invalid budget amount." });
+      return;
+    }
     
     editProjectMutation.mutate({
       id: selectedProject.id,
-      project: formattedValues
+      project: formattedValues // Submit cleaned data
     });
   };
 
