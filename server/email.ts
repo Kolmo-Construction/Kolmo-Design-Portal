@@ -26,8 +26,9 @@ interface EmailOptions {
   from?: string;
 }
 
-// Default sender email - should be configured appropriately in a real application
-const DEFAULT_FROM_EMAIL = 'noreply@constructionportal.com';
+// Default sender email - should be a verified domain in MailerSend account
+// Can be overridden with environment variable
+const DEFAULT_FROM_EMAIL = process.env.EMAIL_FROM || 'noreply@constructionportal.com';
 
 /**
  * Send an email using MailerSend
