@@ -273,6 +273,7 @@ export default function ProjectManagement() {
       return;
     }
     
+    console.log("Submitting formatted values:", formattedValues); // Log formatted values
     createProjectMutation.mutate(formattedValues); // Submit cleaned data
   };
 
@@ -298,6 +299,8 @@ export default function ProjectManagement() {
       editForm.setError("totalBudget", { type: "manual", message: "Invalid budget amount." });
       return;
     }
+    
+    console.log("Submitting edited values:", formattedValues); // Log formatted values
     
     editProjectMutation.mutate({
       id: selectedProject.id,

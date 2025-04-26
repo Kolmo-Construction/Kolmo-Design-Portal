@@ -325,11 +325,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/projects", isAdmin, async (req, res) => {
     try {
+      console.log("Received project data:", req.body);
       const projectData = insertProjectSchema.parse(req.body);
+      console.log("Validated project data:", projectData);
       const newProject = await storage.createProject(projectData);
       res.status(201).json(newProject);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("Validation error:", error.errors);
         return res.status(400).json({ message: "Invalid project data", errors: error.errors });
       }
       console.error("Error creating project:", error);
@@ -344,7 +347,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
+      console.log("Received edit project data:", req.body);
       const projectData = insertProjectSchema.parse(req.body);
+      console.log("Validated edit project data:", projectData);
+      
       const updatedProject = await storage.updateProject(projectId, projectData);
       
       if (!updatedProject) {
@@ -354,6 +360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedProject);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("Edit validation error:", error.errors);
         return res.status(400).json({ message: "Invalid project data", errors: error.errors });
       }
       console.error("Error updating project:", error);
