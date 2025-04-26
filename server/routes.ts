@@ -562,7 +562,8 @@ dailyLogRouter.delete("/:logId", async (req: Request<DailyLogParams>, res) => {
 // GET all punch list items for a project
 punchListRouter.get("/", async (req: Request<ProjectParams>, res) => {
   try {
-    const projectId = parseInt(req.params.projectId);
+    // Add explicit type assertions for TypeScript
+    const projectId = parseInt(req.params.projectId as string);
     if (isNaN(projectId)) {
       return res.status(400).json({ message: "Invalid project ID" });
     }
@@ -583,8 +584,9 @@ punchListRouter.get("/", async (req: Request<ProjectParams>, res) => {
 // GET a single punch list item
 punchListRouter.get("/:itemId", async (req: Request<PunchListItemParams>, res) => {
   try {
-    const projectId = parseInt(req.params.projectId);
-    const itemId = parseInt(req.params.itemId);
+    // Add explicit type assertions for TypeScript
+    const projectId = parseInt(req.params.projectId as string);
+    const itemId = parseInt(req.params.itemId as string);
     
     if (isNaN(projectId) || isNaN(itemId)) {
       return res.status(400).json({ message: "Invalid project ID or item ID" });
@@ -614,9 +616,10 @@ punchListRouter.get("/:itemId", async (req: Request<PunchListItemParams>, res) =
 });
 
 // POST create a new punch list item
-punchListRouter.post("/", upload.single('photo'), async (req, res) => {
+punchListRouter.post("/", upload.single('photo'), async (req: Request<ProjectParams>, res) => {
   try {
-    const projectId = parseInt(req.params.projectId);
+    // Add explicit type assertions for TypeScript
+    const projectId = parseInt(req.params.projectId as string);
     if (isNaN(projectId)) {
       return res.status(400).json({ message: "Invalid project ID" });
     }
@@ -673,10 +676,11 @@ punchListRouter.post("/", upload.single('photo'), async (req, res) => {
 });
 
 // PUT update a punch list item
-punchListRouter.put("/:itemId", upload.single('photo'), async (req, res) => {
+punchListRouter.put("/:itemId", upload.single('photo'), async (req: Request<PunchListItemParams>, res) => {
   try {
-    const projectId = parseInt(req.params.projectId);
-    const itemId = parseInt(req.params.itemId);
+    // Add explicit type assertions for TypeScript
+    const projectId = parseInt(req.params.projectId as string);
+    const itemId = parseInt(req.params.itemId as string);
     
     if (isNaN(projectId) || isNaN(itemId)) {
       return res.status(400).json({ message: "Invalid project ID or item ID" });
@@ -750,10 +754,11 @@ punchListRouter.put("/:itemId", upload.single('photo'), async (req, res) => {
 });
 
 // DELETE a punch list item
-punchListRouter.delete("/:itemId", async (req, res) => {
+punchListRouter.delete("/:itemId", async (req: Request<PunchListItemParams>, res) => {
   try {
-    const projectId = parseInt(req.params.projectId);
-    const itemId = parseInt(req.params.itemId);
+    // Add explicit type assertions for TypeScript
+    const projectId = parseInt(req.params.projectId as string);
+    const itemId = parseInt(req.params.itemId as string);
     
     if (isNaN(projectId) || isNaN(itemId)) {
       return res.status(400).json({ message: "Invalid project ID or item ID" });
