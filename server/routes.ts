@@ -1,7 +1,9 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import multer from 'multer'; // <-- Import multer
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
+import { uploadToR2 } from "./r2-upload"; // <-- Import the updated upload function
 import {
   insertProjectSchema,
   insertDocumentSchema,
@@ -16,12 +18,45 @@ import { z } from "zod";
 import { isEmailServiceConfigured, sendMagicLinkEmail } from "./email";
 import { randomBytes, scrypt } from "crypto";
 import { promisify } from "util";
-import { ilike, or } from "drizzle-orm"; // Added ilike, or imports
+import { ilike, or } from "drizzle-orm";
 
 const scryptAsync = promisify(scrypt);
 
+// --- Multer Configuration ---
+const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB limit (adjust as needed)
+const ALLOWED_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'application/pdf',
+  'application/msword', // .doc
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+  'application/vnd.ms-excel', // .xls
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  'text/plain',
+  'application/zip', // Allow zip files
+  // Add other allowed types as needed
+];
+
+const storageEngine = multer.memoryStorage(); // Store files in memory temporarily
+
+const upload = multer({
+  storage: storageEngine,
+  limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+      cb(null, true); // Accept file
+    } else {
+      // Reject file with a specific error message
+      cb(new multer.MulterError('LIMIT_UNEXPECTED_FILE', `Invalid file type: ${file.mimetype}. Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}`));
+    }
+  }
+});
+// --- End Multer Configuration ---
+
+
 // Helper function to check if user is authenticated
-function isAuthenticated(req: Request, res: Response, next: Function) {
+function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated()) {
     return next();
   }
@@ -29,7 +64,7 @@ function isAuthenticated(req: Request, res: Response, next: Function) {
 }
 
 // Helper function to check if user is an admin
-function isAdmin(req: Request, res: Response, next: Function) {
+function isAdmin(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated() && req.user && req.user.role === "admin") {
     return next();
   }
@@ -325,7 +360,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // --- MODIFIED: Create Project Route ---
   app.post("/api/projects", isAdmin, async (req, res) => {
     try {
       console.log("Received project data:", req.body);
@@ -355,7 +389,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (assignError) {
           console.error(`Error assigning clients to project ${newProject.id}:`, assignError);
           // Decide if you want to return an error or just warn and continue
-          // For now, we'll return the project but maybe add a warning later
         }
       }
 
@@ -369,7 +402,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to create project" });
     }
   });
-  // --- END MODIFIED ---
 
   app.put("/api/projects/:id", isAdmin, async (req, res) => {
     try {
@@ -379,7 +411,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log("Received edit project data:", req.body);
-      // Use the schema to parse, but remember clientIds might not be editable here directly
       const { clientIds, ...projectData } = insertProjectSchema.parse(req.body);
       console.log("Validated edit project data:", projectData);
 
@@ -388,8 +419,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!updatedProject) {
         return res.status(404).json({ message: "Project not found" });
       }
-
-      // Note: Client assignment editing is handled separately for now.
 
       res.json(updatedProject);
     } catch (error) {
@@ -430,12 +459,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid project or client ID" });
       }
 
-      // Check if the user is a project manager or admin
       if (user.role !== "projectManager" && user.role !== "admin") {
         return res.status(403).json({ message: "Only project managers or admins can assign clients" });
       }
 
-      // If the user is a project manager, verify they have access to this project
       if (user.role === "projectManager") {
         const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
         if (!hasAccess) {
@@ -443,7 +470,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Check if the client exists and has the client role
       const client = await storage.getUser(clientId);
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
@@ -453,13 +479,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "User is not a client" });
       }
 
-      // Check if the project exists
       const project = await storage.getProject(projectId);
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
 
-      // Create client-project association
       const clientProject = await storage.assignClientToProject(clientId, projectId);
 
       res.status(201).json({
@@ -472,7 +496,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Document routes
+  // --- Document routes ---
   app.get("/api/projects/:projectId/documents", isAuthenticated, async (req, res) => {
     try {
       const projectId = parseInt(req.params.projectId);
@@ -480,22 +504,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
-      const user = req.user!;
-      // Check permissions based on role
-      if (user.role === "admin") {
-        // Admins can access any project
-      } else if (user.role === "projectManager") {
-        // Project managers can only access projects they're assigned to
-        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
-      } else if (user.role === "client") {
-        // Clients can only access projects they're assigned to
-        const hasAccess = await storage.clientHasProjectAccess(user.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
+      // Check project access based on user role
+      if (!(await checkProjectAccess(req, res, projectId))) {
+        return; // Response already sent by checkProjectAccess
       }
 
       const documents = await storage.getProjectDocuments(projectId);
@@ -506,343 +517,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/projects/:projectId/documents", isAuthenticated, async (req, res) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
+  // --- MODIFIED Document Upload Route ---
+  // Note: Assuming 'documentFile' is the field name used in the frontend form for the file input
+  app.post(
+    "/api/projects/:projectId/documents",
+    isAuthenticated,
+    (req, res, next) => {
+        // Apply multer middleware specifically to this route
+        upload.single('documentFile')(req, res, (err) => {
+            if (err) {
+                // Handle Multer errors (like file size limit or invalid type)
+                if (err instanceof multer.MulterError) {
+                    console.warn(`Multer error during upload: ${err.code} - ${err.message}`);
+                    let friendlyMessage = "Failed to upload file.";
+                    if (err.code === 'LIMIT_FILE_SIZE') {
+                        friendlyMessage = `File exceeds the size limit of ${MAX_FILE_SIZE / 1024 / 1024}MB.`;
+                    } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+                        friendlyMessage = err.message; // Use the message from the fileFilter
+                    }
+                    return res.status(400).json({ message: friendlyMessage, code: err.code });
+                }
+                // Handle other potential errors during upload middleware processing
+                console.error("Error during upload middleware:", err);
+                return res.status(500).json({ message: "An unexpected error occurred during file upload." });
+            }
+            // If no error, proceed to the route handler logic
+            next();
+        });
+    },
+    async (req, res) => {
+      try {
+        const projectId = parseInt(req.params.projectId);
+        if (isNaN(projectId)) {
+          return res.status(400).json({ message: "Invalid project ID" });
+        }
 
-      const user = req.user!;
+        // Check if file was actually uploaded by multer
+        if (!req.file) {
+          return res.status(400).json({ message: "No file uploaded." });
+        }
 
-      // Check if user has permission to upload documents for this project
-      if (user.role === "client") {
-        return res.status(403).json({ message: "Clients cannot upload documents" });
-      } else if (user.role === "projectManager") {
-        // Project managers can only upload documents for their projects
-        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
+        const user = req.user!;
+
+        // Check if user has permission to upload documents for this project
+        if (user.role === "client") {
+          return res.status(403).json({ message: "Clients cannot upload documents" });
+        } else if (user.role === "projectManager") {
+          const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
+          if (!hasAccess) {
+            return res.status(403).json({ message: "You don't have access to this project" });
+          }
+        }
+
+        // --- Upload to R2 ---
+        const fileBuffer = req.file.buffer;
+        const originalFilename = req.file.originalname;
+        const mimeType = req.file.mimetype;
+        const fileSize = req.file.size;
+
+        // Call the updated upload function
+        const fileUrl = await uploadToR2(
+          projectId,
+          fileBuffer,
+          originalFilename,
+          mimeType
+        );
+
+        // --- Save metadata to database ---
+        // Validate the rest of the form data from req.body
+        const documentMetadata = insertDocumentSchema.parse({
+          projectId,
+          name: req.body.name || originalFilename, // Use original filename if name not provided
+          description: req.body.description || "",
+          fileUrl: fileUrl, // Use the URL returned from R2
+          fileType: mimeType,
+          fileSize: fileSize,
+          category: req.body.category || "uncategorized", // Default category
+          uploadedById: user.id,
+        });
+
+        const newDocument = await storage.createDocument(documentMetadata);
+
+        res.status(201).json(newDocument);
+
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({ message: "Invalid document metadata", errors: error.errors });
+        }
+        // Handle errors from uploadToR2 or storage.createDocument
+        console.error("Error processing document upload:", error);
+        if (error instanceof Error && (error.message.includes("R2") || error.message.includes("storage"))) {
+             res.status(500).json({ message: error.message });
+        } else {
+             res.status(500).json({ message: "Failed to process document upload." });
         }
       }
-      // Admins bypass the check
-
-      const documentData = insertDocumentSchema.parse({
-        ...req.body,
-        projectId,
-        uploadedById: user.id
-      });
-
-      const newDocument = await storage.createDocument(documentData);
-      res.status(201).json(newDocument);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid document data", errors: error.errors });
-      }
-      console.error("Error creating document:", error);
-      res.status(500).json({ message: "Failed to create document" });
     }
-  });
-
-  // Financial routes
-  app.get("/api/projects/:projectId/invoices", isAuthenticated, async (req, res) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      // Check project access based on user role
-      if (!(await checkProjectAccess(req, res, projectId))) {
-        return; // Response already sent by checkProjectAccess
-      }
-
-      const invoices = await storage.getProjectInvoices(projectId);
-      res.json(invoices);
-    } catch (error) {
-      console.error("Error fetching invoices:", error);
-      res.status(500).json({ message: "Failed to fetch invoices" });
-    }
-  });
-
-  app.post("/api/projects/:projectId/invoices", isAdmin, async (req, res) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      const invoiceData = insertInvoiceSchema.parse({
-        ...req.body,
-        projectId
-      });
-
-      const newInvoice = await storage.createInvoice(invoiceData);
-      res.status(201).json(newInvoice);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid invoice data", errors: error.errors });
-      }
-      console.error("Error creating invoice:", error);
-      res.status(500).json({ message: "Failed to create invoice" });
-    }
-  });
-
-  // Message routes
-  app.get("/api/projects/:projectId/messages", isAuthenticated, async (req, res) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      // Check project access based on user role
-      if (!(await checkProjectAccess(req, res, projectId))) {
-        return; // Response already sent by checkProjectAccess
-      }
-
-      const messages = await storage.getProjectMessages(projectId);
-      res.json(messages);
-    } catch (error) {
-      console.error("Error fetching messages:", error);
-      res.status(500).json({ message: "Failed to fetch messages" });
-    }
-  });
-
-  app.post("/api/projects/:projectId/messages", isAuthenticated, async (req, res) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      // Check project access based on user role
-      if (!(await checkProjectAccess(req, res, projectId))) {
-        return; // Response already sent by checkProjectAccess
-      }
-
-      const messageData = insertMessageSchema.parse({
-        ...req.body,
-        projectId,
-        senderId: req.user!.id
-      });
-
-      const newMessage = await storage.createMessage(messageData);
-      res.status(201).json(newMessage);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid message data", errors: error.errors });
-      }
-      console.error("Error creating message:", error);
-      res.status(500).json({ message: "Failed to create message" });
-    }
-  });
-
-  // Progress update routes
-  app.get("/api/projects/:projectId/updates", isAuthenticated, async (req, res) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      // Check project access based on user role
-      if (!(await checkProjectAccess(req, res, projectId))) {
-        return; // Response already sent by checkProjectAccess
-      }
-
-      const updates = await storage.getProjectUpdates(projectId);
-      res.json(updates);
-    } catch (error) {
-      console.error("Error fetching updates:", error);
-      res.status(500).json({ message: "Failed to fetch updates" });
-    }
-  });
-
-  app.post("/api/projects/:projectId/updates", isAuthenticated, async (req, res) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      const user = req.user!;
-
-      // Check if user has permission to create updates for this project
-      if (user.role === "client") {
-        return res.status(403).json({ message: "Clients cannot create progress updates" });
-      } else if (user.role === "projectManager") {
-        // Project managers can only create updates for their projects
-        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
-      }
-      // Admins bypass the check
-
-      const updateData = insertProgressUpdateSchema.parse({
-        ...req.body,
-        projectId,
-        createdById: user.id
-      });
-
-      const newUpdate = await storage.createProgressUpdate(updateData);
-      res.status(201).json(newUpdate);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid update data", errors: error.errors });
-      }
-      console.error("Error creating update:", error);
-      res.status(500).json({ message: "Failed to create update" });
-    }
-  });
-
-  // Milestone routes
-  app.get("/api/projects/:projectId/milestones", isAuthenticated, async (req, res) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      // Check project access based on user role
-      if (!(await checkProjectAccess(req, res, projectId))) {
-        return; // Response already sent by checkProjectAccess
-      }
-
-      const milestones = await storage.getProjectMilestones(projectId);
-      res.json(milestones);
-    } catch (error) {
-      console.error("Error fetching milestones:", error);
-      res.status(500).json({ message: "Failed to fetch milestones" });
-    }
-  });
-
-  app.post("/api/projects/:projectId/milestones", isAuthenticated, async (req, res) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      const user = req.user!;
-
-      // Check if user has permission to create milestones for this project
-      if (user.role === "client") {
-        return res.status(403).json({ message: "Clients cannot create milestones" });
-      } else if (user.role === "projectManager") {
-        // Project managers can only create milestones for their projects
-        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
-      }
-      // Admins bypass the check
-
-      const milestoneData = insertMilestoneSchema.parse({
-        ...req.body,
-        projectId
-      });
-
-      const newMilestone = await storage.createMilestone(milestoneData);
-      res.status(201).json(newMilestone);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid milestone data", errors: error.errors });
-      }
-      console.error("Error creating milestone:", error);
-      res.status(500).json({ message: "Failed to create milestone" });
-    }
-  });
-
-  // Selection routes
-  app.get("/api/projects/:projectId/selections", isAuthenticated, async (req, res) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      // Check project access based on user role
-      if (!(await checkProjectAccess(req, res, projectId))) {
-        return; // Response already sent by checkProjectAccess
-      }
-
-      const selections = await storage.getProjectSelections(projectId);
-      res.json(selections);
-    } catch (error) {
-      console.error("Error fetching selections:", error);
-      res.status(500).json({ message: "Failed to fetch selections" });
-    }
-  });
-
-  app.post("/api/projects/:projectId/selections", isAuthenticated, async (req, res) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      const user = req.user!;
-
-      // Check if user has permission to create selections for this project
-      if (user.role === "client") {
-        return res.status(403).json({ message: "Clients cannot create selections" });
-      } else if (user.role === "projectManager") {
-        // Project managers can only create selections for their projects
-        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
-      }
-      // Admins bypass the check
-
-      const selectionData = insertSelectionSchema.parse({
-        ...req.body,
-        projectId
-      });
-
-      const newSelection = await storage.createSelection(selectionData);
-      res.status(201).json(newSelection);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid selection data", errors: error.errors });
-      }
-      console.error("Error creating selection:", error);
-      res.status(500).json({ message: "Failed to create selection" });
-    }
-  });
-
-  app.put("/api/projects/:projectId/selections/:id", isAuthenticated, async (req, res) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      const selectionId = parseInt(req.params.id);
-
-      if (isNaN(projectId) || isNaN(selectionId)) {
-        return res.status(400).json({ message: "Invalid project or selection ID" });
-      }
-
-      // Check project access based on user role
-      if (!(await checkProjectAccess(req, res, projectId))) {
-        return; // Response already sent by checkProjectAccess
-      }
-
-      const { selectedOption } = req.body;
-      if (!selectedOption) {
-        return res.status(400).json({ message: "Selected option is required" });
-      }
-
-      const updatedSelection = await storage.updateSelectionChoice(selectionId, selectedOption);
-      if (!updatedSelection) {
-        return res.status(404).json({ message: "Selection not found" });
-      }
-
-      res.json(updatedSelection);
-    } catch (error) {
-      console.error("Error updating selection:", error);
-      res.status(500).json({ message: "Failed to update selection" });
-    }
-  });
+  );
+  // --- END MODIFIED Document Upload Route ---
 
   // Get all documents (for document center)
   app.get("/api/documents", isAuthenticated, async (req, res) => {
@@ -903,7 +675,292 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // --- NEW: Client Search Route ---
+
+  // Financial routes
+  app.get("/api/projects/:projectId/invoices", isAuthenticated, async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      if (!(await checkProjectAccess(req, res, projectId))) {
+        return;
+      }
+
+      const invoices = await storage.getProjectInvoices(projectId);
+      res.json(invoices);
+    } catch (error) {
+      console.error("Error fetching invoices:", error);
+      res.status(500).json({ message: "Failed to fetch invoices" });
+    }
+  });
+
+  app.post("/api/projects/:projectId/invoices", isAdmin, async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      const invoiceData = insertInvoiceSchema.parse({
+        ...req.body,
+        projectId
+      });
+
+      const newInvoice = await storage.createInvoice(invoiceData);
+      res.status(201).json(newInvoice);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid invoice data", errors: error.errors });
+      }
+      console.error("Error creating invoice:", error);
+      res.status(500).json({ message: "Failed to create invoice" });
+    }
+  });
+
+  // Message routes
+  app.get("/api/projects/:projectId/messages", isAuthenticated, async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      if (!(await checkProjectAccess(req, res, projectId))) {
+        return;
+      }
+
+      const messages = await storage.getProjectMessages(projectId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  app.post("/api/projects/:projectId/messages", isAuthenticated, async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      if (!(await checkProjectAccess(req, res, projectId))) {
+        return;
+      }
+
+      const messageData = insertMessageSchema.parse({
+        ...req.body,
+        projectId,
+        senderId: req.user!.id
+      });
+
+      const newMessage = await storage.createMessage(messageData);
+      res.status(201).json(newMessage);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid message data", errors: error.errors });
+      }
+      console.error("Error creating message:", error);
+      res.status(500).json({ message: "Failed to create message" });
+    }
+  });
+
+  // Progress update routes
+  app.get("/api/projects/:projectId/updates", isAuthenticated, async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      if (!(await checkProjectAccess(req, res, projectId))) {
+        return;
+      }
+
+      const updates = await storage.getProjectUpdates(projectId);
+      res.json(updates);
+    } catch (error) {
+      console.error("Error fetching updates:", error);
+      res.status(500).json({ message: "Failed to fetch updates" });
+    }
+  });
+
+  app.post("/api/projects/:projectId/updates", isAuthenticated, async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      const user = req.user!;
+
+      if (user.role === "client") {
+        return res.status(403).json({ message: "Clients cannot create progress updates" });
+      } else if (user.role === "projectManager") {
+        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
+        if (!hasAccess) {
+          return res.status(403).json({ message: "You don't have access to this project" });
+        }
+      }
+
+      const updateData = insertProgressUpdateSchema.parse({
+        ...req.body,
+        projectId,
+        createdById: user.id
+      });
+
+      const newUpdate = await storage.createProgressUpdate(updateData);
+      res.status(201).json(newUpdate);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid update data", errors: error.errors });
+      }
+      console.error("Error creating update:", error);
+      res.status(500).json({ message: "Failed to create update" });
+    }
+  });
+
+  // Milestone routes
+  app.get("/api/projects/:projectId/milestones", isAuthenticated, async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      if (!(await checkProjectAccess(req, res, projectId))) {
+        return;
+      }
+
+      const milestones = await storage.getProjectMilestones(projectId);
+      res.json(milestones);
+    } catch (error) {
+      console.error("Error fetching milestones:", error);
+      res.status(500).json({ message: "Failed to fetch milestones" });
+    }
+  });
+
+  app.post("/api/projects/:projectId/milestones", isAuthenticated, async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      const user = req.user!;
+
+      if (user.role === "client") {
+        return res.status(403).json({ message: "Clients cannot create milestones" });
+      } else if (user.role === "projectManager") {
+        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
+        if (!hasAccess) {
+          return res.status(403).json({ message: "You don't have access to this project" });
+        }
+      }
+
+      const milestoneData = insertMilestoneSchema.parse({
+        ...req.body,
+        projectId
+      });
+
+      const newMilestone = await storage.createMilestone(milestoneData);
+      res.status(201).json(newMilestone);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid milestone data", errors: error.errors });
+      }
+      console.error("Error creating milestone:", error);
+      res.status(500).json({ message: "Failed to create milestone" });
+    }
+  });
+
+  // Selection routes
+  app.get("/api/projects/:projectId/selections", isAuthenticated, async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      if (!(await checkProjectAccess(req, res, projectId))) {
+        return;
+      }
+
+      const selections = await storage.getProjectSelections(projectId);
+      res.json(selections);
+    } catch (error) {
+      console.error("Error fetching selections:", error);
+      res.status(500).json({ message: "Failed to fetch selections" });
+    }
+  });
+
+  app.post("/api/projects/:projectId/selections", isAuthenticated, async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      const user = req.user!;
+
+      if (user.role === "client") {
+        return res.status(403).json({ message: "Clients cannot create selections" });
+      } else if (user.role === "projectManager") {
+        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
+        if (!hasAccess) {
+          return res.status(403).json({ message: "You don't have access to this project" });
+        }
+      }
+
+      const selectionData = insertSelectionSchema.parse({
+        ...req.body,
+        projectId
+      });
+
+      const newSelection = await storage.createSelection(selectionData);
+      res.status(201).json(newSelection);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid selection data", errors: error.errors });
+      }
+      console.error("Error creating selection:", error);
+      res.status(500).json({ message: "Failed to create selection" });
+    }
+  });
+
+  app.put("/api/projects/:projectId/selections/:id", isAuthenticated, async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const selectionId = parseInt(req.params.id);
+
+      if (isNaN(projectId) || isNaN(selectionId)) {
+        return res.status(400).json({ message: "Invalid project or selection ID" });
+      }
+
+      if (!(await checkProjectAccess(req, res, projectId))) {
+        return;
+      }
+
+      const { selectedOption } = req.body;
+      if (!selectedOption) {
+        return res.status(400).json({ message: "Selected option is required" });
+      }
+
+      const updatedSelection = await storage.updateSelectionChoice(selectionId, selectedOption);
+      if (!updatedSelection) {
+        return res.status(404).json({ message: "Selection not found" });
+      }
+
+      res.json(updatedSelection);
+    } catch (error) {
+      console.error("Error updating selection:", error);
+      res.status(500).json({ message: "Failed to update selection" });
+    }
+  });
+
+  // Client Search Route
   app.get("/api/admin/clients/search", isAdmin, async (req, res) => {
     try {
       const query = req.query.q as string;
@@ -911,7 +968,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
       const clients = await storage.searchClients(query);
-      // Sanitize results before sending
       const sanitizedClients = clients.map(user => {
          const { password, magicLinkToken, magicLinkExpiry, ...clientData } = user;
          return clientData;
@@ -922,7 +978,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to search clients" });
     }
   });
-  // --- END NEW ---
 
   // User management routes (admin only)
   app.get("/api/users", isAdmin, async (req, res) => {
@@ -959,12 +1014,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "New password must be at least 8 characters" });
       }
 
-      // Hash the new password
       const salt = randomBytes(16).toString("hex");
       const buf = (await scryptAsync(newPassword, salt, 64)) as Buffer;
       const hashedPassword = `${buf.toString("hex")}.${salt}`;
 
-      // Update the user's password
       const user = await storage.updateUser(userId, {
         password: hashedPassword
       });
@@ -991,18 +1044,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid user ID" });
       }
 
-      // Don't allow deleting your own account
       if (req.user && req.user.id === userId) {
         return res.status(400).json({ message: "You cannot delete your own account" });
       }
 
-      // First check if the user exists
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Delete the user
       await storage.deleteUser(userId);
 
       res.json({
@@ -1015,7 +1065,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get client-project assignments - admin only
   // Check email service configuration status - admin only
   app.get("/api/admin/email-config", isAdmin, (req, res) => {
     res.json({ configured: isEmailServiceConfigured() });
@@ -1032,10 +1081,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let projects;
       if (user.role === "admin") {
-        // Admins can see all projects
         projects = await storage.getAllProjects();
       } else {
-        // Project managers can only see their assigned projects
         projects = await storage.getProjectManagerProjects(user.id);
       }
 
@@ -1056,18 +1103,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
-      // Check if the user is a project manager or admin
       if (user.role !== "projectManager" && user.role !== "admin") {
         return res.status(403).json({ message: "Only project managers or admins can access this endpoint" });
       }
 
-      // Check if the project exists
       const project = await storage.getProject(projectId);
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
 
-      // If user is a project manager, verify they have access to this project
       if (user.role === "projectManager") {
         const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
         if (!hasAccess) {
@@ -1075,7 +1119,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Get clients not yet assigned to this project
       const availableClients = await storage.getClientsNotInProject(projectId);
 
       res.json(availableClients);
@@ -1085,6 +1128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get client-project assignments - admin only
   app.get("/api/admin/client-projects/:clientId", isAdmin, async (req, res) => {
     try {
       const clientId = parseInt(req.params.clientId);
@@ -1092,13 +1136,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid client ID" });
       }
 
-      // Check if client exists
       const client = await storage.getUser(clientId);
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
       }
 
-      // Only get projects for users with client role
       if (client.role !== "client") {
         return res.status(400).json({ message: "User is not a client" });
       }
@@ -1124,13 +1166,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Valid project manager ID is required" });
       }
 
-      // Check if project exists
       const project = await storage.getProject(projectId);
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
 
-      // Check if project manager exists and has the correct role
       const projectManager = await storage.getUser(parseInt(projectManagerId));
       if (!projectManager) {
         return res.status(404).json({ message: "Project manager not found" });
@@ -1140,7 +1180,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "User is not a project manager" });
       }
 
-      // Update the project with the new project manager
       const updatedProject = await storage.updateProject(projectId, {
         ...project,
         projectManagerId: parseInt(projectManagerId)
