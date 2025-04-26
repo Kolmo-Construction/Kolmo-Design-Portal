@@ -213,11 +213,12 @@ export function setupAuth(app: Express) {
         emailSent = await sendMagicLinkEmail({
           email,
           firstName,
-          token: magicLink,
+          token,  // Pass the token, not the full magicLink
           isNewUser
         });
       } else {
         console.warn('Email service not configured. Magic link will not be sent.');
+        console.log(`[DEV] Magic link: ${magicLink}`);
       }
       
       // Always return the magic link in development for testing purposes
