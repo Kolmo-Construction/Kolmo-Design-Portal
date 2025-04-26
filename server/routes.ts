@@ -361,7 +361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Client-project association routes
+  // Client-project association routes (admin only)
   app.post("/api/client-projects", isAdmin, async (req, res) => {
     try {
       const { clientId, projectId } = req.body;
@@ -372,6 +372,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const clientProject = await storage.assignClientToProject(clientId, projectId);
       res.status(201).json(clientProject);
+    } catch (error) {
+      console.error("Error assigning client to project:", error);
+      res.status(500).json({ message: "Failed to assign client to project" });
+    }
+  });
+  
+  // Client-project association routes (for project managers)
+  app.post("/api/projects/:projectId/clients/:clientId", isAuthenticated, async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const clientId = parseInt(req.params.clientId);
+      const user = req.user!;
+      
+      if (isNaN(projectId) || isNaN(clientId)) {
+        return res.status(400).json({ message: "Invalid project or client ID" });
+      }
+      
+      // Check if the user is a project manager or admin
+      if (user.role !== "projectManager" && user.role !== "admin") {
+        return res.status(403).json({ message: "Only project managers or admins can assign clients" });
+      }
+      
+      // If the user is a project manager, verify they have access to this project
+      if (user.role === "projectManager") {
+        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
+        if (!hasAccess) {
+          return res.status(403).json({ message: "You don't have access to this project" });
+        }
+      }
+      
+      // Check if the client exists and has the client role
+      const client = await storage.getUser(clientId);
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      if (client.role !== "client") {
+        return res.status(400).json({ message: "User is not a client" });
+      }
+      
+      // Check if the project exists
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      // Create client-project association
+      const clientProject = await storage.assignClientToProject(clientId, projectId);
+      
+      res.status(201).json({
+        message: "Client assigned to project successfully",
+        clientProject
+      });
     } catch (error) {
       console.error("Error assigning client to project:", error);
       res.status(500).json({ message: "Failed to assign client to project" });
@@ -763,6 +816,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch users" });
     }
   });
+  
+  // Get all project managers (admin only)
+  app.get("/api/project-managers", isAdmin, async (req, res) => {
+    try {
+      const projectManagers = await storage.getAllProjectManagers();
+      res.json(projectManagers);
+    } catch (error) {
+      console.error("Error fetching project managers:", error);
+      res.status(500).json({ message: "Failed to fetch project managers" });
+    }
+  });
 
   // Reset user password - admin only
   app.post("/api/admin/users/:userId/reset-password", isAdmin, async (req, res) => {
@@ -838,6 +902,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/email-config", isAdmin, (req, res) => {
     res.json({ configured: isEmailServiceConfigured() });
   });
+  
+  // Project manager specific routes
+  app.get("/api/project-manager/projects", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      
+      if (user.role !== "projectManager" && user.role !== "admin") {
+        return res.status(403).json({ message: "Only project managers can access this endpoint" });
+      }
+      
+      let projects;
+      if (user.role === "admin") {
+        // Admins can see all projects
+        projects = await storage.getAllProjects();
+      } else {
+        // Project managers can only see their assigned projects
+        projects = await storage.getProjectManagerProjects(user.id);
+      }
+      
+      res.json(projects);
+    } catch (error) {
+      console.error("Error fetching project manager projects:", error);
+      res.status(500).json({ message: "Failed to fetch projects" });
+    }
+  });
+  
+  // Get available clients to assign to a project (for project managers)
+  app.get("/api/projects/:projectId/available-clients", isAuthenticated, async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const user = req.user!;
+      
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+      
+      // Check if the user is a project manager or admin
+      if (user.role !== "projectManager" && user.role !== "admin") {
+        return res.status(403).json({ message: "Only project managers or admins can access this endpoint" });
+      }
+      
+      // Check if the project exists
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      // If user is a project manager, verify they have access to this project
+      if (user.role === "projectManager") {
+        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
+        if (!hasAccess) {
+          return res.status(403).json({ message: "You don't have access to this project" });
+        }
+      }
+      
+      // Get clients not yet assigned to this project
+      const availableClients = await storage.getClientsNotInProject(projectId);
+      
+      res.json(availableClients);
+    } catch (error) {
+      console.error("Error fetching available clients:", error);
+      res.status(500).json({ message: "Failed to fetch available clients" });
+    }
+  });
 
   app.get("/api/admin/client-projects/:clientId", isAdmin, async (req, res) => {
     try {
@@ -862,6 +990,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching client projects:", error);
       res.status(500).json({ message: "Failed to fetch client projects" });
+    }
+  });
+  
+  // Assign project manager to project
+  app.post("/api/admin/projects/:projectId/project-manager", isAdmin, async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+      
+      const { projectManagerId } = req.body;
+      if (!projectManagerId || isNaN(parseInt(projectManagerId))) {
+        return res.status(400).json({ message: "Valid project manager ID is required" });
+      }
+      
+      // Check if project exists
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      // Check if project manager exists and has the correct role
+      const projectManager = await storage.getUser(parseInt(projectManagerId));
+      if (!projectManager) {
+        return res.status(404).json({ message: "Project manager not found" });
+      }
+      
+      if (projectManager.role !== "projectManager" && projectManager.role !== "admin") {
+        return res.status(400).json({ message: "User is not a project manager" });
+      }
+      
+      // Update the project with the new project manager
+      const updatedProject = await storage.updateProject(projectId, {
+        ...project,
+        projectManagerId: parseInt(projectManagerId)
+      });
+      
+      if (!updatedProject) {
+        return res.status(500).json({ message: "Failed to assign project manager" });
+      }
+      
+      res.status(200).json({
+        message: "Project manager assigned successfully",
+        project: updatedProject
+      });
+    } catch (error) {
+      console.error("Error assigning project manager:", error);
+      res.status(500).json({ message: "Failed to assign project manager" });
     }
   });
 

@@ -154,6 +154,33 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(users);
   }
   
+  // Get all project managers
+  async getAllProjectManagers(): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.role, "projectManager"));
+  }
+  
+  // Get all clients
+  async getAllClients(): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.role, "client"));
+  }
+  
+  // Get clients not assigned to a specific project
+  async getClientsNotInProject(projectId: number): Promise<User[]> {
+    // First get all clients
+    const allClients = await this.getAllClients();
+    
+    // Get all client IDs already assigned to this project
+    const clientProjectAssignments = await db
+      .select({ clientId: clientProjects.clientId })
+      .from(clientProjects)
+      .where(eq(clientProjects.projectId, projectId));
+    
+    const assignedClientIds = new Set(clientProjectAssignments.map(cp => cp.clientId));
+    
+    // Filter out clients that are already assigned to this project
+    return allClients.filter(client => !assignedClientIds.has(client.id));
+  }
+  
   async deleteUser(id: number): Promise<void> {
     // Delete all client-project associations first
     await db
