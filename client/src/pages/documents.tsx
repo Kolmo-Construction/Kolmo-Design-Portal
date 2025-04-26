@@ -405,34 +405,34 @@ export default function Documents() {
                           {getFileIcon(document.fileType)}
                         </div>
                         <div className="min-w-0"> {/* Allow text to truncate */}
-                          <p className="font-medium text-sm truncate" title={document.name}>{document.name}</p> {/* [cite: 6256] */}
+                          <p className="font-medium text-sm truncate" title={document.name}>{document.name}</p>
                           <p className="text-xs text-slate-500 truncate"> {/* [cite: 6257] */}
                             {project?.name || 'Unknown Project'} • {document.category ? document.category.charAt(0).toUpperCase() + document.category.slice(1) : 'Uncategorized'} • {formatFileSize(document.size)}
                           </p>
                           {document.description && (
-                            <p className="text-xs text-slate-400 mt-0.5 truncate" title={document.description}>{document.description}</p> // [cite: 6258]
+                            <p className="text-xs text-slate-400 mt-0.5 truncate" title={document.description}>{document.description}</p>
                           )}
-                          <p className="text-xs text-slate-400 mt-0.5">Uploaded on {formatDate(document.createdAt)}</p> // [cite: 6258]
+                          <p className="text-xs text-slate-400 mt-0.5">Uploaded on {formatDate(document.createdAt)}</p>
                         </div>
                       </div>
-                      <Button // [cite: 6259]
+                      <Button
                         size="sm"
                         variant="outline"
                         className="text-primary gap-1.5 flex-shrink-0" // Ensure button doesn't shrink text
-                        onClick={() => handleDownload(document)} // [cite: 6260]
+                        onClick={() => handleDownload(document)}
                         disabled={!document.fileUrl} // Disable if no URL
                       >
                         <Download className="h-3.5 w-3.5" />
                         Download
-                      </Button> {/* [cite: 6261] */}
+                      </Button>
                     </div>
                   );
-                })} {/* [cite: 6262] */}
+                })}
               </div>
             )}
           </CardContent>
         </Card>
       </main>
     </div>
-  ); // [cite: 6263]
+  );
 }
