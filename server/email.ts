@@ -29,20 +29,52 @@ const DEFAULT_FROM_EMAIL = 'noreply@constructionportal.com';
  * Send an email using SendGrid
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
+  const isDev = process.env.NODE_ENV === 'development';
+  const msg = {
+    to: options.to,
+    from: options.from || DEFAULT_FROM_EMAIL,
+    subject: options.subject,
+    text: options.text || '',
+    html: options.html || '',
+  };
+
+  // If in development mode and no SendGrid API key, log the email content
+  if (isDev && !process.env.SENDGRID_API_KEY) {
+    console.log('\n==== DEVELOPMENT EMAIL ====');
+    console.log(`TO: ${options.to}`);
+    console.log(`FROM: ${options.from || DEFAULT_FROM_EMAIL}`);
+    console.log(`SUBJECT: ${options.subject}`);
+    console.log('\n---- TEXT CONTENT ----');
+    console.log(options.text || '(No text content)');
+    
+    // Extract links from HTML content for easy testing
+    const linkRegex = /href="([^"]+)"/g;
+    const links = [];
+    let match;
+    const htmlContent = options.html || '';
+    
+    while ((match = linkRegex.exec(htmlContent)) !== null) {
+      links.push(match[1]);
+    }
+    
+    if (links.length > 0) {
+      console.log('\n---- IMPORTANT LINKS ----');
+      links.forEach((link, index) => {
+        console.log(`[${index + 1}] ${link}`);
+      });
+    }
+    
+    console.log('\n==== END EMAIL ====\n');
+    return true; // Return success in development mode
+  }
+
+  // In production or if SendGrid API key is available
   if (!process.env.SENDGRID_API_KEY) {
     console.error("Cannot send email: SENDGRID_API_KEY is not set");
     return false;
   }
 
   try {
-    const msg = {
-      to: options.to,
-      from: options.from || DEFAULT_FROM_EMAIL,
-      subject: options.subject,
-      text: options.text || '',
-      html: options.html || '',
-    };
-
     await sgMail.send(msg);
     console.log(`Email sent to ${options.to}`);
     return true;
@@ -66,7 +98,16 @@ export async function sendMagicLinkEmail({
   token: string;
   resetPassword?: boolean;
 }): Promise<boolean> {
-  const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+  // In Replit environment, use the public URL; otherwise fallback to localhost
+  let baseUrl = process.env.BASE_URL;
+  
+  if (!baseUrl) {
+    if (process.env.REPLIT_SLUG) {
+      baseUrl = `https://${process.env.REPLIT_SLUG}.replit.app`;
+    } else {
+      baseUrl = 'http://localhost:5000';
+    }
+  }
   
   // Determine the correct path based on the purpose
   const path = resetPassword 
