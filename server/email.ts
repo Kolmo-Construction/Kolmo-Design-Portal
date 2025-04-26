@@ -1,17 +1,21 @@
-import sgMail from '@sendgrid/mail';
+import { MailerSend, EmailParams, Sender, Recipient } from 'mailersend';
 
-// Initialize SendGrid with API key
-if (!process.env.SENDGRID_API_KEY) {
-  console.warn("SENDGRID_API_KEY environment variable is not set. Email functionality will not work.");
+// Initialize MailerSend with API key
+let mailerSend: MailerSend | null = null;
+
+if (!process.env.MAILERSEND_API_KEY) {
+  console.warn("MAILERSEND_API_KEY environment variable is not set. Email functionality will not work.");
 } else {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  mailerSend = new MailerSend({
+    apiKey: process.env.MAILERSEND_API_KEY
+  });
 }
 
 /**
  * Check if the email service is configured properly
  */
 export function isEmailServiceConfigured(): boolean {
-  return !!process.env.SENDGRID_API_KEY;
+  return !!process.env.MAILERSEND_API_KEY;
 }
 
 interface EmailOptions {
@@ -26,23 +30,18 @@ interface EmailOptions {
 const DEFAULT_FROM_EMAIL = 'noreply@constructionportal.com';
 
 /**
- * Send an email using SendGrid
+ * Send an email using MailerSend
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   const isDev = process.env.NODE_ENV === 'development';
-  const msg = {
-    to: options.to,
-    from: options.from || DEFAULT_FROM_EMAIL,
-    subject: options.subject,
-    text: options.text || '',
-    html: options.html || '',
-  };
+  const fromEmail = options.from || DEFAULT_FROM_EMAIL;
+  const fromName = "Construction Portal";
 
   // Always print email content in development mode for easier debugging
   if (isDev) {
     console.log('\n==== DEVELOPMENT EMAIL ====');
     console.log(`TO: ${options.to}`);
-    console.log(`FROM: ${options.from || DEFAULT_FROM_EMAIL}`);
+    console.log(`FROM: ${fromEmail}`);
     console.log(`SUBJECT: ${options.subject}`);
     console.log('\n---- TEXT CONTENT ----');
     console.log(options.text || '(No text content)');
@@ -66,27 +65,40 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     
     console.log('\n==== END EMAIL ====\n');
     
-    // In development mode, if no SendGrid API key, just return success without trying to send
-    if (!process.env.SENDGRID_API_KEY) {
+    // In development mode with no API key, just return success without trying to send
+    if (!process.env.MAILERSEND_API_KEY) {
       console.log('Development mode: Skipping actual email delivery (no API key)');
       return true;
     }
   }
 
-  // Check for SendGrid API key for actual email delivery
-  if (!process.env.SENDGRID_API_KEY) {
-    console.error("Cannot send email: SENDGRID_API_KEY is not set");
+  // Check for MailerSend API key and client for actual email delivery
+  if (!mailerSend || !process.env.MAILERSEND_API_KEY) {
+    console.error("Cannot send email: MAILERSEND_API_KEY is not set");
     return false;
   }
 
   try {
-    await sgMail.send(msg);
+    const emailParams = new EmailParams()
+      .setFrom(new Sender(fromEmail, fromName))
+      .setTo([new Recipient(options.to)])
+      .setSubject(options.subject);
+    
+    if (options.html) {
+      emailParams.setHtml(options.html);
+    }
+    
+    if (options.text) {
+      emailParams.setText(options.text);
+    }
+
+    await mailerSend.email.send(emailParams);
     console.log(`Email sent to ${options.to}`);
     return true;
   } catch (error) {
     console.error('Error sending email:', error);
     
-    // In development, consider it a success even if SendGrid fails
+    // In development, consider it a success even if MailerSend fails
     if (isDev) {
       console.log('Development mode: Email delivery failed, but continuing as if successful');
       return true;
