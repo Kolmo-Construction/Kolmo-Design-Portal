@@ -1,7 +1,9 @@
+/* -------- client/src/components/user-admin/ClientProjectsView.txt -------- */
 import { useQuery } from "@tanstack/react-query";
-import { Project, User } from "@shared/schema";
-// Remove getQueryFn if no longer needed here, but keep apiRequest if used elsewhere or for mutations
+import { Project, User, ProjectStatus } from "@shared/schema"; // ADDED ProjectStatus
 import { apiRequest } from "@/lib/queryClient";
+
+
 import {
   Card,
   CardContent,
@@ -20,34 +22,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle, Building2 } from "lucide-react";
+// ADDED Imports from utils
+import { getProjectStatusLabel, getProjectStatusBadgeClasses } from "@/lib/utils";
 
 interface ClientProjectsViewProps {
-  client: User; // Pass the selected client object
+  client: User;
+
 }
 
-// Helper function to get status label (can be moved to a utils file)
-const getStatusLabel = (status: string | undefined | null): string => {
-    if (!status) return 'Unknown';
-    switch (status) {
-      case "planning": return "Planning";
-      case "in_progress": return "In Progress";
-      case "on_hold": return "On Hold";
-      case "completed": return "Completed";
-      default: return status.charAt(0).toUpperCase() + status.slice(1);
-    }
-};
-
-// Helper function to get status badge styling (can be moved to a utils file)
-const getStatusBadgeClasses = (status: string | undefined | null): string => {
-    if (!status) return "bg-slate-100 text-slate-800 border-slate-300";
-     switch (status) {
-        case "planning": return "bg-blue-100 text-blue-800 border-blue-300";
-        case "in_progress": return "bg-primary/10 text-primary border-primary/30";
-        case "on_hold": return "bg-yellow-100 text-yellow-800 border-yellow-300";
-        case "completed": return "bg-green-100 text-green-800 border-green-300";
-        default: return "bg-slate-100 text-slate-800 border-slate-300";
-    }
-};
+// REMOVED: Local getStatusLabel helper function
+// REMOVED: Local getStatusBadgeClasses helper function
 
 
 export function ClientProjectsView({ client }: ClientProjectsViewProps) {
@@ -65,7 +49,13 @@ export function ClientProjectsView({ client }: ClientProjectsViewProps) {
     queryFn: async () => {
         // Construct the correct URL with the client ID
         const url = `/api/admin/client-projects/${client.id}`;
+
         const res = await apiRequest("GET", url); // Use apiRequest helper
+        // Ensure response is OK before parsing
+        if (!res.ok) {
+           const errorText = await res.text();
+           throw new Error(`Failed to fetch client projects: ${res.status} ${errorText}`);
+        }
         return await res.json();
     },
     // --------------------------------------
@@ -83,6 +73,7 @@ export function ClientProjectsView({ client }: ClientProjectsViewProps) {
            List of projects this client is assigned to.
         </CardDescription>
       </CardHeader>
+
       <CardContent className="px-0 sm:px-6">
          <div className="overflow-x-auto">
              {clientProjectsLoading ? (
@@ -90,46 +81,56 @@ export function ClientProjectsView({ client }: ClientProjectsViewProps) {
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
              ) : clientProjectsError ? (
+
                  <Alert variant="destructive" className="m-6">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
                         Error loading client projects: {clientProjectsErrorData?.message || 'Unknown error'}
+
                     </AlertDescription>
                  </Alert>
              ) : (
                 <Table>
                 <TableHeader>
-                    <TableRow>
+                  <TableRow>
+
                     <TableHead>Project Name</TableHead>
                     <TableHead>Address</TableHead>
                     <TableHead>Budget</TableHead>
                     <TableHead>Status</TableHead>
-                     {/* Add more columns if needed (e.g., PM) */}
+                    {/* Add more columns if needed (e.g., PM) */}
+
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {clientProjects.length > 0 ? (
+
                     clientProjects.map((project) => (
                         <TableRow key={project.id}>
                         <TableCell className="font-medium">{project.name}</TableCell>
                         <TableCell>{project.address}, {project.city}</TableCell>
                         <TableCell>${Number(project.totalBudget ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</TableCell>
+
                         <TableCell>
-                            <Badge variant="outline" className={getStatusBadgeClasses(project.status)}>
-                                {getStatusLabel(project.status)}
+                            <Badge variant="outline" className={getProjectStatusBadgeClasses(project.status as ProjectStatus)}> {/* USE Imported helper */}
+                              {getProjectStatusLabel(project.status as ProjectStatus)} {/* USE Imported helper */}
+
                             </Badge>
                         </TableCell>
                         </TableRow>
                     ))
+
                     ) : (
                     <TableRow>
                         <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
-                        This client is not assigned to any projects yet.
+                          This client is not assigned to any projects yet.
+
                         </TableCell>
                     </TableRow>
                     )}
                 </TableBody>
                 </Table>
+
             )}
          </div>
          {/* TODO: Add functionality to Assign/Unassign projects here */}

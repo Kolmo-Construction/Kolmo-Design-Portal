@@ -1,5 +1,4 @@
 import { Project } from "@shared/schema";
-import { format } from "date-fns";
 import {
   Card,
   CardContent,
@@ -8,28 +7,21 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
+// REMOVED: Badge import (not used directly after moving utils)
 import {
-  MapPin,
+  MapPin, // Keep if used elsewhere, otherwise remove
   Calendar,
   User,
   CreditCard
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+// REMOVED: cn import (not used directly after moving utils)
+import { formatDate } from "@/lib/utils"; // ADDED Import
 
 interface ProjectOverviewCardProps {
   project: Project;
 }
 
-// Helper function to format dates (can be moved to a utils file)
-const formatDate = (dateString: string | Date | null | undefined): string => {
-  if (!dateString) return "Not set";
-  try {
-      return format(new Date(dateString), "MMM d, yyyy");
-  } catch {
-      return "Invalid Date";
-  }
-};
+// REMOVED: Local formatDate helper function
 
 export function ProjectOverviewCard({ project }: ProjectOverviewCardProps) {
   return (
@@ -44,7 +36,7 @@ export function ProjectOverviewCard({ project }: ProjectOverviewCardProps) {
             <p className="text-sm text-slate-500">Start Date</p>
             <p className="flex items-center gap-1 font-medium">
               <Calendar className="h-4 w-4 text-slate-400" />
-              {formatDate(project.startDate)}
+              {formatDate(project.startDate)} {/* USE Imported formatDate */}
             </p>
           </div>
 
@@ -53,7 +45,7 @@ export function ProjectOverviewCard({ project }: ProjectOverviewCardProps) {
             <p className="text-sm text-slate-500">Estimated Completion</p>
             <p className="flex items-center gap-1 font-medium">
               <Calendar className="h-4 w-4 text-slate-400" />
-              {formatDate(project.estimatedCompletionDate)}
+              {formatDate(project.estimatedCompletionDate)} {/* USE Imported formatDate */}
             </p>
           </div>
 
@@ -64,6 +56,7 @@ export function ProjectOverviewCard({ project }: ProjectOverviewCardProps) {
             <p className="flex items-center gap-1 font-medium">
               <User className="h-4 w-4 text-slate-400" />
               {project.projectManagerId ? `ID: ${project.projectManagerId}` : "Not Assigned"}
+
             </p>
           </div>
 
@@ -73,6 +66,7 @@ export function ProjectOverviewCard({ project }: ProjectOverviewCardProps) {
             <p className="flex items-center gap-1 font-medium">
               <CreditCard className="h-4 w-4 text-slate-400" />
               ${Number(project.totalBudget ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+
             </p>
           </div>
         </div>
@@ -84,8 +78,10 @@ export function ProjectOverviewCard({ project }: ProjectOverviewCardProps) {
           <div className="flex justify-between text-sm">
             <span className="font-medium">Progress</span>
             <span>{project.progress ?? 0}% Complete</span>
+
           </div>
           <Progress value={project.progress ?? 0} className="h-2" />
+
         </div>
 
         {/* Description */}

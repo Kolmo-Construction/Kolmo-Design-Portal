@@ -2,8 +2,10 @@ import React, { useEffect } from 'react';
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+// REMOVED: z import
 import { User } from "@shared/schema";
+// ADDED Imports for validation schema and type
+import { resetPasswordSchema, ResetPasswordFormValues } from '@/lib/validations';
 import {
   Dialog,
   DialogContent,
@@ -19,17 +21,8 @@ import { Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { ResetPasswordForm } from "./ResetPasswordForm";
 
-// Define validation schema locally or import from shared validations.ts
-const resetPasswordSchema = z.object({
-  newPassword: z.string().min(8, "Password must be at least 8 characters"),
-  confirmPassword: z.string().min(8, "Password must be at least 8 characters"),
-}).refine(data => data.newPassword === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"], // Apply error to confirmPassword field
-});
-
-type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
-
+// REMOVED: Local resetPasswordSchema definition
+// REMOVED: Local ResetPasswordFormValues type definition
 
 interface ResetPasswordDialogProps {
   userToManage: User | null;
@@ -45,8 +38,8 @@ export function ResetPasswordDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const form = useForm<ResetPasswordFormValues>({
-    resolver: zodResolver(resetPasswordSchema),
+  const form = useForm<ResetPasswordFormValues>({ // USE Imported type
+    resolver: zodResolver(resetPasswordSchema), // USE Imported schema
     defaultValues: {
       newPassword: "",
       confirmPassword: "",
@@ -63,6 +56,7 @@ export function ResetPasswordDialog({
       // Check if response is ok before parsing json (assuming apiRequest throws on > 400)
       return await res.json();
     },
+
     onSuccess: () => {
       toast({
         title: "Password reset successful",
@@ -74,9 +68,11 @@ export function ResetPasswordDialog({
     onError: (error: Error) => {
        console.error("Reset password error:", error);
        let description = "An unexpected error occurred.";
-        try {
+       try {
+
             const errorBody = JSON.parse(error.message.substring(error.message.indexOf('{')));
             description = errorBody.errors?.[0]?.message || errorBody.message || description;
+
         } catch (e) { /* Ignore parsing error */ }
       toast({
         title: "Password reset failed",
@@ -84,6 +80,7 @@ export function ResetPasswordDialog({
         variant: "destructive",
       });
     }
+
   });
 
   // Reset form when dialog opens or user changes
@@ -93,10 +90,10 @@ export function ResetPasswordDialog({
     }
   }, [isOpen, userToManage, form]);
 
-
-  const onSubmit = (data: ResetPasswordFormValues) => {
+  const onSubmit = (data: ResetPasswordFormValues) => { // USE Imported type
     if (!userToManage) return;
     resetPasswordMutation.mutate({
+
       userId: userToManage.id,
       newPassword: data.newPassword // Pass only the new password
     });
@@ -112,32 +109,39 @@ export function ResetPasswordDialog({
               ? `Set a new password for ${userToManage.firstName} ${userToManage.lastName} (${userToManage.email})`
               : "Loading user..."}
           </DialogDescription>
+
         </DialogHeader>
         {userToManage && (
              <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
                      <ResetPasswordForm
-                        form={form}
+                       form={form}
+
                         disabled={resetPasswordMutation.isPending}
                      />
                      <DialogFooter className="pt-4">
                          <Button
-                            type="button"
+                           type="button"
+
                             variant="outline"
                             onClick={() => onOpenChange(false)}
                             disabled={resetPasswordMutation.isPending}
+
                         >
                             Cancel
                         </Button>
-                        <Button
+                         <Button
+
                             type="submit"
                             disabled={resetPasswordMutation.isPending}
                         >
-                            {resetPasswordMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                             {resetPasswordMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+
                             Reset Password
                         </Button>
                     </DialogFooter>
-                </form>
+                 </form>
+
             </Form>
         )}
       </DialogContent>

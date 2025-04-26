@@ -1,19 +1,22 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
+import React from "react"; // REQUIRED for JSX
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 import { format, isBefore, isToday } from "date-fns";
-import { ProjectStatus, UserRole, MilestoneStatus, InvoiceStatus } from "@shared/schema"; // Assuming these types/enums exist or can be defined based on schema
+// Import Milestone type from shared schema
+import { ProjectStatus, UserRole, MilestoneStatus, InvoiceStatus, Milestone } from "@shared/schema";
+// Import icons used in getFileIcon and getMilestoneVisuals
+import { FileIcon, Image as ImageIcon, FileText, CheckCircle2, ClockIcon, AlertTriangle } from "lucide-react";
+// Import Badge component used in getMilestoneBadge
+import { Badge } from "@/components/ui/badge"; // Assuming badge.txt is resolved as badge.(tsx|jsx)
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// --- NEW: Centralized Helper Functions ---
+// --- Centralized Helper Functions ---
 
 /**
  * Formats a date string or Date object.
- * @param dateString - The date to format.
- * @param formatStr - The desired date-fns format string (defaults to 'MMM d, yyyy').
- * @returns Formatted date string, 'Not set', or 'Invalid Date'.
  */
 export const formatDate = (
     dateString: string | Date | null | undefined,
@@ -21,9 +24,7 @@ export const formatDate = (
 ): string => {
   if (!dateString) return "Not set";
   try {
-    // Ensure we have a Date object before formatting
     const dateObj = typeof dateString === 'string' ? new Date(dateString) : dateString;
-    // Check if the date object is valid
     if (isNaN(dateObj.getTime())) {
        console.warn("Invalid date value provided to formatDate:", dateString);
        return "Invalid Date";
@@ -37,8 +38,6 @@ export const formatDate = (
 
 /**
  * Formats a file size in bytes into a human-readable string.
- * @param bytes - File size in bytes.
- * @returns Human-readable file size string (e.g., "1.2 MB").
  */
 export const formatFileSize = (bytes: number | null | undefined): string => {
   if (bytes === null || bytes === undefined || isNaN(bytes) || bytes < 0) return "0 B";
@@ -48,11 +47,22 @@ export const formatFileSize = (bytes: number | null | undefined): string => {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 };
 
+/**
+ * Returns a React element representing a file icon based on MIME type.
+ */
+export const getFileIcon = (fileType: string | null | undefined): React.ReactElement => {
+  if (!fileType) return <FileIcon className="h-6 w-6 text-slate-400" />;
+  if (fileType.includes("image")) {
+    return <ImageIcon className="h-6 w-6 text-primary-600" />;
+  } else if (fileType.includes("pdf")) {
+    return <FileText className="h-6 w-6 text-red-600" />;
+  } else {
+    return <FileIcon className="h-6 w-6 text-blue-600" />;
+  }
+};
 
 /**
  * Gets a user-friendly label for a project status.
- * @param status - The project status string.
- * @returns Capitalized status label.
  */
 export const getProjectStatusLabel = (status: ProjectStatus | string | undefined | null): string => {
     if (!status) return 'Unknown';
@@ -67,8 +77,6 @@ export const getProjectStatusLabel = (status: ProjectStatus | string | undefined
 
 /**
  * Gets Tailwind CSS classes for styling a project status badge.
- * @param status - The project status string.
- * @returns Tailwind classes string.
  */
 export const getProjectStatusBadgeClasses = (status: ProjectStatus | string | undefined | null): string => {
     if (!status) return "bg-slate-100 text-slate-800 border-slate-300";
@@ -83,8 +91,6 @@ export const getProjectStatusBadgeClasses = (status: ProjectStatus | string | un
 
 /**
  * Gets a user-friendly label for a user role.
- * @param role - The user role string.
- * @returns Capitalized role label.
  */
 export const getUserRoleLabel = (role: UserRole | string | undefined | null): string => {
      if (!role) return 'Unknown';
@@ -98,8 +104,6 @@ export const getUserRoleLabel = (role: UserRole | string | undefined | null): st
 
 /**
  * Gets the badge variant for a user role.
- * @param role - The user role string.
- * @returns Shadcn Badge variant ('default', 'secondary', 'outline').
  */
 export const getUserRoleBadgeVariant = (role: UserRole | string | undefined | null): "default" | "secondary" | "outline" => {
     if (!role) return "secondary";
@@ -113,8 +117,6 @@ export const getUserRoleBadgeVariant = (role: UserRole | string | undefined | nu
 
 /**
  * Gets Tailwind CSS classes for styling a user activation status badge.
- * @param isActivated - Boolean indicating if the user is activated.
- * @returns Tailwind classes string.
  */
 export const getUserStatusBadgeClasses = (isActivated: boolean | undefined | null): string => {
     return isActivated
@@ -124,8 +126,6 @@ export const getUserStatusBadgeClasses = (isActivated: boolean | undefined | nul
 
 /**
  * Gets a user-friendly label for an invoice status.
- * @param status - The invoice status string.
- * @returns Capitalized status label.
  */
 export const getInvoiceStatusLabel = (status: InvoiceStatus | string | undefined | null): string => {
      if (!status) return 'Unknown';
@@ -140,8 +140,6 @@ export const getInvoiceStatusLabel = (status: InvoiceStatus | string | undefined
 
 /**
  * Gets Tailwind CSS classes for styling an invoice status badge.
- * @param status - The invoice status string.
- * @returns Tailwind classes string.
  */
 export const getInvoiceStatusBadgeClasses = (status: InvoiceStatus | string | undefined | null): string => {
     if (!status) return "bg-slate-100 text-slate-800 border-slate-300";
@@ -154,6 +152,56 @@ export const getInvoiceStatusBadgeClasses = (status: InvoiceStatus | string | un
     }
 };
 
-// Add more helpers as needed (e.g., getFileIcon, getMilestoneBadge/Visuals)
+/**
+ * Returns a Badge component styled based on milestone status and dates.
+ * @param milestone - The Milestone object.
+ * @returns A React element (Badge).
+ */
+export const getMilestoneBadge = (milestone: Milestone): React.ReactElement => {
+  const now = new Date();
+  // Set time to 00:00:00 for consistent date comparison
+  now.setHours(0, 0, 0, 0);
+  const plannedDate = new Date(milestone.plannedDate);
+  plannedDate.setHours(0, 0, 0, 0);
+
+  if (milestone.status === "completed") return <Badge className="bg-green-100 text-green-800 border-green-300">Completed</Badge>;
+  if (milestone.status === "delayed") return <Badge className="bg-red-100 text-red-800 border-red-300">Delayed</Badge>;
+  // Check if plannedDate is valid before comparison
+  if (!isNaN(plannedDate.getTime()) && isBefore(plannedDate, now) && !isToday(plannedDate)) {
+      return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">Overdue</Badge>;
+  }
+  // Default status
+  return <Badge className="bg-blue-100 text-blue-800 border-blue-300">Scheduled</Badge>;
+};
+
+/**
+ * Returns an icon component and Tailwind CSS class based on milestone status/dates.
+ * @param milestone - The Milestone object.
+ * @returns An object with icon (React element) and colorClass (string).
+ */
+export const getMilestoneVisuals = (milestone: Milestone): { icon: React.ReactElement; colorClass: string } => {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const plannedDate = new Date(milestone.plannedDate);
+  plannedDate.setHours(0, 0, 0, 0);
+
+  let icon;
+  let colorClass;
+
+  if (milestone.status === "completed") {
+    icon = <CheckCircle2 className="h-4 w-4" />;
+    colorClass = "bg-green-100 text-green-600";
+  } else if (milestone.status === "delayed") {
+    icon = <AlertTriangle className="h-4 w-4" />;
+    colorClass = "bg-red-100 text-red-600";
+  } else if (!isNaN(plannedDate.getTime()) && isBefore(plannedDate, now) && !isToday(plannedDate)) {
+    icon = <AlertTriangle className="h-4 w-4" />;
+    colorClass = "bg-yellow-100 text-yellow-600";
+  } else {
+    icon = <ClockIcon className="h-4 w-4" />;
+    colorClass = "bg-blue-100 text-blue-600";
+  }
+  return { icon, colorClass };
+};
 
 // --- End Helper Functions ---

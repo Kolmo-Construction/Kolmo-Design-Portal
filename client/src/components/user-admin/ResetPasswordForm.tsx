@@ -1,6 +1,8 @@
 import React from 'react';
 import { UseFormReturn } from 'react-hook-form';
-import { z } from "zod";
+// REMOVED: z import
+// ADDED Import for validation type
+import { ResetPasswordFormValues } from '@/lib/validations';
 import {
   FormControl,
   FormDescription,
@@ -11,20 +13,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-// Define type locally or import from shared location
-const resetPasswordSchema = z.object({
-  newPassword: z.string().min(8, "Password must be at least 8 characters"),
-  confirmPassword: z.string().min(8, "Password must be at least 8 characters"),
-}).refine(data => data.newPassword === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"], // Apply error to confirmPassword field
-});
-
-type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
-
+// REMOVED: Local resetPasswordSchema definition
+// REMOVED: Local ResetPasswordFormValues type definition
 
 interface ResetPasswordFormProps {
-  form: UseFormReturn<ResetPasswordFormValues>;
+  form: UseFormReturn<ResetPasswordFormValues>; // USE Imported type
   disabled?: boolean;
 }
 
@@ -41,12 +34,14 @@ export function ResetPasswordForm({
             <FormItem>
               <FormLabel>New Password</FormLabel>
               <FormControl>
+
                  <Input type="password" {...field} disabled={disabled} />
               </FormControl>
               <FormDescription>
                  Must be at least 8 characters.
               </FormDescription>
               <FormMessage />
+
             </FormItem>
           )}
         />
@@ -56,6 +51,7 @@ export function ResetPasswordForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Confirm New Password</FormLabel>
+
               <FormControl>
                  <Input type="password" {...field} disabled={disabled} />
               </FormControl>
@@ -64,5 +60,6 @@ export function ResetPasswordForm({
           )}
         />
     </div>
+
   );
 }
