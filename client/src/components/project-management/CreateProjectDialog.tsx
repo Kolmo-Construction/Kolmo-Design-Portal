@@ -2,12 +2,10 @@ import React from 'react';
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import {
-  Project,
-  User,
-  insertProjectSchema
-} from "@shared/schema";
+// Import the shared schema and type for CREATE
+import { createProjectFormSchema, CreateProjectFormValues } from '@/lib/validations'; // Adjust path if needed
+
+import { User } from "@shared/schema"; // Keep User import
 import {
   Dialog,
   DialogContent,
@@ -16,42 +14,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Form,
-} from "@/components/ui/form";
+import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import { ProjectFormFields } from "./ProjectFormFields";
-
-// Define schema matching the backend expectations, maybe import from shared/validation?
-const projectFormSchema = insertProjectSchema
-  .extend({
-    // Keep date/budget overrides consistent with ProjectFormFields
-     startDate: z.union([z.date(), z.string()]).optional().nullable(),
-     estimatedCompletionDate: z.union([z.date(), z.string()]).optional().nullable(),
-     // Note: actualCompletionDate likely not needed for create
-     totalBudget: z.union([
-      z.string().min(1, "Budget is required").refine(
-        (val) => !isNaN(parseFloat(val.replace(/[^0-9.]/g, ''))) && parseFloat(val.replace(/[^0-9.]/g, '')) > 0,
-        { message: "Budget must be a positive number" }
-      ),
-      z.number().min(1, "Budget must be a positive number")
-    ]),
-     projectManagerId: z.union([
-      z.number().positive("Project manager ID must be positive"),
-      z.string().transform((val) => val === "" || val === "none" ? undefined : parseInt(val, 10)).refine(val => val === undefined || !isNaN(val), { message: "Invalid number" }),
-      z.undefined()
-    ]).optional(),
-    description: z.string().optional().or(z.literal('')),
-    imageUrl: z.string().optional().or(z.literal('')),
-    // progress and actualCompletionDate removed as they are not typical for creation
-    clientIds: z.array(z.number()).optional(),
-  })
-  .omit({ progress: true, actualCompletionDate: true }); // Omit fields not needed for creation
-
-type ProjectFormValues = z.infer<typeof projectFormSchema>;
+import { ProjectFormFields } from "./ProjectFormFields"; // Keep this import
 
 interface CreateProjectDialogProps {
   isOpen: boolean;
@@ -69,8 +37,9 @@ export function CreateProjectDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const form = useForm<ProjectFormValues>({
-    resolver: zodResolver(projectFormSchema),
+  // Use the imported CREATE schema and type
+  const form = useForm<CreateProjectFormValues>({
+    resolver: zodResolver(createProjectFormSchema),
     defaultValues: {
       name: "",
       description: "",
@@ -89,18 +58,29 @@ export function CreateProjectDialog({
   });
 
   const createProjectMutation = useMutation({
-    mutationFn: async (data: ProjectFormValues) => {
+    // The input type for mutationFn should match the form values type
+    mutationFn: async (data: CreateProjectFormValues) => {
       // Format data before sending
+       const cleanedBudget = String(data.totalBudget).replace(/[$,]/g, ''); // Clean the string
        const formattedValues = {
         ...data,
-        totalBudget: parseFloat(String(data.totalBudget).replace(/[^0-9.]/g, '')),
+        // --- MODIFIED: Send cleaned budget as STRING ---
+        totalBudget: cleanedBudget,
+        // ---------------------------------------------
+        // Format dates if they exist
         startDate: data.startDate ? new Date(data.startDate).toISOString() : undefined,
         estimatedCompletionDate: data.estimatedCompletionDate ? new Date(data.estimatedCompletionDate).toISOString() : undefined,
+        // Ensure PM ID is number or undefined
         projectManagerId: data.projectManagerId ? Number(data.projectManagerId) : undefined,
-        clientIds: data.clientIds || [],
+        clientIds: data.clientIds || [], // Ensure clientIds is an array
       };
+      // Ensure progress and actualCompletionDate are not sent if omitted by schema
+      delete (formattedValues as any).progress;
+      delete (formattedValues as any).actualCompletionDate;
+
       console.log("Submitting Create Project:", formattedValues);
-      const res = await apiRequest("POST", "/api/projects", formattedValues);
+      // API endpoint expects all potential fields from InsertProject, even if undefined
+      const res = await apiRequest("POST", "/api/projects", formattedValues as any); // Use 'as any' carefully or create a backend DTO
       return await res.json();
     },
     onSuccess: () => {
@@ -114,28 +94,38 @@ export function CreateProjectDialog({
     },
     onError: (error: Error) => {
       console.error("Create project error:", error);
+      // Attempt to parse backend error message if available
+      let description = "An unexpected error occurred.";
+      try {
+          // Assuming the error message might contain the JSON string from the backend
+          const errorBody = JSON.parse(error.message.substring(error.message.indexOf('{')));
+          description = errorBody.errors?.[0]?.message || errorBody.message || description;
+      } catch (e) { /* Ignore parsing error */ }
+
       toast({
         title: "Failed to create project",
-        description: error.message || "An unexpected error occurred.",
+        description: description,
         variant: "destructive",
       });
     },
   });
 
-  const onSubmit = (values: ProjectFormValues) => {
-     // Double-check budget parsing just before mutation call
-     const budgetValue = parseFloat(String(values.totalBudget).replace(/[^0-9.]/g, ''));
-     if (isNaN(budgetValue) || budgetValue <= 0) {
-        form.setError("totalBudget", { type: "manual", message: "Invalid budget amount." });
-        return;
-     }
+  // Use the specific form type here
+  const onSubmit = (values: CreateProjectFormValues) => {
+    // Validation is already handled by the Zod resolver before this runs
     createProjectMutation.mutate(values);
   };
 
    // Reset form when dialog closes
    React.useEffect(() => {
     if (!isOpen) {
-      form.reset();
+      // Reset with default values for the create form schema
+       form.reset({
+            name: "", description: "", address: "", city: "", state: "", zipCode: "",
+            status: "planning", totalBudget: "", projectManagerId: undefined,
+            imageUrl: "", startDate: undefined, estimatedCompletionDate: undefined,
+            clientIds: [],
+       });
     }
   }, [isOpen, form]);
 
@@ -149,14 +139,18 @@ export function CreateProjectDialog({
             Add a new construction or renovation project to the system.
           </DialogDescription>
         </DialogHeader>
+        {/* Pass the correctly typed form down */}
         <Form {...form}>
+          {/* Ensure the type passed to handleSubmit matches the form */}
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-4">
+            {/* ProjectFormFields expects the base ProjectFormValues type,
+                which is compatible since CreateProjectFormValues is a subset */}
             <ProjectFormFields
-              form={form}
+              form={form as any} // Use 'as any' or ensure compatible types
               projectManagers={projectManagers}
               isLoadingManagers={isLoadingManagers}
               disabled={createProjectMutation.isPending}
-              isEditMode={false} // Pass false for create mode
+              isEditMode={false} // Explicitly false
             />
             <DialogFooter className="pt-4">
               <Button

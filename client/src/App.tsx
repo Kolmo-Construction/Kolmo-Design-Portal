@@ -16,7 +16,7 @@ import Schedule from "@/pages/schedule";
 import Selections from "@/pages/selections";
 import Settings from "@/pages/settings";
 import SetupProfile from "@/pages/setup-profile";
-import UserManagement from "@/pages/user-management";
+import UserManagement from "@/pages/UserManagement";
 import DevTools from "@/pages/dev-tools";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";

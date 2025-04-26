@@ -1,12 +1,10 @@
 import React from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { format } from "date-fns";
-import {
-  Project,
-  User,
-  insertProjectSchema
-} from "@shared/schema";
-import { z } from "zod";
+import { User } from "@shared/schema"; // Keep User import
+// Import the shared schema and type
+import { projectFormSchema, ProjectFormValues } from '@/lib/validations'; // Adjust path if needed
+
 import {
   FormControl,
   FormDescription,
@@ -30,40 +28,16 @@ import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CalendarIcon, X } from "lucide-react";
-import { ClientMultiSelectCombobox } from "./ClientMultiSelectCombobox"; // Import the combobox
+import { ClientMultiSelectCombobox } from "./ClientMultiSelectCombobox";
 
-// Redefine schema for this component's scope if needed, or import from a shared location
-const projectFormSchema = insertProjectSchema
-  .extend({
-    startDate: z.union([z.date(), z.string()]).optional().nullable(),
-    estimatedCompletionDate: z.union([z.date(), z.string()]).optional().nullable(),
-    actualCompletionDate: z.union([z.date(), z.string()]).optional().nullable(),
-    totalBudget: z.union([
-      z.string().min(1, "Budget is required").refine(
-        (val) => !isNaN(parseFloat(val.replace(/[^0-9.]/g, ''))) && parseFloat(val.replace(/[^0-9.]/g, '')) > 0,
-        { message: "Budget must be a positive number" }
-      ),
-      z.number().min(1, "Budget must be a positive number")
-    ]),
-    projectManagerId: z.union([
-      z.number().positive("Project manager ID must be positive"),
-      z.string().transform((val) => val === "" || val === "none" ? undefined : parseInt(val, 10)).refine(val => val === undefined || !isNaN(val), { message: "Invalid number" }),
-      z.undefined()
-    ]).optional(),
-    description: z.string().optional().or(z.literal('')),
-    imageUrl: z.string().optional().or(z.literal('')),
-    progress: z.number().optional().default(0),
-    clientIds: z.array(z.number()).optional(),
-  });
-
-type ProjectFormValues = z.infer<typeof projectFormSchema>;
+// REMOVE the local definition of projectFormSchema and ProjectFormValues here
 
 interface ProjectFormFieldsProps {
-  form: UseFormReturn<ProjectFormValues>;
+  form: UseFormReturn<ProjectFormValues>; // Use imported type
   projectManagers: User[];
   isLoadingManagers: boolean;
   disabled?: boolean;
-  isEditMode?: boolean; // Flag to conditionally render client selection
+  isEditMode?: boolean;
 }
 
 export function ProjectFormFields({
@@ -76,13 +50,20 @@ export function ProjectFormFields({
 
     // Function to safely format dates
     const safeFormatDate = (date: Date | string | null | undefined, formatString: string) => {
-      if (!date) return undefined;
-      try {
-        return format(new Date(date), formatString);
-      } catch (e) {
-        console.error("Error formatting date:", date, e);
-        return undefined; // Return undefined or a placeholder string on error
-      }
+       if (!date) return undefined;
+       try {
+         // Ensure we have a Date object before formatting
+         const dateObj = typeof date === 'string' ? new Date(date) : date;
+         // Check if the date object is valid
+         if (isNaN(dateObj.getTime())) {
+            console.warn("Invalid date value provided to safeFormatDate:", date);
+            return "Invalid Date";
+         }
+         return format(dateObj, formatString);
+       } catch (e) {
+         console.error("Error formatting date:", date, e);
+         return "Format Error"; // Return a specific error string
+       }
     };
 
 
@@ -114,7 +95,6 @@ export function ProjectFormFields({
               <Select
                 onValueChange={field.onChange}
                 value={field.value} // Use value for controlled component
-                defaultValue={field.value}
                 disabled={disabled}
               >
                 <FormControl>
@@ -148,7 +128,7 @@ export function ProjectFormFields({
                 {...field}
                 rows={3}
                 disabled={disabled}
-                value={field.value ?? ""} // Ensure value is not null/undefined
+                value={field.value ?? ""} // Handle potential null/undefined
               />
             </FormControl>
             <FormMessage />
@@ -253,8 +233,10 @@ export function ProjectFormFields({
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
+                    // Use Date object for selected, allow undefined
                     selected={field.value ? new Date(field.value) : undefined}
-                    onSelect={field.onChange}
+                    // Pass the Date object or undefined back to the form state
+                    onSelect={(date) => field.onChange(date)}
                     disabled={disabled || ((date) => date < new Date("1900-01-01"))}
                     initialFocus
                   />
@@ -307,7 +289,7 @@ export function ProjectFormFields({
                   <Calendar
                     mode="single"
                     selected={field.value ? new Date(field.value) : undefined}
-                    onSelect={field.onChange}
+                    onSelect={(date) => field.onChange(date)}
                      disabled={disabled || ((date) => date < new Date("1900-01-01"))}
                     initialFocus
                   />
@@ -361,7 +343,7 @@ export function ProjectFormFields({
                       <Calendar
                         mode="single"
                         selected={field.value ? new Date(field.value) : undefined}
-                        onSelect={field.onChange}
+                        onSelect={(date) => field.onChange(date)}
                          disabled={disabled || ((date) => date < new Date("1900-01-01"))}
                         initialFocus
                       />
@@ -402,7 +384,8 @@ export function ProjectFormFields({
                     placeholder="Enter budget amount"
                     type="text" // Keep as text to allow formatting, parse on submit
                     {...field}
-                    value={field.value ?? ""} // Ensure value is not null/undefined
+                    // Ensure value is always a string for the input
+                    value={field.value?.toString() ?? ""}
                     className="pl-7"
                     disabled={disabled}
                   />
@@ -421,8 +404,10 @@ export function ProjectFormFields({
             <FormItem>
               <FormLabel>Project Manager</FormLabel>
               <Select
-                 onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value))}
-                 value={field.value?.toString() ?? "none"} // Controlled component
+                 // Ensure the value passed to onChange matches the expected type (number or undefined)
+                 onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value, 10))}
+                 // Ensure the value prop is a string or undefined for the Select component
+                 value={field.value?.toString() ?? "none"}
                  disabled={disabled || isLoadingManagers}
               >
                 <FormControl>
@@ -455,8 +440,9 @@ export function ProjectFormFields({
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Assign Clients (Optional)</FormLabel>
+                {/* Ensure ClientMultiSelectCombobox receives and sends number[] */}
                 <ClientMultiSelectCombobox
-                    selectedClientIds={field.value ?? []}
+                    selectedClientIds={Array.isArray(field.value) ? field.value : []}
                     onClientIdsChange={field.onChange}
                     disabled={disabled}
                 />
@@ -482,7 +468,7 @@ export function ProjectFormFields({
                 <Input
                   placeholder="Enter image URL"
                   {...field}
-                  value={field.value ?? ""} // Ensure value is not null/undefined
+                  value={field.value ?? ""} // Handle potential null/undefined
                   disabled={disabled}
                 />
               </FormControl>
@@ -509,8 +495,13 @@ export function ProjectFormFields({
                       max="100"
                       placeholder="Enter progress percentage"
                       {...field}
-                       value={field.value ?? 0} // Ensure value is number
-                       onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                       // Ensure value is number, default to 0
+                       value={field.value ?? 0}
+                       // Ensure onChange passes a number or 0
+                       onChange={(e) => {
+                           const value = parseInt(e.target.value, 10);
+                           field.onChange(isNaN(value) ? 0 : Math.max(0, Math.min(100, value)));
+                       }}
                        disabled={disabled}
                     />
                   </FormControl>
