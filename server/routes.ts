@@ -34,6 +34,34 @@ function isAdmin(req: Request, res: Response, next: Function) {
   res.status(403).json({ message: "Forbidden: Admin access required" });
 }
 
+// Helper function to check project access based on user role
+async function checkProjectAccess(req: Request, res: Response, projectId: number): Promise<boolean> {
+  const user = req.user!;
+  
+  // Admins can access any project
+  if (user.role === "admin") {
+    return true;
+  } 
+  // Project managers can only access projects they're assigned to
+  else if (user.role === "projectManager") {
+    const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
+    if (!hasAccess) {
+      res.status(403).json({ message: "You don't have access to this project" });
+      return false;
+    }
+  } 
+  // Clients can only access projects they're assigned to
+  else if (user.role === "client") {
+    const hasAccess = await storage.clientHasProjectAccess(user.id, projectId);
+    if (!hasAccess) {
+      res.status(403).json({ message: "You don't have access to this project" });
+      return false;
+    }
+  }
+  
+  return true;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
   setupAuth(app);
@@ -416,12 +444,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
-      // Check if client has access to this project
-      if (req.user!.role === "client") {
-        const hasAccess = await storage.clientHasProjectAccess(req.user!.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
+      // Check project access based on user role
+      if (!(await checkProjectAccess(req, res, projectId))) {
+        return; // Response already sent by checkProjectAccess
       }
 
       const invoices = await storage.getProjectInvoices(projectId);
@@ -463,12 +488,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
-      // Check if client has access to this project
-      if (req.user!.role === "client") {
-        const hasAccess = await storage.clientHasProjectAccess(req.user!.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
+      // Check project access based on user role
+      if (!(await checkProjectAccess(req, res, projectId))) {
+        return; // Response already sent by checkProjectAccess
       }
 
       const messages = await storage.getProjectMessages(projectId);
@@ -486,12 +508,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
-      // Check if client has access to this project
-      if (req.user!.role === "client") {
-        const hasAccess = await storage.clientHasProjectAccess(req.user!.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
+      // Check project access based on user role
+      if (!(await checkProjectAccess(req, res, projectId))) {
+        return; // Response already sent by checkProjectAccess
       }
 
       const messageData = insertMessageSchema.parse({
@@ -519,12 +538,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
-      // Check if client has access to this project
-      if (req.user!.role === "client") {
-        const hasAccess = await storage.clientHasProjectAccess(req.user!.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
+      // Check project access based on user role
+      if (!(await checkProjectAccess(req, res, projectId))) {
+        return; // Response already sent by checkProjectAccess
       }
 
       const updates = await storage.getProjectUpdates(projectId);
@@ -567,12 +583,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
-      // Check if client has access to this project
-      if (req.user!.role === "client") {
-        const hasAccess = await storage.clientHasProjectAccess(req.user!.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
+      // Check project access based on user role
+      if (!(await checkProjectAccess(req, res, projectId))) {
+        return; // Response already sent by checkProjectAccess
       }
 
       const milestones = await storage.getProjectMilestones(projectId);
@@ -614,12 +627,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
-      // Check if client has access to this project
-      if (req.user!.role === "client") {
-        const hasAccess = await storage.clientHasProjectAccess(req.user!.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
+      // Check project access based on user role
+      if (!(await checkProjectAccess(req, res, projectId))) {
+        return; // Response already sent by checkProjectAccess
       }
 
       const selections = await storage.getProjectSelections(projectId);
@@ -662,12 +672,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid project or selection ID" });
       }
 
-      // Check if client has access to this project
-      if (req.user!.role === "client") {
-        const hasAccess = await storage.clientHasProjectAccess(req.user!.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
+      // Check project access based on user role
+      if (!(await checkProjectAccess(req, res, projectId))) {
+        return; // Response already sent by checkProjectAccess
       }
 
       const { selectedOption } = req.body;
@@ -704,9 +711,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filters.endDate = new Date(req.query.endDate as string);
       }
       
-      if (user.role === "admin" || user.role === "projectManager") {
-        // Admins and project managers can see all documents
+      if (user.role === "admin") {
+        // Admins can see all documents
         documents = await storage.getAllDocuments(filters);
+      } else if (user.role === "projectManager") {
+        // Project managers can only see documents from projects they're assigned to
+        const pmProjects = await storage.getProjectManagerProjects(user.id);
+        
+        if (pmProjects.length === 0) {
+          return res.json([]);
+        }
+        
+        // Fetch documents for each project the project manager has access to
+        const projectDocuments = await Promise.all(
+          pmProjects.map(project => storage.getProjectDocuments(project.id, filters))
+        );
+        
+        // Flatten the array of document arrays
+        documents = projectDocuments.flat();
       } else {
         // Clients can only see documents from projects they have access to
         const clientProjects = await storage.getClientProjects(user.id);
