@@ -155,11 +155,23 @@ export const insertUserSchema = createInsertSchema(users).omit({
   updatedAt: true
 });
 
-export const insertProjectSchema = createInsertSchema(projects).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true
-});
+export const insertProjectSchema = createInsertSchema(projects)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true
+  })
+  .extend({
+    // Allow strings for ISO dates to be converted to Date objects
+    startDate: z.union([z.string().datetime(), z.date()]).optional(),
+    estimatedCompletionDate: z.union([z.string().datetime(), z.date()]).optional(),
+    actualCompletionDate: z.union([z.string().datetime(), z.date()]).optional(),
+    // Allow numbers or strings for budget to handle different formats
+    totalBudget: z.union([
+      z.string().transform(val => parseFloat(val.replace(/[^0-9.]/g, ''))),
+      z.number()
+    ])
+  });
 
 export const insertClientProjectSchema = createInsertSchema(clientProjects).omit({
   id: true,
