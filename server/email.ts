@@ -38,8 +38,8 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     html: options.html || '',
   };
 
-  // If in development mode and no SendGrid API key, log the email content
-  if (isDev && !process.env.SENDGRID_API_KEY) {
+  // Always print email content in development mode for easier debugging
+  if (isDev) {
     console.log('\n==== DEVELOPMENT EMAIL ====');
     console.log(`TO: ${options.to}`);
     console.log(`FROM: ${options.from || DEFAULT_FROM_EMAIL}`);
@@ -65,10 +65,15 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     }
     
     console.log('\n==== END EMAIL ====\n');
-    return true; // Return success in development mode
+    
+    // In development mode, if no SendGrid API key, just return success without trying to send
+    if (!process.env.SENDGRID_API_KEY) {
+      console.log('Development mode: Skipping actual email delivery (no API key)');
+      return true;
+    }
   }
 
-  // In production or if SendGrid API key is available
+  // Check for SendGrid API key for actual email delivery
   if (!process.env.SENDGRID_API_KEY) {
     console.error("Cannot send email: SENDGRID_API_KEY is not set");
     return false;
@@ -80,6 +85,13 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     return true;
   } catch (error) {
     console.error('Error sending email:', error);
+    
+    // In development, consider it a success even if SendGrid fails
+    if (isDev) {
+      console.log('Development mode: Email delivery failed, but continuing as if successful');
+      return true;
+    }
+    
     return false;
   }
 }
