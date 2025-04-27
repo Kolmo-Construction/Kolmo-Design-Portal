@@ -31,7 +31,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Loader2, PlusCircle, UploadCloud, X } from "lucide-react"; // Import icons
+import { CalendarIcon, Loader2, PlusCircle, UploadCloud, X, ImageIcon } from "lucide-react"; // Import icons
 import { cn, formatDate } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast"; // Import toast
 import { z } from "zod"; // Import z
