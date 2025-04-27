@@ -221,8 +221,8 @@ taskRouter.post("/", async (req: Request<ProjectParams>, res) => {
     if (!(await checkProjectAccess(req, res, projectId))) {
       return; // checkProjectAccess handles response
     }
-    const taskBodyData = createTaskBodySchema.parse(req.body);
-    // Validate the task data
+    
+    // Validate the task data with the insertTaskSchema
     const taskData = insertTaskSchema.parse(req.body);
 
     // Ensure the task is created for the specified project
