@@ -12,7 +12,7 @@ import { PunchListItem, InsertPunchListItem, User, insertPunchListItemSchema } f
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, getQueryFn } from "@/lib/queryClient"; // Import api for user query, getQueryFn for item query
+import { apiRequest, getQueryFn } from "@/lib/queryClient"; // Import query helpers
 import {
   Form,
   FormControl,
@@ -90,7 +90,7 @@ export function EditPunchListItemDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch the specific punch list item details when the dialog opens
-  const punchListItemQueryKey = ['projects', projectId, 'punch-list', itemToEditId]; // Use array key
+  const punchListItemQueryKey = [`/api/projects/${projectId}/punch-list/${itemToEditId}`];
   const {
       data: itemDetails,
       isLoading: isLoadingItem,
@@ -99,14 +99,7 @@ export function EditPunchListItemDialog({
       isFetching: isFetchingItem,
   } = useQuery<PunchListItemWithDetails>({
       queryKey: punchListItemQueryKey,
-      queryFn: async () => { // Use Hono client
-          if (!itemToEditId) throw new Error("Item ID is required");
-          const res = await api.projects[":projectId"]['punch-list'][":itemId"].$get({
-              param: { projectId: String(projectId), itemId: String(itemToEditId) }
-          });
-          if (!res.ok) throw new Error(`Failed to fetch item: ${res.statusText}`);
-          return await res.json();
-      },
+      queryFn: getQueryFn({ on401: "throw" }),
       enabled: isOpen && !!itemToEditId,
       staleTime: 5 * 60 * 1000,
   });
@@ -116,12 +109,8 @@ export function EditPunchListItemDialog({
     data: assignees = [],
     isLoading: isLoadingAssignees
   } = useQuery<User[]>({
-    queryKey: ["project-managers"], // Use a more descriptive key
-    queryFn: async () => { // Use Hono client
-        const res = await api["project-managers"].$get();
-        if (!res.ok) throw new Error("Failed to fetch assignees");
-        return await res.json();
-    },
+    queryKey: ["/api/project-managers"], // Use consistent format with path
+    queryFn: getQueryFn({ on401: "throw" }),
     enabled: isOpen,
   });
 

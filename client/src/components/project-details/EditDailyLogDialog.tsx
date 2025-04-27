@@ -202,17 +202,8 @@ export function EditDailyLogDialog({
            ...logData,
            logDate: logData.logDate ? new Date(logData.logDate).toISOString() : undefined,
         };
-      // Use the Hono RPC client for text updates
-       return api.projects[":projectId"]['daily-logs'][":logId"].$put({
-            param: { projectId: String(projectId), logId: String(logId) },
-            json: apiData
-        }).then(async res => {
-            if (!res.ok) {
-                const errorData = await res.json().catch(() => ({ message: `HTTP error ${res.status}` }));
-                throw new Error(errorData.message || `Failed to update log details`);
-            }
-            return await res.json();
-        });
+        // Use apiRequest for PUT request
+        return apiRequest('PUT', `/api/projects/${projectId}/daily-logs/${logId}`, apiData);
     },
     onError: (err: Error) => { // Use specific type Error
       console.error("Error updating daily log text:", err);
