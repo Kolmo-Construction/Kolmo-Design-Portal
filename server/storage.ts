@@ -127,6 +127,7 @@ export interface IStorage {
 
   // --- ADDED: Task Dependency methods ---
   getTaskDependencies(taskId: number): Promise<TaskDependency[]>;
+  getProjectTaskDependencies(projectId: number, taskIds: number[]): Promise<TaskDependency[]>;
   createTaskDependency(depData: InsertTaskDependency): Promise<TaskDependency>;
   deleteTaskDependency(dependencyId: number): Promise<void>;
   // --- END ADDED ---
@@ -519,26 +520,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTask(taskData: InsertTask): Promise<Task> {
-      const [newTask] = await db.insert(tasksTable).values(taskData).returning();
+      const [newTask] = await db.insert(tasks).values(taskData).returning();
       return newTask;
   }
 
   async updateTask(taskId: number, taskData: Partial<InsertTask>): Promise<Task | undefined> {
-      const [updatedTask] = await db.update(tasksTable)
+      const [updatedTask] = await db.update(tasks)
           .set({ ...taskData, updatedAt: new Date() })
-          .where(eq(tasksTable.id, taskId))
+          .where(eq(tasks.id, taskId))
           .returning();
       return updatedTask;
   }
 
   async deleteTask(taskId: number): Promise<void> {
       // Important: Handle dependencies first if required by your logic/constraints
-      await db.delete(taskDependenciesTable).where(or(
-          eq(taskDependenciesTable.predecessorId, taskId),
-          eq(taskDependenciesTable.successorId, taskId)
+      await db.delete(taskDependencies).where(or(
+          eq(taskDependencies.predecessorId, taskId),
+          eq(taskDependencies.successorId, taskId)
       ));
       // Then delete the task
-      await db.delete(tasksTable).where(eq(tasksTable.id, taskId));
+      await db.delete(tasks).where(eq(tasks.id, taskId));
   }
   // --- END Task Methods ---
 
@@ -546,23 +547,37 @@ export class DatabaseStorage implements IStorage {
   // --- ADDED: Task Dependency Methods ---
   async getTaskDependencies(taskId: number): Promise<TaskDependency[]> {
       // Get dependencies where the given task is either a predecessor or successor
-      return await db.query.taskDependenciesTable.findMany({
+      return await db.query.taskDependencies.findMany({
           where: or(
-              eq(taskDependenciesTable.predecessorId, taskId),
-              eq(taskDependenciesTable.successorId, taskId)
+              eq(taskDependencies.predecessorId, taskId),
+              eq(taskDependencies.successorId, taskId)
           ),
           // with: { predecessor: true, successor: true } // Fetch related tasks if needed
       });
   }
+  
+  async getProjectTaskDependencies(projectId: number, taskIds: number[]): Promise<TaskDependency[]> {
+      if (!taskIds.length) return [];
+      
+      // Get all dependencies where any task from this project is involved
+      return await db.select()
+          .from(taskDependencies)
+          .where(
+              or(
+                  inArray(taskDependencies.predecessorId, taskIds),
+                  inArray(taskDependencies.successorId, taskIds)
+              )
+          );
+  }
 
   async createTaskDependency(depData: InsertTaskDependency): Promise<TaskDependency> {
       // Optional: Check for circular dependencies before inserting if needed
-      const [newDep] = await db.insert(taskDependenciesTable).values(depData).returning();
+      const [newDep] = await db.insert(taskDependencies).values(depData).returning();
       return newDep;
   }
 
   async deleteTaskDependency(dependencyId: number): Promise<void> {
-      await db.delete(taskDependenciesTable).where(eq(taskDependenciesTable.id, dependencyId));
+      await db.delete(taskDependencies).where(eq(taskDependencies.id, dependencyId));
   }
   // --- END Task Dependency Methods ---
 

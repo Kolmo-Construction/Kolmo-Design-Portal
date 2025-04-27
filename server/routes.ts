@@ -334,7 +334,40 @@ taskRouter.delete("/:taskId", async (req: Request<TaskParams>, res) => {
   }
 });
 
-// GET task dependencies
+// GET all dependencies for a project
+taskRouter.get("/dependencies", async (req: Request<ProjectParams>, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    
+    if (isNaN(projectId)) {
+      return res.status(400).json({ message: "Invalid project ID" });
+    }
+
+    // Check if user has access to this project
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    // Get all project tasks
+    const tasks = await storage.getProjectTasks(projectId);
+    
+    if (!tasks.length) {
+      return res.json([]); // No tasks means no dependencies
+    }
+    
+    // Get all task IDs for this project
+    const taskIds = tasks.map(task => task.id);
+    
+    // Get all dependencies involving these tasks
+    const dependencies = await storage.getProjectTaskDependencies(projectId, taskIds);
+    res.json(dependencies);
+  } catch (error) {
+    console.error("Error fetching project task dependencies:", error);
+    res.status(500).json({ message: "Failed to fetch task dependencies" });
+  }
+});
+
+// GET task dependencies for a specific task
 taskRouter.get("/:taskId/dependencies", async (req: Request<TaskParams>, res) => {
   try {
     const projectId = parseInt(req.params.projectId);
