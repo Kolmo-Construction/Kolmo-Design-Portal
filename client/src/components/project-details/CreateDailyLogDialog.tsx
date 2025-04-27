@@ -166,12 +166,21 @@ export function CreateDailyLogDialog({
     formData.append('workPerformed', values.workPerformed);
     if (values.issuesEncountered) formData.append('issuesEncountered', values.issuesEncountered);
     if (values.safetyObservations) formData.append('safetyObservations', values.safetyObservations);
+    
+    // For debugging, log what we're sending to the server
+    console.log("Form data entries:");
+    for (const pair of formData.entries()) {
+      console.log(pair[0] + ': ' + pair[1]);
+    }
 
     // Append selected files
     selectedFiles.forEach((file) => {
-      // Use the field name expected by the Multer middleware (`logPhotos`)
-      formData.append('logPhotos', file, file.name);
+      // Use the field name expected by the Multer middleware
+      formData.append('photos', file, file.name); // Changed from 'logPhotos' to 'photos' to match server expectation
     });
+
+    // For debugging, log file entries
+    console.log("Selected files:", selectedFiles.map(f => f.name));
 
     // Trigger the mutation
     createDailyLogMutation.mutate(formData);
