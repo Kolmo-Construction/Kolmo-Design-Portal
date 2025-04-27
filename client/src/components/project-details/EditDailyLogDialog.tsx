@@ -115,7 +115,9 @@ export function EditDailyLogDialog({
       form.reset({
         logDate: logDetails.logDate ? new Date(logDetails.logDate) : new Date(),
         weather: logDetails.weather ?? "",
-        temperature: logDetails.temperature ? parseFloat(logDetails.temperature) : undefined,
+        temperature: logDetails.temperature !== null && logDetails.temperature !== undefined ? 
+          (typeof logDetails.temperature === 'string' ? parseFloat(logDetails.temperature) : logDetails.temperature) : 
+          undefined,
         crewOnSite: logDetails.crewOnSite ?? "",
         workPerformed: logDetails.workPerformed ?? "",
         issuesEncountered: logDetails.issuesEncountered ?? "",

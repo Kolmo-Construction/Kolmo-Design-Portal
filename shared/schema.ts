@@ -426,6 +426,10 @@ export const insertDailyLogSchema = createInsertSchema(dailyLogs).omit({
 }).extend({
     // Allow strings for ISO dates
     logDate: z.union([z.string().datetime(), z.date()]), // Make required
+    temperature: z.union([z.number(), z.string(), z.null()]).optional().transform(val => 
+      val === null || val === undefined || val === '' ? null :
+      typeof val === 'string' ? parseFloat(val) : val
+    ),
 });
 export type InsertDailyLog = z.infer<typeof insertDailyLogSchema>;
 export type DailyLog = typeof dailyLogs.$inferSelect;
