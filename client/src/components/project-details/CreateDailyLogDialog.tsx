@@ -98,22 +98,76 @@ export function CreateDailyLogDialog({
 
   // Mutation hook for creating a daily log (using FormData)
   const createDailyLogMutation = useMutation({
-    mutationFn: (formData: FormData) => {
-      // Use fetch directly for FormData, apiRequest helper might need adjustment for it
-      return fetch(`/api/projects/${projectId}/daily-logs`, {
-        method: 'POST',
-        body: formData,
-        // DO NOT set Content-Type header, browser does it with boundary for FormData
-        credentials: 'include', // Include cookies for authentication
-      }).then(async (res) => {
-        if (!res.ok) {
-           const errorData = await res.json().catch(() => ({ message: res.statusText }));
-           throw new Error(errorData.message || `Failed to create log: ${res.status}`);
+    mutationFn: async (data: { formValues: DailyLogFormValues, files: File[] }) => {
+      console.log("Starting fetch request to create daily log");
+      
+      try {
+        const { formValues, files } = data;
+        console.log("Form values:", formValues);
+        console.log("Files:", files.map(f => f.name));
+        
+        // Create FormData
+        const formData = new FormData();
+        
+        // Append text fields
+        formData.append('logDate', new Date(formValues.logDate!).toISOString());
+        if (formValues.weather) formData.append('weather', formValues.weather);
+        if (formValues.temperature !== undefined && formValues.temperature !== null) {
+          formData.append('temperature', formValues.temperature.toString());
         }
-        return res.json();
-      });
+        if (formValues.crewOnSite) formData.append('crewOnSite', formValues.crewOnSite);
+        formData.append('workPerformed', formValues.workPerformed);
+        if (formValues.issuesEncountered) formData.append('issuesEncountered', formValues.issuesEncountered);
+        if (formValues.safetyObservations) formData.append('safetyObservations', formValues.safetyObservations);
+        
+        // Append files
+        files.forEach(file => {
+          formData.append('photos', file, file.name);
+        });
+        
+        const url = `/api/projects/${projectId}/daily-logs`;
+        console.log(`Submitting to URL: ${url}`);
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          body: formData,
+          credentials: 'include', // Include cookies for authentication
+        });
+        
+        console.log(`Response status: ${response.status}`);
+        
+        // Get response text regardless of status to see what's returned
+        const responseText = await response.text();
+        console.log(`Response text: ${responseText}`);
+        
+        // If not OK, throw an error with the response
+        if (!response.ok) {
+          let errorData;
+          try {
+            errorData = JSON.parse(responseText);
+          } catch (e) {
+            errorData = { message: responseText || response.statusText };
+          }
+          throw new Error(errorData.message || `Failed to create log: ${response.status}`);
+        }
+        
+        // If OK, parse response as JSON
+        let responseData;
+        try {
+          responseData = JSON.parse(responseText);
+        } catch (e) {
+          console.error("Error parsing JSON response:", e);
+          responseData = { message: "Success but could not parse response" };
+        }
+        
+        return responseData;
+      } catch (error) {
+        console.error("Caught error in mutation:", error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Create daily log success:", data);
       toast({ title: "Success", description: "Daily log submitted successfully." });
       // Invalidate the daily logs query to refetch fresh data
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/daily-logs`] });
@@ -154,36 +208,13 @@ export function CreateDailyLogDialog({
   // Handle form submission
   const handleFormSubmit = (values: DailyLogFormValues) => {
     console.log("Form values submitted:", values);
-
-    // Create FormData object
-    const formData = new FormData();
-
-    // Append text fields from react-hook-form state
-    formData.append('logDate', new Date(values.logDate!).toISOString()); // Ensure date is ISO string
-    if (values.weather) formData.append('weather', values.weather);
-    if (values.temperature !== undefined && values.temperature !== null) formData.append('temperature', values.temperature.toString());
-    if (values.crewOnSite) formData.append('crewOnSite', values.crewOnSite);
-    formData.append('workPerformed', values.workPerformed);
-    if (values.issuesEncountered) formData.append('issuesEncountered', values.issuesEncountered);
-    if (values.safetyObservations) formData.append('safetyObservations', values.safetyObservations);
-    
-    // For debugging, log what we're sending to the server
-    console.log("Form data entries:");
-    for (const pair of formData.entries()) {
-      console.log(pair[0] + ': ' + pair[1]);
-    }
-
-    // Append selected files
-    selectedFiles.forEach((file) => {
-      // Use the field name expected by the Multer middleware
-      formData.append('photos', file, file.name); // Changed from 'logPhotos' to 'photos' to match server expectation
-    });
-
-    // For debugging, log file entries
     console.log("Selected files:", selectedFiles.map(f => f.name));
-
-    // Trigger the mutation
-    createDailyLogMutation.mutate(formData);
+    
+    // Trigger the mutation with form values and files
+    createDailyLogMutation.mutate({
+      formValues: values,
+      files: selectedFiles
+    });
   };
 
   return (
