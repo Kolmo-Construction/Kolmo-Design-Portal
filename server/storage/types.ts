@@ -21,8 +21,10 @@ export type MessageWithSender = schema.Message & {
 };
 
 export type ProgressUpdateWithDetails = schema.ProgressUpdate & {
+    // The database schema uses creator, but code expects author
     author: Pick<schema.User, 'id' | 'firstName' | 'lastName'>,
-    mediaItems: schema.MediaItem[]
+    // The database schema uses media, but code expects mediaItems  
+    mediaItems: schema.UpdateMedia[]
 };
 
 export type DailyLogWithAuthor = schema.DailyLog & {
