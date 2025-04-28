@@ -4,8 +4,8 @@ import { z } from 'zod';
 import { storage } from '../storage';
 import { User, insertUserSchema } from '../../shared/schema';
 import { HttpError } from '../errors';
-import { sendMagicLinkEmail, isEmailServiceConfigured } from '../email';
-import { randomBytes } from 'crypto';
+// Assuming helper functions are exported from auth.ts or similar
+import { createAndSendMagicLink, verifyMagicTokenAndGetUser } from '../auth';
 
 // --- Zod Schemas for API Input Validation ---
 
@@ -96,12 +96,10 @@ export const getAuthStatus = async (
        // req.user might only contain the ID depending on deserializeUser.
        // Fetch full, up-to-date user details.
        // Ensure sensitive data (like password hash) is not included.
-       const user = await storage.getUser(req.user.id);
+       const user = await storage.getUserProfileById(req.user.id); // Assumes storage.getUserProfileById excludes sensitive fields
 
        if (user) {
-            // Remove sensitive data
-            const { password, magicLinkToken, magicLinkExpiry, ...userWithoutSensitiveData } = user;
-            res.status(200).json({ isAuthenticated: true, user: userWithoutSensitiveData });
+            res.status(200).json({ isAuthenticated: true, user: user });
        } else {
            // User existed in session but not in DB? Log out.
            console.warn(`User ID ${req.user.id} found in session but not in DB.`);
@@ -118,58 +116,6 @@ export const getAuthStatus = async (
   }
 };
 
-// Helper function to generate a magic link token
-function generateMagicLinkToken(): string {
-  return randomBytes(32).toString("hex");
-}
-
-// Helper function to calculate expiry time (default: 24 hours from now)
-function getMagicLinkExpiry(hours = 24): Date {
-  const expiryDate = new Date();
-  expiryDate.setHours(expiryDate.getHours() + hours);
-  return expiryDate;
-}
-
-// Helper function to handle the creation and sending of magic links
-async function createAndSendMagicLink(email: string): Promise<boolean> {
-  // Check if user exists
-  const user = await storage.getUserByEmail(email);
-  if (!user) {
-    // If user doesn't exist, we shouldn't reveal this, but log it for debugging
-    console.log(`No user found with email: ${email}`);
-    return false;
-  }
-
-  // Generate token and expiry date
-  const token = generateMagicLinkToken();
-  const expiry = getMagicLinkExpiry();
-
-  // Update user with magic link token
-  await storage.updateUserMagicLinkToken(user.id, token, expiry);
-
-  // Get hostname for link
-  const host = process.env.NODE_ENV === 'production' 
-    ? process.env.HOST || 'localhost:5000'
-    : 'localhost:5000';
-
-  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-  const magicLink = `${protocol}://${host}/auth/magic-link/${token}`;
-
-  // Send the email
-  if (isEmailServiceConfigured()) {
-    return await sendMagicLinkEmail({
-      email,
-      firstName: user.firstName,
-      token,
-      isNewUser: !user.isActivated
-    });
-  } else {
-    console.warn('Email service not configured. Magic link will not be sent.');
-    console.log(`[DEV] Magic link for ${email}: ${magicLink}`);
-    return false;
-  }
-}
-
 /**
  * Initiates the magic link login process for a given email.
  */
@@ -185,8 +131,8 @@ export const requestMagicLink = async (
     }
     const { email } = validationResult.data;
 
-    // Create and send the magic link
-    await createAndSendMagicLink(email);
+    // Call the helper function from auth.ts (or similar)
+    await createAndSendMagicLink(email); // This function handles user lookup, token creation/storage, email sending
 
     // Always return OK to prevent email enumeration attacks
     res.status(200).json({ message: 'If an account exists for this email, a magic link has been sent.' });
@@ -200,29 +146,6 @@ export const requestMagicLink = async (
   }
 };
 
-
-// Helper function to verify a magic link token and retrieve the associated user
-async function verifyMagicTokenAndGetUser(token: string): Promise<User | null> {
-  if (!token) {
-    throw new HttpError(400, 'Invalid token');
-  }
-
-  const user = await storage.getUserByMagicLinkToken(token);
-
-  if (!user) {
-    throw new HttpError(404, 'Invalid or expired link');
-  }
-
-  // Check if the token has expired
-  if (user.magicLinkExpiry && new Date(user.magicLinkExpiry) < new Date()) {
-    throw new HttpError(401, 'Magic link has expired');
-  }
-
-  // Mark the token as used by removing it
-  await storage.updateUserMagicLinkToken(user.id, null, null);
-
-  return user;
-}
 
 /**
  * Verifies a magic link token, logs the user in, and checks profile status.
@@ -239,8 +162,8 @@ export const verifyMagicLink = async (
         }
         const { token } = tokenValidation.data;
 
-        // Verify token and get user
-        const user = await verifyMagicTokenAndGetUser(token);
+        // Call helper from auth.ts (or similar) to verify and get user
+        const user = await verifyMagicTokenAndGetUser(token); // Throws HttpError on failure
 
         if (!user) {
             // Should be handled by verifyMagicTokenAndGetUser throwing, but belts-and-suspenders
@@ -255,7 +178,7 @@ export const verifyMagicLink = async (
             }
 
             // Check if profile setup is needed
-            const needsProfileSetup = !user.isActivated; // Check activation status
+            const needsProfileSetup = !user.profileComplete; // Check the flag from the user object
 
             // Successfully logged in
             res.status(200).json({
@@ -269,18 +192,6 @@ export const verifyMagicLink = async (
         next(error); // Pass HttpErrors (400/401 from verify) or other errors
     }
 };
-
-// Helper function to hash passwords securely
-async function hashPassword(password: string): Promise<string> {
-  const { randomBytes, scrypt } = await import('crypto');
-  const { promisify } = await import('util');
-  
-  const scryptAsync = promisify(scrypt);
-  const salt = randomBytes(16).toString("hex");
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  
-  return `${buf.toString("hex")}.${salt}`;
-}
 
 /**
  * Sets up user profile (name, password) after magic link login.
@@ -297,35 +208,30 @@ export const setupProfile = async (
             throw new HttpError(401, 'Authentication required. Please log in again.');
         }
 
+        // If profile is already complete, prevent re-setup?
+        // const currentUser = await storage.getUserProfileById(user.id);
+        // if (currentUser?.profileComplete) {
+        //     throw new HttpError(400, 'Profile already set up.');
+        // }
+
+
         const validationResult = profileSetupSchema.safeParse(req.body);
         if (!validationResult.success) {
             throw new HttpError(400, 'Invalid profile data.', validationResult.error.flatten());
         }
         const { firstName, lastName, password } = validationResult.data;
 
-        // Hash the password
-        const hashedPassword = await hashPassword(password);
-        
-        // Update the user profile
-        const updatedUser = await storage.updateUser(user.id, {
-          firstName,
-          lastName,
-          password: hashedPassword,
-          isActivated: true // Mark as activated
-        });
+        // Call storage method to update name, hash password, and mark complete
+        const updatedUser = await storage.setupUserProfile(user.id, firstName, lastName, password); // Assumes this hashes the password
 
         if (!updatedUser) {
              throw new HttpError(500, 'Failed to update profile.');
         }
 
-        // Remove sensitive information from response
-        const { password: _, magicLinkToken, magicLinkExpiry, ...userWithoutSensitiveData } = updatedUser;
+        // Update the session user? req.login might do this automatically if serialize/deserialize handles it.
+        // Or manually update `req.user` if necessary. For now, assume client refetches or session is updated.
 
-        // Return the updated user profile
-        res.status(200).json({
-          message: "Profile setup complete",
-          user: userWithoutSensitiveData
-        });
+        res.status(200).json(updatedUser); // Return updated profile (excluding sensitive data)
 
      } catch(error) {
         next(error);

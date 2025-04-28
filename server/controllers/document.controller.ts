@@ -77,7 +77,7 @@ export const uploadDocument = async (
         fileName: req.file.originalname,
         buffer: req.file.buffer, // Assumes Multer uses MemoryStorage
         mimetype: req.file.mimetype,
-    }); // Contains { key: string; url?: string }
+    }); // Assume r2Result contains { key: string; url?: string }
 
     if (!r2Result || !r2Result.key) {
        throw new HttpError(500, 'Failed to upload file to storage.');
@@ -217,38 +217,6 @@ export const getDocumentDownloadUrl = async (
     // Alternative: Redirect the client directly
     // res.redirect(downloadUrl);
 
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Get all documents accessible by the current user.
- * For admins, returns all documents. For other users, returns documents from projects they have access to.
- */
-export const getAllAccessibleDocuments = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    const user = req.user as User;
-
-    if (!user?.id) {
-      throw new HttpError(401, 'Authentication required.');
-    }
-
-    let documents;
-    
-    // Admins see all documents
-    if (user.role === 'admin') {
-      documents = await storage.getAllDocuments();
-    } else {
-      // Regular users see documents from their projects
-      documents = await storage.getDocumentsForUser(user.id);
-    }
-
-    res.status(200).json(documents);
   } catch (error) {
     next(error);
   }

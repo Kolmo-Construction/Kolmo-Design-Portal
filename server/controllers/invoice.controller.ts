@@ -4,6 +4,7 @@ import { storage } from '../storage';
 import {
   insertInvoiceSchema,
   insertPaymentSchema,
+  invoiceStatusEnum, // Ensure this enum is available
   User,
 } from '../../shared/schema';
 import { HttpError } from '../errors';
@@ -43,13 +44,10 @@ const invoiceCreateSchema = insertInvoiceSchema.omit({
   // items: z.array(z.object({...})).optional()
 });
 
-// Define the invoice status enum values directly
-const INVOICE_STATUS = ['DRAFT', 'SENT', 'PAID', 'PARTIALLY_PAID', 'OVERDUE', 'CANCELLED'] as const;
-
 // Schema for updating an invoice
 const invoiceUpdateSchema = invoiceCreateSchema.partial().extend({
   // Allow status updates explicitly via the API if needed
-  status: z.enum(INVOICE_STATUS).optional(),
+  status: z.enum(invoiceStatusEnum.enumValues).optional(),
   amount: positiveNumericString.optional(),
   dueDate: z.string().datetime({ message: 'Invalid due date format.' }).optional(),
 });
@@ -129,7 +127,7 @@ export const createInvoice = async (
         // amount: new Big(validatedData.amount).toString(), // If using Big.js string representation
         dueDate: new Date(validatedData.dueDate),
         // Set initial status if not provided by client
-        status: INVOICE_STATUS[0], // e.g., 'DRAFT'
+        status: invoiceStatusEnum.enumValues[0], // e.g., 'DRAFT' or 'SENT'
     };
 
     const createdInvoice = await storage.createInvoice(invoiceData); // Assumes storage.createInvoice exists
