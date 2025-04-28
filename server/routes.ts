@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { Router } from "express";
-import { storage } from "@server/storage"; // Updated import
+import { storage } from "@server/storage/index"; // Updated to use repository pattern
 import { setupAuth } from "@server/auth"; // Updated import
 import { uploadToR2 } from "@server/r2-upload"; // Updated import
 // Import middleware

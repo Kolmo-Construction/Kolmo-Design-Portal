@@ -1,6 +1,6 @@
 // server/middleware/permissions.middleware.ts
 import type { Request, Response, NextFunction } from "express";
-import { storage } from "@server/storage"; // Updated import
+import { storage } from "@server/storage/index"; // Updated to use repository pattern
 import { User } from "@shared/schema"; // Import User type if needed
 
 // Define a structure for user object attached by Passport (adjust based on your setup)
