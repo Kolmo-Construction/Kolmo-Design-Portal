@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 // Updated import path for the aggregated storage object
-import { storage } from '../storage';
+import { storage } from '../storage/index';
 // Import specific types from the new types file
 import { MessageWithSender } from '../storage/types';
 import { insertMessageSchema, User } from '../../shared/schema'; // Keep User type

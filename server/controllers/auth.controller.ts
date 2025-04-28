@@ -3,7 +3,7 @@ import passport from 'passport';
 import { z } from 'zod';
 import { randomBytes } from 'crypto';
 // Updated import path for the aggregated storage object
-import { storage } from '../storage';
+import { storage } from '../storage/index';
 // Import specific types from the new types file
 import { UserProfile } from '../storage/types';
 import { User, insertUserSchema } from '../../shared/schema'; // Keep User type for req.user casting

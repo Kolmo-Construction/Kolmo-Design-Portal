@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 // Updated import path for the aggregated storage object
-import { storage } from '../storage';
+import { storage } from '../storage/index';
 // Import specific types if needed (DocumentWithUploader might be used by FE, but controller methods use base Document or void)
 import { DocumentWithUploader } from '../storage/types';
 import { insertDocumentSchema, User } from '../../shared/schema'; // Keep User type
