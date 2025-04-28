@@ -12,9 +12,9 @@ const router = Router({ mergeParams: true });
 // Access checks for the specific project are handled within the controllers for now.
 
 // GET /api/projects/:projectId/messages/
-router.get("/", messageController.getProjectMessages);
+router.get("/", messageController.getMessagesForProject);
 
 // POST /api/projects/:projectId/messages/
-router.post("/", messageController.createProjectMessage);
+router.post("/", messageController.createMessage);
 
 export default router;

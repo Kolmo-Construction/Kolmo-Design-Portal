@@ -8,7 +8,7 @@ import { isAuthenticated, isAdmin } from "@server/middleware/auth.middleware"; /
 const router = Router();
 
 // GET /api/projects - Get projects accessible to the user
-router.get("/", isAuthenticated, projectController.getAllProjects);
+router.get("/", isAuthenticated, projectController.getProjects);
 
 // POST /api/projects - Create a new project (Admin only)
 router.post("/", isAdmin, projectController.createProject); // isAdmin implies isAuthenticated

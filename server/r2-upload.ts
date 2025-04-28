@@ -1,7 +1,9 @@
 // server/r2-upload.ts
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomBytes } from 'crypto';
 import path from 'path';
+import { HttpError } from './errors';
 
 // --- R2 Configuration ---
 const accountId = process.env.R2_ACCOUNT_ID;
@@ -27,32 +29,34 @@ const R2 = new S3Client({
   },
 });
 
+// Define the return type for the uploadToR2 function
+interface UploadResult {
+  url: string;
+  key: string;
+}
+
 /**
- * Uploads a file buffer to Cloudflare R2 within a project-specific folder.
- * @param projectId The ID of the project to store the file under.
- * @param fileBuffer The file content buffer.
- * @param originalFilename The original name of the file.
- * @param mimeType The MIME type of the file.
- * @returns The public URL of the uploaded file in R2.
- * @throws Error if R2 is not configured or upload fails.
+ * Uploads a file to Cloudflare R2
+ * @param options Options for the upload
+ * @returns Object with the URL and storage key of the uploaded file
  */
-export async function uploadToR2(
-  projectId: number, // Added projectId parameter
-  fileBuffer: Buffer,
-  originalFilename: string,
-  mimeType: string
-): Promise<string> {
+export async function uploadToR2(options: {
+  projectId: number;
+  fileName: string;
+  buffer: Buffer;
+  mimetype: string;
+}): Promise<UploadResult> {
   if (!bucketName || !accountId || !accessKeyId || !secretAccessKey) {
-    throw new Error("R2 storage is not configured.");
+    throw new HttpError(500, "R2 storage is not configured.");
   }
 
   // Construct the destination path using projectId
-  const destinationPath = `projects/${projectId}/documents/`;
+  const destinationPath = `projects/${options.projectId}/documents/`;
 
   // Generate a unique filename to avoid collisions but keep original extension
   const uniqueSuffix = randomBytes(16).toString('hex');
-  const fileExtension = path.extname(originalFilename);
-  const baseName = path.basename(originalFilename, fileExtension);
+  const fileExtension = path.extname(options.fileName);
+  const baseName = path.basename(options.fileName, fileExtension);
   // Sanitize baseName slightly - replace spaces and keep it reasonably short
   const sanitizedBaseName = baseName.replace(/\s+/g, '_').substring(0, 50);
   const uniqueFilename = `${sanitizedBaseName}-${uniqueSuffix}${fileExtension}`;
@@ -60,13 +64,13 @@ export async function uploadToR2(
   // Construct the full key including the project path
   const key = `${destinationPath}${uniqueFilename}`;
 
-  console.log(`Attempting to upload to R2: Bucket=${bucketName}, Key=${key}, Type=${mimeType}`);
+  console.log(`Attempting to upload to R2: Bucket=${bucketName}, Key=${key}, Type=${options.mimetype}`);
 
   const command = new PutObjectCommand({
     Bucket: bucketName,
     Key: key,
-    Body: fileBuffer,
-    ContentType: mimeType,
+    Body: options.buffer,
+    ContentType: options.mimetype,
     // Consider adding CacheControl for browser caching
     // CacheControl: 'public, max-age=31536000, immutable',
   });
@@ -85,8 +89,11 @@ export async function uploadToR2(
       fileUrl = `${r2Endpoint}/${bucketName}/${key}`; // Less reliable, depends on bucket settings
     }
 
-    console.log(`Successfully uploaded ${originalFilename} to ${fileUrl}`);
-    return fileUrl;
+    console.log(`Successfully uploaded ${options.fileName} to ${fileUrl}`);
+    return {
+      url: fileUrl,
+      key: key
+    };
   } catch (error) {
     console.error(`Error uploading to R2 (Bucket: ${bucketName}, Key: ${key}):`, error);
     // Log more details from the error if available
@@ -95,6 +102,66 @@ export async function uploadToR2(
         console.error("AWS SDK Error Message:", error.message);
         console.error("AWS SDK Error Stack:", error.stack);
     }
-    throw new Error("Failed to upload file to R2 storage.");
+    throw new HttpError(500, "Failed to upload file to R2 storage.");
+  }
+}
+
+/**
+ * Deletes a file from Cloudflare R2 storage
+ * @param key The storage key of the file to delete
+ * @returns Promise that resolves when the file is deleted
+ */
+export async function deleteFromR2(key: string): Promise<void> {
+  if (!bucketName || !accountId || !accessKeyId || !secretAccessKey) {
+    throw new HttpError(500, "R2 storage is not configured.");
+  }
+
+  try {
+    const command = new DeleteObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+    });
+
+    await R2.send(command);
+    console.log(`Successfully deleted file with key ${key} from R2`);
+  } catch (error) {
+    console.error(`Error deleting file with key ${key} from R2:`, error);
+    if (error instanceof Error) {
+      console.error("AWS SDK Error Details:", error.message);
+    }
+    throw new HttpError(500, "Failed to delete file from R2 storage.");
+  }
+}
+
+/**
+ * Generates a signed URL for downloading a file from R2
+ * @param key The storage key of the file
+ * @param originalFilename The original filename to use in Content-Disposition
+ * @returns Promise that resolves to the signed download URL
+ */
+export async function getR2DownloadUrl(key: string, originalFilename?: string): Promise<string> {
+  if (!bucketName || !accountId || !accessKeyId || !secretAccessKey) {
+    throw new HttpError(500, "R2 storage is not configured.");
+  }
+
+  try {
+    const command = new GetObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+      // Add Content-Disposition header if original filename is provided
+      ...(originalFilename && {
+        ResponseContentDisposition: `attachment; filename="${encodeURIComponent(originalFilename)}"`,
+      }),
+    });
+
+    // Generate a signed URL that expires in 15 minutes
+    const signedUrl = await getSignedUrl(R2, command, { expiresIn: 15 * 60 });
+    return signedUrl;
+  } catch (error) {
+    console.error(`Error generating signed URL for file with key ${key}:`, error);
+    if (error instanceof Error) {
+      console.error("AWS SDK Error Details:", error.message);
+    }
+    throw new HttpError(500, "Failed to generate download URL.");
   }
 }

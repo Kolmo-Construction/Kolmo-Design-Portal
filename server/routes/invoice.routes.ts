@@ -11,10 +11,10 @@ const router = Router({ mergeParams: true });
 // GET /api/projects/:projectId/invoices/
 // Requires authentication. Access check happens within the controller currently.
 // Alternatively, apply checkProjectAccess middleware here.
-router.get("/", isAuthenticated, invoiceController.getProjectInvoices);
+router.get("/", isAuthenticated, invoiceController.getInvoicesForProject);
 
 // POST /api/projects/:projectId/invoices/
 // Requires Admin privileges (which implies authentication).
-router.post("/", isAdmin, invoiceController.createProjectInvoice);
+router.post("/", isAdmin, invoiceController.createInvoice);
 
 export default router;

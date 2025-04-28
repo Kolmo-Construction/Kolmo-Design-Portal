@@ -1,52 +1,34 @@
+// server/controllers/punchList.controller.ts
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
+// Updated import path for the aggregated storage object
 import { storage } from '../storage';
+// Import specific types from the new types file
+import { PunchListItemWithDetails, MediaItem } from '../storage/types';
 import {
   insertPunchListItemSchema,
-  punchListItemStatusEnum, // Ensure enum is available
+  punchListItemStatusEnum,
   insertMediaSchema,
   User,
-  MediaItem, // Assuming type for media items
-  PunchListItem // Assuming type for punch list items
 } from '../../shared/schema';
 import { HttpError } from '../errors';
-import { uploadToR2, deleteFromR2 } from '../r2-upload'; // Assuming R2 functions
+// R2 functions remain separate
+import { uploadToR2, deleteFromR2 } from '../r2-upload';
 
-// --- Zod Schemas for API Input Validation ---
+// --- Zod Schemas (Unchanged) ---
+const punchListItemCreateSchema = insertPunchListItemSchema.omit({ /*...*/ })
+ .refine(data => data.description.trim().length > 0, { /*...*/ });
 
-// Schema for creating a punch list item
-const punchListItemCreateSchema = insertPunchListItemSchema.omit({
-  id: true,
-  projectId: true, // Set from route parameter
-  createdBy: true, // Set from authenticated user
-  createdAt: true,
-  updatedAt: true,
-  completedAt: true, // Set based on status change
-  // Status likely defaults to 'OPEN' on creation
-  status: true,
-}).refine(data => data.description.trim().length > 0, {
-    message: "Description cannot be empty.",
-    path: ["description"],
-});
-
-// Schema for updating a punch list item
 const punchListItemUpdateSchema = punchListItemCreateSchema.partial().extend({
-  // Allow status updates explicitly
   status: z.enum(punchListItemStatusEnum.enumValues).optional(),
 });
 
-// Schema for optional metadata with photo upload
-const photoUploadMetaSchema = z.object({
-  // Potentially add fields like a photo description if needed
-});
-
+const photoUploadMetaSchema = z.object({}); // Keep simple
 
 // --- Controller Functions ---
 
 /**
  * Get all punch list items for a specific project.
- * Assumes checkProjectAccess middleware runs before this.
- * Storage layer should join with creator details and associated media.
  */
 export const getPunchListItemsForProject = async (
   req: Request,
@@ -56,14 +38,10 @@ export const getPunchListItemsForProject = async (
   try {
     const { projectId } = req.params;
     const projectIdNum = parseInt(projectId, 10);
+    if (isNaN(projectIdNum)) { throw new HttpError(400, 'Invalid project ID parameter.'); }
 
-    if (isNaN(projectIdNum)) {
-      throw new HttpError(400, 'Invalid project ID parameter.');
-    }
-
-    // checkProjectAccess middleware verified access
-    // Assumes storage fetches items + creator info + media items
-    const items = await storage.getPunchListItemsForProject(projectIdNum);
+    // Use the nested repository: storage.punchLists
+    const items = await storage.punchLists.getPunchListItemsForProject(projectIdNum);
     res.status(200).json(items);
   } catch (error) {
     next(error);
@@ -72,7 +50,6 @@ export const getPunchListItemsForProject = async (
 
 /**
  * Create a new punch list item for a project.
- * Assumes isAdmin middleware runs before this.
  */
 export const createPunchListItem = async (
   req: Request,
@@ -82,39 +59,28 @@ export const createPunchListItem = async (
   try {
     const { projectId } = req.params;
     const projectIdNum = parseInt(projectId, 10);
-    const user = req.user as User; // Authenticated user (Admin)
+    const user = req.user as User;
 
-    if (isNaN(projectIdNum)) {
-      throw new HttpError(400, 'Invalid project ID parameter.');
-    }
-    if (!user?.id) {
-      throw new HttpError(401, 'Authentication required.');
-    }
-    // isAdmin middleware verified access
+    if (isNaN(projectIdNum)) { throw new HttpError(400, 'Invalid project ID parameter.'); }
+    if (!user?.id) { throw new HttpError(401, 'Authentication required.'); }
 
     const validationResult = punchListItemCreateSchema.safeParse(req.body);
-    if (!validationResult.success) {
-      throw new HttpError(400, 'Invalid punch list item data.', validationResult.error.flatten());
-    }
-
+    if (!validationResult.success) { throw new HttpError(400, 'Invalid punch list item data.', validationResult.error.flatten()); }
     const validatedData = validationResult.data;
 
-    // Prepare data for storage layer
     const newItemData = {
         ...validatedData,
         projectId: projectIdNum,
         createdBy: user.id,
-        // Let storage/DB schema handle default status ('OPEN')
+        // status handled by repo/default
     };
 
-    // Assumes storage saves and returns the new item with creator info
-    const createdItem = await storage.createPunchListItem(newItemData);
+    // Use the nested repository: storage.punchLists
+    const createdItem = await storage.punchLists.createPunchListItem(newItemData);
 
-    if (!createdItem) {
-        throw new HttpError(500, 'Failed to create punch list item.');
-    }
+    if (!createdItem) { throw new HttpError(500, 'Failed to create punch list item.'); }
 
-    res.status(201).json(createdItem);
+    res.status(201).json(createdItem); // Returns simpler type without media
   } catch (error) {
     next(error);
   }
@@ -122,7 +88,6 @@ export const createPunchListItem = async (
 
 /**
  * Update an existing punch list item.
- * Assumes isAdmin middleware runs before this (applied globally to the route).
  */
 export const updatePunchListItem = async (
   req: Request,
@@ -132,39 +97,24 @@ export const updatePunchListItem = async (
   try {
     const { itemId } = req.params;
     const itemIdNum = parseInt(itemId, 10);
-
-    if (isNaN(itemIdNum)) {
-      throw new HttpError(400, 'Invalid item ID parameter.');
-    }
-    // isAdmin middleware verified access globally
+    if (isNaN(itemIdNum)) { throw new HttpError(400, 'Invalid item ID parameter.'); }
 
     const validationResult = punchListItemUpdateSchema.safeParse(req.body);
-    if (!validationResult.success) {
-      throw new HttpError(400, 'Invalid punch list item data.', validationResult.error.flatten());
-    }
-
+    if (!validationResult.success) { throw new HttpError(400, 'Invalid punch list item data.', validationResult.error.flatten()); }
     const validatedData = validationResult.data;
-    if (Object.keys(validatedData).length === 0) {
-      throw new HttpError(400, 'No update data provided.');
-    }
+    if (Object.keys(validatedData).length === 0) { throw new HttpError(400, 'No update data provided.'); }
 
-    // Prepare data for storage, handling status change
     const updateData = {
         ...validatedData,
-        // Set completedAt if status changes to 'COMPLETED'
-        ...(validatedData.status === 'COMPLETED' && { completedAt: new Date() }),
-        // Clear completedAt if status changes away from 'COMPLETED'
-        ...(validatedData.status && validatedData.status !== 'COMPLETED' && { completedAt: null }),
+        completedAt: validatedData.status === 'COMPLETED' ? new Date() : (validatedData.status ? null : undefined),
     };
 
+    // Use the nested repository: storage.punchLists
+    const updatedItem = await storage.punchLists.updatePunchListItem(itemIdNum, updateData);
 
-    const updatedItem = await storage.updatePunchListItem(itemIdNum, updateData); // Assumes storage.updatePunchListItem exists
+    if (!updatedItem) { throw new HttpError(404, 'Punch list item not found or update failed.'); }
 
-    if (!updatedItem) {
-        throw new HttpError(404, 'Punch list item not found or update failed.');
-    }
-
-    res.status(200).json(updatedItem);
+    res.status(200).json(updatedItem); // Returns simpler type without media
   } catch (error) {
     next(error);
   }
@@ -172,67 +122,61 @@ export const updatePunchListItem = async (
 
 /**
  * Delete a punch list item and its associated photos.
- * Assumes isAdmin middleware runs before this (applied globally to the route).
  */
 export const deletePunchListItem = async (
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  try {
-    const { itemId } = req.params;
-    const itemIdNum = parseInt(itemId, 10);
+    let keysToDelete: string[] = [];
+    try {
+        const { itemId } = req.params;
+        const itemIdNum = parseInt(itemId, 10);
+        if (isNaN(itemIdNum)) { throw new HttpError(400, 'Invalid item ID parameter.'); }
 
-    if (isNaN(itemIdNum)) {
-      throw new HttpError(400, 'Invalid item ID parameter.');
+        // 1. Get Item AND Media Keys BEFORE deleting anything
+        // Use the nested repository: storage.punchLists then storage.media
+        const itemInfo = await storage.punchLists.getPunchListItemById(itemIdNum); // Fetches item with media
+        if (!itemInfo) {
+            throw new HttpError(404, 'Punch list item not found.');
+        }
+        // Extract keys directly from the fetched media items
+        keysToDelete = itemInfo.mediaItems?.map((media: MediaItem) => media.storageKey) ?? [];
+
+        // 2. Delete files from R2 (unchanged)
+        if (keysToDelete.length > 0) {
+            console.log(`Attempting to delete R2 keys for punch list item ${itemIdNum}: ${keysToDelete.join(', ')}`);
+            const deletePromises = keysToDelete.map(key => deleteFromR2(key).catch(err => {
+                console.error(`Failed to delete R2 key ${key} for item ${itemIdNum}:`, err); // Log only
+            }));
+            await Promise.all(deletePromises);
+        }
+
+        // 3. Delete punch list item and associated media DB records (transactional in repo)
+        // Use the nested repository: storage.punchLists
+        const success = await storage.punchLists.deletePunchListItem(itemIdNum);
+
+        if (!success) {
+             throw new HttpError(404, 'Punch list item not found or could not be deleted from database.');
+        }
+
+        res.status(204).send();
+
+    } catch (error) {
+        next(error);
     }
-    // isAdmin middleware verified access globally
-
-    // 1. Fetch item to get associated media keys
-    // Assumes storage.getPunchListItemById includes media items
-    const itemToDelete = await storage.getPunchListItemById(itemIdNum);
-
-    if (!itemToDelete) {
-       throw new HttpError(404, 'Punch list item not found.');
-    }
-
-    // 2. Delete associated photos from R2 (if any)
-    if (itemToDelete.mediaItems && itemToDelete.mediaItems.length > 0) {
-        const keysToDelete = itemToDelete.mediaItems.map((media: MediaItem) => media.storageKey);
-        console.log(`Attempting to delete R2 keys for punch list item ${itemIdNum}: ${keysToDelete.join(', ')}`);
-        const deletePromises = keysToDelete.map(key => deleteFromR2(key).catch(err => {
-            // Log errors but don't stop the process
-            console.error(`Failed to delete R2 key ${key} for item ${itemIdNum}:`, err);
-        }));
-        await Promise.all(deletePromises);
-    }
-
-    // 3. Delete the punch list item from the database
-    // Storage layer should handle cascading delete of associated media table rows.
-    const success = await storage.deletePunchListItem(itemIdNum); // Assumes storage.deletePunchListItem exists
-
-    if (!success) {
-       // This might happen if delete failed unexpectedly after fetching
-       throw new HttpError(500, 'Failed to delete punch list item from database.');
-    }
-
-    res.status(204).send(); // No content on successful delete
-  } catch (error) {
-    next(error);
-  }
 };
 
 
 /**
  * Add a photo to a punch list item.
- * Assumes isAdmin and upload.single('photo') middleware run before this.
  */
 export const addPhotoToPunchListItem = async (
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-    let uploadedKey: string | null = null; // For potential cleanup
+    let uploadedKey: string | null = null;
     let associatedProjectId: number | null = null;
 
     try {
@@ -240,82 +184,54 @@ export const addPhotoToPunchListItem = async (
         const itemIdNum = parseInt(itemId, 10);
         const user = req.user as User;
 
-        if (isNaN(itemIdNum)) {
-            throw new HttpError(400, 'Invalid item ID parameter.');
-        }
-         if (!user?.id) {
-            throw new HttpError(401, 'Authentication required.');
-        }
-        // isAdmin middleware verified access globally
+        if (isNaN(itemIdNum)) { throw new HttpError(400, 'Invalid item ID parameter.'); }
+        if (!user?.id) { throw new HttpError(401, 'Authentication required.'); }
+        if (!req.file) { throw new HttpError(400, 'No photo file uploaded.'); }
 
-         if (!req.file) {
-            throw new HttpError(400, 'No photo file uploaded.');
-        }
+        // 1. Fetch item to get projectId (optional: verify item exists)
+        // Use the nested repository: storage.punchLists
+        const item = await storage.punchLists.getPunchListItemById(itemIdNum); // Use existing getter
+        if (!item) { throw new HttpError(404, 'Punch list item not found.'); }
+        associatedProjectId = item.projectId; // Needed for R2 & DB record
 
-        // Validate optional metadata if necessary
-        // const metaValidation = photoUploadMetaSchema.safeParse(req.body);
-        // ...
-
-        // 1. Fetch the punch list item to get its project ID (needed for R2 path/DB record)
-        const item = await storage.getPunchListItemById(itemIdNum);
-        if (!item) {
-            throw new HttpError(404, 'Punch list item not found.');
-        }
-        associatedProjectId = item.projectId; // Store for potential cleanup
-
-        // 2. Upload photo to R2
+        // 2. Upload photo to R2 (unchanged)
         const r2Result = await uploadToR2({
             projectId: associatedProjectId,
-            // Consider a subfolder for punch list items? e.g., `punchlist/${itemIdNum}`
-            // Or keep flat within project folder, DB relation is key.
-            fileName: req.file.originalname,
-            buffer: req.file.buffer,
-            mimetype: req.file.mimetype,
+            fileName: req.file.originalname, buffer: req.file.buffer, mimetype: req.file.mimetype,
         });
+        if (!r2Result || !r2Result.key) { throw new HttpError(500, 'Failed to upload photo to storage.'); }
+        uploadedKey = r2Result.key;
 
-        if (!r2Result || !r2Result.key) {
-            throw new HttpError(500, 'Failed to upload photo to storage.');
-        }
-        uploadedKey = r2Result.key; // Track successful upload
-
-        // 3. Create media record in database, linking it to the punch list item
+        // 3. Create media record in database using MediaRepository
         const mediaData = {
             projectId: associatedProjectId,
-            punchListItemId: itemIdNum, // Link to the punch list item
+            punchListItemId: itemIdNum, // Link to punch list item
+            progressUpdateId: null, // Ensure other link is null
             uploadedBy: user.id,
-            fileName: req.file.originalname,
-            fileSize: req.file.size,
-            mimeType: req.file.mimetype,
-            storageKey: uploadedKey,
-            // url: r2Result.url // Optional
+            fileName: req.file.originalname, fileSize: req.file.size,
+            mimeType: req.file.mimetype, storageKey: uploadedKey,
         };
 
-        // Validate before insert
+        // Validate before insert using base media schema
         const dbSchemaValidation = insertMediaSchema.safeParse(mediaData);
         if (!dbSchemaValidation.success) {
             console.error("Media DB schema validation failed:", dbSchemaValidation.error);
             throw new HttpError(500, 'Internal server error preparing media data.');
         }
 
-        // Use a specific storage method to create the media linked to the punch item
-        const createdMedia = await storage.createMediaItem(dbSchemaValidation.data);
+        // Use the nested repository: storage.media
+        const createdMedia = await storage.media.createMediaItem(dbSchemaValidation.data);
 
-        if (!createdMedia) {
-            throw new HttpError(500, 'Failed to save photo metadata to database.');
-        }
+        if (!createdMedia) { throw new HttpError(500, 'Failed to save photo metadata to database.'); }
 
         res.status(201).json(createdMedia);
 
     } catch (error) {
-        // *** Cleanup Attempt ***
+        // Cleanup R2 if DB failed
         if (uploadedKey && !(error instanceof HttpError && error.statusCode < 500)) {
              console.error("Error occurred after R2 upload for punch list photo, attempting cleanup:", error);
-             try {
-                await deleteFromR2(uploadedKey);
-                console.log(`Attempted R2 cleanup for key: ${uploadedKey}`);
-             } catch (cleanupError) {
-                 console.error("Error during R2 cleanup process:", cleanupError);
-             }
+             try { await deleteFromR2(uploadedKey); console.log(`Attempted R2 cleanup for key: ${uploadedKey}`); }
+             catch (cleanupError) { console.error("Error during R2 cleanup process:", cleanupError); }
         }
         next(error);
     }

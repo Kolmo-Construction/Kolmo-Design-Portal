@@ -11,10 +11,10 @@ const router = Router({ mergeParams: true });
 // Access checks for the specific project and role permissions are handled within the controllers for now.
 
 // GET /api/projects/:projectId/updates/
-router.get("/", progressUpdateController.getProjectUpdates);
+router.get("/", progressUpdateController.getProgressUpdatesForProject);
 
 // POST /api/projects/:projectId/updates/
 // (Permissions check for Admin/PM done in controller)
-router.post("/", progressUpdateController.createProjectUpdate);
+router.post("/", progressUpdateController.createProgressUpdate);
 
 export default router;

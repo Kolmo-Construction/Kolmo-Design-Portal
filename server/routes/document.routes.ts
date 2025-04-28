@@ -15,7 +15,7 @@ export const globalDocumentRouter = Router();
 
 // GET /api/projects/:projectId/documents/
 // Fetches documents for the specific project (permissions checked in controller)
-projectDocumentRouter.get("/", documentController.getProjectDocuments);
+projectDocumentRouter.get("/", documentController.getDocumentsForProject);
 
 // POST /api/projects/:projectId/documents/
 // Uploads a document for the specific project (permissions checked in controller)
@@ -43,7 +43,7 @@ projectDocumentRouter.post(
             next();
         });
     },
-    documentController.uploadProjectDocument // Controller assumes req.file exists
+    documentController.uploadDocument // Controller assumes req.file exists
 );
 
 

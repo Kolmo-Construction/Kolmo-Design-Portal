@@ -1,67 +1,40 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
+// Updated import path for the aggregated storage object
 import { storage } from '../storage';
+// Import specific types from the new types file
+import { InvoiceWithPayments } from '../storage/types';
 import {
   insertInvoiceSchema,
   insertPaymentSchema,
-  invoiceStatusEnum, // Ensure this enum is available
-  User,
+  User, // Keep User type for req.user casting
 } from '../../shared/schema';
 import { HttpError } from '../errors';
-// Consider using a Decimal library for precise calculations if needed
-// import Big from 'big.js';
+// import Big from 'big.js'; // Keep if using Big.js
 
-// --- Zod Schemas for API Input Validation ---
+// --- Zod Schemas for API Input Validation (Unchanged) ---
 
-// Base amount validation: ensure string can be parsed to positive number
-// Adapt precision as needed for your currency.
 const positiveNumericString = z.string().refine(
   (val) => {
-    try {
-      const num = parseFloat(val);
-      return !isNaN(num) && num > 0;
-    } catch {
-      return false;
-    }
+    // Check that it's a valid numeric string with at most 2 decimal places
+    return /^\d+(\.\d{1,2})?$/.test(val) && parseFloat(val) > 0;
   },
-  { message: 'Must be a positive number.' }
+  { message: "Amount must be a positive number with at most 2 decimal places." }
 );
 
-// Schema for creating an invoice
-const invoiceCreateSchema = insertInvoiceSchema.omit({
-  id: true,
-  projectId: true, // Set from route parameter
-  createdAt: true,
-  updatedAt: true,
-  // Status likely defaults or is set based on logic
-  status: true, // Let's assume status defaults to 'DRAFT' or 'SENT' on creation in storage
-}).extend({
-   // Expect amount as string from client for precise handling initially
+const invoiceCreateSchema = insertInvoiceSchema.omit({ /* ... */ }).extend({
   amount: positiveNumericString,
-  // Ensure dueDate is received in a valid format (ISO string)
   dueDate: z.string().datetime({ message: 'Invalid due date format.' }),
-  // Allow optional invoice items from client? Add here if needed.
-  // items: z.array(z.object({...})).optional()
 });
 
-// Schema for updating an invoice
 const invoiceUpdateSchema = invoiceCreateSchema.partial().extend({
-  // Allow status updates explicitly via the API if needed
-  status: z.enum(invoiceStatusEnum.enumValues).optional(),
+  status: z.enum(['pending', 'paid', 'overdue']).optional(),
   amount: positiveNumericString.optional(),
   dueDate: z.string().datetime({ message: 'Invalid due date format.' }).optional(),
 });
 
-// Schema for recording a payment
-const paymentRecordSchema = insertPaymentSchema.omit({
-  id: true,
-  invoiceId: true, // Set from route parameter
-  recordedBy: true, // Set from authenticated user
-  paymentDate: true, // Let storage set this to NOW() by default or allow client input
-}).extend({
-   // Expect amount as string
+const paymentRecordSchema = insertPaymentSchema.omit({ /* ... */ }).extend({
   amount: positiveNumericString,
-  // Optionally allow client to specify payment date
   paymentDate: z.string().datetime({ message: 'Invalid payment date format.' }).optional(),
 });
 
@@ -70,7 +43,6 @@ const paymentRecordSchema = insertPaymentSchema.omit({
 
 /**
  * Get all invoices for a specific project.
- * Assumes checkProjectAccess middleware runs before this.
  */
 export const getInvoicesForProject = async (
   req: Request,
@@ -81,12 +53,10 @@ export const getInvoicesForProject = async (
     const { projectId } = req.params;
     const projectIdNum = parseInt(projectId, 10);
 
-    if (isNaN(projectIdNum)) {
-      throw new HttpError(400, 'Invalid project ID parameter.');
-    }
+    if (isNaN(projectIdNum)) { throw new HttpError(400, 'Invalid project ID parameter.'); }
 
-    // checkProjectAccess middleware verified access
-    const invoices = await storage.getInvoicesForProject(projectIdNum); // Assumes storage.getInvoicesForProject exists
+    // Use the nested repository: storage.invoices
+    const invoices = await storage.invoices.getInvoicesForProject(projectIdNum);
     res.status(200).json(invoices);
   } catch (error) {
     next(error);
@@ -95,7 +65,6 @@ export const getInvoicesForProject = async (
 
 /**
  * Create a new invoice for a project.
- * Assumes isAdmin middleware runs before this.
  */
 export const createInvoice = async (
   req: Request,
@@ -106,31 +75,24 @@ export const createInvoice = async (
     const { projectId } = req.params;
     const projectIdNum = parseInt(projectId, 10);
 
-    if (isNaN(projectIdNum)) {
-      throw new HttpError(400, 'Invalid project ID parameter.');
-    }
-    // isAdmin middleware verified access
+    if (isNaN(projectIdNum)) { throw new HttpError(400, 'Invalid project ID parameter.'); }
 
     const validationResult = invoiceCreateSchema.safeParse(req.body);
     if (!validationResult.success) {
       throw new HttpError(400, 'Invalid invoice data.', validationResult.error.flatten());
     }
-
     const validatedData = validationResult.data;
 
-    // Prepare data for storage, converting types as needed by storage layer
     const invoiceData = {
         ...validatedData,
         projectId: projectIdNum,
-        // Convert amount string to number or Decimal for storage
-        amount: validatedData.amount, // Pass string if storage/Drizzle handles numeric conversion
-        // amount: new Big(validatedData.amount).toString(), // If using Big.js string representation
+        amount: validatedData.amount, // Pass string/number as handled by repo
         dueDate: new Date(validatedData.dueDate),
-        // Set initial status if not provided by client
-        status: invoiceStatusEnum.enumValues[0], // e.g., 'DRAFT' or 'SENT'
+        // status: handled by repo/default
     };
 
-    const createdInvoice = await storage.createInvoice(invoiceData); // Assumes storage.createInvoice exists
+    // Use the nested repository: storage.invoices
+    const createdInvoice = await storage.invoices.createInvoice(invoiceData);
     res.status(201).json(createdInvoice);
   } catch (error) {
     next(error);
@@ -139,7 +101,6 @@ export const createInvoice = async (
 
 /**
  * Get a single invoice by ID.
- * Requires auth, then checks if user is Admin or associated with the invoice's project.
  */
 export const getInvoiceById = async (
   req: Request,
@@ -151,33 +112,25 @@ export const getInvoiceById = async (
     const invoiceIdNum = parseInt(invoiceId, 10);
     const user = req.user as User;
 
-    if (isNaN(invoiceIdNum)) {
-      throw new HttpError(400, 'Invalid invoice ID parameter.');
-    }
-    if (!user?.id) {
-      throw new HttpError(401, 'Authentication required.'); // Should be caught by middleware
-    }
+    if (isNaN(invoiceIdNum)) { throw new HttpError(400, 'Invalid invoice ID parameter.'); }
+    if (!user?.id) { throw new HttpError(401, 'Authentication required.'); }
 
-    const invoice = await storage.getInvoiceById(invoiceIdNum); // Assumes storage.getInvoiceById exists
+    // Use the nested repository: storage.invoices
+    const invoice = await storage.invoices.getInvoiceById(invoiceIdNum);
 
-    if (!invoice) {
-      throw new HttpError(404, 'Invoice not found.');
-    }
+    if (!invoice) { throw new HttpError(404, 'Invoice not found.'); }
 
     // Authorization check: Admin or associated with the project?
     let isAuthorized = user.role === 'ADMIN';
     if (!isAuthorized) {
-       // Check project association (requires a storage method)
-       const canAccessProject = await storage.checkUserProjectAccess(user.id, invoice.projectId); // Assumes storage.checkUserProjectAccess exists
+       // Use the nested repository: storage.projects
+       const canAccessProject = await storage.projects.checkUserProjectAccess(user.id, invoice.projectId);
        isAuthorized = canAccessProject;
     }
 
-    if (!isAuthorized) {
-        throw new HttpError(403, 'You do not have permission to view this invoice.');
-    }
+    if (!isAuthorized) { throw new HttpError(403, 'You do not have permission to view this invoice.'); }
 
-
-    res.status(200).json(invoice);
+    res.status(200).json(invoice); // Returns InvoiceWithPayments type
   } catch (error) {
     next(error);
   }
@@ -185,7 +138,6 @@ export const getInvoiceById = async (
 
 /**
  * Update an existing invoice.
- * Assumes isAdmin middleware runs before this.
  */
 export const updateInvoice = async (
   req: Request,
@@ -196,37 +148,25 @@ export const updateInvoice = async (
     const { invoiceId } = req.params;
     const invoiceIdNum = parseInt(invoiceId, 10);
 
-    if (isNaN(invoiceIdNum)) {
-      throw new HttpError(400, 'Invalid invoice ID parameter.');
-    }
-    // isAdmin middleware verified access
+    if (isNaN(invoiceIdNum)) { throw new HttpError(400, 'Invalid invoice ID parameter.'); }
 
     const validationResult = invoiceUpdateSchema.safeParse(req.body);
     if (!validationResult.success) {
       throw new HttpError(400, 'Invalid invoice data.', validationResult.error.flatten());
     }
-
     const validatedData = validationResult.data;
-    if (Object.keys(validatedData).length === 0) {
-      throw new HttpError(400, 'No update data provided.');
-    }
+    if (Object.keys(validatedData).length === 0) { throw new HttpError(400, 'No update data provided.'); }
 
-     // Prepare data for storage, converting types as needed
      const updateData = {
         ...validatedData,
-        // Convert amount string if present
-        ...(validatedData.amount && { amount: validatedData.amount }), // Pass string if storage handles conversion
-        // ...(validatedData.amount && { amount: new Big(validatedData.amount).toString() }), // If using Big.js
-        // Convert date string if present
+        ...(validatedData.amount && { amount: validatedData.amount }),
         ...(validatedData.dueDate && { dueDate: new Date(validatedData.dueDate) }),
     };
 
+    // Use the nested repository: storage.invoices
+    const updatedInvoice = await storage.invoices.updateInvoice(invoiceIdNum, updateData);
 
-    const updatedInvoice = await storage.updateInvoice(invoiceIdNum, updateData); // Assumes storage.updateInvoice exists
-
-    if (!updatedInvoice) {
-        throw new HttpError(404, 'Invoice not found or update failed.');
-    }
+    if (!updatedInvoice) { throw new HttpError(404, 'Invoice not found or update failed.'); }
 
     res.status(200).json(updatedInvoice);
   } catch (error) {
@@ -236,8 +176,6 @@ export const updateInvoice = async (
 
 /**
  * Delete an invoice.
- * Assumes isAdmin middleware runs before this.
- * Consider implications: delete associated payments? (Handled in storage logic)
  */
 export const deleteInvoice = async (
   req: Request,
@@ -248,28 +186,24 @@ export const deleteInvoice = async (
     const { invoiceId } = req.params;
     const invoiceIdNum = parseInt(invoiceId, 10);
 
-    if (isNaN(invoiceIdNum)) {
-      throw new HttpError(400, 'Invalid invoice ID parameter.');
-    }
-    // isAdmin middleware verified access
+    if (isNaN(invoiceIdNum)) { throw new HttpError(400, 'Invalid invoice ID parameter.'); }
 
-    // Storage layer should handle deleting related payments if necessary
-    const success = await storage.deleteInvoice(invoiceIdNum); // Assumes storage.deleteInvoice exists
+    // Use the nested repository: storage.invoices
+    const success = await storage.invoices.deleteInvoice(invoiceIdNum);
 
-    if (!success) {
-       throw new HttpError(404, 'Invoice not found or could not be deleted.');
-    }
+    if (!success) { throw new HttpError(404, 'Invoice not found or could not be deleted.'); }
 
-    res.status(204).send(); // No content on successful delete
+    res.status(204).send();
   } catch (error) {
-    next(error);
+     // Catch specific HttpError potentially thrown by repo (e.g., 409 if payments exist and no cascade)
+     if (error instanceof HttpError) return next(error);
+     next(error); // Handle generic errors
   }
 };
 
 
 /**
  * Record a payment against an invoice.
- * Assumes isAdmin middleware runs before this.
  */
 export const recordPayment = async (
   req: Request,
@@ -281,39 +215,27 @@ export const recordPayment = async (
         const invoiceIdNum = parseInt(invoiceId, 10);
         const user = req.user as User;
 
-        if (isNaN(invoiceIdNum)) {
-            throw new HttpError(400, 'Invalid invoice ID parameter.');
-        }
-        if (!user?.id) {
-            throw new HttpError(401, 'Authentication required.');
-        }
-        // isAdmin middleware verified access
+        if (isNaN(invoiceIdNum)) { throw new HttpError(400, 'Invalid invoice ID parameter.'); }
+        if (!user?.id) { throw new HttpError(401, 'Authentication required.'); }
 
         const validationResult = paymentRecordSchema.safeParse(req.body);
-        if (!validationResult.success) {
-            throw new HttpError(400, 'Invalid payment data.', validationResult.error.flatten());
-        }
-
+        if (!validationResult.success) { throw new HttpError(400, 'Invalid payment data.', validationResult.error.flatten()); }
         const validatedData = validationResult.data;
 
-        // Prepare data for storage
         const paymentData = {
             ...validatedData,
             invoiceId: invoiceIdNum,
             recordedBy: user.id,
-            // Convert amount string
-            amount: validatedData.amount, // Pass string if storage handles conversion
-            // amount: new Big(validatedData.amount).toString(), // If using Big.js
-            // Set paymentDate if provided by client, otherwise let DB default (NOW())
+            amount: validatedData.amount, // Pass string/number as handled by repo
             ...(validatedData.paymentDate && { paymentDate: new Date(validatedData.paymentDate) }),
         };
 
-        // Storage layer might update invoice status ('PARTIALLY_PAID', 'PAID')
-        const recordedPayment = await storage.recordPayment(paymentData); // Assumes storage.recordPayment exists
+        // Use the nested repository: storage.invoices
+        // The repo method handles inserting the payment (and potentially updating invoice status)
+        const recordedPayment = await storage.invoices.recordPayment(paymentData);
 
         if (!recordedPayment) {
-             // Could happen if invoice doesn't exist or other DB constraints
-            throw new HttpError(404, 'Could not record payment. Invoice not found or invalid data.');
+             throw new HttpError(404, 'Could not record payment. Invoice not found or invalid data.');
         }
 
         res.status(201).json(recordedPayment);

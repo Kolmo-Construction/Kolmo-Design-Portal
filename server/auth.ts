@@ -4,9 +4,11 @@ import { Express, Request, Response, NextFunction } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { storage } from "@server/storage"; // Updated import
+import { storage } from "@server/storage";
 import { User as SelectUser } from "@shared/schema";
-import { sendMagicLinkEmail, isEmailServiceConfigured } from "@server/email"; // Updated import
+import { sendMagicLinkEmail, isEmailServiceConfigured } from "@server/email";
+import { UserProfile } from "@server/storage/types"; // Import UserProfile
+import { HttpError } from "./errors";
 
 declare global {
   namespace Express {
@@ -16,13 +18,13 @@ declare global {
 
 const scryptAsync = promisify(scrypt);
 
-async function hashPassword(password: string) {
+export async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
   return `${buf.toString("hex")}.${salt}`;
 }
 
-async function comparePasswords(supplied: string, stored: string) {
+export async function comparePasswords(supplied: string, stored: string) {
   const [hashed, salt] = stored.split(".");
   const hashedBuf = Buffer.from(hashed, "hex");
   const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
@@ -41,6 +43,78 @@ function getMagicLinkExpiry(hours = 24): Date {
   return expiryDate;
 }
 
+/**
+ * Creates a magic link token for a user and sends an email with the link
+ * @param email Email address to send the magic link to
+ * @returns Boolean indicating if the email was sent successfully
+ */
+export async function createAndSendMagicLink(email: string): Promise<boolean> {
+  try {
+    // Check if the user exists
+    const user = await storage.users.getUserByEmail(email);
+    if (!user) {
+      // Don't reveal that the user doesn't exist (for security)
+      console.log(`No user found with email: ${email}`);
+      return false;
+    }
+
+    // Generate a new magic link token and expiry
+    const token = generateMagicLinkToken();
+    const expiry = getMagicLinkExpiry();
+
+    // Update the user with the new token
+    await storage.users.updateUserMagicLinkToken(user.id, token, expiry);
+
+    // Check if email service is configured
+    if (!isEmailServiceConfigured()) {
+      console.warn('Email service not configured. Magic link will not be sent.');
+      console.log(`[DEV] Magic link token for ${email}: ${token}`);
+      return false;
+    }
+
+    // Send the magic link email
+    return await sendMagicLinkEmail({
+      email: user.email,
+      firstName: user.firstName || '',
+      token,
+      isNewUser: !user.isActivated
+    });
+  } catch (error) {
+    console.error('Error creating and sending magic link:', error);
+    return false;
+  }
+}
+
+/**
+ * Verifies a magic link token and returns the associated user if valid
+ * @param token The magic link token to verify
+ * @returns The user associated with the token or null if invalid
+ */
+export async function verifyMagicTokenAndGetUser(token: string): Promise<SelectUser | null> {
+  try {
+    // Find user by token
+    const user = await storage.users.getUserByMagicLinkToken(token);
+    if (!user) {
+      console.log(`No user found with magic link token: ${token}`);
+      return null;
+    }
+
+    // Check if token is expired
+    if (user.magicLinkExpiry && new Date(user.magicLinkExpiry) < new Date()) {
+      console.log(`Magic link token expired for user: ${user.id}`);
+      return null;
+    }
+
+    // Clear the token since it's been used
+    await storage.users.updateUserMagicLinkToken(user.id, null, null);
+
+    return user;
+  } catch (error) {
+    console.error('Error verifying magic link token:', error);
+    return null;
+  }
+}
+
 export function setupAuth(app: Express) {
   if (!process.env.SESSION_SECRET) {
     console.warn("WARNING: SESSION_SECRET not set, using a default value for development");
@@ -50,7 +124,7 @@ export function setupAuth(app: Express) {
     secret: process.env.SESSION_SECRET || "buildportal-dev-secret",
     resave: true,
     saveUninitialized: true,
-    store: storage.sessionStore,
+    store: storage.sessionStore, // sessionStore is a property, not a user method
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -67,7 +141,8 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        const user = await storage.getUserByUsername(username);
+        // Updated to use storage.users
+        const user = await storage.users.getUserByUsername(username);
         if (!user || !(await comparePasswords(password, user.password))) {
           return done(null, false);
         } else {
@@ -82,7 +157,8 @@ export function setupAuth(app: Express) {
   passport.serializeUser((user, done) => done(null, user.id));
   passport.deserializeUser(async (id: number, done) => {
     try {
-      const user = await storage.getUser(id);
+      // Updated to use storage.users
+      const user = await storage.users.getUser(id);
       done(null, user);
     } catch (err) {
       done(err);
@@ -98,7 +174,8 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "Invalid token" });
       }
 
-      const user = await storage.getUserByMagicLinkToken(token);
+      // Updated to use storage.users
+      const user = await storage.users.getUserByMagicLinkToken(token);
 
       if (!user) {
         return res.status(404).json({ message: "Invalid or expired link" });
@@ -113,8 +190,8 @@ export function setupAuth(app: Express) {
       req.login(user, async (err) => {
         if (err) return next(err);
 
-        // Mark the token as used by removing it
-        await storage.updateUserMagicLinkToken(user.id, null, null);
+        // Mark the token as used by removing it - Updated to use storage.users
+        await storage.users.updateUserMagicLinkToken(user.id, null, null);
 
         // If the user hasn't set up their account yet, redirect to profile setup
         if (!user.isActivated) {
@@ -154,14 +231,14 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "Email, first name, and last name are required" });
       }
 
-      // Check if user already exists
-      let user = await storage.getUserByEmail(email);
+      // Check if user already exists - Updated to use storage.users
+      let user = await storage.users.getUserByEmail(email);
       const token = generateMagicLinkToken();
       const expiry = getMagicLinkExpiry();
 
       if (user) {
-        // Update existing user with new magic link token
-        user = await storage.updateUserMagicLinkToken(user.id, token, expiry);
+        // Update existing user with new magic link token - Updated to use storage.users
+        user = await storage.users.updateUserMagicLinkToken(user.id, token, expiry);
       } else {
         // Create a temporary password - user will set real password during activation
         const temporaryPassword = await hashPassword(randomBytes(16).toString("hex"));
@@ -169,8 +246,8 @@ export function setupAuth(app: Express) {
         // Generate a username based on email (this can be changed by user during activation)
         const username = email.split('@')[0] + '_' + randomBytes(4).toString('hex');
 
-        // Create new user with magic link token
-        user = await storage.createUser({
+        // Create new user with magic link token - Updated to use storage.users
+        user = await storage.users.createUser({
           email,
           firstName,
           lastName,
@@ -186,9 +263,9 @@ export function setupAuth(app: Express) {
       // If this is a client user and there are project IDs, associate them with projects
       if (role === "client" && projectIds.length > 0 && Array.isArray(projectIds)) {
         try {
-          // Create client-project associations
+          // Create client-project associations - Updated to use storage.projects
           for (const projectId of projectIds) {
-            await storage.assignClientToProject(user.id, projectId);
+            await storage.projects.assignClientToProject(user.id, projectId);
           }
           console.log(`Assigned client ${user.id} to ${projectIds.length} projects`);
         } catch (error) {
@@ -255,15 +332,15 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "Username, password, first name, and last name are required" });
       }
 
-      // Check if username is already taken by another user
-      const existingUser = await storage.getUserByUsername(username);
+      // Check if username is already taken by another user - Updated to use storage.users
+      const existingUser = await storage.users.getUserByUsername(username);
       if (existingUser && existingUser.id !== req.user.id) {
         return res.status(400).json({ message: "Username already exists" });
       }
 
-      // Update the user's profile
+      // Update the user's profile - Updated to use storage.users
       const hashedPassword = await hashPassword(password);
-      const updatedUser = await storage.updateUser(req.user.id, {
+      const updatedUser = await storage.users.updateUser(req.user.id, {
         username,
         password: hashedPassword,
         firstName,
@@ -347,7 +424,8 @@ export function setupAuth(app: Express) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const users = await storage.getAllUsers();
+      // Updated to use storage.users
+      const users = await storage.users.getAllUsers();
 
       // Remove sensitive information from response
       const sanitizedUsers = users.map(user => {
@@ -376,20 +454,21 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "All fields are required" });
       }
 
-      // Check if user already exists
-      const existingUser = await storage.getUserByUsername(username);
+      // Check if user already exists - Updated to use storage.users
+      const existingUser = await storage.users.getUserByUsername(username);
       if (existingUser) {
         return res.status(400).json({ message: "Username already exists" });
       }
 
-      const existingEmail = await storage.getUserByEmail(email);
+      // Updated to use storage.users
+      const existingEmail = await storage.users.getUserByEmail(email);
       if (existingEmail) {
         return res.status(400).json({ message: "Email already exists" });
       }
 
-      // Create new admin user
+      // Create new admin user - Updated to use storage.users
       const hashedPassword = await hashPassword(password);
-      const newUser = await storage.createUser({
+      const newUser = await storage.users.createUser({
         username,
         password: hashedPassword,
         email,

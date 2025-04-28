@@ -1,45 +1,39 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
+// Updated import path for the aggregated storage object
 import { storage } from '../storage';
+// Import specific types from the new types file
+import { TaskWithAssignee } from '../storage/types';
 import {
   insertTaskSchema,
   taskStatusEnum,
   taskPriorityEnum,
   insertTaskDependencySchema,
-  User,
+  User, // Keep User type for req.user casting
 } from '../../shared/schema';
-import { HttpError } from '../errors'; // Assuming custom HttpError exists
+import { HttpError } from '../errors';
 
-// --- Zod Schemas for API Input Validation ---
+// --- Zod Schemas for API Input Validation (Unchanged) ---
 
-// Schema for creating a task (omits server-set fields)
 const taskCreateSchema = insertTaskSchema.omit({
-  id: true,
-  projectId: true, // Set from route parameter
-  createdBy: true, // Set from authenticated user
-  createdAt: true,
-  updatedAt: true,
-  // completedAt handled by status change potentially
+  id: true, projectId: true, createdBy: true, createdAt: true, updatedAt: true, displayOrder: true, // displayOrder handled by default or logic
 });
 
-// Schema for updating a task (most fields optional)
 const taskUpdateSchema = taskCreateSchema.partial().extend({
-    // If status is being updated, completedAt might need specific handling logic
     status: taskCreateSchema.shape.status.optional(),
+    // Also allow updating displayOrder if needed via API
+    displayOrder: z.number().int().optional(),
 });
 
-// Schema for adding a dependency (expects numeric IDs from client)
 const taskDependencySchema = z.object({
     predecessorId: z.number().int().positive(),
     successorId: z.number().int().positive(),
 });
 
-
 // --- Controller Functions ---
 
 /**
  * Get all tasks for a specific project.
- * Assumes checkProjectAccess middleware runs before this.
  */
 export const getTasksForProject = async (
   req: Request,
@@ -50,12 +44,10 @@ export const getTasksForProject = async (
     const { projectId } = req.params;
     const projectIdNum = parseInt(projectId, 10);
 
-    if (isNaN(projectIdNum)) {
-      throw new HttpError(400, 'Invalid project ID parameter.');
-    }
+    if (isNaN(projectIdNum)) { throw new HttpError(400, 'Invalid project ID parameter.'); }
 
-    // checkProjectAccess middleware verified access
-    const tasks = await storage.getTasksForProject(projectIdNum); // Assumes storage.getTasksForProject exists
+    // Use the nested repository: storage.tasks
+    const tasks = await storage.tasks.getTasksForProject(projectIdNum);
     res.status(200).json(tasks);
   } catch (error) {
     next(error);
@@ -64,7 +56,6 @@ export const getTasksForProject = async (
 
 /**
  * Create a new task within a project.
- * Assumes checkProjectAccess middleware runs before this.
  */
 export const createTask = async (
   req: Request,
@@ -74,33 +65,28 @@ export const createTask = async (
   try {
     const { projectId } = req.params;
     const projectIdNum = parseInt(projectId, 10);
-    const user = req.user as User; // Authenticated user
+    const user = req.user as User;
 
-    if (isNaN(projectIdNum)) {
-      throw new HttpError(400, 'Invalid project ID parameter.');
-    }
-    if (!user?.id) {
-       throw new HttpError(401, 'Authentication required.'); // Should be caught by middleware, but belts-and-suspenders
-    }
+    if (isNaN(projectIdNum)) { throw new HttpError(400, 'Invalid project ID parameter.'); }
+    if (!user?.id) { throw new HttpError(401, 'Authentication required.'); }
 
     const validationResult = taskCreateSchema.safeParse(req.body);
     if (!validationResult.success) {
       throw new HttpError(400, 'Invalid task data.', validationResult.error.flatten());
     }
-
     const validatedData = validationResult.data;
 
-    // Prepare data for storage layer
     const newTaskData = {
         ...validatedData,
         projectId: projectIdNum,
         createdBy: user.id,
-        // Ensure dates are Date objects if storage layer expects them
         dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : null,
         startDate: validatedData.startDate ? new Date(validatedData.startDate) : null,
+        // displayOrder handled by DB default or specific logic
     };
 
-    const createdTask = await storage.createTask(newTaskData); // Assumes storage.createTask exists
+    // Use the nested repository: storage.tasks
+    const createdTask = await storage.tasks.createTask(newTaskData);
     res.status(201).json(createdTask);
   } catch (error) {
     next(error);
@@ -109,7 +95,6 @@ export const createTask = async (
 
 /**
  * Update an existing task.
- * Assumes checkProjectAccess middleware runs before this (for the project).
  */
 export const updateTask = async (
   req: Request,
@@ -118,49 +103,33 @@ export const updateTask = async (
 ): Promise<void> => {
   try {
     const { projectId, taskId } = req.params;
-    const projectIdNum = parseInt(projectId, 10);
+    const projectIdNum = parseInt(projectId, 10); // Still needed for context/auth potentially
     const taskIdNum = parseInt(taskId, 10);
 
-    if (isNaN(projectIdNum) || isNaN(taskIdNum)) {
-      throw new HttpError(400, 'Invalid project or task ID parameter.');
-    }
-
-    // checkProjectAccess middleware verified access to the project
+    if (isNaN(projectIdNum) || isNaN(taskIdNum)) { throw new HttpError(400, 'Invalid project or task ID parameter.'); }
 
     const validationResult = taskUpdateSchema.safeParse(req.body);
     if (!validationResult.success) {
       throw new HttpError(400, 'Invalid task data.', validationResult.error.flatten());
     }
-
     const validatedData = validationResult.data;
-    if (Object.keys(validatedData).length === 0) {
-      throw new HttpError(400, 'No update data provided.');
-    }
+    if (Object.keys(validatedData).length === 0) { throw new HttpError(400, 'No update data provided.'); }
 
-     // Prepare data, converting dates if necessary
      const updateData = {
         ...validatedData,
         ...(validatedData.dueDate && { dueDate: new Date(validatedData.dueDate) }),
         ...(validatedData.startDate && { startDate: new Date(validatedData.startDate) }),
-        // Potential logic: if status changes to 'COMPLETED', set completedAt
         ...(validatedData.status === 'COMPLETED' && { completedAt: new Date() }),
-        ...(validatedData.status !== 'COMPLETED' && validatedData.status !== undefined && { completedAt: null }) // Clear if moved away from completed
+        ...(validatedData.status && validatedData.status !== 'COMPLETED' && { completedAt: null })
     };
 
+    // Use the nested repository: storage.tasks
+    const updatedTask = await storage.tasks.updateTask(taskIdNum, updateData);
 
-    // Storage layer should ideally verify task belongs to project before updating
-    const updatedTask = await storage.updateTask(taskIdNum, updateData); // Assumes storage.updateTask exists
+    if (!updatedTask) { throw new HttpError(404, 'Task not found.'); }
 
-    if (!updatedTask) {
-      // This implies task with taskIdNum wasn't found
-      throw new HttpError(404, 'Task not found.');
-    }
-
-    // Optional: Verify task actually belongs to project if storage doesn't guarantee it
-    // if (updatedTask.projectId !== projectIdNum) {
-    //    throw new HttpError(403, 'Task does not belong to the specified project.');
-    // }
-
+    // Optional: Could re-verify task project ID matches route projectId if needed, though repo should be correct
+    // if (updatedTask.projectId !== projectIdNum) { ... }
 
     res.status(200).json(updatedTask);
   } catch (error) {
@@ -170,7 +139,6 @@ export const updateTask = async (
 
 /**
  * Delete a task.
- * Assumes checkProjectAccess middleware runs before this (for the project).
  */
 export const deleteTask = async (
   req: Request,
@@ -178,25 +146,23 @@ export const deleteTask = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { projectId, taskId } = req.params;
-    const projectIdNum = parseInt(projectId, 10);
+    const { projectId, taskId } = req.params; // Project ID might be useful for auth checks if repo doesn't handle it
     const taskIdNum = parseInt(taskId, 10);
 
-    if (isNaN(projectIdNum) || isNaN(taskIdNum)) {
-      throw new HttpError(400, 'Invalid project or task ID parameter.');
-    }
+    if (isNaN(taskIdNum)) { throw new HttpError(400, 'Invalid task ID parameter.'); }
 
-    // checkProjectAccess middleware verified access to the project
+    // Optional: Verify task belongs to project before calling delete if repo doesn't inherently check
+    // const task = await storage.tasks.getTaskById(taskIdNum);
+    // if (!task || task.projectId !== parseInt(projectId, 10)) {
+    //    throw new HttpError(404, 'Task not found in this project.');
+    // }
 
-    // Storage layer should ideally verify task belongs to project before deleting
-    const success = await storage.deleteTask(taskIdNum); // Assumes storage.deleteTask exists
+    // Use the nested repository: storage.tasks
+    const success = await storage.tasks.deleteTask(taskIdNum);
 
-    if (!success) {
-      // Task not found or delete failed
-      throw new HttpError(404, 'Task not found or could not be deleted.');
-    }
+    if (!success) { throw new HttpError(404, 'Task not found or could not be deleted.'); }
 
-    res.status(204).send(); // No content on successful delete
+    res.status(204).send();
   } catch (error) {
     next(error);
   }
@@ -204,9 +170,6 @@ export const deleteTask = async (
 
 /**
  * Add a dependency between two tasks.
- * NOTE: Authorization needs careful consideration here as routes are not project-nested.
- * This implementation assumes the user has implicit rights if they can interact with tasks.
- * A more robust solution would check project access for both tasks involved.
  */
 export const addTaskDependency = async (
     req: Request,
@@ -214,41 +177,33 @@ export const addTaskDependency = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        // Assuming IDs are sent as numbers in the body
         const validationResult = taskDependencySchema.safeParse(req.body);
         if (!validationResult.success) {
-             throw new HttpError(400, 'Invalid dependency data. Expecting { predecessorId: number, successorId: number }.', validationResult.error.flatten());
+             throw new HttpError(400, 'Invalid dependency data.', validationResult.error.flatten());
         }
-
         const { predecessorId, successorId } = validationResult.data;
-        if (predecessorId === successorId) {
-             throw new HttpError(400, 'Task cannot depend on itself.');
-        }
 
-        // **AUTHORIZATION NOTE:**
-        // Need to determine required permissions. Can any user who can see the tasks link them?
-        // Or does the user need specific write access to the project(s) containing these tasks?
-        // Fetching both tasks and checking permissions against req.user would be robust.
-        // For now, proceed and let storage handle potential "task not found" errors.
-        // const task1Project = await storage.getTaskProjectId(predecessorId); // Hypothetical storage method
-        // const task2Project = await storage.getTaskProjectId(successorId);
-        // await checkAccessLogic(req.user, task1Project); // Hypothetical check
-        // await checkAccessLogic(req.user, task2Project);
+        // **AUTHORIZATION NOTE:** Still complex. Requires checking access to projects of BOTH tasks.
+        // This should ideally be handled by a service layer or complex check here.
+        // For now, relies on storage layer potentially throwing if tasks don't exist.
 
-        const dependency = await storage.addTaskDependency(predecessorId, successorId); // Assumes storage.addTaskDependency exists
+        // Use the nested repository: storage.tasks
+        const dependency = await storage.tasks.addTaskDependency(predecessorId, successorId);
 
         res.status(201).json(dependency);
 
     } catch(error) {
-        // Handle specific errors like "dependency exists", "cycle detected", "task not found" from storage if possible
-        next(error);
+        // Catch specific HttpErrors from repo (404 task not found, 409 cycle/duplicate)
+        if (error instanceof HttpError) return next(error);
+        // Handle generic errors
+        console.error("Generic error adding dependency:", error);
+        next(new Error('Failed to add dependency.')); // Generic error to client
     }
 };
 
 
 /**
  * Remove a dependency between two tasks.
- * NOTE: Authorization needs careful consideration here (see addTaskDependency).
  */
 export const removeTaskDependency = async (
     req: Request,
@@ -256,25 +211,26 @@ export const removeTaskDependency = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-         // Assuming IDs are sent as numbers in the body or query params
-         // Let's assume body for consistency
         const validationResult = taskDependencySchema.safeParse(req.body);
-         if (!validationResult.success) {
-             throw new HttpError(400, 'Invalid dependency data. Expecting { predecessorId: number, successorId: number }.', validationResult.error.flatten());
+        if (!validationResult.success) {
+             throw new HttpError(400, 'Invalid dependency data.', validationResult.error.flatten());
         }
         const { predecessorId, successorId } = validationResult.data;
 
-        // **AUTHORIZATION NOTE:** See addTaskDependency
+        // **AUTHORIZATION NOTE:** See addTaskDependency.
 
-        const success = await storage.removeTaskDependency(predecessorId, successorId); // Assumes storage.removeTaskDependency exists
+        // Use the nested repository: storage.tasks
+        const success = await storage.tasks.removeTaskDependency(predecessorId, successorId);
 
-        if (!success) {
-             throw new HttpError(404, 'Dependency not found or could not be removed.');
-        }
+        if (!success) { throw new HttpError(404, 'Dependency not found or could not be removed.'); }
 
         res.status(204).send();
 
     } catch(error) {
-        next(error);
+         // Catch specific HttpErrors from repo? (e.g., 404)
+        if (error instanceof HttpError) return next(error);
+        // Handle generic errors
+        console.error("Generic error removing dependency:", error);
+        next(new Error('Failed to remove dependency.'));
     }
 };
