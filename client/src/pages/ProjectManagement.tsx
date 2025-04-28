@@ -3,13 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import TopNavBar from "@/components/TopNavBar";
 import Sidebar from "@/components/Sidebar";
-import {
-  Project,
-  User,
-} from "@shared/schema";
-import { useToast } from "@/hooks/use-toast";
+import { Project, User } from "@shared/schema"; // Keep User type for managers
+// Removed useToast if only used by mutations (assuming mutations handle their own toasts)
 import { useLocation } from "wouter";
-import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
+import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient"; // Keep getQueryFn
 import {
   Card,
   CardContent,
@@ -33,21 +30,38 @@ import {
   RotateCw,
   Search,
 } from "lucide-react";
-
-// Import the new child components
+// Import the child components
 import { ProjectListTable } from "@/components/project-management/ProjectListTable";
 import { CreateProjectDialog } from "@/components/project-management/CreateProjectDialog";
 import { EditProjectDialog } from "@/components/project-management/EditProjectDialog";
+// --- ADDED: Import the new hook ---
+import { useProjectManagementDialogs } from '@/hooks/useProjectManagementDialogs';
+// --- END ADDED ---
+
 
 export default function ProjectManagement() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  // --- REMOVED: Dialog state useState hooks ---
+  // --- REMOVED: selectedProject useState hook ---
+  const [statusFilter, setStatusFilter] = useState("all"); // Keep filter state
+  const [searchQuery, setSearchQuery] = useState(""); // Keep search state
   const { user } = useAuth();
   const [, navigate] = useLocation();
+
+  // --- ADDED: Get dialog state and handlers from hook ---
+  const {
+      isCreateDialogOpen,
+      setIsCreateDialogOpen, // Use if Dialog uses onOpenChange
+      // openCreateDialog, // Use if Button needs explicit open handler
+
+      isEditDialogOpen,
+      setIsEditDialogOpen, // Use if Dialog uses onOpenChange
+
+      selectedProject, // Pass down to EditProjectDialog
+
+      openEditDialog, // Pass down to ProjectListTable
+  } = useProjectManagementDialogs();
+  // --- END ADDED ---
 
   // Redirect if not an admin
   useEffect(() => {
@@ -63,8 +77,9 @@ export default function ProjectManagement() {
     isError: projectsError,
     refetch: refetchProjects,
   } = useQuery<Project[], Error>({
-    queryKey: ["/api/projects"], // Use a consistent query key
+    queryKey: ["/api/projects"],
     queryFn: getQueryFn({ on401: "throw" }),
+    enabled: user?.role === 'admin', // Ensure enabled only when appropriate
   });
 
   // Get all project managers for assignment dropdowns
@@ -74,6 +89,7 @@ export default function ProjectManagement() {
   } = useQuery<User[], Error>({
     queryKey: ["/api/project-managers"],
     queryFn: getQueryFn({ on401: "throw" }),
+    enabled: user?.role === 'admin', // Ensure enabled only when appropriate
   });
 
   // Filter projects based on status and search query
@@ -81,20 +97,15 @@ export default function ProjectManagement() {
     const matchesStatus = statusFilter === "all" || project.status === statusFilter;
     const matchesSearch =
       project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.state.toLowerCase().includes(searchQuery.toLowerCase());
+      project.address?.toLowerCase().includes(searchQuery.toLowerCase()) || // Add null checks
+      project.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||    // Add null checks
+      project.state?.toLowerCase().includes(searchQuery.toLowerCase());   // Add null checks
     return matchesStatus && matchesSearch;
   });
 
-  // Function to open the edit dialog
-  const handleEditProject = (project: Project) => {
-    setSelectedProject(project);
-    setIsEditDialogOpen(true);
-  };
+  // --- REMOVED: handleEditProject function ---
 
-  // Render loading state for the entire page if managers are loading initially
-  // or if projects fail to load initially.
+  // Render error state for initial data load
   if (projectsError) {
      return (
           <div className="flex h-screen bg-slate-50">
@@ -107,6 +118,7 @@ export default function ProjectManagement() {
        );
   }
 
+  // Main component render
   return (
     <div className="flex h-screen bg-slate-50">
       <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
@@ -119,18 +131,22 @@ export default function ProjectManagement() {
             <h1 className="text-2xl font-bold text-slate-800 mb-2">Project Management</h1>
             <p className="text-slate-600">Create, edit and manage construction projects</p>
           </div>
+          {/* --- MODIFIED: Use setter from hook --- */}
           <Button
-            onClick={() => setIsCreateDialogOpen(true)}
+            onClick={() => setIsCreateDialogOpen(true)} // Use direct setter
+            // onClick={openCreateDialog} // Alternative: use explicit handler
             className="gap-2"
           >
             <PlusCircle className="h-4 w-4" />
             Create Project
           </Button>
+          {/* --- END MODIFIED --- */}
         </div>
 
         {/* Filters */}
         <Card className="mb-6">
           <CardContent className="p-4 lg:p-6 flex flex-col sm:flex-row gap-4 items-end">
+            {/* Status Filter */}
             <div className="w-full sm:w-1/3">
               <label className="text-sm font-medium text-slate-500 mb-1 block">Status</label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -146,6 +162,7 @@ export default function ProjectManagement() {
                 </SelectContent>
               </Select>
             </div>
+            {/* Search Filter */}
             <div className="w-full sm:w-2/3 relative">
               <label className="text-sm font-medium text-slate-500 mb-1 block">Search</label>
               <div className="relative">
@@ -185,35 +202,37 @@ export default function ProjectManagement() {
               All construction and renovation projects
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-0 sm:px-6"> {/* Remove horizontal padding on small screens for table */}
+          <CardContent className="px-0 sm:px-6">
              <div className="overflow-x-auto">
+                {/* --- MODIFIED: Pass handler from hook --- */}
                 <ProjectListTable
                     projects={filteredProjects}
                     projectManagers={projectManagers}
                     isLoading={projectsLoading || managersLoading}
-                    onEditProject={handleEditProject}
+                    onEditProject={openEditDialog} // Pass handler from hook
                 />
+                {/* --- END MODIFIED --- */}
              </div>
           </CardContent>
         </Card>
       </main>
 
-       {/* Dialogs */}
+       {/* --- MODIFIED: Use state and setters from hook --- */}
        <CreateProjectDialog
          isOpen={isCreateDialogOpen}
-         onOpenChange={setIsCreateDialogOpen}
+         onOpenChange={setIsCreateDialogOpen} // Use setter from hook
          projectManagers={projectManagers}
          isLoadingManagers={managersLoading}
        />
 
         <EditProjectDialog
-         project={selectedProject}
+         project={selectedProject} // Use project from hook state
          isOpen={isEditDialogOpen}
-         onOpenChange={setIsEditDialogOpen}
+         onOpenChange={setIsEditDialogOpen} // Use controlled setter from hook
          projectManagers={projectManagers}
          isLoadingManagers={managersLoading}
        />
-
+       {/* --- END MODIFIED --- */}
     </div>
   );
 }

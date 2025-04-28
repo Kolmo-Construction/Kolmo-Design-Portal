@@ -1,0 +1,406 @@
+import { NeonDatabase } from 'drizzle-orm/neon-serverless';
+// Make sure all needed Drizzle functions are imported
+import { eq, and, or, sql, desc, asc, inArray, count, exists } from 'drizzle-orm';
+import * as schema from '../../shared/schema'; // Import all schemas
+import { db } from '../db'; // Import the initialized Drizzle instance
+import { hashPassword } from './auth'; // Import password hashing util from auth.ts
+import { HttpError } from './errors'; // Assuming custom HttpError
+
+// Define the shapes of data returned, especially when joining relations.
+// These might be refined further or generated using Drizzle utils if needed.
+export type UserProfile = Omit<schema.User, 'passwordHash' | 'magicLinkToken' | 'magicLinkExpiresAt'>;
+// Define Client type used in ProjectWithDetails
+type ClientInfo = Pick<schema.User, 'id' | 'firstName' | 'lastName' | 'email'>;
+// Define PM type used in ProjectWithDetails
+type ProjectManagerInfo = Pick<schema.User, 'id' | 'firstName' | 'lastName' | 'email'>;
+
+export type ProjectWithDetails = schema.Project & {
+    clients: ClientInfo[];
+    projectManager: ProjectManagerInfo | null;
+};
+export type TaskWithAssignee = schema.Task & {
+    assignee: Pick<schema.User, 'id' | 'firstName' | 'lastName' | 'email'> | null;
+    createdBy: Pick<schema.User, 'id' | 'firstName' | 'lastName'>;
+};
+// ... add more detailed types for other entities as needed
+
+// Define the interface for our storage layer (the contract)
+export interface IStorage {
+    // --- User Methods ---
+    findUserByEmail(email: string): Promise<schema.User | null>;
+    getUserById(userId: string): Promise<schema.User | null>;
+    getUserProfileById(userId: string): Promise<UserProfile | null>;
+    getAllUsersWithRoleClient(): Promise<ClientInfo[]>; // Use ClientInfo type
+    createUser(userData: schema.InsertUser): Promise<UserProfile | null>; // Returns profile on success
+    setupUserProfile(userId: string, firstName: string, lastName: string, password: string): Promise<UserProfile | null>;
+
+    // --- Project Methods ---
+    getAllProjects(): Promise<ProjectWithDetails[]>;
+    getProjectsForUser(userId: string): Promise<ProjectWithDetails[]>;
+    getProjectById(projectId: number): Promise<ProjectWithDetails | null>;
+    checkUserProjectAccess(userId: string, projectId: number): Promise<boolean>;
+    createProjectWithClients(projectData: schema.InsertProject, clientIds: string[]): Promise<ProjectWithDetails | null>;
+    updateProjectDetailsAndClients(projectId: number, projectData: Partial<Omit<schema.InsertProject, 'pmId' | 'id' | 'createdAt' | 'updatedAt'>>, clientIds?: string[]): Promise<ProjectWithDetails | null>;
+    deleteProject(projectId: number): Promise<boolean>;
+
+    // --- Task Methods ---
+    getTasksForProject(projectId: number): Promise<TaskWithAssignee[]>;
+    createTask(taskData: schema.InsertTask): Promise<TaskWithAssignee | null>;
+    updateTask(taskId: number, taskData: Partial<schema.InsertTask>): Promise<TaskWithAssignee | null>;
+    deleteTask(taskId: number): Promise<boolean>;
+    addTaskDependency(predecessorId: number, successorId: number): Promise<schema.TaskDependency | null>;
+    removeTaskDependency(predecessorId: number, successorId: number): Promise<boolean>;
+    // getTaskProjectId(taskId: number): Promise<number | null>;
+
+    // --- Document Methods ---
+    getDocumentsForProject(projectId: number): Promise<schema.Document[]>; // Consider joining uploader info
+    getDocumentById(documentId: number): Promise<schema.Document | null>;
+    createDocument(docData: schema.InsertDocument): Promise<schema.Document | null>;
+    deleteDocument(documentId: number): Promise<boolean>;
+
+    // --- Invoice Methods ---
+    getInvoicesForProject(projectId: number): Promise<schema.Invoice[]>; // Consider joining payments summary
+    getInvoiceById(invoiceId: number): Promise<schema.Invoice & { payments: schema.Payment[] } | null>; // Join payments
+    createInvoice(invoiceData: schema.InsertInvoice): Promise<schema.Invoice | null>;
+    updateInvoice(invoiceId: number, invoiceData: Partial<schema.InsertInvoice>): Promise<schema.Invoice | null>;
+    deleteInvoice(invoiceId: number): Promise<boolean>;
+
+    // --- Payment Methods ---
+    recordPayment(paymentData: schema.InsertPayment): Promise<schema.Payment | null>;
+
+    // --- Message Methods ---
+    getMessagesForProject(projectId: number): Promise<(schema.Message & { sender: Pick<schema.User, 'id' | 'firstName' | 'lastName' | 'role'> })[]>;
+    createMessage(messageData: schema.InsertMessage): Promise<(schema.Message & { sender: Pick<schema.User, 'id' | 'firstName' | 'lastName' | 'role'> }) | null>;
+
+    // --- Progress Update & Media Methods ---
+    getProgressUpdatesForProject(projectId: number): Promise<(schema.ProgressUpdate & { author: Pick<schema.User, 'id' | 'firstName' | 'lastName'>, mediaItems: schema.MediaItem[] })[]>;
+    // Transactional method
+    createProgressUpdateWithMedia(updateData: schema.InsertProgressUpdate, mediaData: Omit<MediaItem, 'id' | 'progressUpdateId' | 'createdAt'>[]): Promise<(schema.ProgressUpdate & { author: Pick<schema.User, 'id' | 'firstName' | 'lastName'>, mediaItems: schema.MediaItem[] }) | null>;
+    createMediaItem(mediaData: schema.InsertMedia): Promise<schema.MediaItem | null>; // Generic media creation if needed separately
+    // createMediaItemForPunchList(...) // Specific method if linking logic differs
+
+    // --- Daily Log Methods ---
+    getDailyLogsForProject(projectId: number): Promise<(schema.DailyLog & { author: Pick<schema.User, 'id' | 'firstName' | 'lastName'> })[]>;
+    createDailyLog(logData: schema.InsertDailyLog): Promise<(schema.DailyLog & { author: Pick<schema.User, 'id' | 'firstName' | 'lastName'> }) | null>;
+    updateDailyLog(logId: number, logData: Partial<schema.InsertDailyLog>): Promise<schema.DailyLog | null>;
+    deleteDailyLog(logId: number): Promise<boolean>;
+
+    // --- Punch List Methods ---
+    getPunchListItemsForProject(projectId: number): Promise<(schema.PunchListItem & { createdBy: Pick<schema.User, 'id' | 'firstName' | 'lastName'>, mediaItems: schema.MediaItem[] })[]>;
+    getPunchListItemById(itemId: number): Promise<(schema.PunchListItem & { mediaItems: schema.MediaItem[] }) | null>;
+    createPunchListItem(itemData: schema.InsertPunchListItem): Promise<(schema.PunchListItem & { createdBy: Pick<schema.User, 'id' | 'firstName' | 'lastName'> }) | null>;
+    updatePunchListItem(itemId: number, itemData: Partial<schema.InsertPunchListItem>): Promise<schema.PunchListItem | null>;
+    deletePunchListItem(itemId: number): Promise<boolean>; // Should handle cascade deletion of media rows in DB or here
+
+    // --- Magic Link Methods (called by auth helpers) ---
+    storeMagicLinkToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void>;
+    findUserByMagicLinkToken(tokenHash: string): Promise<{ userId: string, expiresAt: Date } | null>;
+    deleteMagicLinkToken(tokenHash: string): Promise<void>;
+
+    // Add other necessary methods...
+}
+
+
+// --- Implementation ---
+
+// Use a class or a simple object export
+class StorageService implements IStorage {
+  private db: NeonDatabase<typeof schema>;
+
+  constructor(database: NeonDatabase<typeof schema>) {
+    this.db = database;
+  }
+
+  // --- User Method Implementations (from previous step) ---
+
+  async findUserByEmail(email: string): Promise<schema.User | null> { /* ... implementation ... */ }
+  async getUserById(userId: string): Promise<schema.User | null> { /* ... implementation ... */ }
+  async getUserProfileById(userId: string): Promise<UserProfile | null> { /* ... implementation ... */ }
+  async getAllUsersWithRoleClient(): Promise<ClientInfo[]> { /* ... implementation ... */ }
+  async createUser(userData: schema.InsertUser): Promise<UserProfile | null> { /* ... implementation ... */ }
+  async setupUserProfile(userId: string, firstName: string, lastName: string, password: string): Promise<UserProfile | null> { /* ... implementation ... */ }
+  async storeMagicLinkToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void> { /* ... implementation ... */ }
+  async findUserByMagicLinkToken(tokenHash: string): Promise<{ userId: string, expiresAt: Date } | null> { /* ... implementation ... */ }
+  async deleteMagicLinkToken(tokenHash: string): Promise<void> { /* ... implementation ... */ }
+
+
+  // --- Project Method Implementations ---
+
+  // Helper to shape project data with relations
+  private mapProjectResult(project: any): ProjectWithDetails {
+       // Drizzle's 'with' might return relations differently based on query structure.
+       // Adjust this mapping based on the actual query result structure.
+       // This assumes clients are fetched via the join table relation `projectsToClients`.
+        const clients = project.projectsToClients?.map((ptc: any) => ptc.client)
+                                              .filter(Boolean) // Filter out potential nulls if relation wasn't found
+                                              .map((c: any) => ({ // Select only needed fields
+                                                  id: c.id,
+                                                  firstName: c.firstName,
+                                                  lastName: c.lastName,
+                                                  email: c.email,
+                                              })) || [];
+        const projectManager = project.projectManager ? {
+            id: project.projectManager.id,
+            firstName: project.projectManager.firstName,
+            lastName: project.projectManager.lastName,
+            email: project.projectManager.email,
+        } : null;
+
+        // Remove relational data used for mapping before returning
+        const { projectsToClients, ...projectBase } = project;
+
+        return {
+            ...projectBase,
+            clients: clients,
+            projectManager: projectManager,
+        };
+  }
+
+
+  async getAllProjects(): Promise<ProjectWithDetails[]> {
+     try {
+       const projects = await this.db.query.projects.findMany({
+         orderBy: [desc(schema.projects.createdAt)],
+         with: {
+           projectManager: { // Fetch related PM user
+             columns: { id: true, firstName: true, lastName: true, email: true }
+           },
+           projectsToClients: { // Fetch through the join table
+             with: {
+               client: { // Fetch the related client user
+                 columns: { id: true, firstName: true, lastName: true, email: true }
+               }
+             }
+           }
+         }
+       });
+       // Need to map the result to flatten the client structure
+       return projects.map(this.mapProjectResult);
+     } catch (error) {
+       console.error('Error fetching all projects:', error);
+       throw new Error('Database error while fetching projects.');
+     }
+  }
+
+  async getProjectsForUser(userId: string): Promise<ProjectWithDetails[]> {
+    try {
+        // Find projects where user is PM OR user is listed as a client via join table
+        const projects = await this.db.query.projects.findMany({
+            where: or(
+                eq(schema.projects.pmId, userId),
+                exists( // Check if user exists in the clients for this project
+                    this.db.select({ id: schema.projectsToClients.userId })
+                    .from(schema.projectsToClients)
+                    .where(and(
+                        eq(schema.projectsToClients.projectId, schema.projects.id), // Link to outer project
+                        eq(schema.projectsToClients.userId, userId) // Check if this user is linked
+                    ))
+                )
+            ),
+            orderBy: [desc(schema.projects.createdAt)],
+            with: {
+                projectManager: { columns: { id: true, firstName: true, lastName: true, email: true } },
+                projectsToClients: {
+                    with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } }
+                }
+            }
+        });
+        return projects.map(this.mapProjectResult);
+    } catch (error) {
+        console.error(`Error fetching projects for user ${userId}:`, error);
+        throw new Error('Database error while fetching user projects.');
+    }
+  }
+
+
+  async getProjectById(projectId: number): Promise<ProjectWithDetails | null> {
+     try {
+       const project = await this.db.query.projects.findFirst({
+         where: eq(schema.projects.id, projectId),
+         with: {
+            projectManager: { columns: { id: true, firstName: true, lastName: true, email: true } },
+            projectsToClients: {
+                with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } }
+            }
+         }
+       });
+       return project ? this.mapProjectResult(project) : null;
+     } catch (error) {
+       console.error(`Error fetching project ${projectId}:`, error);
+       throw new Error('Database error while fetching project.');
+     }
+  }
+
+
+  async checkUserProjectAccess(userId: string, projectId: number): Promise<boolean> {
+    try {
+        // Check if user is Admin, PM of the project, or a Client linked to the project
+        const user = await this.getUserById(userId);
+        if (user?.role === 'ADMIN') {
+            return true; // Admins have access to all projects
+        }
+
+        const project = await this.db.query.projects.findFirst({
+            where: eq(schema.projects.id, projectId),
+            columns: { // Only fetch columns needed for the check
+                 id: true,
+                 pmId: true,
+             },
+            with: { // Fetch just the client IDs linked to this project
+                projectsToClients: {
+                    columns: { userId: true }
+                }
+            }
+        });
+
+        if (!project) {
+            return false; // Project doesn't exist
+        }
+
+        // Check if user is the PM
+        if (project.pmId === userId) {
+            return true;
+        }
+
+        // Check if user is among the linked clients
+        if (project.projectsToClients?.some(c => c.userId === userId)) {
+            return true;
+        }
+
+        return false; // User is not Admin, PM, or linked Client
+    } catch (error) {
+        console.error(`Error checking access for user ${userId} to project ${projectId}:`, error);
+        // Default to no access on error? Or rethrow? Let's rethrow.
+        throw new Error('Database error while checking project access.');
+    }
+  }
+
+
+  async createProjectWithClients(projectData: schema.InsertProject, clientIds: string[]): Promise<ProjectWithDetails | null> {
+    if (!clientIds || clientIds.length === 0) {
+        throw new Error("Cannot create project without assigning at least one client.");
+    }
+
+    return this.db.transaction(async (tx) => {
+      // 1. Insert the project
+      const projectResult = await tx.insert(schema.projects)
+        .values(projectData)
+        .returning({ id: schema.projects.id });
+
+      if (!projectResult || projectResult.length === 0) {
+        throw new Error("Failed to insert project."); // Rolls back transaction
+      }
+      const projectId = projectResult[0].id;
+
+      // 2. Prepare and insert client associations into the join table
+      const clientLinks = clientIds.map(clientId => ({
+        projectId: projectId,
+        userId: clientId,
+      }));
+      await tx.insert(schema.projectsToClients).values(clientLinks);
+
+      // 3. Fetch and return the newly created project with its details
+      // Need to use the transaction `tx` for the final fetch within the transaction block
+      const finalProject = await tx.query.projects.findFirst({
+         where: eq(schema.projects.id, projectId),
+         with: {
+            projectManager: { columns: { id: true, firstName: true, lastName: true, email: true } },
+            projectsToClients: {
+                with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } }
+            }
+         }
+      });
+
+      return finalProject ? this.mapProjectResult(finalProject) : null; // Should exist if insert succeeded
+    });
+  }
+
+  async updateProjectDetailsAndClients(
+      projectId: number,
+      projectData: Partial<Omit<schema.InsertProject, 'pmId' | 'id' | 'createdAt' | 'updatedAt'>>,
+      clientIds?: string[] // Optional: Only update clients if provided
+    ): Promise<ProjectWithDetails | null> {
+    return this.db.transaction(async (tx) => {
+        // 1. Update project base details (if any provided)
+        if (Object.keys(projectData).length > 0) {
+             await tx.update(schema.projects)
+                .set({
+                    ...projectData,
+                    updatedAt: new Date(), // Manually set update timestamp
+                })
+                .where(eq(schema.projects.id, projectId));
+        }
+
+
+        // 2. Handle client updates (if clientIds array is provided)
+        if (clientIds !== undefined) {
+            if (clientIds.length === 0) {
+                 throw new Error("Cannot update project to have zero clients."); // Or decide policy
+            }
+            // Simple approach: Delete existing links, insert new ones.
+            // More complex: Calculate diff (adds/removes). Simple is often fine.
+            await tx.delete(schema.projectsToClients)
+                .where(eq(schema.projectsToClients.projectId, projectId));
+
+            const newClientLinks = clientIds.map(clientId => ({
+                projectId: projectId,
+                userId: clientId,
+            }));
+            await tx.insert(schema.projectsToClients).values(newClientLinks);
+        }
+
+        // 3. Fetch and return the updated project with details
+        const finalProject = await tx.query.projects.findFirst({
+            where: eq(schema.projects.id, projectId),
+            with: {
+                projectManager: { columns: { id: true, firstName: true, lastName: true, email: true } },
+                projectsToClients: {
+                    with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } }
+                }
+            }
+        });
+
+       if (!finalProject) {
+          // This indicates the projectId didn't exist initially or something went wrong
+          throw new HttpError(404, 'Project not found during update.');
+       }
+
+       return this.mapProjectResult(finalProject);
+    });
+  }
+
+
+  async deleteProject(projectId: number): Promise<boolean> {
+      try {
+          // Deletion might cascade in the DB depending on FK constraints (ON DELETE CASCADE).
+          // If not using cascades, you'd need to delete related data manually here (tasks, documents, invoices, etc.)
+          // For simplicity, assume cascades are set up or deletion is allowed despite relations.
+          const result = await this.db.delete(schema.projects)
+            .where(eq(schema.projects.id, projectId))
+            .returning({ id: schema.projects.id }); // Check if a row was actually deleted
+
+          // Also need to delete from join table if no cascade from project deletion
+          // await this.db.delete(schema.projectsToClients).where(eq(schema.projectsToClients.projectId, projectId));
+
+          return result.length > 0; // Return true if a row was deleted
+      } catch (error) {
+            console.error(`Error deleting project ${projectId}:`, error);
+            // Handle potential foreign key constraint errors if cascades aren't set
+            throw new Error('Database error while deleting project.');
+      }
+  }
+
+
+  // --- Placeholder for other method implementations ---
+  // ... Tasks, Documents, Invoices, etc. ...
+
+  // Example Transactional Method (from previous step)
+  async createProgressUpdateWithMedia(updateData: schema.InsertProgressUpdate, mediaData: Omit<MediaItem, 'id' | 'progressUpdateId' | 'createdAt'>[]): Promise<(schema.ProgressUpdate & { author: Pick<schema.User, 'id' | 'firstName' | 'lastName'>, mediaItems: schema.MediaItem[] }) | null> { /* ... implementation ... */ }
+
+  // *** IMPLEMENT ALL OTHER METHODS FROM IStorage HERE ***
+
+}
+
+
+// Export a singleton instance
+export const storage: IStorage = new StorageService(db);

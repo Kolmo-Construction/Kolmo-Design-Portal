@@ -8,9 +8,9 @@ import { Project } from "@shared/schema";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
+  CardDescription, // Keep if used by error card
+  CardHeader,      // Keep if used by error card
+  CardTitle        // Keep if used by error card
 } from "@/components/ui/card";
 import {
   Tabs,
@@ -18,20 +18,19 @@ import {
   TabsList,
   TabsTrigger
 } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button"; // Keep for Back button
+// --- REMOVED: Badge import (now in ProjectHeader) ---
 import {
-  Building2, // Keep if used elsewhere, not directly in this snippet anymore
-  MapPin,
-  FileText,
-  MessageSquare,
-  ArrowLeft,
-  Loader2,
-  // --- ADDED: Icons for new tabs (Optional) ---
+  // Building2, // Icon not used directly here anymore
+  // MapPin,      // Icon moved to ProjectHeader
+  // FileText,    // Icon moved to ProjectHeader
+  // MessageSquare, // Icon moved to ProjectHeader
+  ArrowLeft,     // Icon used for Back button
+  Loader2,       // Icon used for loading state
+  // --- ADDED Icons used only for Tabs (kept): ---
   ListChecks, // For Punch List
   ClipboardList, // For Tasks
   NotebookText // For Daily Logs
-  // --- END ADDED ---
 } from "lucide-react";
 // Import the existing child components
 import { ProjectOverviewCard } from "@/components/project-details/ProjectOverviewCard";
@@ -40,65 +39,26 @@ import { ProjectDocumentsTab } from "@/components/project-details/ProjectDocumen
 import { ProjectFinancialsTab } from "@/components/project-details/ProjectFinancialsTab";
 import { ProjectMessagesTab } from "@/components/project-details/ProjectMessagesTab";
 import { ProjectScheduleTab } from "@/components/project-details/ProjectScheduleTab";
-// --- ADDED: Import new tab components ---
 import { ProjectTasksTab } from "@/components/project-details/ProjectTasksTab";
 import { ProjectDailyLogsTab } from "@/components/project-details/ProjectDailyLogsTab";
 import { ProjectPunchListTab } from "@/components/project-details/ProjectPunchListTab";
-// --- END ADDED ---
 import { cn } from "@/lib/utils";
-// --- ADDED: Import useAuth hook ---
 import { useAuth } from "@/hooks/use-auth";
+// --- ADDED: Import the new ProjectHeader component ---
+import { ProjectHeader } from "@/components/project-details/ProjectHeader";
 // --- END ADDED ---
 
 
-// Helper function to get status label (can be moved to a utils file)
-const getStatusLabel = (status: string | undefined | null): string => {
-    if (!status) return 'Unknown';
-    switch (status) {
-      case "planning": return "Planning";
-      case "in_progress": return "In Progress";
-      case "on_hold": return "On Hold";
-      case "completed": return "Completed";
-      default: return status.charAt(0).toUpperCase() + status.slice(1);
-    }
-};
-
-// Helper function to get status badge variant/color (can be moved to a utils file)
-const getStatusBadgeVariant = (status: string | undefined | null): "default" |
-  "secondary" | "destructive" | "outline" => {
-    if (!status) return "secondary";
-    switch (status) {
-        case "planning": return "default"; // Or choose a specific color
-        case "in_progress": return "default"; // Use primary color via default variant
-        case "on_hold": return "secondary"; // Or a yellow variant if defined
-        case "completed": return "outline"; // Or a green variant if defined
-        default: return "secondary";
-    }
-};
-
-// Helper function for more specific coloring if needed (and theme supports it)
-const getStatusColorClass = (status: string | undefined | null): string => {
-     if (!status) return "bg-slate-100 text-slate-800 border-slate-300";
-     switch (status) {
-        case "planning": return "bg-blue-100 text-blue-800 border-blue-300";
-        case "in_progress": return "bg-primary/10 text-primary border-primary/30"; // Example using primary
-        case "on_hold": return "bg-yellow-100 text-yellow-800 border-yellow-300";
-        case "completed": return "bg-green-100 text-green-800 border-green-300";
-        default: return "bg-slate-100 text-slate-800 border-slate-300";
-    }
-};
+// --- REMOVED: Helper functions getStatusLabel, getStatusBadgeVariant, getStatusColorClass (assumed moved to utils.txt previously) ---
 
 
 export default function ProjectDetails() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const params = useParams();
-  // Ensure projectId is parsed correctly and defaults to 0 if invalid/missing
   const projectId = params.id ? parseInt(params.id, 10) : 0;
   const [activeTab, setActiveTab] = useState('updates'); // Default tab
 
-  // --- ADDED: Get user info ---
   const { user } = useAuth();
-  // --- END ADDED ---
 
   // Fetch ONLY project details here
   const {
@@ -108,7 +68,7 @@ export default function ProjectDetails() {
   } = useQuery<Project>({
     queryKey: [`/api/projects/${projectId}`],
     queryFn: getQueryFn({ on401: "throw" }),
-    enabled: !isNaN(projectId) && projectId > 0, // Only fetch if projectId is a valid number > 0
+    enabled: !isNaN(projectId) && projectId > 0,
   });
 
   // --- Loading State ---
@@ -128,7 +88,6 @@ export default function ProjectDetails() {
   }
 
   // --- Error or Not Found State ---
-  // Handle invalid projectId explicitly or rely on API 404 mapped to error by queryFn
   if ((!isNaN(projectId) && projectId <= 0) || projectError || !project) {
     const errorMessage = projectError instanceof Error
       ? projectError.message
@@ -174,68 +133,44 @@ export default function ProjectDetails() {
           </Link>
         </div>
 
-        {/* Project Header */}
-        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 mb-1"> {/* Allow wrapping */}
-              <h1 className="text-2xl font-bold text-slate-800">{project.name}</h1>
-               <Badge variant="outline" className={getStatusColorClass(project.status)}>
-                    {getStatusLabel(project.status)}
-                </Badge>
-            </div>
-            <p className="text-slate-600 flex items-center gap-1 text-sm md:text-base">
-              <MapPin className="h-4 w-4 flex-shrink-0" />
-              {project.address}, {project.city}, {project.state} {project.zipCode}
-            </p>
-          </div>
-          <div className="flex gap-2 flex-shrink-0"> {/* Prevent buttons shrinking */}
-            {/* Adjusted button actions to switch tabs */}
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => setActiveTab('messages')}>
-              <MessageSquare className="h-4 w-4" />
-              <span className="hidden sm:inline">Contact Team</span>
-            </Button>
-            <Button size="sm" className="gap-2" onClick={() => setActiveTab('documents')}>
-              <FileText className="h-4 w-4" />
-               <span className="hidden sm:inline">View Documents</span>
-            </Button>
-          </div>
-        </div>
+        {/* --- MODIFIED: Render ProjectHeader component --- */}
+        <ProjectHeader project={project} setActiveTab={setActiveTab} />
+        {/* --- END MODIFIED --- */}
+
+        {/* --- REMOVED: Original Project Header JSX --- */}
 
         {/* Project Overview Card */}
         <ProjectOverviewCard project={project} />
 
         {/* Project Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          {/* Make TabsList scrollable on small screens */}
-          <div className="overflow-x-auto mb-4 pb-1">
-             {/* --- MODIFIED: Dynamically adjust grid columns based on role --- */}
-             <TabsList className={cn(
-                "grid grid-flow-col auto-cols-max w-max sm:w-full gap-1",
-                 user?.role === 'client' ? 'sm:grid-cols-5' : 'sm:grid-cols-8' // 5 for client, 8 for internal
-             )}>
-                <TabsTrigger value="updates">Updates</TabsTrigger>
-                 {/* --- ADDED: Conditionally render internal tabs --- */}
-                {user?.role !== 'client' && (
-                   <>
-                      <TabsTrigger value="tasks">Tasks</TabsTrigger>
-                      <TabsTrigger value="dailylogs">Daily Logs</TabsTrigger>
-                      <TabsTrigger value="punchlist">Punch List</TabsTrigger>
-                   </>
-                )}
-                {/* --- END ADDED --- */}
-                <TabsTrigger value="documents">Documents</TabsTrigger>
-                <TabsTrigger value="financials">Financials</TabsTrigger>
-                <TabsTrigger value="messages">Messages</TabsTrigger>
-                <TabsTrigger value="schedule">Schedule</TabsTrigger>
-             </TabsList>
-          </div>
+           {/* Make TabsList scrollable on small screens */}
+           <div className="overflow-x-auto mb-4 pb-1">
+              <TabsList className={cn(
+                  "grid grid-flow-col auto-cols-max w-max sm:w-full gap-1",
+                  user?.role === 'client' ? 'sm:grid-cols-5' : 'sm:grid-cols-8' // 5 for client, 8 for internal
+              )}>
+                 <TabsTrigger value="updates">Updates</TabsTrigger>
+                  {/* Conditionally render internal tabs */}
+                  {user?.role !== 'client' && (
+                     <>
+                       <TabsTrigger value="tasks">Tasks</TabsTrigger>
+                       <TabsTrigger value="dailylogs">Daily Logs</TabsTrigger>
+                       <TabsTrigger value="punchlist">Punch List</TabsTrigger>
+                    </>
+                  )}
+                  <TabsTrigger value="documents">Documents</TabsTrigger>
+                  <TabsTrigger value="financials">Financials</TabsTrigger>
+                  <TabsTrigger value="messages">Messages</TabsTrigger>
+                  <TabsTrigger value="schedule">Schedule</TabsTrigger>
+               </TabsList>
+           </div>
 
-          {/* Render Tab Content using new components */}
+          {/* Render Tab Content using child components */}
           <TabsContent value="updates" className="mt-0">
-             {/* Conditional rendering based on activeTab is good practice to avoid unnecessary mounts */}
              {activeTab === 'updates' && <ProjectUpdatesTab projectId={projectId} />}
           </TabsContent>
-          {/* --- ADDED: Conditionally render internal tab content --- */}
+          {/* Conditionally render internal tab content */}
           {user?.role !== 'client' && (
             <>
               <TabsContent value="tasks" className="mt-0">
@@ -249,7 +184,6 @@ export default function ProjectDetails() {
               </TabsContent>
             </>
           )}
-          {/* --- END ADDED --- */}
           <TabsContent value="documents" className="mt-0">
              {activeTab === 'documents' && <ProjectDocumentsTab projectId={projectId} />}
           </TabsContent>

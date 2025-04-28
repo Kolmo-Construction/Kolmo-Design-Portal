@@ -17,11 +17,11 @@ import {
   dailyLogPhotos,
   punchListItems,
 } from "@shared/schema";
-import { db } from "./db";
+import { db } from "@server/db"; // Updated import
 import { eq, and, desc, gte, lt, or, ilike, inArray } from "drizzle-orm"; // Added inArray
 import session from "express-session";
 import connectPg from "connect-pg-simple";
-import { pool } from "./db";
+import { pool } from "@server/db"; // Updated import
 import type {
   User, InsertUser,
   Project, InsertProject,
@@ -554,10 +554,10 @@ export class DatabaseStorage implements IStorage {
           )
       );
   }
-  
+
   async getProjectTaskDependencies(projectId: number, taskIds: number[]): Promise<TaskDependency[]> {
       if (!taskIds.length) return [];
-      
+
       // Get all dependencies where any task from this project is involved
       return await db.select()
           .from(taskDependencies)
@@ -593,7 +593,7 @@ export class DatabaseStorage implements IStorage {
     const logs = await db.select().from(dailyLogs)
       .where(eq(dailyLogs.projectId, projectId))
       .orderBy(desc(dailyLogs.logDate));
-    
+
     // This is a simplified version - in a real implementation we'd fetch photos for each log
     // For now, return the logs cast as DailyLogWithPhotos (empty photos array)
     return logs as unknown as DailyLogWithPhotos[];
