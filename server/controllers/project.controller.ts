@@ -123,7 +123,7 @@ export const getProjectById = async (
     }
 
     // Get project details
-    const project = await storage.getProjectById(projectId);
+    const project = await storage.getProject(projectId);
     if (!project) {
       throw new HttpError(404, 'Project not found.');
     }
@@ -162,7 +162,7 @@ export const updateProject = async (
     // Admin permission check handled by isAdmin middleware
 
     // Check if project exists
-    const existingProject = await storage.getProjectById(projectId);
+    const existingProject = await storage.getProject(projectId);
     if (!existingProject) {
       throw new HttpError(404, 'Project not found.');
     }
