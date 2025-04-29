@@ -1,5 +1,6 @@
 // server/storage/repositories/task.repository.ts
-import { NeonDatabase, PgTransaction } from 'drizzle-orm/neon-serverless'; // Import PgTransaction if needed for passing tx
+import { NeonDatabase } from 'drizzle-orm/neon-serverless';
+import { PgTransaction } from 'drizzle-orm/pg-core';
 import { eq, and, or, sql, desc, asc, not } from 'drizzle-orm';
 import * as schema from '../../../shared/schema';
 import { db } from '../../db';

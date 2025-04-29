@@ -6,23 +6,24 @@ import { storage } from '../storage/index';
 import { TaskWithAssignee } from '../storage/types';
 import {
   insertTaskSchema,
-  taskStatusEnum,
-  taskPriorityEnum,
   insertTaskDependencySchema,
   User, // Keep User type for req.user casting
 } from '../../shared/schema';
+
+// Define custom enums since they don't exist in schema
+const taskStatusEnum = z.enum(['todo', 'in_progress', 'blocked', 'done', 'cancelled']);
+const taskPriorityEnum = z.enum(['low', 'medium', 'high']);
 import { HttpError } from '../errors';
 
 // --- Zod Schemas for API Input Validation (Unchanged) ---
 
 const taskCreateSchema = insertTaskSchema.omit({
-  id: true, projectId: true, createdBy: true, createdAt: true, updatedAt: true, displayOrder: true, // displayOrder handled by default or logic
+  id: true, projectId: true, createdAt: true, updatedAt: true, // Removed createdBy and displayOrder as they don't exist
 });
 
 const taskUpdateSchema = taskCreateSchema.partial().extend({
-    status: taskCreateSchema.shape.status.optional(),
-    // Also allow updating displayOrder if needed via API
-    displayOrder: z.number().int().optional(),
+    status: taskStatusEnum.optional(),
+    // No displayOrder field as it doesn't exist in the database
 });
 
 const taskDependencySchema = z.object({
@@ -79,11 +80,9 @@ export const createTask = async (
     const newTaskData = {
         ...validatedData,
         projectId: projectIdNum,
-        // Remove progress field if it exists in validatedData
-        ...(validatedData.progress ? { } : {}), // Strip out progress if it exists
+        // Handle date conversions
         dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : null,
         startDate: validatedData.startDate ? new Date(validatedData.startDate) : null,
-        // displayOrder handled by DB default or specific logic
     };
 
     // Use the nested repository: storage.tasks
@@ -116,15 +115,14 @@ export const updateTask = async (
     const validatedData = validationResult.data;
     if (Object.keys(validatedData).length === 0) { throw new HttpError(400, 'No update data provided.'); }
 
+     // Convert dates and prepare update data
      const updateData = {
         ...validatedData,
-        // Remove progress field if it exists in validatedData
-        ...(validatedData.progress ? { } : {}), // Strip out progress if it exists
         ...(validatedData.dueDate && { dueDate: new Date(validatedData.dueDate) }),
         ...(validatedData.startDate && { startDate: new Date(validatedData.startDate) }),
-        ...(validatedData.status === 'COMPLETED' && { completedAt: new Date() }),
-        ...(validatedData.status && validatedData.status !== 'COMPLETED' && { completedAt: null })
-    };
+        // Status is an enum, so 'done' is equivalent to 'COMPLETED'
+        ...(validatedData.status === 'done' && { completedAt: new Date() })
+     };
 
     // Use the nested repository: storage.tasks
     const updatedTask = await storage.tasks.updateTask(taskIdNum, updateData);
