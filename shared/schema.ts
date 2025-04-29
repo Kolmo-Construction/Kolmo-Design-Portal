@@ -176,7 +176,7 @@ export const tasks = pgTable("tasks", {
   assigneeId: integer("assignee_id").references(() => users.id, { onDelete: 'set null' }), // Set assignee to null if user deleted
   estimatedHours: decimal("estimated_hours", { precision: 5, scale: 2 }), // DECIMAL column
   actualHours: decimal("actual_hours", { precision: 5, scale: 2 }), // DECIMAL column
-  progress: integer("progress").default(0).notNull(),
+  // progress field was removed since it doesn't exist in the database
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

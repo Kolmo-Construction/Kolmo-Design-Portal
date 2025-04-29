@@ -79,7 +79,8 @@ export const createTask = async (
     const newTaskData = {
         ...validatedData,
         projectId: projectIdNum,
-        createdBy: user.id,
+        // Remove progress field if it exists in validatedData
+        ...(validatedData.progress ? { } : {}), // Strip out progress if it exists
         dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : null,
         startDate: validatedData.startDate ? new Date(validatedData.startDate) : null,
         // displayOrder handled by DB default or specific logic
