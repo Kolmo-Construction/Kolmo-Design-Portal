@@ -214,7 +214,7 @@ export const punchListItems = pgTable("punch_list_items", {
   priority: text("priority").default("medium"), // low, medium, high
   assigneeId: integer("assignee_id").references(() => users.id, { onDelete: 'set null' }),
   dueDate: timestamp("due_date"),
-  // photoUrl: text("photo_url"), // Removed photoUrl - now using updateMedia
+  photoUrl: text("photo_url"), // Keep photoUrl as it exists in the database
   createdById: integer("created_by_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -324,11 +324,10 @@ export const dailyLogPhotoRelations = relations(dailyLogPhotos, ({ one }) => ({
   uploader: one(users, { fields: [dailyLogPhotos.uploadedById], references: [users.id] }),
 }));
 
-export const punchListItemRelations = relations(punchListItems, ({ one, many }) => ({
+export const punchListItemRelations = relations(punchListItems, ({ one }) => ({
   project: one(projects, { fields: [punchListItems.projectId], references: [projects.id] }),
   assignee: one(users, { fields: [punchListItems.assigneeId], references: [users.id], relationName: 'PunchListAssignee' }),
   creator: one(users, { fields: [punchListItems.createdById], references: [users.id] }),
-  media: many(updateMedia), // Added relation to updateMedia
 }));
 
 
@@ -392,12 +391,6 @@ export const insertProgressUpdateSchema = createInsertSchema(progressUpdates).om
 export const insertUpdateMediaSchema = createInsertSchema(updateMedia).omit({
   id: true,
   createdAt: true
-}).extend({
-    // Make sure at least one of updateId or punchListItemId is provided
-    updateId: z.number().optional().nullable(),
-    punchListItemId: z.number().optional().nullable(),
-}).refine(data => data.updateId != null || data.punchListItemId != null, {
-    message: "Either updateId or punchListItemId must be provided",
 });
 
 
@@ -532,7 +525,6 @@ export type TaskWithAssignee = Task & { assignee?: Pick<User, 'id' | 'firstName'
 export type PunchListItemWithDetails = PunchListItem & {
     assignee?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
     creator?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
-    media?: UpdateMedia[]; // Added media relation
 };
 export type ProjectWithDetails = Project & {
     projectManager?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
