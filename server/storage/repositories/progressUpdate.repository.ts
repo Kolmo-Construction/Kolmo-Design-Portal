@@ -1,5 +1,5 @@
 // server/storage/repositories/progressUpdate.repository.ts
-import { NeonDatabase, PgTransaction } from 'drizzle-orm/neon-serverless';
+import { NeonDatabase } from 'drizzle-orm/neon-serverless';
 import { eq, and, or, sql, desc, asc } from 'drizzle-orm';
 import * as schema from '../../../shared/schema';
 import { db } from '../../db';
@@ -43,7 +43,7 @@ export interface IProgressUpdateRepository {
 
 // Implementation
 class ProgressUpdateRepository implements IProgressUpdateRepository {
-    private dbOrTx: NeonDatabase<typeof schema> | PgTransaction<any, any, any>;
+    private dbOrTx: NeonDatabase<typeof schema> | any;
     private mediaRepo: MediaRepository; // Inject media repo
 
     constructor(
@@ -67,7 +67,7 @@ class ProgressUpdateRepository implements IProgressUpdateRepository {
             });
             
             // Process each update to get media separately
-            const result = await Promise.all(updates.map(async (update) => {
+            const result = await Promise.all(updates.map(async (update: any) => {
                 // Get media for this update separately
                 const media = await this.dbOrTx.query.updateMedia.findMany({
                     where: eq(schema.updateMedia.updateId, update.id),
@@ -91,7 +91,7 @@ class ProgressUpdateRepository implements IProgressUpdateRepository {
             }));
             
             // Filter out any updates without a creator
-            return result.filter(update => update.creator) as ProgressUpdateWithDetails[];
+            return result.filter((update: any) => update.creator) as ProgressUpdateWithDetails[];
         } catch (error) {
             console.error(`Error fetching progress updates for project ${projectId}:`, error);
             throw new Error('Database error while fetching progress updates.');

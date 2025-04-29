@@ -50,11 +50,11 @@ deletePunchListItem(itemId: number): Promise<boolean>;
 
 // Implementation
 class PunchListRepository implements IPunchListRepository {
-private dbOrTx: NeonDatabase<typeof schema> | PgTransaction<any, any, any>;
+private dbOrTx: NeonDatabase<typeof schema> | any;
 private mediaRepo: MediaRepository; // Use the class type for dependency injection
 
 constructor(
-databaseOrTx: NeonDatabase<typeof schema> | PgTransaction<any, any, any> = db,
+databaseOrTx: NeonDatabase<typeof schema> | any = db,
 // Pass necessary dependencies for MediaRepository if not using a central factory/index
 // For now, assuming mediaRepository singleton is initialized elsewhere or can be passed in.
 mediaRepoInstance: MediaRepository // Accept an instance of the class
@@ -79,7 +79,7 @@ async getPunchListItemsForProject(projectId: number): Promise<PunchListItemWithD
     });
     
     // Process each item to get media separately
-    const result = await Promise.all(items.map(async (item) => {
+    const result = await Promise.all(items.map(async (item: any) => {
       // Get media for this item separately
       const media = await this.dbOrTx.query.updateMedia.findMany({
         where: eq(schema.updateMedia.punchListItemId, item.id),

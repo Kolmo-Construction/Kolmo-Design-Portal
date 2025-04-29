@@ -54,7 +54,7 @@ export class MediaRepository {
 
 
    // Adjusted to accept an optional transaction object (though constructor handles it now)
-  async deleteMedia(mediaId: number, tx?: PgTransaction<any, any, any>) {
+  async deleteMedia(mediaId: number, tx?: any) {
     const dbContext = tx || this.dbOrTx; // Use transaction if provided, else use constructor's db
 
     const mediaToDelete = await dbContext.query.updateMedia.findFirst({
