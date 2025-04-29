@@ -30,66 +30,67 @@ export class MediaRepository {
      private mediaStorage: MediaStorage = new MediaStorage(), 
      private logger: any = { log: console.log }
    ) {}
-  
+
+
   async createMedia(data: InsertUpdateMedia) {
-    // Insert the update media record
-    try {
-      const [record] = await this.dbOrTx.insert(updateMedia)
-        .values(data)
-        .returning();
-      
-      this.logger.log("info", `Created media record with ID ${record.id}`);
-      return record;
-    } catch (error) {
-      this.logger.log("error", `Failed to create media record: ${error}`);
-      throw new Error(`Failed to create media record: ${error}`);
+    if (!data.updateId && !data.punchListItemId) {
+        throw new Error("Either updateId or punchListItemId must be provided");
     }
+    const result = await this.dbOrTx.insert(updateMedia).values(data).returning();
+    return result[0];
   }
 
-  // Method to get media associated with a progress update
   async getMediaForUpdate(updateId: number) {
-    try {
-      const media = await this.dbOrTx.query.updateMedia.findMany({
-        where: eq(updateMedia.updateId, updateId),
+    return this.dbOrTx.query.updateMedia.findMany({
+      where: eq(updateMedia.updateId, updateId),
+    });
+  }
+
+  async getMediaForPunchListItem(punchListItemId: number) {
+      return this.dbOrTx.query.updateMedia.findMany({
+          where: eq(updateMedia.punchListItemId, punchListItemId),
       });
-      return media;
-    } catch (error) {
-      this.logger.log("error", `Failed to get media for update ID ${updateId}: ${error}`);
-      throw new Error(`Failed to get media for update ID ${updateId}: ${error}`);
-    }
   }
 
-  // Method to delete a specific media record by ID
+
+   // Adjusted to accept an optional transaction object (though constructor handles it now)
   async deleteMedia(mediaId: number, tx?: any) {
-    const dbContext = tx || this.dbOrTx;
-    
-    const [media] = await dbContext.select({
-      mediaUrl: updateMedia.mediaUrl,
-    })
-    .from(updateMedia)
-    .where(eq(updateMedia.id, mediaId));
-    
-    if (!media) {
-      this.logger.log("warn", `No media found with ID ${mediaId} for deletion.`);
-      return;
+    const dbContext = tx || this.dbOrTx; // Use transaction if provided, else use constructor's db
+
+    const mediaToDelete = await dbContext.query.updateMedia.findFirst({
+        where: eq(updateMedia.id, mediaId),
+        columns: {
+            mediaUrl: true,
+        }
+    });
+
+    if (!mediaToDelete) {
+        this.logger.log("info", `Media with ID ${mediaId} not found for deletion.`);
+        return null;
     }
-    
+
     try {
-      await this.mediaStorage.deleteFile(media.mediaUrl);
-      this.logger.log("info", `Deleted media file: ${media.mediaUrl}`);
+        await this.mediaStorage.deleteFile(mediaToDelete.mediaUrl);
+        this.logger.log("info", `Deleted media file: ${mediaToDelete.mediaUrl}`);
     } catch (error) {
-      this.logger.log("error", `Failed to delete media file ${media.mediaUrl} for media ID ${mediaId}: ${error}`);
-      throw new Error(`Failed to delete media file: ${error}`);
+        this.logger.log("error", `Failed to delete media file ${mediaToDelete.mediaUrl}: ${error}`);
+        throw new Error(`Failed to delete media file: ${error}`);
     }
-    
-    await dbContext.delete(updateMedia).where(eq(updateMedia.id, mediaId));
-    this.logger.log("info", `Deleted media record with ID ${mediaId}.`);
+
+    const result = await dbContext.delete(updateMedia).where(eq(updateMedia.id, mediaId)).returning();
+
+    if (result.length === 0) {
+        this.logger.log("info", `Media record with ID ${mediaId} not found in DB after file deletion.`);
+        return null;
+    }
+
+    return result[0];
   }
 
-  // Adjusted to accept an optional transaction object
+   // Adjusted to accept an optional transaction object
   async deleteMediaForUpdate(updateId: number, tx?: any) {
     const dbContext = tx || this.dbOrTx;
-  
+
     const mediaToDelete = await dbContext.query.updateMedia.findMany({
         where: eq(updateMedia.updateId, updateId),
         columns: {
@@ -103,7 +104,7 @@ export class MediaRepository {
         return;
     }
 
-    for (const media of mediaToDelete as Array<{ id: number, mediaUrl: string }>) {
+    for (const media: any of mediaToDelete) {
         try {
             await this.mediaStorage.deleteFile(media.mediaUrl);
             this.logger.log("info", `Deleted media file: ${media.mediaUrl}`);
@@ -113,36 +114,67 @@ export class MediaRepository {
         }
     }
 
-    const mediaIds = mediaToDelete.map((media: { id: number }) => media.id);
+    const mediaIds = mediaToDelete.map((media: any) => media.id);
      if (mediaIds.length > 0) {
          await dbContext.delete(updateMedia).where(inArray(updateMedia.id, mediaIds));
          this.logger.log("info", `Deleted ${mediaIds.length} media records for update ID ${updateId}.`);
      }
   }
 
-  // Note: PunchListItems are not directly linked to media in the schema,
-  // so this method is revised to be a no-op to avoid errors
+   // Adjusted to accept an optional transaction object
   async deleteMediaForPunchListItem(punchListItemId: number, tx?: any) {
-    this.logger.log("info", `No media directly linked to punch list item ID ${punchListItemId} in schema.`);
-    return;
-  }
+        const dbContext = tx || this.dbOrTx;
 
-  // Note: PunchListItems are not directly linked to media in the schema
+        const mediaToDelete = await dbContext.query.updateMedia.findMany({
+            where: eq(updateMedia.punchListItemId, punchListItemId),
+            columns: {
+                id: true,
+                mediaUrl: true,
+            }
+        });
+
+        if (mediaToDelete.length === 0) {
+            this.logger.log("info", `No media found for punch list item ID ${punchListItemId} for deletion.`);
+            return;
+        }
+
+        for (const media of mediaToDelete) {
+            try {
+                await this.mediaStorage.deleteFile(media.mediaUrl);
+                this.logger.log("info", `Deleted media file: ${media.mediaUrl}`);
+            } catch (error) {
+                this.logger.log("error", `Failed to delete media file ${media.mediaUrl} for punch list item ID ${punchListItemId}: ${error}`);
+                 throw new Error(`Failed to delete one or more media files for punch list item ID ${punchListItemId}: ${error}`);
+            }
+        }
+
+        const mediaIds = mediaToDelete.map(media => media.id);
+         if (mediaIds.length > 0) {
+             await dbContext.delete(updateMedia).where(inArray(updateMedia.id, mediaIds));
+             this.logger.log("info", `Deleted ${mediaIds.length} media records for punch list item ID ${punchListItemId}.`);
+         }
+    }
+
+
   async getMediaKeysForPunchListItem(punchListItemId: number): Promise<string[]> {
-    // Since there's no direct link in the schema, we return an empty array
-    this.logger.log("info", `No media directly linked to punch list item ID ${punchListItemId} in schema.`);
-    return [];
+    const media = await this.dbOrTx.query.updateMedia.findMany({
+      where: eq(updateMedia.punchListItemId, punchListItemId),
+      columns: {
+        mediaUrl: true,
+      },
+    });
+    return media.map((m) => m.mediaUrl);
   }
 
-  async getMediaKeysForUpdate(updateId: number): Promise<string[]> {
-    const media = await this.dbOrTx.query.updateMedia.findMany({
-        where: eq(updateMedia.updateId, updateId),
-        columns: {
-            mediaUrl: true,
-        },
-    });
-    return media.map((m: { mediaUrl: string }) => m.mediaUrl);
-  }
+    async getMediaKeysForUpdate(updateId: number): Promise<string[]> {
+        const media = await this.dbOrTx.query.updateMedia.findMany({
+            where: eq(updateMedia.updateId, updateId),
+            columns: {
+                mediaUrl: true,
+            },
+        });
+        return media.map((m) => m.mediaUrl);
+    }
 }
 
 // Export an interface for dependency injection
