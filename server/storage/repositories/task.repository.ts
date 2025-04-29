@@ -33,17 +33,12 @@ class TaskRepository implements ITaskRepository {
         const task = await this.dbOrTx.query.tasks.findFirst({
             where: eq(schema.tasks.id, taskId),
             with: {
-                assignee: { columns: { id: true, firstName: true, lastName: true, email: true } },
-                createdBy: { columns: { id: true, firstName: true, lastName: true } }
+                assignee: { columns: { id: true, firstName: true, lastName: true, email: true } }
+                // Note: There is no createdBy relation as the tasks table doesn't have a created_by column
             }
         });
 
         if (!task) return null;
-        if (!task.createdBy) {
-            console.error(`Task ${taskId} found but createdBy user details are missing.`);
-            // Consider throwing an error for data inconsistency
-            return null; // Or throw new Error(...)
-        }
         return task as TaskWithAssignee;
     }
 
@@ -60,15 +55,13 @@ class TaskRepository implements ITaskRepository {
         try {
             const tasks = await this.dbOrTx.query.tasks.findMany({
                 where: eq(schema.tasks.projectId, projectId),
-                orderBy: [asc(schema.tasks.displayOrder), asc(schema.tasks.createdAt)], // Added displayOrder
+                orderBy: [asc(schema.tasks.createdAt)], // Removed displayOrder as it doesn't exist
                 with: {
-                    assignee: { columns: { id: true, firstName: true, lastName: true, email: true } },
-                    createdBy: { columns: { id: true, firstName: true, lastName: true } }
+                    assignee: { columns: { id: true, firstName: true, lastName: true, email: true } }
+                    // Note: There is no createdBy relation as the tasks table doesn't have a created_by column
                 }
             });
-            // Filter incomplete data (though FK should prevent missing createdBy)
-            const validTasks = tasks.filter(task => task.createdBy);
-            return validTasks as TaskWithAssignee[];
+            return tasks as TaskWithAssignee[];
         } catch (error) {
             console.error(`Error fetching tasks for project ${projectId}:`, error);
             throw new Error('Database error while fetching tasks.');

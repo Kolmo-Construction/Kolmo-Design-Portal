@@ -15,7 +15,7 @@ export type ProjectWithDetails = schema.Project & {
 
 export type TaskWithAssignee = schema.Task & {
     assignee: Pick<schema.User, 'id' | 'firstName' | 'lastName'> | null; // Use Pick for consistency
-    creator: Pick<schema.User, 'id' | 'firstName' | 'lastName'>; // Use creator based on schema relations
+    // Note: No creator field as the tasks table doesn't have a created_by column
 };
 
 export type MessageWithSender = schema.Message & {
