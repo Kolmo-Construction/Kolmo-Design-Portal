@@ -93,7 +93,7 @@ class UserRepository implements IUserRepository {
                 email: schema.users.email,
             })
             .from(schema.users)
-            .where(eq(schema.users.role, 'CLIENT'))
+            .where(eq(schema.users.role, 'client'))
             .orderBy(asc(schema.users.lastName), asc(schema.users.firstName));
         } catch (error) {
             console.error('Error getting client users:', error);
