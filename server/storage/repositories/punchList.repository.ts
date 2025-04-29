@@ -1,5 +1,5 @@
 // server/storage/repositories/punchList.repository.ts
-import { NeonDatabase, PgTransaction } from 'drizzle-orm/neon-serverless';
+import { NeonDatabase } from 'drizzle-orm/neon-serverless';
 import { eq, and, or, sql, desc, asc } from 'drizzle-orm';
 
 // Relative path import from shared/schema.ts
@@ -67,46 +67,85 @@ this.mediaRepo = mediaRepoInstance;
 }
 
 async getPunchListItemsForProject(projectId: number): Promise<PunchListItemWithDetails[]> {
-try {
-const items = await this.dbOrTx.query.punchListItems.findMany({
-where: eq(schema.punchListItems.projectId, projectId),
-orderBy: [asc(schema.punchListItems.status), asc(schema.punchListItems.createdAt)], // Kept original ordering
-with: {
-// Use schema relation names for eager loading
-creator: { columns: { id: true, firstName: true, lastName: true } }, // Updated from createdBy to creator
-assignee: { columns: { id: true, firstName: true, lastName: true } }, // Added assignee eager loading
-media: true // Updated from mediaItems to media, and expects schema.UpdateMedia[]
-}
-});
-// The type PunchListItemWithDetails now includes creator and assignee,
-             // so no explicit filtering for item.createdBy is strictly necessary at runtime
-             // if the query ensures they exist where expected, but keeping for safety/original logic
-// const validItems = items.filter(item => item.creator); // Filter by creator if necessary
-return items as PunchListItemWithDetails[]; // Cast to the updated type
-} catch (error) {
-console.error(`Error fetching punch list items for project ${projectId}:`, error); // Kept original error logging
-throw new Error('Database error while fetching punch list items.'); // Kept original error throwing
-}
+  try {
+    // First get the items without media to avoid schema issues
+    const items = await this.dbOrTx.query.punchListItems.findMany({
+      where: eq(schema.punchListItems.projectId, projectId),
+      orderBy: [asc(schema.punchListItems.status), asc(schema.punchListItems.createdAt)], 
+      with: {
+        creator: { columns: { id: true, firstName: true, lastName: true } },
+        assignee: { columns: { id: true, firstName: true, lastName: true } }
+      }
+    });
+    
+    // Process each item to get media separately
+    const result = await Promise.all(items.map(async (item) => {
+      // Get media for this item separately
+      const media = await this.dbOrTx.query.updateMedia.findMany({
+        where: eq(schema.updateMedia.punchListItemId, item.id),
+        columns: {
+          id: true,
+          mediaUrl: true,
+          mediaType: true,
+          caption: true,
+          uploadedById: true,
+          createdAt: true
+        }
+      });
+      
+      // Return item with media
+      return {
+        ...item,
+        media: media,
+        mediaItems: media // For backwards compatibility
+      };
+    }));
+    
+    // Return with media included
+    return result as PunchListItemWithDetails[];
+  } catch (error) {
+    console.error(`Error fetching punch list items for project ${projectId}:`, error);
+    throw new Error('Database error while fetching punch list items.');
+  }
 }
 
 async getPunchListItemById(itemId: number): Promise<PunchListItemWithDetails | null> {
-try {
-const item = await this.dbOrTx.query.punchListItems.findFirst({
-where: eq(schema.punchListItems.id, itemId),
-with: {
-// Use schema relation names for eager loading
-creator: { columns: { id: true, firstName: true, lastName: true } }, // Updated from createdBy to creator
-assignee: { columns: { id: true, firstName: true, lastName: true } }, // Added assignee eager loading
-media: true // Updated from mediaItems to media
-}
-});
-// Check for both item existence and creator existence as in original logic
-if (!item || !item.creator) return null; // Check creator instead of createdBy
-return item as PunchListItemWithDetails; // Cast to the updated type
-} catch (error) {
-console.error(`Error fetching punch list item ${itemId}:`, error); // Kept original error logging
-throw new Error('Database error while fetching punch list item.'); // Kept original error throwing
-}
+  try {
+    // Get punch list item without media to avoid schema issues
+    const item = await this.dbOrTx.query.punchListItems.findFirst({
+      where: eq(schema.punchListItems.id, itemId),
+      with: {
+        creator: { columns: { id: true, firstName: true, lastName: true } },
+        assignee: { columns: { id: true, firstName: true, lastName: true } }
+      }
+    });
+    
+    // Check if item exists
+    if (!item || !item.creator) return null;
+    
+    // Get media separately
+    const media = await this.dbOrTx.query.updateMedia.findMany({
+      where: eq(schema.updateMedia.punchListItemId, itemId),
+      columns: {
+        id: true,
+        mediaUrl: true,
+        mediaType: true,
+        caption: true,
+        uploadedById: true,
+        createdAt: true
+      }
+    });
+    
+    // Return item with media
+    return {
+      ...item,
+      media: media,
+      mediaItems: media // For backwards compatibility
+    } as PunchListItemWithDetails;
+  } catch (error) {
+    console.error(`Error fetching punch list item ${itemId}:`, error);
+    throw new Error('Database error while fetching punch list item.');
+  }
 }
 
 // Returns PunchListItemWithDetails now to include creator and media
@@ -115,7 +154,7 @@ try {
 const result = await this.dbOrTx.insert(schema.punchListItems)
 .values({
 ...itemData,
-status: itemData.status ?? schema.punchListStatusEnum.enumValues[0], // Default status
+status: itemData.status ?? "open", // Default status based on schema
 // photoUrl is not in schema, so no need to handle it here
 })
 .returning({ id: schema.punchListItems.id });
