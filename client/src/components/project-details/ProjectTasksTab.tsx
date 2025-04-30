@@ -233,22 +233,47 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
             )}
             {/* Render Gantt only if there are tasks to display */}
             {formattedGanttTasks.length > 0 && (
-              <Gantt
-                  tasks={formattedGanttTasks}
-                  viewMode={ViewMode.Week}
-                  // --- MODIFIED: Use handlers from hooks ---
-                  onClick={handleTaskClick} // From useTaskDialogs
-                  onDateChange={handleDateChange} // From useGanttInteractions
-                  onProgressChange={handleProgressChange} // From useGanttInteractions
-                  onRelationChange={handleDependencyLink} // From useGanttInteractions
-                  // --- END MODIFIED ---
-                  listCellWidth={"180px"}
-                  columnWidth={65}
-                  rowHeight={40}
-                  ganttHeight={580}
-                  locale="en-US"
-                  readonly={isMutatingGantt}
-              />
+              <div className="gantt-container">
+                <Gantt
+                    tasks={formattedGanttTasks}
+                    viewMode="Week" // Use string literal instead of enum to avoid type issues
+                    // Handler functions wrapped in try/catch to prevent unhandled errors
+                    onClick={(task) => {
+                      try {
+                        if (handleTaskClick) handleTaskClick(task);
+                      } catch (err) {
+                        console.error("Error in Gantt onClick handler:", err);
+                      }
+                    }}
+                    onDateChange={(task, start, end) => {
+                      try {
+                        if (handleDateChange) handleDateChange(task, start, end);
+                      } catch (err) {
+                        console.error("Error in Gantt onDateChange handler:", err);
+                      }
+                    }}
+                    onProgressChange={(task, progress) => {
+                      try {
+                        if (handleProgressChange) handleProgressChange(task, progress);
+                      } catch (err) {
+                        console.error("Error in Gantt onProgressChange handler:", err);
+                      }
+                    }}
+                    onRelationChange={(from: string, to: string) => {
+                      try {
+                        if (handleDependencyLink) handleDependencyLink(from, to);
+                      } catch (err) {
+                        console.error("Error in Gantt onRelationChange handler:", err);
+                      }
+                    }}
+                    listCellWidth={"180px"}
+                    columnWidth={65}
+                    rowHeight={40}
+                    ganttHeight={580}
+                    locale="en-US"
+                    readonly={isMutatingGantt}
+                />
+              </div>
             )}
              <div className="p-2 text-xs text-muted-foreground border-t">
                  Note: Edit tasks by clicking on them. Change dates by dragging or resizing bars. Change progress using the handle inside bars. Link tasks by dragging from one task circle to another.
