@@ -11,6 +11,14 @@ import { Task as GanttTask } from "wx-react-gantt";
  * @returns Array of GanttTask objects compatible with the library.
  */
 export const formatTasksForGantt = (tasks: Task[], dependencies: TaskDependency[] = []): GanttTask[] => {
+    // --- ADDED: Filter out any potentially invalid/undefined task objects ---
+    // This prevents errors if the API somehow returns null/undefined within the array
+    const validTasks = tasks.filter(task => task && typeof task === 'object' && task.id !== undefined);
+    if (validTasks.length !== tasks.length) {
+        console.warn('[gantt-utils] Filtered out invalid/undefined task objects from input array.');
+    }
+    // --- END ADDED FILTER ---
+
     // Create a map for quick lookup of dependencies for each task (successor)
     const successorDependenciesMap = new Map<number, number[]>();
     dependencies.forEach(dep => {
@@ -19,7 +27,8 @@ export const formatTasksForGantt = (tasks: Task[], dependencies: TaskDependency[
         successorDependenciesMap.set(dep.successorId, successors);
     });
 
-    return tasks.map(task => {
+    // --- MODIFIED: Use validTasks instead of tasks for mapping ---
+    return validTasks.map(task => {
       // Use the progress field from the task data
       const progress = task.progress ?? 0; // Use actual progress, default to 0
 
@@ -52,7 +61,7 @@ export const formatTasksForGantt = (tasks: Task[], dependencies: TaskDependency[
       // Get dependencies for this task (where this task is the successor)
       const taskDependencies = successorDependenciesMap.get(task.id)?.map(String) ?? []; // Convert IDs to strings
 
-      return {
+      const ganttTask: GanttTask = {
         id: task.id.toString(),
         start: startDate,
         end: endDate,
@@ -62,6 +71,8 @@ export const formatTasksForGantt = (tasks: Task[], dependencies: TaskDependency[
         dependencies: taskDependencies, // Add formatted dependencies
         // _original: task, // Optional: Keep original data reference if needed later
       };
+      // console.log(`[gantt-utils] Mapped task ${task.id}:`, JSON.stringify(ganttTask, null, 2)); // Optional debug log
+      return ganttTask;
     }).filter(gt => {
         // Ensure dates are valid before including in the final array
         const isValid = !isNaN(gt.start.getTime()) && !isNaN(gt.end.getTime());

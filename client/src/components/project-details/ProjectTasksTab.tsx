@@ -31,8 +31,15 @@ import { useTaskDialogs } from "@/hooks/useTaskDialogs";                   // As
 // --- END ADDED ---
 
 
-// Define ViewMode constants
-const ViewMode = { Day: "Day", Week: "Week", Month: "Month" };
+// Define ViewMode enum based on required library values
+const ViewMode = {
+  Day: "Day",
+  Week: "Week", 
+  Month: "Month"
+} as const;
+
+// Create a type from the enum values
+type ViewModeType = typeof ViewMode[keyof typeof ViewMode];
 interface ProjectTasksTabProps {
   projectId: number;
 }
@@ -189,7 +196,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
      // Keep checks for missing dates or empty tasks
      if (!formattedGanttTasks.length && tasks.length > 0 && !isLoading) {
          return ( /* Warning Alert for missing dates */
-             <Alert variant="warning" className="m-4">
+             <Alert className="m-4">
                  <AlertTriangle className="h-4 w-4" />
                  <AlertTitle>Tasks Cannot Be Displayed</AlertTitle>
                  <AlertDescription>

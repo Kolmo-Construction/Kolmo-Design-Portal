@@ -1,41 +1,40 @@
 // server/storage/repositories/task.repository.ts
 import { NeonDatabase } from 'drizzle-orm/neon-serverless';
 import { PgTransaction } from 'drizzle-orm/pg-core';
-import { eq, and, or, sql, desc, asc, not } from 'drizzle-orm';
+// --- ADD 'inArray' TO THIS IMPORT ---
+import { eq, and, or, sql, desc, asc, not, inArray } from 'drizzle-orm';
 import * as schema from '../../../shared/schema';
 import { db } from '../../db';
 import { HttpError } from '../../errors';
 import { TaskWithAssignee } from '../types'; // Import shared types
 
-// Interface for Task Repository
+// --- UPDATE THE INTERFACE ---
 export interface ITaskRepository {
     getTasksForProject(projectId: number): Promise<TaskWithAssignee[]>;
     createTask(taskData: schema.InsertTask): Promise<TaskWithAssignee | null>;
-    // Note: Omitted fields like id, projectId, createdBy from update type
     updateTask(taskId: number, taskData: Partial<Omit<schema.InsertTask, 'id' | 'projectId' | 'createdBy'>>): Promise<TaskWithAssignee | null>;
     deleteTask(taskId: number): Promise<boolean>;
     addTaskDependency(predecessorId: number, successorId: number): Promise<schema.TaskDependency | null>;
     removeTaskDependency(predecessorId: number, successorId: number): Promise<boolean>;
-    getTaskById(taskId: number): Promise<TaskWithAssignee | null>; // Added getter for convenience
+    getTaskById(taskId: number): Promise<TaskWithAssignee | null>;
+    // --- ADD THIS LINE ---
+    getDependenciesForProject(projectId: number): Promise<schema.TaskDependency[]>;
 }
 
 // Implementation
 class TaskRepository implements ITaskRepository {
-    // Use transaction type for flexibility
     private dbOrTx: NeonDatabase<typeof schema> | PgTransaction<any, any, any>;
 
-    // Allow injecting db instance or transaction
     constructor(databaseOrTx: NeonDatabase<typeof schema> | PgTransaction<any, any, any> = db) {
         this.dbOrTx = databaseOrTx;
     }
 
-    // Helper to fetch task with relations using the correct db/tx instance
     private async getTaskWithDetails(taskId: number): Promise<TaskWithAssignee | null> {
+        // ... (existing method - no changes needed here)
         const task = await this.dbOrTx.query.tasks.findFirst({
             where: eq(schema.tasks.id, taskId),
             with: {
                 assignee: { columns: { id: true, firstName: true, lastName: true, email: true } }
-                // Note: There is no createdBy relation as the tasks table doesn't have a created_by column
             }
         });
 
@@ -44,6 +43,7 @@ class TaskRepository implements ITaskRepository {
     }
 
     async getTaskById(taskId: number): Promise<TaskWithAssignee | null> {
+        // ... (existing method - no changes needed here)
          try {
             return await this.getTaskWithDetails(taskId);
          } catch (error) {
@@ -53,13 +53,13 @@ class TaskRepository implements ITaskRepository {
     }
 
     async getTasksForProject(projectId: number): Promise<TaskWithAssignee[]> {
+        // ... (existing method - no changes needed here)
         try {
             const tasks = await this.dbOrTx.query.tasks.findMany({
                 where: eq(schema.tasks.projectId, projectId),
-                orderBy: [asc(schema.tasks.createdAt)], // Removed displayOrder as it doesn't exist
+                orderBy: [asc(schema.tasks.createdAt)],
                 with: {
                     assignee: { columns: { id: true, firstName: true, lastName: true, email: true } }
-                    // Note: There is no createdBy relation as the tasks table doesn't have a created_by column
                 }
             });
             return tasks as TaskWithAssignee[];
@@ -70,6 +70,7 @@ class TaskRepository implements ITaskRepository {
     }
 
     async createTask(taskData: schema.InsertTask): Promise<TaskWithAssignee | null> {
+        // ... (existing method - no changes needed here)
         try {
             const result = await this.dbOrTx.insert(schema.tasks)
                 .values(taskData)
@@ -84,9 +85,10 @@ class TaskRepository implements ITaskRepository {
     }
 
     async updateTask(taskId: number, taskData: Partial<Omit<schema.InsertTask, 'id' | 'projectId' | 'createdBy'>>): Promise<TaskWithAssignee | null> {
+       // ... (existing method - no changes needed here)
         if (Object.keys(taskData).length === 0) {
              console.warn("Update task called with empty data.");
-             return this.getTaskWithDetails(taskId); // Return current data if nothing to update
+             return this.getTaskWithDetails(taskId);
         }
         try {
             const result = await this.dbOrTx.update(schema.tasks)
@@ -94,7 +96,7 @@ class TaskRepository implements ITaskRepository {
                 .where(eq(schema.tasks.id, taskId))
                 .returning({ id: schema.tasks.id });
 
-            if (!result || result.length === 0) return null; // Not found
+            if (!result || result.length === 0) return null;
             return await this.getTaskWithDetails(taskId);
         } catch (error) {
             console.error(`Error updating task ${taskId}:`, error);
@@ -103,16 +105,13 @@ class TaskRepository implements ITaskRepository {
     }
 
     async deleteTask(taskId: number): Promise<boolean> {
-         // Requires a transaction to ensure dependencies are deleted first
-         // If called within another transaction, it should use the provided tx instance
+        // ... (existing method - no changes needed here)
          const runDelete = async (tx: NeonDatabase<typeof schema> | PgTransaction<any, any, any>) => {
-            // Delete dependencies involving this task first
             await tx.delete(schema.taskDependencies)
                 .where(or(
                     eq(schema.taskDependencies.predecessorId, taskId),
                     eq(schema.taskDependencies.successorId, taskId)
                 ));
-            // Delete the task
             const result = await tx.delete(schema.tasks)
                 .where(eq(schema.tasks.id, taskId))
                 .returning({ id: schema.tasks.id });
@@ -120,11 +119,9 @@ class TaskRepository implements ITaskRepository {
          };
 
          try {
-             // If dbOrTx is already a transaction, use it directly
              if ('_.isTransaction' in this.dbOrTx && (this.dbOrTx as any)._.isTransaction) {
                   return await runDelete(this.dbOrTx);
              } else {
-                 // Otherwise, create a new transaction
                  return await (this.dbOrTx as NeonDatabase<typeof schema>).transaction(runDelete);
              }
          } catch (error) {
@@ -133,10 +130,41 @@ class TaskRepository implements ITaskRepository {
          }
     }
 
+    // --- ADD THIS ENTIRE METHOD ---
+    async getDependenciesForProject(projectId: number): Promise<schema.TaskDependency[]> {
+        try {
+            // Fetch tasks belonging to the project first
+            const projectTasks = await this.dbOrTx.select({ id: schema.tasks.id })
+                .from(schema.tasks)
+                .where(eq(schema.tasks.projectId, projectId));
+
+            if (projectTasks.length === 0) {
+                return []; // No tasks, so no dependencies
+            }
+
+            const taskIds = projectTasks.map(t => t.id);
+
+            // Fetch dependencies where *both* predecessor and successor are in this project
+            // This prevents fetching dependencies related to tasks outside the current project scope
+            const dependencies = await this.dbOrTx.query.taskDependencies.findMany({
+                where: and(
+                    inArray(schema.taskDependencies.predecessorId, taskIds),
+                    inArray(schema.taskDependencies.successorId, taskIds)
+                )
+            });
+            return dependencies;
+        } catch (error) {
+            console.error(`Error fetching dependencies for project ${projectId}:`, error);
+            throw new Error('Database error while fetching task dependencies.');
+        }
+    }
+    // --- END OF ADDED METHOD ---
+
+
     async addTaskDependency(predecessorId: number, successorId: number): Promise<schema.TaskDependency | null> {
+        // ... (existing method - no changes needed here)
         if (predecessorId === successorId) throw new Error("Task cannot depend on itself.");
 
-        // Basic cycle check (A->B, B->A)
         const existingReverse = await this.dbOrTx.query.taskDependencies.findFirst({
             where: and(
                 eq(schema.taskDependencies.predecessorId, successorId),
@@ -160,7 +188,7 @@ class TaskRepository implements ITaskRepository {
                         eq(schema.taskDependencies.successorId, successorId)
                     )
                 });
-                return existing ?? null; // Return existing if duplicate
+                return existing ?? null;
             }
             return result[0];
         } catch (error: any) {
@@ -172,6 +200,7 @@ class TaskRepository implements ITaskRepository {
     }
 
     async removeTaskDependency(predecessorId: number, successorId: number): Promise<boolean> {
+        // ... (existing method - no changes needed here)
         try {
             const result = await this.dbOrTx.delete(schema.taskDependencies)
                 .where(and(
@@ -187,5 +216,4 @@ class TaskRepository implements ITaskRepository {
     }
 }
 
-// Export an instance for convenience
 export const taskRepository = new TaskRepository();

@@ -18,12 +18,15 @@ router.put("/:taskId", isAuthenticated, validateResourceId('taskId'), taskContro
 // DELETE /api/projects/:projectId/tasks/:taskId
 router.delete("/:taskId", isAuthenticated, validateResourceId('taskId'), taskController.deleteTask);
 
-// POST /api/projects/:projectId/tasks/dependencies
-// Create a dependency between two tasks
+// --- ADD THIS ROUTE ---
+// GET /api/projects/:projectId/tasks/dependencies - Fetch dependencies for the project
+router.get("/dependencies", isAuthenticated, taskController.getTaskDependencies);
+// --- END ADDED ROUTE ---
+
+// POST /api/projects/:projectId/tasks/dependencies - Create a dependency
 router.post("/dependencies", isAuthenticated, taskController.createTaskDependency);
 
-// DELETE /api/projects/:projectId/tasks/dependencies
-// Remove a dependency between two tasks (using request body)
+// DELETE /api/projects/:projectId/tasks/dependencies - Remove a dependency
 router.delete("/dependencies", isAuthenticated, taskController.deleteTaskDependency);
 
 export default router;

@@ -53,6 +53,7 @@ interface EditTaskDialogProps {
   setIsOpen: (open: boolean) => void;
   taskToEdit: Task | null; // Pass the task object to edit
   projectId: number; // Still need projectId for API endpoint and query invalidation
+  onDeleteRequest?: (task: Task) => void; // Optional callback to request task deletion
 }
 
 // Use partial schema for updates, as not all fields might be sent
@@ -64,7 +65,8 @@ export function EditTaskDialog({
   isOpen,
   setIsOpen,
   taskToEdit,
-  projectId
+  projectId,
+  onDeleteRequest
 }: EditTaskDialogProps) {
   const queryClient = useQueryClient();
 
@@ -170,6 +172,14 @@ export function EditTaskDialog({
     console.log("Submitting update:", values);
     // The mutationFn now handles formatting, just pass the form values
     updateTaskMutation.mutate({ taskId: taskToEdit.id, taskData: values });
+  };
+  
+  // Handle delete request
+  const handleDeleteClick = () => {
+    if (taskToEdit && onDeleteRequest) {
+      onDeleteRequest(taskToEdit);
+      setIsOpen(false); // Close the dialog
+    }
   };
 
   return (
