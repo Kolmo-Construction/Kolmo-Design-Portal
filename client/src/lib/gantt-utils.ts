@@ -29,9 +29,8 @@ export const formatTasksForGantt = (tasks: Task[], dependencies: TaskDependency[
 
     // --- MODIFIED: Use validTasks instead of tasks for mapping ---
     return validTasks.map(task => {
-      // Use the progress field from the task data if it exists, otherwise default to 0
-      // TypeScript note: we're checking for an optional field that might be added by backend
-      const progress = (task as any).progress ?? 0; 
+      // Use the progress field from the task data
+      const progress = task.progress ?? 0; // Use actual progress, default to 0
 
       const type: "task" | "milestone" | "project" = "task"; // Default type
 
@@ -62,24 +61,16 @@ export const formatTasksForGantt = (tasks: Task[], dependencies: TaskDependency[
       // Get dependencies for this task (where this task is the successor)
       const taskDependencies = successorDependenciesMap.get(task.id)?.map(String) ?? []; // Convert IDs to strings
 
-      // Create Gantt task with all required properties explicitly set
-      // This helps prevent "Cannot read properties of undefined (reading 'type')" errors
       const ganttTask: GanttTask = {
         id: task.id.toString(),
         start: startDate,
         end: endDate,
-        text: task.title || `Task ${task.id}`, // Ensure text is never empty
+        text: task.title,
         progress: progress, // Use the actual progress value
-        type: type, // Always "task" as defined above
+        type: type,
         dependencies: taskDependencies, // Add formatted dependencies
-        // Additional properties with default values to ensure they're never undefined
-        // Some of these might be internal to wx-react-gantt but adding them can prevent errors
-        hidden: false,
-        styles: {}, // Ensure styles object exists
-        isDisabled: false, // Default to not disabled
         // _original: task, // Optional: Keep original data reference if needed later
       };
-
       // console.log(`[gantt-utils] Mapped task ${task.id}:`, JSON.stringify(ganttTask, null, 2)); // Optional debug log
       return ganttTask;
     }).filter(gt => {

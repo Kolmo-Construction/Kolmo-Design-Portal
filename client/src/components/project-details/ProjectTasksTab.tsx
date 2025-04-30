@@ -234,7 +234,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
             )}
             {/* Render Gantt only if there are tasks to display */}
             {formattedGanttTasks.length > 0 && (
-              <div className="gantt-container relative">
+              <div className="gantt-container">
                 <SafeGanttWrapper
                     tasks={formattedGanttTasks}
                     viewMode="Week"
