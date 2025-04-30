@@ -1,4 +1,5 @@
-import React, { useMemo, useCallback } from 'react'; // Removed useState
+// client/src/components/project-details/ProjectTasksTab.tsx
+import React, { useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
 import { Task, InsertTask, TaskDependency } from "@shared/schema";
@@ -18,21 +19,20 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Loader2, PlusCircle, ClipboardList, AlertTriangle, Trash2 } from "lucide-react";
 // Removed toast import if only used in hooks now
-import { CreateTaskDialog } from "./CreateTaskDialog";
-import { EditTaskDialog } from "./EditTaskDialog";
+import { CreateTaskDialog } from "./CreateTaskDialog"; // Assuming this component exists
+import { EditTaskDialog } from "./EditTaskDialog";     // Assuming this component exists
 import { Gantt, Task as GanttTask } from "wx-react-gantt";
 import "wx-react-gantt/dist/gantt.css";
-import { formatTasksForGantt } from "@/lib/gantt-utils";
-import { useProjectTaskMutations } from "@/hooks/useProjectTaskMutations";
-import { useGanttInteractions } from "@/hooks/useGanttInteractions";
+import { formatTasksForGantt } from "@/lib/gantt-utils"; // Assuming this util exists
+import { useProjectTaskMutations } from "@/hooks/useProjectTaskMutations"; // Assuming this hook exists
+import { useGanttInteractions } from "@/hooks/useGanttInteractions";       // Assuming this hook exists
 // --- ADDED: Import the new dialogs hook ---
-import { useTaskDialogs } from "@/hooks/useTaskDialogs";
+import { useTaskDialogs } from "@/hooks/useTaskDialogs";                   // Assuming this hook exists
 // --- END ADDED ---
 
 
 // Define ViewMode constants
 const ViewMode = { Day: "Day", Week: "Week", Month: "Month" };
-
 interface ProjectTasksTabProps {
   projectId: number;
 }
@@ -40,7 +40,6 @@ interface ProjectTasksTabProps {
 export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
   // --- Keep QueryClient if needed for direct cache interaction ---
   // const queryClient = useQueryClient();
-
   // --- REMOVED: Dialog and task state useState hooks ---
 
   // Fetch tasks and dependencies
@@ -52,14 +51,18 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
     isLoading: isLoadingTasks,
     error: errorTasks,
     isError: isErrorTasks,
-  } = useQuery<Task[]>({ queryKey: tasksQueryKey, queryFn: getQueryFn(`/api/projects/${projectId}/tasks`), enabled: !!projectId });
+    isFetching: isFetchingTasks, // Added for more detailed logging
+    status: tasksStatus        // Added for more detailed logging
+  } = useQuery<Task[]>({ queryKey: tasksQueryKey, queryFn: getQueryFn({ on401: "throw" }), enabled: !!projectId });
 
   const {
       data: dependencies = [], // Provide default value
       isLoading: isLoadingDeps,
       error: errorDeps,
       isError: isErrorDeps,
-  } = useQuery<TaskDependency[]>({ queryKey: dependenciesQueryKey, queryFn: getQueryFn(`/api/projects/${projectId}/tasks/dependencies`), enabled: !!projectId && !isLoadingTasks });
+      isFetching: isFetchingDeps, // Added for more detailed logging
+      status: depsStatus          // Added for more detailed logging
+  } = useQuery<TaskDependency[]>({ queryKey: dependenciesQueryKey, queryFn: getQueryFn({ on401: "throw" }), enabled: !!projectId && !isLoadingTasks });
 
   // Format tasks for Gantt
   const formattedGanttTasks = useMemo(() => formatTasksForGantt(tasks, dependencies), [tasks, dependencies]);
@@ -128,33 +131,63 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
               }
           });
       }
-  }, [taskToDelete, deleteTaskMutation, setIsDeleteDialogOpen]); // Dependencies updated
+  }, [taskToDelete, deleteTaskMutation, setIsDeleteDialogOpen]);
+  // Dependencies updated
 
   // --- REMOVED: useCallback definitions for handleAddTaskClick, handleTaskClick, handleDeleteTrigger ---
 
 
+  // --- **** ADDED DEBUG LOGGING **** ---
+  React.useEffect(() => {
+    console.log('ProjectTasksTab State:', {
+      projectId,
+      isLoading,
+      isError,
+      error: error ? (error instanceof Error ? error.message : String(error)) : null,
+      tasksStatus,
+      isFetchingTasks,
+      isErrorTasks,
+      errorTasks: errorTasks ? (errorTasks instanceof Error ? errorTasks.message : String(errorTasks)) : null,
+      tasksCount: tasks?.length,
+      depsStatus,
+      isFetchingDeps,
+      isErrorDeps,
+      errorDeps: errorDeps ? (errorDeps instanceof Error ? errorDeps.message : String(errorDeps)) : null,
+      depsCount: dependencies?.length,
+      formattedGanttTasksCount: formattedGanttTasks?.length,
+    });
+  }, [
+      projectId, isLoading, isError, error, tasksStatus, isFetchingTasks, isErrorTasks, errorTasks, tasks,
+      depsStatus, isFetchingDeps, isErrorDeps, errorDeps, dependencies, formattedGanttTasks
+  ]);
+  // --- **** END DEBUG LOGGING **** ---
+
+
   // --- Render Logic ---
   const renderContent = () => {
-    if (isLoading) {
+    if (isLoading && !(isFetchingTasks || isFetchingDeps)) { // Show skeleton only on initial load
       return ( /* Skeleton */
          <div className="space-y-4 p-4">
              <Skeleton className="h-8 w-1/4" />
              <Skeleton className="h-[500px] w-full" />
          </div>
-      );
+       );
     }
     if (isError) {
+      // Error message now includes status code and potentially server message thanks to queryClient changes
+      const errorMessage = error instanceof Error ? error.message : "Could not load tasks or dependencies.";
       return ( /* Error Alert */
           <Alert variant="destructive" className="m-4">
              <AlertTriangle className="h-4 w-4" />
              <AlertTitle>Error Loading Data</AlertTitle>
              <AlertDescription>
-                {error instanceof Error ? error.message : "Could not load tasks or dependencies."}
+                {errorMessage}
              </AlertDescription>
            </Alert>
       );
-    }
-     if (!formattedGanttTasks.length && tasks.length > 0) {
+     }
+     // Keep checks for missing dates or empty tasks
+     if (!formattedGanttTasks.length && tasks.length > 0 && !isLoading) {
          return ( /* Warning Alert for missing dates */
              <Alert variant="warning" className="m-4">
                  <AlertTriangle className="h-4 w-4" />
@@ -165,7 +198,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
              </Alert>
           );
      }
-     if (tasks.length === 0) {
+     if (tasks.length === 0 && !isLoading) {
         return ( /* Empty state */
             <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed rounded-lg mt-4">
                  <div className="rounded-full bg-muted p-4 mb-4"><ClipboardList className="h-8 w-8 text-muted-foreground" /></div>
@@ -191,6 +224,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                      <span className="ml-2">Saving changes...</span>
                  </div>
             )}
+            {/* Render Gantt only if there are tasks to display */}
             {formattedGanttTasks.length > 0 && (
               <Gantt
                   tasks={formattedGanttTasks}
@@ -224,8 +258,8 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
           <CardDescription>Visualize tasks, update dates (drag/resize) and progress (drag handle).</CardDescription>
         </div>
         {/* --- MODIFIED: Use handler from hook --- */}
-        <Button size="sm" onClick={handleAddTaskClick} className="gap-1" disabled={isLoading}>
-           <PlusCircle className="h-4 w-4" /> Add Task
+        <Button size="sm" onClick={handleAddTaskClick} className="gap-1" disabled={isLoading && !tasks?.length}> {/* Disable button during initial load */}
+            <PlusCircle className="h-4 w-4" /> Add Task
         </Button>
         {/* --- END MODIFIED --- */}
       </CardHeader>
@@ -234,15 +268,16 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
       </CardContent>
 
       {/* --- MODIFIED: Use state and setters from hook --- */}
-      <CreateTaskDialog
-        isOpen={isCreateDialogOpen}
-        setIsOpen={setIsCreateDialogOpen} // Pass setter from hook
-        projectId={projectId}
-        onSubmit={(values) => createTaskMutation.mutate(values, {
-            onSuccess: () => setIsCreateDialogOpen(false) // Close dialog
-        })}
-        isPending={createTaskMutation.isPending}
-      />
+      {/* Assuming CreateTaskDialog and EditTaskDialog components exist */}
+       <CreateTaskDialog
+         isOpen={isCreateDialogOpen}
+         setIsOpen={setIsCreateDialogOpen} // Pass setter from hook
+         projectId={projectId}
+         onSubmit={(values) => createTaskMutation.mutate(values, {
+             onSuccess: () => setIsCreateDialogOpen(false) // Close dialog
+         })}
+         isPending={createTaskMutation.isPending}
+       />
        <EditTaskDialog
          isOpen={isEditDialogOpen}
          setIsOpen={setIsEditDialogOpen} // Pass setter from hook
@@ -263,7 +298,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                      {/* Cancel still uses the setter from the hook implicitly via onOpenChange */}
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                     <AlertDialogCancel disabled={deleteTaskMutation.isPending}>Cancel</AlertDialogCancel>
                     <AlertDialogAction
                         onClick={confirmDelete} // Use confirmDelete defined above
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"

@@ -1,293 +1,296 @@
 // server/controllers/punchList.controller.ts
 import { Request, Response } from 'express';
-import { punchListRepository } from '../storage/repositories/punchList.repository';
 import { PunchListRepository } from '../storage/repositories/punchList.repository'; // Import the class if needed for typing/injection
-import { InsertPunchListItem, PunchListItem, punchListItems } from '@/shared/schema';
-import { TypedRequestBody, TypedRequestParams, TypedRequest } from '@/server/types'; // Adjust import as necessary
-import { AuthenticatedRequest } from '@/server/middleware/auth.middleware';
+import { InsertPunchListItem } from '@shared/schema'; // Use @shared alias
+import type { TypedRequestBody, TypedRequestParams, TypedRequest } from '@server/types'; // Use @server alias
+// import { AuthenticatedRequest } from '@server/middleware/auth.middleware'; // Assuming this type exists and is needed
+// Define AuthenticatedRequest locally if not exported or adjust import
+interface AuthenticatedRequest extends Request {
+    user: { id: number; [key: string]: any }; // Define a minimal user structure
+}
+
 import { HttpError } from '../errors';
-import { MediaRepository } from '../storage/repositories/media.repository'; // Assuming MediaRepository is in the same directory
-import { logger } from '../utils/logger'; // Assuming a logger utility
-
-// Initialize repositories (ensure these are correctly initialized with DB and other dependencies)
-// If you have a dependency injection system, use that. Otherwise, ensure singletons are used.
-// For demonstration, assuming they are initialized elsewhere or can be initialized here if safe.
-// Example if not using a central factory:
-// const punchListRepo = new PunchListRepository(/* db instance, media repo instance */);
-// const mediaRepo = new MediaRepository(/* db instance, media storage instance, logger instance */);
-
-// If using a central storage index:
+import { MediaRepository } from '../storage/repositories/media.repository';
+import { log as logger } from '@server/vite'; // Corrected import path and renamed log to logger
 import { storage } from '../storage'; // Assuming storage index exports instances
 
 
 export class PunchListController {
+    // Use specific repository types for clarity
     private punchListRepo: PunchListRepository;
     private mediaRepo: MediaRepository;
 
-    constructor(punchListRepository: PunchListRepository = storage.punchListRepository, mediaRepository: MediaRepository = storage.mediaRepository) {
+    constructor(
+        punchListRepository: PunchListRepository = storage.punchLists, // Use correct property from storage
+        mediaRepository: MediaRepository = storage.media // Use correct property from storage
+    ) {
         this.punchListRepo = punchListRepository;
         this.mediaRepo = mediaRepository;
     }
 
 
-    async getPunchListItemsForProject(req: TypedRequestParams<{ projectId: number }>, res: Response): Promise<void> {
+    async getPunchListItemsForProject(req: TypedRequestParams<{ projectId: string }>, res: Response): Promise<void> {
+        // Validate projectId properly
         const projectId = Number(req.params.projectId);
         if (isNaN(projectId)) {
-            res.status(400).json({ message: 'Invalid project ID' });
-            return;
+            // Use HttpError for consistency
+            throw new HttpError(400, 'Invalid project ID parameter.');
         }
 
         try {
+            // Assuming the repository method exists and takes a number
             const punchListItems = await this.punchListRepo.getPunchListItems(projectId);
-            res.json(punchListItems);
+            res.status(200).json(punchListItems);
         } catch (error) {
-            logger.error(`Error fetching punch list items for project ${projectId}:`, error);
-            res.status(500).json({ message: 'Failed to fetch punch list items.' });
+            logger(`Error fetching punch list items for project ${projectId}: ${error instanceof Error ? error.message : error}`, 'PunchListController');
+            // Propagate error for the central handler
+            throw new HttpError(500, 'Failed to fetch punch list items.');
         }
     }
 
-    async getPunchListItemById(req: TypedRequestParams<{ itemId: number }>, res: Response): Promise<void> {
+    async getPunchListItemById(req: TypedRequestParams<{ itemId: string }>, res: Response): Promise<void> {
         const itemId = Number(req.params.itemId);
         if (isNaN(itemId)) {
-            res.status(400).json({ message: 'Invalid punch list item ID' });
-            return;
+            throw new HttpError(400, 'Invalid punch list item ID parameter.');
         }
 
         try {
             const punchListItem = await this.punchListRepo.getPunchListItemById(itemId);
             if (!punchListItem) {
-                res.status(404).json({ message: 'Punch list item not found.' });
-                return;
+                throw new HttpError(404, 'Punch list item not found.');
             }
-            res.json(punchListItem);
+            res.status(200).json(punchListItem);
         } catch (error) {
-            logger.error(`Error fetching punch list item ${itemId}:`, error);
-            res.status(500).json({ message: 'Failed to fetch punch list item.' });
+            logger(`Error fetching punch list item ${itemId}: ${error instanceof Error ? error.message : error}`, 'PunchListController');
+            // Rethrow or handle specific errors (like HttpError from repo)
+             if (error instanceof HttpError) {
+                 throw error; // Propagate known HTTP errors
+             }
+            throw new HttpError(500, 'Failed to fetch punch list item.');
         }
     }
 
 
-    async createPunchListItem(req: TypedRequestBody<InsertPunchListItem> & AuthenticatedRequest, res: Response): Promise<void> {
-         // Note: Media upload for a *newly created* punch list item will likely happen in a separate request
-         // after the item is created, returning its ID.
+    async createPunchListItem(req: TypedRequestBody<Omit<InsertPunchListItem, 'projectId' | 'createdById' | 'id' | 'createdAt' | 'updatedAt' | 'resolvedAt'>> & AuthenticatedRequest, res: Response): Promise<void> {
         const itemData = req.body;
-        const userId = req.user.id; // Assuming user is authenticated and available
+        const userId = req.user?.id;
+        const projectId = Number(req.params.projectId); // Get projectId from route params
+
+        if (!userId) {
+             throw new HttpError(401, 'Authentication required.');
+        }
+        if (isNaN(projectId)) {
+            throw new HttpError(400, 'Invalid project ID parameter in route.');
+        }
 
         try {
-            const newPunchListItem = await this.punchListRepo.createPunchListItem({
+            // Add server-set fields
+            const fullItemData: InsertPunchListItem = {
                 ...itemData,
+                projectId: projectId, // Add projectId from params
                 createdById: userId, // Assign the creating user
-                 // Ensure no photoUrl is passed in itemData
-                 // photoUrl: undefined // Explicitly unset if it might come from request somehow
-            });
+                // Ensure other fields like photoUrl are handled correctly (likely null/undefined initially)
+            };
+
+            // Validate with Zod schema before sending to repository if not done by middleware
+            // const validation = insertPunchListItemSchema.safeParse(fullItemData);
+            // if (!validation.success) {
+            //     throw new HttpError(400, 'Invalid punch list item data.', validation.error.flatten());
+            // }
+
+            const newPunchListItem = await this.punchListRepo.createPunchListItem(fullItemData);
 
             if (!newPunchListItem) {
-                 // This case might occur if createPunchListItem returns null (e.g., DB error before insert)
-                logger.error('Failed to create punch list item, repository returned null.');
-                res.status(500).json({ message: 'Failed to create punch list item.' });
-                return;
+                logger('Failed to create punch list item, repository returned null.', 'PunchListController');
+                throw new HttpError(500, 'Failed to create punch list item.');
             }
 
-
-            // Fetch the created item with details to return a consistent structure
+            // Fetch the created item with details (if repository doesn't return full details)
             const createdItemWithDetails = await this.punchListRepo.getPunchListItemById(newPunchListItem.id);
 
              if (!createdItemWithDetails) {
-                 // This is an unexpected scenario if creation succeeded but fetching failed
-                 logger.error(`Successfully created item ${newPunchListItem.id} but failed to fetch with details.`);
-                  // Decide on appropriate response - perhaps return the basic item or 500 error
-                 res.status(201).json(newPunchListItem); // Return basic item as fallback
+                 logger(`Successfully created item ${newPunchListItem.id} but failed to fetch with details.`, 'PunchListController');
+                 // Return basic item as fallback, but log the inconsistency
+                 res.status(201).json(newPunchListItem);
                  return;
              }
 
-
-            res.status(201).json(createdItemWithDetails); // Return the full item with details
-        } catch (error: any) {
-            logger.error('Error creating punch list item:', error);
+            res.status(201).json(createdItemWithDetails);
+        } catch (error) {
+            logger(`Error creating punch list item: ${error instanceof Error ? error.message : error}`, 'PunchListController');
              if (error instanceof HttpError) {
-                res.status(error.statusCode).json({ message: error.message });
-            } else {
-                res.status(500).json({ message: 'Failed to create punch list item.' });
-            }
+                 throw error; // Propagate known HTTP errors
+             }
+            throw new HttpError(500, 'Failed to create punch list item.');
         }
     }
 
 
-    async updatePunchListItem(req: TypedRequest<{ itemId: number }, Partial<Omit<InsertPunchListItem, 'projectId' | 'createdById'>>> & AuthenticatedRequest, res: Response): Promise<void> {
+    async updatePunchListItem(req: TypedRequest<{ itemId: string }, Partial<Omit<InsertPunchListItem, 'id' | 'projectId' | 'createdById'>>> & AuthenticatedRequest, res: Response): Promise<void> {
         const itemId = Number(req.params.itemId);
-         // Ensure projectId and createdById are not updated via this route
-        const itemDataToUpdate = req.body; // This already omits projectId and createdById based on type
+        const itemDataToUpdate = req.body;
 
         if (isNaN(itemId)) {
-            res.status(400).json({ message: 'Invalid punch list item ID' });
-            return;
+            throw new HttpError(400, 'Invalid punch list item ID parameter.');
+        }
+        if (Object.keys(itemDataToUpdate).length === 0) {
+             throw new HttpError(400, 'No update data provided.');
+        }
+        if (!req.user?.id) { // Ensure user is authenticated
+            throw new HttpError(401, 'Authentication required.');
         }
 
-         // Optional: Add authorization check here to ensure user can update this item
+        // Optional: Add fine-grained authorization check here
 
         try {
-             // Ensure no photoUrl is passed in itemDataToUpdate
-             // delete itemDataToUpdate.photoUrl; // Or handle upstream in validation/middleware
+            // Ensure forbidden fields aren't in the update payload
+            // delete itemDataToUpdate.id; // Should be excluded by type already
+            // delete itemDataToUpdate.projectId;
+            // delete itemDataToUpdate.createdById;
 
             const updatedPunchListItem = await this.punchListRepo.updatePunchListItem(itemId, itemDataToUpdate);
 
             if (!updatedPunchListItem) {
-                res.status(404).json({ message: 'Punch list item not found.' });
-                return;
+                throw new HttpError(404, 'Punch list item not found or update failed.');
             }
 
-             // Fetch the updated item with details to return a consistent structure
-             const updatedItemWithDetails = await this.punchListRepo.getPunchListItemById(itemId);
+            // Fetch the updated item with details for consistency
+            const updatedItemWithDetails = await this.punchListRepo.getPunchListItemById(itemId);
 
-              if (!updatedItemWithDetails) {
-                 // Unexpected scenario
-                  logger.error(`Successfully updated item ${itemId} but failed to fetch with details.`);
-                   res.status(200).json(updatedPunchListItem); // Return basic item as fallback
-                   return;
-              }
-
-            res.status(200).json(updatedItemWithDetails); // Return the full item with details
-
-        } catch (error) {
-            logger.error(`Error updating punch list item ${itemId}:`, error);
-            res.status(500).json({ message: 'Failed to update punch list item.' });
-        }
-    }
-
-
-    async deletePunchListItem(req: TypedRequestParams<{ itemId: number }> & AuthenticatedRequest, res: Response): Promise<void> {
-        const itemId = Number(req.params.itemId);
-        if (isNaN(itemId)) {
-            res.status(400).json({ message: 'Invalid punch list item ID' });
-            return;
-        }
-
-        // Optional: Add authorization check here
-
-        try {
-             // The repository method now handles deleting associated media files and records
-            await this.punchListRepo.deletePunchListItem(itemId);
-            res.status(200).json({ message: 'Punch list item and associated media deleted successfully.' });
-        } catch (error: any) {
-            logger.error(`Error deleting punch list item ${itemId}:`, error);
-             // If deleteMediaForPunchListItem in repo threw an error, it's caught here
-            res.status(500).json({ message: `Failed to delete punch list item: ${error.message}` });
-        }
-    }
-
-    // --- New Media Handling Methods ---
-
-    async uploadPunchListItemMedia(req: TypedRequestParams<{ itemId: number }> & AuthenticatedRequest & { files: Express.Multer.File[] }, res: Response): Promise<void> {
-         // This method assumes you are using Multer or similar middleware for file uploads
-        const itemId = Number(req.params.itemId);
-        const userId = req.user.id; // Uploader ID
-
-        if (isNaN(itemId)) {
-            res.status(400).json({ message: 'Invalid punch list item ID' });
-            return;
-        }
-
-         if (!req.files || req.files.length === 0) {
-             res.status(400).json({ message: 'No files uploaded.' });
-             return;
-         }
-
-         // Optional: Verify the punch list item exists and the user has permissions
-
-        const uploadedMedia = [];
-        try {
-            for (const file of req.files) {
-                 // Assuming mediaStorage.uploadFile handles the upload to R2 and returns the URL
-                 // The upload middleware might handle the R2 upload before this controller method
-                 // If not, you'll need to call the mediaStorage.uploadFile here per file.
-
-                 // For now, assuming file.path or similar contains the temporary path or the upload middleware
-                 // has put the R2 URL onto the file object (less likely, but depends on middleware)
-                 // Let's assume the upload middleware makes the file available in a usable format.
-                 // A more robust approach would be to pass the file buffer and metadata to mediaStorage.uploadFile
-
-                 // *** IMPORTANT ***: You need to adapt this part based on your actual file upload middleware
-                 // and how it interacts with your MediaStorage.
-                 // Example if your middleware prepares file.location (like Multer-S3):
-                 // const mediaUrl = file.location;
-                 // Example if you need to upload the buffer here:
-                 // const mediaUrl = await this.mediaRepo.mediaStorage.uploadFile(file.originalname, file.buffer, file.mimetype);
-
-                 // Let's assume the middleware handles the R2 upload and provides the public URL or key
-                 // If the middleware provides a key, you'll need to construct the public URL here.
-                 // Assuming a simple scenario where middleware provides file.path which is the URL after upload:
-                 // ** This is a simplification, adjust based on your actual upload process **
-                 const mediaUrl = (file as any).location || (file as any).path; // Adapt based on your middleware output
-
-                 if (!mediaUrl) {
-                     logger.error('Upload middleware did not provide media URL for file:', file.originalname);
-                     throw new Error('Failed to get media URL from upload.');
-                 }
-
-                 const newMedia = await this.mediaRepo.createMedia({
-                    punchListItemId: itemId,
-                    mediaUrl: mediaUrl, // Use the URL from the upload middleware
-                    mediaType: file.mimetype.startsWith('image/') ? 'image' : 'video', // Determine type
-                    caption: req.body.caption || null, // Add caption from request body if provided
-                    uploadedById: userId,
-                 });
-                 uploadedMedia.push(newMedia);
-            }
-             res.status(201).json(uploadedMedia);
-
-        } catch (error) {
-            logger.error(`Error uploading media for punch list item ${itemId}:`, error);
-            // TODO: Implement rollback for uploaded files to R2 if DB insertion fails for some
-            res.status(500).json({ message: 'Failed to upload media.' });
-        }
-    }
-
-    async deletePunchListItemMedia(req: TypedRequestParams<{ itemId: number; mediaId: number }> & AuthenticatedRequest, res: Response): Promise<void> {
-         // Note: itemId is included in path but mediaId is sufficient to delete a single media item
-         // We might keep itemId for context or future permission checks
-        const itemId = Number(req.params.itemId); // Punch list item ID
-        const mediaId = Number(req.params.mediaId); // Specific media item ID
-
-        if (isNaN(itemId) || isNaN(mediaId)) {
-             res.status(400).json({ message: 'Invalid IDs provided.' });
-             return;
-        }
-
-         // Optional: Verify the media item belongs to this punch list item and user has permissions
-
-        try {
-            // The repository method handles deleting the file from storage and the DB record
-             const deletedMedia = await this.mediaRepo.deleteMedia(mediaId);
-
-             if (!deletedMedia) {
-                 res.status(404).json({ message: 'Media item not found.' });
+             if (!updatedItemWithDetails) {
+                 logger(`Successfully updated item ${itemId} but failed to fetch with details.`, 'PunchListController');
+                 res.status(200).json(updatedPunchListItem); // Return basic item as fallback
                  return;
              }
 
-            res.status(200).json({ message: 'Media item deleted successfully.', deletedMediaId: mediaId });
+            res.status(200).json(updatedItemWithDetails);
 
-        } catch (error: any) {
-            logger.error(`Error deleting media ${mediaId} for punch list item ${itemId}:`, error);
-             res.status(500).json({ message: `Failed to delete media: ${error.message}` });
+        } catch (error) {
+            logger(`Error updating punch list item ${itemId}: ${error instanceof Error ? error.message : error}`, 'PunchListController');
+             if (error instanceof HttpError) {
+                 throw error; // Propagate known HTTP errors
+             }
+            throw new HttpError(500, 'Failed to update punch list item.');
         }
     }
 
-    // Potentially add a method to get media specifically for a punch list item if not always eager-loaded
-    // async getPunchListItemMedia(req: TypedRequestParams<{ itemId: number }>, res: Response): Promise<void> {
+
+    async deletePunchListItem(req: TypedRequestParams<{ itemId: string }> & AuthenticatedRequest, res: Response): Promise<void> {
+        const itemId = Number(req.params.itemId);
+        if (isNaN(itemId)) {
+             throw new HttpError(400, 'Invalid punch list item ID parameter.');
+        }
+         if (!req.user?.id) { // Ensure user is authenticated
+            throw new HttpError(401, 'Authentication required.');
+        }
+
+        // Optional: Add fine-grained authorization check here
+
+        try {
+            // Repository method should handle deleting associated media from storage and DB
+            const success = await this.punchListRepo.deletePunchListItem(itemId); // Assuming repo returns boolean or throws
+
+            if (!success) {
+                // This might mean the item didn't exist in the first place
+                 throw new HttpError(404, 'Punch list item not found.');
+            }
+
+            res.status(200).json({ message: 'Punch list item deleted successfully.' }); // Send 200 with message or 204 No Content
+            // res.status(204).send(); // Alternative: No Content response
+        } catch (error) {
+            logger(`Error deleting punch list item ${itemId}: ${error instanceof Error ? error.message : error}`, 'PunchListController');
+             if (error instanceof HttpError) {
+                 throw error; // Propagate known HTTP errors
+             }
+            throw new HttpError(500, 'Failed to delete punch list item.');
+        }
+    }
+
+    // --- Media Handling Methods ---
+
+    // Assuming upload middleware (like multer) processes files and adds them to req.files
+    async uploadPunchListItemMedia(req: TypedRequestParams<{ itemId: string }> & AuthenticatedRequest & { files: Express.Multer.File[] }, res: Response): Promise<void> {
+        const itemId = Number(req.params.itemId);
+        const userId = req.user?.id;
+
+        if (isNaN(itemId)) {
+            throw new HttpError(400, 'Invalid punch list item ID parameter.');
+        }
+        if (!userId) {
+            throw new HttpError(401, 'Authentication required.');
+        }
+        if (!req.files || req.files.length === 0) {
+            throw new HttpError(400, 'No files uploaded.');
+        }
+
+        // Optional: Verify the punch list item exists and the user has permissions
+
+        try {
+            // Assuming mediaRepo.addMediaToPunchListItem handles R2 upload and DB record creation
+            const uploadedMedia = await this.mediaRepo.addMediaToPunchListItem(itemId, req.files, userId);
+
+            res.status(201).json(uploadedMedia);
+
+        } catch (error) {
+            logger(`Error uploading media for punch list item ${itemId}: ${error instanceof Error ? error.message : error}`, 'PunchListController');
+            // Consider rolling back R2 uploads if DB fails
+            if (error instanceof HttpError) {
+                 throw error; // Propagate known HTTP errors
+             }
+            throw new HttpError(500, 'Failed to upload media.');
+        }
+    }
+
+    async deletePunchListItemMedia(req: TypedRequestParams<{ itemId: string; mediaId: string }> & AuthenticatedRequest, res: Response): Promise<void> {
+        const itemId = Number(req.params.itemId); // For context/auth checks
+        const mediaId = Number(req.params.mediaId);
+
+        if (isNaN(itemId) || isNaN(mediaId)) {
+            throw new HttpError(400, 'Invalid item or media ID parameter.');
+        }
+        if (!req.user?.id) {
+            throw new HttpError(401, 'Authentication required.');
+        }
+
+        // Optional: Verify media belongs to item and user has permissions
+
+        try {
+            // Assuming mediaRepo.deleteMedia handles R2 deletion and DB record removal
+            const success = await this.mediaRepo.deleteMedia(mediaId); // Assuming returns boolean or throws
+
+            if (!success) {
+                 throw new HttpError(404, 'Media item not found.');
+            }
+
+            res.status(200).json({ message: 'Media item deleted successfully.', deletedMediaId: mediaId });
+            // res.status(204).send(); // Alternative: No Content response
+
+        } catch (error) {
+            logger(`Error deleting media ${mediaId} for punch list item ${itemId}: ${error instanceof Error ? error.message : error}`, 'PunchListController');
+             if (error instanceof HttpError) {
+                 throw error; // Propagate known HTTP errors
+             }
+            throw new HttpError(500, 'Failed to delete media.');
+        }
+    }
+
+    // Optional: Get media for a specific punch list item
+    // async getPunchListItemMedia(req: TypedRequestParams<{ itemId: string }>, res: Response): Promise<void> {
     //     const itemId = Number(req.params.itemId);
     //      if (isNaN(itemId)) {
-    //          res.status(400).json({ message: 'Invalid punch list item ID' });
-    //          return;
+    //          throw new HttpError(400, 'Invalid punch list item ID');
     //      }
     //      try {
+    //          // Assuming mediaRepo has a method like this
     //          const media = await this.mediaRepo.getMediaForPunchListItem(itemId);
-    //          res.json(media);
+    //          res.status(200).json(media);
     //      } catch (error) {
-    //           logger.error(`Error fetching media for punch list item ${itemId}:`, error);
-    //           res.status(500).json({ message: 'Failed to fetch media.' });
+    //           logger(`Error fetching media for punch list item ${itemId}: ${error instanceof Error ? error.message : error}`, 'PunchListController');
+    //           throw new HttpError(500, 'Failed to fetch media.');
     //      }
     // }
 }
 
-// Export an instance
+// Export an instance (or use dependency injection)
 export const punchListController = new PunchListController();
+

@@ -1,37 +1,71 @@
 // server/routes/dailyLog.routes.ts
 import { Router } from "express";
-import * as dailyLogController from "@server/controllers/dailyLog.controller"; // Import the controller
-import { isAuthenticated } from "@server/middleware/auth.middleware"; // Import necessary middleware
-import { upload } from "@server/middleware/upload.middleware"; // Import upload middleware for photos
+// --- Corrected Import ---
+// Import the exported INSTANCE of the controller, not the namespace
+import { dailyLogController } from "@server/controllers/dailyLog.controller";
+// Import necessary middleware
+import { isAuthenticated } from "@server/middleware/auth.middleware";
+import { validateResourceId } from "@server/middleware/validation.middleware";
+import { upload } from "@server/middleware/upload.middleware";
 
-const router = Router({ mergeParams: true }); // mergeParams to access :projectId
+// Ensure mergeParams is true to access :projectId from the parent router
+const router = Router({ mergeParams: true });
+
+// --- Routes ---
 
 // GET /api/projects/:projectId/daily-logs
-router.get("/", isAuthenticated, dailyLogController.getProjectDailyLogs);
-
-// GET /api/projects/:projectId/daily-logs/:logId
-// router.get("/:logId", isAuthenticated, dailyLogController.getDailyLogById); // Optional
+// Use the imported controller INSTANCE and access its method
+router.get(
+    "/",
+    isAuthenticated,
+    dailyLogController.getDailyLogsForProject // Correct: Access method on the instance
+);
 
 // POST /api/projects/:projectId/daily-logs
-// Use upload.array('photos', maxCount) or upload.single('photo') as per your form/backend logic
-router.post("/", isAuthenticated, upload.array('photos', 5), dailyLogController.createDailyLog); // Assuming 'photos' is the field name and max 5 files
+// Assuming 'photos' is the field name for file uploads and max 5 files
+router.post(
+    "/",
+    isAuthenticated,
+    upload.array('photos', 5), // Apply multer middleware for file uploads
+    dailyLogController.createDailyLog // Correct: Access method on the instance
+);
 
 // PUT /api/projects/:projectId/daily-logs/:logId
-router.put("/:logId", isAuthenticated, dailyLogController.updateDailyLog); // Might need upload middleware if photos can be updated via PUT on the log itself
+router.put(
+    "/:logId",
+    isAuthenticated,
+    validateResourceId('logId'), // Validate the logId parameter
+    dailyLogController.updateDailyLog // Correct: Access method on the instance
+);
 
 // DELETE /api/projects/:projectId/daily-logs/:logId
-router.delete("/:logId", isAuthenticated, dailyLogController.deleteDailyLog);
+router.delete(
+    "/:logId",
+    isAuthenticated,
+    validateResourceId('logId'), // Validate the logId parameter
+    dailyLogController.deleteDailyLog // Correct: Access method on the instance
+);
+
+// --- Optional Photo Routes (Example Structure) ---
 
 // POST /api/projects/:projectId/daily-logs/:logId/photos
-// Alternative endpoint if adding photos separately after log creation
-// router.post("/:logId/photos", isAuthenticated, upload.array('photos', 5), dailyLogController.uploadDailyLogPhotos);
+// Example: Add photos after log creation
+// router.post(
+//     "/:logId/photos",
+//     isAuthenticated,
+//     validateResourceId('logId'),
+//     upload.array('photos', 5),
+//     dailyLogController.addPhotosToDailyLog // Assuming such a controller method exists
+// );
 
 // DELETE /api/projects/:projectId/daily-logs/photos/:photoId
-// Assuming this is a global photo delete route or you extract projectId from photoId
-// If photoId uniquely identifies the photo across projects, use a different root path
-// If photoId is only unique within a project, the path could be /api/projects/:projectId/photos/:photoId
-// For now, aligning with client usage expectation:
-router.delete("/photos/:photoId", isAuthenticated, dailyLogController.deleteDailyLogPhoto); // Requires checkProjectAccess based on photoId -> logId -> projectId
+// Example: Delete a specific photo associated with a daily log
+// router.delete(
+//     "/photos/:photoId", // Or maybe /:logId/photos/:photoId depending on your structure
+//     isAuthenticated,
+//     validateResourceId('photoId'), // Or validate both logId and photoId if nested path
+//     dailyLogController.deleteDailyLogPhoto // Assuming such a controller method exists
+// );
 
 
 export default router;

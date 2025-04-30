@@ -1,165 +1,162 @@
+// server/routes.ts
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { Router } from "express";
-import { storage } from "@server/storage/index"; // Updated to use repository pattern
-import { setupAuth } from "@server/auth"; // Updated import
-import { uploadToR2 } from "@server/r2-upload"; // Updated import
+import { Router } from "express"; // Keep Router for potential future use or other routes defined here
+
 // Import middleware
-import { upload } from "@server/middleware/upload.middleware"; // Updated import
-import { isAuthenticated, isAdmin } from "@server/middleware/auth.middleware"; // Updated import
-import { checkProjectAccess } from "@server/middleware/permissions.middleware"; // Updated import
-import { validateProjectId } from "@server/middleware/validation.middleware"; // Import for validating project IDs
-// Import Schemas/Types
-import {
-  insertProjectSchema,
-  insertDocumentSchema,
-  insertInvoiceSchema,
-  insertMessageSchema,
-  insertProgressUpdateSchema, // Keep if needed elsewhere
-  insertMilestoneSchema,
-  insertSelectionSchema,
-  User,
-  tasks as tasksTable,
-  // ... other schema imports
-  insertTaskSchema,
-  insertTaskDependencySchema,
-  insertDailyLogSchema,
-  insertPunchListItemSchema
-} from "@shared/schema";
-import { z } from "zod";
-import { isEmailServiceConfigured, sendMagicLinkEmail } from "@server/email"; // Updated import
-import { randomBytes, scrypt } from "crypto";
-import { promisify } from "util";
-import { ilike, or, eq, and } from "drizzle-orm";
-import multer from 'multer';
+import { isAuthenticated, isAdmin } from "@server/middleware/auth.middleware";
+import { validateProjectId } from "@server/middleware/validation.middleware";
+// Import Schemas/Types if needed for other routes defined in this file
+import { User } from "@shared/schema";
 
-// --- ADDED: Import new routers ---
-import authRouter from "@server/routes/auth.routes"; // Updated import
-import projectRouter from "@server/routes/project.routes"; // Updated import
-import { projectDocumentRouter, globalDocumentRouter } from "@server/routes/document.routes"; // Updated import
-import invoiceRouter from "@server/routes/invoice.routes"; // Updated import
-import messageRouter from "@server/routes/message.routes"; // Updated import
-import progressUpdateRouter from "@server/routes/progressUpdate.routes"; // Updated import
-import taskRouterModule from "@server/routes/task.routes"; // Added task router
-// --- END ADDED ---
+// --- Core Auth Setup ---
+import { setupAuth } from "@server/auth";
 
+// --- Import Feature Routers ---
+import authRouter from "@server/routes/auth.routes";
+import projectRouter from "@server/routes/project.routes";
+import { projectDocumentRouter, globalDocumentRouter } from "@server/routes/document.routes";
+import invoiceRouter from "@server/routes/invoice.routes";
+import messageRouter from "@server/routes/message.routes";
+import progressUpdateRouter from "@server/routes/progressUpdate.routes";
+import taskRouterModule from "@server/routes/task.routes";
+import dailyLogRouter from "@server/routes/dailyLog.routes"; // Assuming you have this file
+import punchListRouter from "@server/routes/punchList.routes"; // Assuming you have this file
+// Import other routers as needed (milestones, selections, admin, etc.)
+// import milestoneRouter from "@server/routes/milestone.routes";
+// import selectionRouter from "@server/routes/selection.routes";
+// import adminRouter from "@server/routes/admin.routes";
 
-const scryptAsync = promisify(scrypt);
-
-// Middleware definitions are now in ./middleware/
-
-// Define Routers for features (Tasks, Daily Logs, Punch List) - Keep definitions for now
-const taskRouter = Router({ mergeParams: true });
-const dailyLogRouter = Router({ mergeParams: true });
-const punchListRouter = Router({ mergeParams: true });
-
-// Define interfaces for request params
-interface ParamsDictionary { [key: string]: string; }
-interface ProjectParams extends ParamsDictionary { projectId: string; }
-interface TaskParams extends ProjectParams { taskId: string; }
-interface DailyLogParams extends ProjectParams { logId: string; }
-interface PunchListItemParams extends ProjectParams { itemId: string; }
-
-// =========================================================================
-// Task Router Implementation (Still defined here)
-// =========================================================================
-taskRouter.get("/", async (req: Request<ProjectParams>, res) => { /* ... handler ... */ });
-// ... (rest of taskRouter routes) ...
-taskRouter.delete("/dependencies/:dependencyId", async (req: Request<{ projectId: string, dependencyId: string }>, res) => { /* ... handler ... */ });
-
-
-// =========================================================================
-// Daily Log Router Implementation (Still defined here)
-// =========================================================================
-dailyLogRouter.get("/", async (req: Request<ProjectParams>, res) => { /* ... handler ... */ });
-// ... (rest of dailyLogRouter routes) ...
-dailyLogRouter.delete("/:logId", async (req: Request<DailyLogParams>, res) => { /* ... handler ... */ });
-
-
-// =========================================================================
-// Punch List Router Implementation (Still defined here)
-// =========================================================================
-punchListRouter.get("/", async (req: Request<ProjectParams>, res) => { /* ... handler ... */ });
-// ... (rest of punchListRouter routes) ...
-punchListRouter.delete("/:itemId", async (req: Request<PunchListItemParams>, res) => { /* ... handler ... */ });
-
+// Define interfaces for request params if needed for routes defined *in this file*
+// interface ParamsDictionary { [key: string]: string; }
+// interface ProjectParams extends ParamsDictionary { projectId: string; }
+// ... other param types ...
 
 // =========================================================================
 // Main Route Registration Function
 // =========================================================================
-export async function registerRoutes(app: Express): Promise<Server> {
+export async function registerRoutes(app: Express): Promise<void> { // Changed return type to void
 
-  // --- Core Auth Routes ---
+  // --- Core Auth Setup (Session, Passport Init) ---
+  // This needs to run early to make req.user available
   setupAuth(app);
 
-  // --- Mount Auth router (Password Reset) ---
-  app.use("/api", authRouter);
+  // --- Mount Auth-specific routes (Password Reset, etc.) ---
+  // Note: setupAuth likely already added /login, /logout, /api/user etc.
+  // This router is for additional auth flows like password reset.
+  app.use("/api", authRouter); // Assuming authRouter handles routes like /api/password-reset-request
 
-  // --- Development-only routes ---
+  // --- Development-only routes (Example) ---
   if (process.env.NODE_ENV === 'development') {
-    app.get("/api/dev/reset-tokens", async (req, res) => { /* ... handler ... */ });
-    app.post("/api/dev/create-admin", async (req, res) => { /* ... handler ... */ });
+    // Make sure these routes don't conflict with setupAuth routes
+    // Example: app.get("/api/dev/reset-tokens", isAdmin, async (req, res) => { /* ... */ });
+    // Example: app.post("/api/dev/create-admin", async (req, res) => { /* ... */ });
   }
 
   // =========================================================================
-  // Resource Routes Mounting / Definitions
+  // Resource Routes Mounting
   // =========================================================================
 
   // --- Mount Project Router ---
+  // Base path: /api/projects
+  // Middleware: Applied within projectRouter or specific routes there
   app.use("/api/projects", projectRouter);
 
-  // --- Mount Document Routers ---
+  // --- Mount Global Document Router ---
+  // Base path: /api/documents
   app.use("/api/documents", isAuthenticated, globalDocumentRouter);
-  app.use("/api/projects/:projectId/documents", isAuthenticated, projectDocumentRouter);
 
-  // --- Mount Invoice Router ---
-  app.use("/api/projects/:projectId/invoices", isAuthenticated, invoiceRouter);
+  // --- Mount Project-Specific Routers ---
+  // Apply common middleware like isAuthenticated and validateProjectId here
 
-  // --- Mount Message Router ---
-  app.use("/api/projects/:projectId/messages", isAuthenticated, messageRouter);
+  // Documents within a project
+  app.use(
+    "/api/projects/:projectId/documents",
+    isAuthenticated,
+    validateProjectId, // Ensure projectId is valid before proceeding
+    projectDocumentRouter
+  );
 
-  // --- Mount Progress Update Router ---
-  app.use("/api/projects/:projectId/updates", isAuthenticated, progressUpdateRouter);
-  // --- END Mount Progress Update Router ---
-  
-  // --- Mount Task Router ---
-  app.use("/api/projects/:projectId/tasks", isAuthenticated, taskRouterModule);
-  // --- END Mount Task Router ---
+  // Invoices within a project
+  app.use(
+    "/api/projects/:projectId/invoices",
+    isAuthenticated,
+    validateProjectId,
+    invoiceRouter
+  );
 
-  // --- REMOVED: Original Progress Update Route Definitions ---
-  // app.get("/api/projects/:projectId/updates", isAuthenticated, async (req, res) => { /* ... */ });
-  // app.post("/api/projects/:projectId/updates", isAuthenticated, async (req, res) => { /* ... */ });
+  // Messages within a project
+  app.use(
+    "/api/projects/:projectId/messages",
+    isAuthenticated,
+    validateProjectId,
+    messageRouter
+  );
+
+  // Progress Updates within a project
+  app.use(
+    "/api/projects/:projectId/updates",
+    isAuthenticated,
+    validateProjectId,
+    progressUpdateRouter
+  );
+
+  // Tasks within a project
+  // Mount ONLY ONCE with all necessary middleware
+  app.use(
+    "/api/projects/:projectId/tasks",
+    isAuthenticated,      // Check authentication first
+    validateProjectId,    // Then validate the ID
+    taskRouterModule      // Then pass to the specific task router
+  );
+
+  // Daily Logs within a project
+  app.use(
+    "/api/projects/:projectId/daily-logs",
+    isAuthenticated,
+    validateProjectId,
+    dailyLogRouter // Assuming dailyLogRouter is imported
+  );
+
+  // Punch List within a project
+  app.use(
+    "/api/projects/:projectId/punch-list",
+    isAuthenticated,
+    validateProjectId,
+    punchListRouter // Assuming punchListRouter is imported
+  );
+
+  // --- Mount other project-specific or admin routers ---
+  // Example: Milestones
+  // app.use(
+  //   "/api/projects/:projectId/milestones",
+  //   isAuthenticated,
+  //   validateProjectId,
+  //   milestoneRouter // Assuming milestoneRouter is imported
+  // );
+
+  // Example: Selections
+  // app.use(
+  //   "/api/projects/:projectId/selections",
+  //   isAuthenticated,
+  //   validateProjectId,
+  //   selectionRouter // Assuming selectionRouter is imported
+  // );
+
+  // Example: Admin routes (ensure isAdmin middleware is used appropriately within adminRouter)
+  // app.use("/api/admin", isAuthenticated, isAdmin, adminRouter);
 
 
-  // --- Client-Project Association Routes (Keep definitions here for now) ---
-  app.post("/api/client-projects", isAdmin, async (req, res) => { /* ... handler ... */ });
-  // ... (rest of client-project routes) ...
-  app.get("/api/projects/:projectId/available-clients", isAuthenticated, async (req, res) => { /* ... handler ... */ });
+  // --- REMOVED: Old inline route definitions and local router variables ---
+  // const taskRouter = Router(...) // REMOVED
+  // const dailyLogRouter = Router(...) // REMOVED
+  // const punchListRouter = Router(...) // REMOVED
+  // taskRouter.get(...) // REMOVED
+  // dailyLogRouter.get(...) // REMOVED
+  // punchListRouter.get(...) // REMOVED
+  // app.use("/api/projects/:projectId/tasks", ...) // REMOVED duplicate mount
 
-  // --- Milestone Routes (Keep definitions here for now) ---
-  app.get("/api/projects/:projectId/milestones", isAuthenticated, async (req, res) => { /* ... handler ... */ });
-  app.post("/api/projects/:projectId/milestones", isAuthenticated, async (req, res) => { /* ... handler ... */ });
-
-  // --- Selection Routes (Keep definitions here for now) ---
-  app.get("/api/projects/:projectId/selections", isAuthenticated, async (req, res) => { /* ... handler ... */ });
-  app.post("/api/projects/:projectId/selections", isAuthenticated, async (req, res) => { /* ... handler ... */ });
-  app.put("/api/projects/:projectId/selections/:id", isAuthenticated, async (req, res) => { /* ... handler ... */ });
-
-  // --- Admin Routes (Keep definitions here for now) ---
-  app.get("/api/admin/clients/search", isAdmin, async (req, res) => { /* ... handler ... */ });
-  // ... (rest of admin routes) ...
-  app.post("/api/admin/projects/:projectId/project-manager", isAdmin, async (req, res) => { /* ... handler ... */ });
-
-  // --- Project Manager Routes (Keep definitions here for now) ---
-  app.get("/api/project-manager/projects", isAuthenticated, async (req, res) => { /* ... handler ... */ });
-
-
-  // --- Mount nested resource routers (Keep definitions here for now) ---
-  // Use validateProjectId middleware to prevent errors with invalid project IDs
-  app.use("/api/projects/:projectId/tasks", isAuthenticated, validateProjectId, taskRouterModule);
-  app.use("/api/projects/:projectId/daily-logs", isAuthenticated, validateProjectId, dailyLogRouter);
-  app.use("/api/projects/:projectId/punch-list", isAuthenticated, validateProjectId, punchListRouter);
-
-  const httpServer = createServer(app);
-  return httpServer;
+  // No need to return the server instance from here anymore
+  // const httpServer = createServer(app);
+  // return httpServer;
 }

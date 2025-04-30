@@ -1,16 +1,23 @@
+// server/index.ts
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "@server/routes"; // Updated import
-import { setupVite, serveStatic, log } from "@server/vite"; // Updated import
+import { createServer } from "http"; // Import createServer
+import { registerRoutes } from "@server/routes";
+import { setupVite, serveStatic, log } from "@server/vite";
 
 const app = express();
+
+// --- Basic Middleware ---
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// --- Custom Request Logger ---
+// (Keep this near the top if you want it to log most requests)
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
+  // Capture JSON responses for logging
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
     capturedJsonResponse = bodyJson;
@@ -19,52 +26,86 @@ app.use((req, res, next) => {
 
   res.on("finish", () => {
     const duration = Date.now() - start;
+    // Log only API requests or adjust as needed
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        // Avoid overly long log lines
+        const jsonString = JSON.stringify(capturedJsonResponse);
+        logLine += ` :: ${jsonString.length > 100 ? jsonString.substring(0, 97) + '...' : jsonString}`;
       }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
+      // Limit overall log line length too
+      if (logLine.length > 200) {
+          logLine = logLine.slice(0, 197) + "...";
       }
-
-      log(logLine);
+      log(logLine); // Use the imported log function
     }
   });
 
   next();
 });
 
+
+// --- Main Async Setup Function ---
 (async () => {
-  const server = await registerRoutes(app);
+  // Create the HTTP server instance *before* potentially passing it to setupVite
+  const httpServer = createServer(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+  // --- Register Core Application Routes (API, Auth, etc.) ---
+  // This function should now primarily set up routes and middleware
+  // applied *before* the Vite/Static or final error handlers.
+  // It no longer needs to return the server instance.
+  await registerRoutes(app);
 
-    res.status(status).json({ message });
-    throw err;
-  });
-
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
+  // --- Setup Vite Dev Server OR Static File Serving ---
+  // IMPORTANT: This now runs *before* the final application error handler.
+  if (process.env.NODE_ENV === "development") {
+    // Pass the httpServer instance for HMR
+    await setupVite(app, httpServer);
+    log("Vite Dev Server configured.", "server-setup");
   } else {
-    serveStatic(app);
+    serveStatic(app); // Ensure this serves index.html as a fallback for non-API routes
+    log("Static file serving configured.", "server-setup");
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
+  // --- Final Application JSON Error Handler ---
+  // This catches errors propagated from your API routes/middleware.
+  // It should be the LAST middleware added via `app.use`.
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    // Log the error for debugging
+    console.error("Error caught by final handler:", err);
+
+    const statusCode = err.status || err.statusCode || 500;
+    // Safely get the message
+    const message = err.message || "Internal Server Error";
+    // Include details if available (like from Zod validation)
+    const details = err.details;
+
+    // Prevent sending response if headers already sent
+    if (res.headersSent) {
+      console.error("Headers already sent, cannot send JSON error response.");
+      // In Express 4, the request might just hang or terminate.
+      // In Express 5, you might call next(err) to let Express handle it.
+      return;
+    }
+
+    // Send JSON response
+    res.status(statusCode).json({ message, ...(details && { details }) });
+    // Do NOT re-throw the error here synchronously.
+  });
+
+  // --- Start the Server ---
   const port = 5000;
-  server.listen({
+  httpServer.listen({ // Use the httpServer instance created earlier
     port,
     host: "0.0.0.0",
-    reusePort: true,
+    // reusePort: true, // Consider removing if it causes issues
   }, () => {
-    log(`serving on port ${port}`);
+    log(`Server listening on port ${port}`, "server-setup");
   });
-})();
+
+})().catch(error => {
+  // Catch potential errors during async setup
+  console.error("Failed to start server:", error);
+  process.exit(1);
+});
