@@ -1,5 +1,5 @@
 // server/storage/repositories/document.repository.ts
-import { NeonDatabase, PgTransaction } from 'drizzle-orm/neon-serverless';
+import { NeonDatabase } from 'drizzle-orm/neon-serverless';
 import { eq, and, or, sql, desc, asc } from 'drizzle-orm';
 import * as schema from '../../../shared/schema';
 import { db } from '../../db';
@@ -20,13 +20,15 @@ export interface IDocumentRepository {
     getDocumentById(documentId: number): Promise<schema.Document | null>; // Get raw document for delete logic
     createDocument(docData: schema.InsertDocument): Promise<schema.Document | null>; // Return basic doc
     deleteDocument(documentId: number): Promise<boolean>;
+    getAllDocuments(): Promise<DocumentWithUploader[]>; // Get all documents (for admin)
+    getDocumentsForUser(userId: number): Promise<DocumentWithUploader[]>; // Get documents for user (based on their projects)
 }
 
 // Implementation
 class DocumentRepository implements IDocumentRepository {
-    private dbOrTx: NeonDatabase<typeof schema> | PgTransaction<any, any, any>;
+    private dbOrTx: NeonDatabase<typeof schema> | any;
 
-    constructor(databaseOrTx: NeonDatabase<typeof schema> | PgTransaction<any, any, any> = db) {
+    constructor(databaseOrTx: NeonDatabase<typeof schema> | any = db) {
         this.dbOrTx = databaseOrTx;
     }
 
@@ -94,6 +96,80 @@ class DocumentRepository implements IDocumentRepository {
         } catch (error) {
             console.error(`Error deleting document ${documentId}:`, error);
             throw new Error('Database error while deleting document.');
+        }
+    }
+
+    async getAllDocuments(): Promise<DocumentWithUploader[]> {
+        try {
+            const documents = await this.dbOrTx.query.documents.findMany({
+                orderBy: [desc(schema.documents.createdAt)],
+                with: { // Join with the user who uploaded the document
+                    uploadedBy: {
+                        columns: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                        }
+                    }
+                }
+            });
+            
+            return documents as DocumentWithUploader[];
+        } catch (error) {
+            console.error('Error fetching all documents:', error);
+            throw new Error('Database error while fetching all documents.');
+        }
+    }
+
+    async getDocumentsForUser(userId: number): Promise<DocumentWithUploader[]> {
+        try {
+            // First, get all projects the user is associated with
+            const userProjects = await this.dbOrTx.query.clientProjects.findMany({
+                where: eq(schema.clientProjects.clientId, userId),
+                columns: {
+                    projectId: true
+                }
+            });
+            
+            // Also check if the user is a project manager for any projects
+            const managedProjects = await this.dbOrTx.query.projects.findMany({
+                where: eq(schema.projects.projectManagerId, userId),
+                columns: {
+                    id: true
+                }
+            });
+            
+            // Combine all project IDs
+            const projectIds = [
+                ...userProjects.map(p => p.projectId),
+                ...managedProjects.map(p => p.id)
+            ];
+            
+            // If user has no projects, return empty array
+            if (projectIds.length === 0) {
+                return [];
+            }
+            
+            // Get documents for all these projects
+            const documents = await this.dbOrTx.query.documents.findMany({
+                where: sql`${schema.documents.projectId} IN (${sql.join(projectIds, sql`, `)})`,
+                orderBy: [desc(schema.documents.createdAt)],
+                with: {
+                    uploadedBy: {
+                        columns: {
+                            id: true, 
+                            firstName: true,
+                            lastName: true
+                        }
+                    }
+                }
+            });
+            
+            return documents as DocumentWithUploader[];
+            
+        } catch (error) {
+            console.error(`Error fetching documents for user ${userId}:`, error);
+            throw new Error('Database error while fetching user documents.');
         }
     }
 }
