@@ -31,17 +31,17 @@ export const punchListItemStatusEnum = pgEnum('punch_list_item_status', ['Open',
 export const users = pgTable('users', {
     id: uuid('id').defaultRandom().primaryKey(),
     email: text('email').unique().notNull(),
-    hashedPassword: text('hashed_password'),
-    fullName: text('full_name'),
+    password: text('password'), // Changed from hashedPassword to match the database
+    firstName: text('first_name'), // Added to match the database
+    lastName: text('last_name'), // Added to match the database
+    username: text('username'), // Added to match the database
+    phone: text('phone'), // Added to match the database
     role: userRoleEnum('role').notNull().default('client'),
-    isVerified: boolean('is_verified').default(false).notNull(),
-    verificationToken: text('verification_token'),
-    verificationTokenExpiresAt: timestamp('verification_token_expires_at', { withTimezone: true }),
-    passwordResetToken: text('password_reset_token'),
-    passwordResetTokenExpiresAt: timestamp('password_reset_token_expires_at', { withTimezone: true }),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-    profileSetupComplete: boolean('profile_setup_complete').default(false).notNull(),
+    isActivated: boolean('is_activated').default(false).notNull(), // Changed from isVerified to match db
+    magicLinkToken: text('magic_link_token'), // Added to match the database
+    magicLinkExpiry: timestamp('magic_link_expiry'), // Added to match the database
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // Projects Table
