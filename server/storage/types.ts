@@ -33,6 +33,12 @@ export type DailyLogWithAuthor = schema.DailyLog & {
     photos: schema.DailyLogPhoto[]; // Include daily log photos based on schema relations
 };
 
+// Add DailyLogWithDetails for backward compatibility and maintain consistent naming
+export type DailyLogWithDetails = schema.DailyLog & {
+    creator?: Pick<schema.User, 'id' | 'firstName' | 'lastName'> | null;
+    photos?: schema.DailyLogPhoto[];
+};
+
 export type PunchListItemWithDetails = schema.PunchListItem & {
     creator: Pick<schema.User, 'id' | 'firstName' | 'lastName'>; // Use creator based on schema relations
     assignee: Pick<schema.User, 'id' | 'firstName' | 'lastName'> | null; // Include assignee based on schema relations
