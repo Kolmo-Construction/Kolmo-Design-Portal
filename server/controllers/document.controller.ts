@@ -2,9 +2,9 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 // Updated import path for the aggregated storage object
 import { storage } from '../storage/index';
-// Import specific types if needed (DocumentWithUploader might be used by FE, but controller methods use base Document or void)
-import { DocumentWithUploader } from '../storage/types';
-import { insertDocumentSchema, User } from '../../shared/schema'; // Keep User type
+// Import the DocumentWithUploader type from the document repository
+import { DocumentWithUploader } from '../storage/repositories/document.repository';
+import { insertDocumentSchema, User, Document } from '../../shared/schema'; // Keep User type
 import { HttpError } from '../errors';
 // R2 functions are separate from the storage repository
 import { uploadToR2, deleteFromR2, getR2DownloadUrl } from '../r2-upload';
@@ -78,11 +78,12 @@ export const uploadDocument = async (
     // 2. Prepare document data for DB
     const documentData = {
       projectId: projectIdNum,
-      uploadedBy: user.id,
-      fileName: req.file.originalname,
+      uploadedById: user.id,
+      name: req.file.originalname,
       fileSize: req.file.size,
-      mimeType: req.file.mimetype,
-      storageKey: r2Result.key,
+      fileType: req.file.mimetype,
+      fileUrl: r2Result.url,
+      category: req.body.category || 'general',
       description: description,
     };
 
@@ -137,14 +138,21 @@ export const deleteDocument = async (
       throw new HttpError(400, 'Invalid project or document ID parameter.');
     }
 
-    // 1. Fetch the document record to get the storageKey and verify ownership
+    // 1. Fetch the document record to get the fileUrl and verify ownership
     // Use the nested repository: storage.documents
     const document = await storage.documents.getDocumentById(documentIdNum);
 
     if (!document) { throw new HttpError(404, 'Document not found.'); }
     if (document.projectId !== projectIdNum) { throw new HttpError(403, 'Document does not belong to the specified project.'); }
 
-    storageKeyToDelete = document.storageKey; // Store key for deletion
+    // Extract the key from the fileUrl
+    const fileUrl = document.fileUrl;
+    const keyMatch = fileUrl.match(/\/([^\/]+)$/);
+    storageKeyToDelete = keyMatch ? keyMatch[1] : null; // Store key for deletion
+
+    if (!storageKeyToDelete) {
+      throw new HttpError(500, 'Could not determine storage key from file URL.');
+    }
 
     // 2. Delete the file from R2 storage (No change here)
     await deleteFromR2(storageKeyToDelete);
@@ -198,15 +206,24 @@ export const getDocumentDownloadUrl = async (
 
     if (isNaN(projectIdNum) || isNaN(documentIdNum)) { throw new HttpError(400, 'Invalid project or document ID parameter.'); }
 
-    // 1. Fetch the document record for storageKey and verification
+    // 1. Fetch the document record for fileUrl and verification
     // Use the nested repository: storage.documents
     const document = await storage.documents.getDocumentById(documentIdNum);
 
     if (!document) { throw new HttpError(404, 'Document not found.'); }
     if (document.projectId !== projectIdNum) { throw new HttpError(403, 'Document does not belong to the specified project.'); }
 
-    // 2. Generate a pre-signed download URL from R2 (No change here)
-    const downloadUrl = await getR2DownloadUrl(document.storageKey, document.fileName);
+    // Extract the key from the fileUrl
+    const fileUrl = document.fileUrl;
+    const keyMatch = fileUrl.match(/\/([^\/]+)$/);
+    const storageKey = keyMatch ? keyMatch[1] : null;
+
+    if (!storageKey) {
+      throw new HttpError(500, 'Could not determine storage key from file URL.');
+    }
+
+    // 2. Generate a pre-signed download URL from R2
+    const downloadUrl = await getR2DownloadUrl(storageKey, document.name);
 
     if (!downloadUrl) { throw new HttpError(500, 'Could not generate download URL.'); }
 
