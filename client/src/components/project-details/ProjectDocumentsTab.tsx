@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Document } from "@shared/schema";
-import { getQueryFn } from "@/lib/queryClient";
+import { getQueryFn, apiRequest } from "@/lib/queryClient";
 // REMOVED: format import from date-fns
 import {
   Card,
@@ -10,9 +11,18 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Download, Loader2, FolderOpen, FileIcon, Image as ImageIcon } from "lucide-react";
+import { FileText, Download, Loader2, FolderOpen, FileIcon, Image as ImageIcon, Upload } from "lucide-react";
 // ADDED Imports from utils
 import { formatDate, formatFileSize, getFileIcon } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProjectDocumentsTabProps {
   projectId: number;
@@ -22,7 +32,20 @@ interface ProjectDocumentsTabProps {
 // REMOVED: Local formatFileSize helper function
 // REMOVED: Local formatDate helper function
 
+// Define form schema for document upload
+const uploadFormSchema = z.object({
+  file: z.instanceof(File, { message: "Please select a file to upload" }),
+  description: z.string().optional(),
+  category: z.string().default("GENERAL"),
+});
+
+type UploadFormValues = z.infer<typeof uploadFormSchema>;
+
 export function ProjectDocumentsTab({ projectId }: ProjectDocumentsTabProps) {
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const { toast } = useToast();
+  
   const {
     data: documents = [],
     isLoading: isLoadingDocuments
@@ -32,72 +55,244 @@ export function ProjectDocumentsTab({ projectId }: ProjectDocumentsTabProps) {
     enabled: projectId > 0,
   });
 
+  // Initialize form with react-hook-form
+  const form = useForm<UploadFormValues>({
+    resolver: zodResolver(uploadFormSchema),
+    defaultValues: {
+      description: "",
+      category: "GENERAL",
+    },
+  });
+
   // Handle document download
-  const handleDownload = (document: Document) => {
-    if (document.fileUrl) {
-      window.open(document.fileUrl, '_blank', 'noopener,noreferrer');
+  const handleDownload = async (document: Document) => {
+    try {
+      // Use the document download API endpoint instead of direct fileUrl
+      const response = await fetch(`/api/projects/${projectId}/documents/${document.id}/download`);
+      const data = await response.json();
+      
+      if (data.downloadUrl) {
+        window.open(data.downloadUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        toast({
+          title: "Download Failed",
+          description: "Could not generate download link",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Download Error",
+        description: "There was a problem downloading the file",
+        variant: "destructive",
+      });
+      console.error("Download error:", error);
+    }
+  };
+  
+  // Handle document upload
+  const handleUpload = async (values: UploadFormValues) => {
+    setIsUploading(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append("file", values.file);
+      
+      if (values.description) {
+        formData.append("description", values.description);
+      }
+      
+      formData.append("category", values.category);
+      
+      // Use fetch directly for file uploads since apiRequest may not handle FormData correctly
+      const response = await fetch(`/api/projects/${projectId}/documents`, {
+        method: "POST",
+        body: formData,
+        // Don't set Content-Type - it will be set automatically with boundary
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: "Upload failed" }));
+        throw new Error(errorData.message || "Failed to upload document");
+      }
+      
+      // Success - refresh document list
+      await queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/documents`] });
+      
+      toast({
+        title: "Document Uploaded",
+        description: "Your document was uploaded successfully",
+      });
+      
+      // Close dialog and reset form
+      setIsUploadDialogOpen(false);
+      form.reset();
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast({
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "There was a problem uploading your document",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Project Documents</CardTitle>
-        <CardDescription>Access all documents related to your project</CardDescription>
-        {/* TODO: Add Upload button here if needed, triggering a dialog */}
-      </CardHeader>
-      <CardContent>
-        {isLoadingDocuments ? (
-           <div className="flex justify-center py-8">
-             <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
-
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Project Documents</CardTitle>
+            <CardDescription>Access all documents related to your project</CardDescription>
           </div>
-        ) : documents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <div className="rounded-full bg-primary-50 p-3 mb-4">
-              <FolderOpen className="h-6 w-6 text-primary-600" />
+          <Button 
+            variant="default" 
+            size="sm" 
+            className="ml-auto gap-2"
+            onClick={() => setIsUploadDialogOpen(true)}
+          >
+            <Upload className="h-4 w-4" />
+            Upload Document
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {isLoadingDocuments ? (
+             <div className="flex justify-center py-8">
+               <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
             </div>
-            <p className="text-slate-500">No documents have been uploaded for this project yet.</p>
-
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {documents.map((doc) => (
-              <div key={doc.id} className="p-4 border rounded-md hover:bg-slate-50 flex items-center justify-between transition-colors">
-                <div className="flex items-center min-w-0 mr-4"> {/* Allow content to shrink */}
-
-                  <div className="p-2 bg-slate-100 rounded mr-4 flex-shrink-0">
-                    {getFileIcon(doc.fileType)} {/* USE Imported getFileIcon */}
+          ) : documents.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="rounded-full bg-primary-50 p-3 mb-4">
+                <FolderOpen className="h-6 w-6 text-primary-600" />
+              </div>
+              <p className="text-slate-500">No documents have been uploaded for this project yet.</p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-4 gap-2"
+                onClick={() => setIsUploadDialogOpen(true)}
+              >
+                <Upload className="h-4 w-4" />
+                Upload Your First Document
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {documents.map((doc) => (
+                <div key={doc.id} className="p-4 border rounded-md hover:bg-slate-50 flex items-center justify-between transition-colors">
+                  <div className="flex items-center min-w-0 mr-4"> {/* Allow content to shrink */}
+                    <div className="p-2 bg-slate-100 rounded mr-4 flex-shrink-0">
+                      {getFileIcon(doc.fileType)}
+                    </div>
+                    <div className="min-w-0"> {/* Allow text to truncate */}
+                      <p className="font-medium text-sm truncate" title={doc.name}>{doc.name}</p>
+                      <p className="text-xs text-slate-500 truncate">
+                        {doc.category ? doc.category.charAt(0).toUpperCase() + doc.category.slice(1) : 'Uncategorized'} • {formatFileSize(doc.fileSize)}
+                      </p>
+                      {doc.description && <p className="text-xs text-slate-400 mt-0.5 truncate" title={doc.description}>{doc.description}</p>}
+                       <p className="text-xs text-slate-400 mt-0.5">Uploaded on {formatDate(doc.createdAt)}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0"> {/* Allow text to truncate */}
-                    <p className="font-medium text-sm truncate" title={doc.name}>{doc.name}</p>
-
-                    <p className="text-xs text-slate-500 truncate">
-                      {doc.category ? doc.category.charAt(0).toUpperCase() + doc.category.slice(1) : 'Uncategorized'} • {formatFileSize(doc.fileSize)} {/* USE Imported formatFileSize */}
-
-                    </p>
-                    {doc.description && <p className="text-xs text-slate-400 mt-0.5 truncate" title={doc.description}>{doc.description}</p>}
-                     <p className="text-xs text-slate-400 mt-0.5">Uploaded on {formatDate(doc.createdAt)}</p> {/* USE Imported formatDate */}
-                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-primary-600 gap-2 flex-shrink-0" // Prevent button from shrinking
+                    onClick={() => handleDownload(doc)}
+                    disabled={!doc.fileUrl}
+                  >
+                    <Download className="h-4 w-4" />
+                    Download
+                  </Button>
                 </div>
-
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Document Upload Dialog */}
+      <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+        <DialogContent className="sm:max-w-[485px]">
+          <DialogHeader>
+            <DialogTitle>Upload Document</DialogTitle>
+            <DialogDescription>
+              Upload a document to this project. Supported file types include PDF, images, and common document formats.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleUpload)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="file"
+                render={({ field: { onChange, value, ...rest }, fieldState }) => (
+                  <FormItem>
+                    <FormLabel>File</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="file"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            onChange(file);
+                          }
+                        }}
+                        {...rest}
+                      />
+                    </FormControl>
+                    {fieldState.error && (
+                      <FormMessage>{fieldState.error.message}</FormMessage>
+                    )}
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Brief description of the document" 
+                        className="resize-none" 
+                        {...field} 
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              
+              <div className="flex justify-end gap-2 mt-4">
                 <Button
-                  size="sm"
+                  type="button"
                   variant="outline"
-                  className="text-primary-600 gap-2 flex-shrink-0" // Prevent button from shrinking
-                  onClick={() => handleDownload(doc)}
-
-                  disabled={!doc.fileUrl}
+                  onClick={() => setIsUploadDialogOpen(false)}
+                  disabled={isUploading}
                 >
-                  <Download className="h-4 w-4" />
-                  Download
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isUploading}>
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload
+                    </>
+                  )}
                 </Button>
               </div>
-
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
