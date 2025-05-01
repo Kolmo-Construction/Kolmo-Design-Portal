@@ -13,9 +13,13 @@ const createDailyLogInputSchema = z.object({
     weather: z.string().optional().nullable(),
     temperature: z.union([
         z.number().optional().nullable(),
-        z.string().refine(val => val === "" || val === null || !isNaN(parseFloat(val)), {
+        z.string()
+          .transform(val => val === "" || val === null ? null : Number(val))
+          .refine(val => val === null || !isNaN(val as number), {
             message: "Temperature must be a valid number"
-        }).transform(val => val === "" || val === null ? null : parseFloat(val)).optional().nullable()
+          })
+          .optional()
+          .nullable()
     ]),
     crewOnSite: z.string().optional().nullable(),
     issuesEncountered: z.string().optional().nullable(),
@@ -86,12 +90,15 @@ export class DailyLogController {
                 console.log(`[DailyLogController] Placeholder photo URLs: ${photoUrls.join(', ')}`);
             }
 
-            // *** FIX: Construct logData using validated data AND add createdById from req.user ***
+            // Construct log data with all the required fields properly formatted
             const logData = {
-                ...validationResult.data, // Use validated data (which doesn't have createdById)
-                projectId: projectId,     // Add projectId from URL param
-                createdById: user.id,     // *** ADD createdById from authenticated user ***
+                ...validationResult.data,  // User-provided data validated by the schema
+                projectId: projectId,      // Add projectId from URL param
+                createdById: user.id,      // Add createdById from authenticated user session
             };
+            
+            // Log the data for debugging
+            console.log('Creating daily log with data:', JSON.stringify(logData, null, 2));
 
             // Call repository method
             const newLog = await this.dailyLogsRepo.createDailyLog(logData);
