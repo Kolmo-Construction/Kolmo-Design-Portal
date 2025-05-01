@@ -46,6 +46,13 @@ projectDocumentRouter.post(
     documentController.uploadDocument // Controller assumes req.file exists
 );
 
+// GET /api/projects/:projectId/documents/:documentId/download
+// Gets a signed download URL for a specific document
+projectDocumentRouter.get("/:documentId/download", documentController.getDocumentDownloadUrl);
+
+// DELETE /api/projects/:projectId/documents/:documentId
+// Deletes a specific document (permissions checked in controller)
+projectDocumentRouter.delete("/:documentId", documentController.deleteDocument);
 
 // --- Global Document Routes ---
 
