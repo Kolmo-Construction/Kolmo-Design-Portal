@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Document } from "@shared/schema";
 import { getQueryFn } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 import {
   Card,
   CardContent,
@@ -30,6 +31,7 @@ interface ProjectDocumentsTabProps {
 export function ProjectDocumentsTab({ projectId }: ProjectDocumentsTabProps) {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const { user } = useAuth();
+  const { toast } = useToast();
   
   // Check if user can upload documents (admin or project manager)
   const canUpload = user && (user.role === 'admin' || user.role === 'projectManager');
@@ -45,9 +47,30 @@ export function ProjectDocumentsTab({ projectId }: ProjectDocumentsTabProps) {
   });
 
   // Handle document download
-  const handleDownload = (document: Document) => {
-    if (document.fileUrl) {
-      window.open(document.fileUrl, '_blank', 'noopener,noreferrer');
+  const handleDownload = async (document: Document) => {
+    try {
+      // Call the backend API to get a signed download URL
+      const response = await fetch(`/api/projects/${projectId}/documents/${document.id}/download`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to get download URL');
+      }
+      
+      const data = await response.json();
+      
+      // Open the signed URL in a new tab
+      if (data.downloadUrl) {
+        window.open(data.downloadUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        throw new Error('Invalid download URL received');
+      }
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      toast({
+        title: "Download Failed",
+        description: error instanceof Error ? error.message : "Could not download the document.",
+        variant: "destructive",
+      });
     }
   };
   
