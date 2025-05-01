@@ -1,542 +1,596 @@
-// shared/schema.ts
+import { relations, sql } from 'drizzle-orm';
+import {
+    pgTable,
+    text,
+    timestamp,
+    boolean,
+    uuid,
+    primaryKey,
+    decimal,
+    date,
+    integer,
+    pgEnum,
+} from 'drizzle-orm/pg-core';
+import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import { z } from 'zod';
 
-import { pgTable, text, serial, integer, decimal, timestamp, boolean, jsonb, foreignKey } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
-import { relations } from "drizzle-orm";
+// Enums
+export const userRoleEnum = pgEnum('user_role', ['admin', 'project_manager', 'client']);
+export const projectStatusEnum = pgEnum('project_status', ['Planning', 'In Progress', 'On Hold', 'Completed', 'Cancelled']);
+export const taskStatusEnum = pgEnum('task_status', ['To Do', 'In Progress', 'Blocked', 'In Review', 'Done']);
+export const documentTypeEnum = pgEnum('document_type', ['Contract', 'Blueprint', 'Permit', 'Invoice', 'Report', 'Change Order', 'Other']);
+export const invoiceStatusEnum = pgEnum('invoice_status', ['Draft', 'Sent', 'Paid', 'Overdue', 'Void']);
+export const paymentMethodEnum = pgEnum('payment_method', ['Credit Card', 'Bank Transfer', 'Check', 'Cash', 'Other']);
+export const messageTypeEnum = pgEnum('message_type', ['General', 'Update', 'Query', 'Alert']);
+export const updateTypeEnum = pgEnum('update_type', ['Progress', 'Milestone', 'Selection']);
+export const mediaTypeEnum = pgEnum('media_type', ['Image', 'Video', 'Document']);
+export const punchListItemStatusEnum = pgEnum('punch_list_item_status', ['Open', 'In Progress', 'Resolved', 'Closed']);
 
 
-// Users table for authentication and profile information
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  email: text("email").notNull().unique(),
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name").notNull(),
-  phone: text("phone"),
-  role: text("role").notNull().default("client"), // client, admin, projectManager
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  magicLinkToken: text("magic_link_token").unique(),
-  magicLinkExpiry: timestamp("magic_link_expiry"),
-  isActivated: boolean("is_activated").default(false).notNull(),
+// Users Table
+export const users = pgTable('users', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    email: text('email').unique().notNull(),
+    hashedPassword: text('hashed_password'),
+    fullName: text('full_name'),
+    role: userRoleEnum('role').notNull().default('client'),
+    isVerified: boolean('is_verified').default(false).notNull(),
+    verificationToken: text('verification_token'),
+    verificationTokenExpiresAt: timestamp('verification_token_expires_at', { withTimezone: true }),
+    passwordResetToken: text('password_reset_token'),
+    passwordResetTokenExpiresAt: timestamp('password_reset_token_expires_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    profileSetupComplete: boolean('profile_setup_complete').default(false).notNull(),
 });
 
-// Projects table for storing project details
-export const projects = pgTable("projects", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description"),
-  address: text("address").notNull(),
-  city: text("city").notNull(),
-  state: text("state").notNull(),
-  zipCode: text("zip_code").notNull(),
-  startDate: timestamp("start_date"),
-  estimatedCompletionDate: timestamp("estimated_completion_date"),
-  actualCompletionDate: timestamp("actual_completion_date"),
-  status: text("status").notNull().default("planning"), // planning, in_progress, on_hold, completed
-  totalBudget: decimal("total_budget", { precision: 10, scale: 2 }).notNull(),
-  imageUrl: text("image_url"),
-  progress: integer("progress").default(0), // Percentage complete (0-100)
-  projectManagerId: integer("project_manager_id").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+// Projects Table
+export const projects = pgTable('projects', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    name: text('name').notNull(),
+    address: text('address'),
+    description: text('description'),
+    status: projectStatusEnum('status').default('Planning').notNull(),
+    startDate: date('start_date'),
+    endDate: date('end_date'),
+    budget: decimal('budget', { precision: 12, scale: 2 }),
+    // --- FOREIGN KEYS / RELATION IDS ---
+    projectManagerId: uuid('project_manager_id').references(() => users.id, { onDelete: 'set null' }),
+    clientIds: uuid('client_ids').array(), // Array of user IDs with 'client' role
+    // --- END FOREIGN KEYS ---
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-// Client project relationship (many-to-many)
-export const clientProjects = pgTable("client_projects", {
-  id: serial("id").primaryKey(),
-  clientId: integer("client_id").notNull().references(() => users.id),
-  projectId: integer("project_id").notNull().references(() => projects.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+// Documents Table
+export const documents = pgTable('documents', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+    uploadedByUserId: uuid('uploaded_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    name: text('name').notNull(),
+    description: text('description'),
+    fileKey: text('file_key').notNull().unique(), // R2 object key
+    fileUrl: text('file_url'), // Optional public URL or use signed URLs
+    fileType: text('file_type'), // e.g., 'application/pdf'
+    fileSize: integer('file_size'), // size in bytes
+    documentType: documentTypeEnum('document_type').default('Other'),
+    version: integer('version').default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-// Documents table for storing project-related files
-export const documents = pgTable("documents", {
-  id: serial("id").primaryKey(),
-  projectId: integer("project_id").notNull().references(() => projects.id),
-  name: text("name").notNull(),
-  description: text("description"),
-  fileUrl: text("file_url").notNull(),
-  fileType: text("file_type").notNull(),
-  fileSize: integer("file_size").notNull(), // in bytes
-  category: text("category").notNull(), // contracts, plans, permits, invoices, etc.
-  uploadedById: integer("uploaded_by_id").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+// Tasks Table
+export const tasks = pgTable('tasks', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    description: text('description'),
+    status: taskStatusEnum('status').default('To Do').notNull(),
+    priority: integer('priority').default(0), // 0: Low, 1: Medium, 2: High
+    startDate: timestamp('start_date', { withTimezone: true }),
+    endDate: timestamp('end_date', { withTimezone: true }),
+    estimatedDuration: integer('estimated_duration'), // In days or hours
+    actualDuration: integer('actual_duration'),
+    progress: integer('progress').default(0), // Percentage 0-100
+    assignedToUserId: uuid('assigned_to_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdById: uuid('created_by_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-// Invoices table for financial tracking
-export const invoices = pgTable("invoices", {
-  id: serial("id").primaryKey(),
-  projectId: integer("project_id").notNull().references(() => projects.id),
-  invoiceNumber: text("invoice_number").notNull(),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  description: text("description"),
-  issueDate: timestamp("issue_date").notNull(),
-  dueDate: timestamp("due_date").notNull(),
-  status: text("status").notNull().default("pending"), // pending, paid, overdue
-  documentId: integer("document_id").references(() => documents.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+// Task Dependencies Table (Many-to-Many)
+export const taskDependencies = pgTable('task_dependencies', {
+    taskId: uuid('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+    dependsOnTaskId: uuid('depends_on_task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+    // type: text('type'), // e.g., 'Finish-to-Start', 'Start-to-Start' - Add if needed
+}, (table) => {
+    return {
+        pk: primaryKey({ columns: [table.taskId, table.dependsOnTaskId] }),
+    };
 });
 
-// Payments table for tracking payments against invoices
-export const payments = pgTable("payments", {
-  id: serial("id").primaryKey(),
-  invoiceId: integer("invoice_id").notNull().references(() => invoices.id),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  paymentDate: timestamp("payment_date").notNull(),
-  paymentMethod: text("payment_method").notNull(),
-  reference: text("reference"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+// Invoices Table
+export const invoices = pgTable('invoices', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+    invoiceNumber: text('invoice_number').unique().notNull(),
+    status: invoiceStatusEnum('status').default('Draft').notNull(),
+    issueDate: date('issue_date').notNull(),
+    dueDate: date('due_date'),
+    amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
+    taxAmount: decimal('tax_amount', { precision: 10, scale: 2 }).default('0.00'),
+    totalAmount: decimal('total_amount', { precision: 12, scale: 2 }).notNull(),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-// Messages table for communication log
-export const messages = pgTable("messages", {
-  id: serial("id").primaryKey(),
-  projectId: integer("project_id").notNull().references(() => projects.id),
-  senderId: integer("sender_id").notNull().references(() => users.id),
-  recipientId: integer("recipient_id").references(() => users.id),
-  subject: text("subject").notNull(),
-  message: text("message").notNull(),
-  isRead: boolean("is_read").default(false).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+// Payments Table
+export const payments = pgTable('payments', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    invoiceId: uuid('invoice_id').notNull().references(() => invoices.id, { onDelete: 'cascade' }),
+    paymentDate: timestamp('payment_date', { withTimezone: true }).defaultNow().notNull(),
+    amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
+    paymentMethod: paymentMethodEnum('payment_method'),
+    transactionId: text('transaction_id'),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-// Progress updates table
-export const progressUpdates = pgTable("progress_updates", {
-  id: serial("id").primaryKey(),
-  projectId: integer("project_id").notNull().references(() => projects.id),
-  title: text("title").notNull(),
-  description: text("description").notNull(),
-  updateType: text("update_type").notNull(), // milestone, photo, issue, general
-  createdById: integer("created_by_id").notNull().references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+// Messages Table
+export const messages = pgTable('messages', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+    senderId: uuid('sender_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    recipientId: uuid('recipient_id').references(() => users.id, { onDelete: 'set null' }), // Can be null for project-wide messages
+    content: text('content').notNull(),
+    messageType: messageTypeEnum('message_type').default('General'),
+    isRead: boolean('is_read').default(false).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    // parentMessageId: uuid('parent_message_id').references(() => messages.id), // For threading if needed
 });
 
-// Update media (photos/videos) connected to progress updates OR punch list items
-export const updateMedia = pgTable("update_media", {
-  id: serial("id").primaryKey(),
-  updateId: integer("update_id").references(() => progressUpdates.id),
-  punchListItemId: integer("punch_list_item_id").references(() => punchListItems.id),
-  mediaUrl: text("media_url").notNull(),
-  mediaType: text("media_type").notNull(), // image, video
-  caption: text("caption"),
-  uploadedById: integer("uploaded_by_id").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+// Progress Updates Table
+export const progressUpdates = pgTable('progress_updates', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+    createdById: uuid('created_by_id').notNull().references(() => users.id, { onDelete: 'set null' }),
+    updateDate: timestamp('update_date', { withTimezone: true }).defaultNow().notNull(),
+    title: text('title'),
+    description: text('description').notNull(),
+    updateType: updateTypeEnum('update_type').default('Progress'),
+    // relatedTaskId: uuid('related_task_id').references(() => tasks.id), // Optional link to a specific task
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-// Milestones for project timeline
-export const milestones = pgTable("milestones", {
-  id: serial("id").primaryKey(),
-  projectId: integer("project_id").notNull().references(() => projects.id),
-  title: text("title").notNull(),
-  description: text("description"),
-  plannedDate: timestamp("planned_date").notNull(),
-  actualDate: timestamp("actual_date"),
-  status: text("status").notNull().default("pending"), // pending, completed, delayed
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+// Media Table (for photos, videos, documents attached to updates, logs, punch lists)
+export const media = pgTable('media', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    // Link to parent record (polymorphic - choose one or add separate linking tables)
+    progressUpdateId: uuid('progress_update_id').references(() => progressUpdates.id, { onDelete: 'cascade' }),
+    dailyLogId: uuid('daily_log_id').references(() => dailyLogs.id, { onDelete: 'cascade' }),
+    punchListItemId: uuid('punch_list_item_id').references(() => punchListItems.id, { onDelete: 'cascade' }),
+    // ---
+    uploadedByUserId: uuid('uploaded_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    fileKey: text('file_key').notNull().unique(), // R2 object key
+    fileName: text('file_name'),
+    fileUrl: text('file_url'),
+    fileType: text('file_type'), // e.g., 'image/jpeg'
+    fileSize: integer('file_size'), // size in bytes
+    mediaType: mediaTypeEnum('media_type').default('Image'),
+    description: text('description'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-// Material selections for client approval
-export const selections = pgTable("selections", {
-  id: serial("id").primaryKey(),
-  projectId: integer("project_id").notNull().references(() => projects.id),
-  category: text("category").notNull(), // flooring, lighting, hardware, etc.
-  title: text("title").notNull(),
-  description: text("description"),
-  options: jsonb("options"), // Array of selection options with details
-  selectionDeadline: timestamp("selection_deadline"),
-  selectedOption: text("selected_option"),
-  status: text("status").notNull().default("pending"), // pending, selected, approved
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+// Daily Logs Table
+export const dailyLogs = pgTable('daily_logs', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+    logDate: date('log_date').notNull().default(sql`CURRENT_DATE`),
+    createdById: uuid('created_by_id').notNull().references(() => users.id, { onDelete: 'set null' }),
+    weather: text('weather'),
+    temperature: decimal('temperature', { precision: 5, scale: 2 }), // Celsius or Fahrenheit
+    personnelCount: integer('personnel_count'),
+    workPerformed: text('work_performed').notNull(),
+    materialsDelivered: text('materials_delivered'),
+    delaysOrIssues: text('delays_or_issues'),
+    safetyObservations: text('safety_observations'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-// --- Tasks Table ---
-export const tasks = pgTable("tasks", {
-  id: serial("id").primaryKey(),
-  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }), // Cascade delete tasks if project is deleted
-  title: text("title").notNull(),
-  description: text("description"),
-  status: text("status").notNull().default("todo"), // todo, in_progress, blocked, done, cancelled
-  priority: text("priority").default("medium"), // low, medium, high
-  startDate: timestamp("start_date"),
-  dueDate: timestamp("due_date"),
-  assigneeId: integer("assignee_id").references(() => users.id, { onDelete: 'set null' }), // Set assignee to null if user deleted
-  estimatedHours: decimal("estimated_hours", { precision: 5, scale: 2 }), // DECIMAL column
-  actualHours: decimal("actual_hours", { precision: 5, scale: 2 }), // DECIMAL column
-  // progress field was removed since it doesn't exist in the database
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+// Punch List Items Table
+export const punchListItems = pgTable('punch_list_items', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+    itemNumber: text('item_number'), // Or use sequence/autoincrement if DB supports it easily
+    description: text('description').notNull(),
+    location: text('location'),
+    status: punchListItemStatusEnum('status').default('Open').notNull(),
+    priority: integer('priority').default(0), // 0: Low, 1: Medium, 2: High
+    createdById: uuid('created_by_id').notNull().references(() => users.id, { onDelete: 'set null' }),
+    assignedToUserId: uuid('assigned_to_user_id').references(() => users.id, { onDelete: 'set null' }),
+    dueDate: date('due_date'),
+    dateCompleted: date('date_completed'),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-// --- Task dependencies table ---
-export const taskDependencies = pgTable("task_dependencies", {
-  id: serial("id").primaryKey(),
-  predecessorId: integer("predecessor_id").notNull().references(() => tasks.id, { onDelete: 'cascade' }),
-  successorId: integer("successor_id").notNull().references(() => tasks.id, { onDelete: 'cascade' }),
-  type: text("type").default("FS"), // FS (Finish-to-Start), SS, FF, SF
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+// Milestones Table (Simplified, could be part of Tasks or Progress Updates)
+export const milestones = pgTable('milestones', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description'),
+    targetDate: date('target_date'),
+    completionDate: date('completion_date'),
+    status: text('status'), // e.g., 'Upcoming', 'Achieved', 'Delayed'
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-// --- Daily Logs table ---
-export const dailyLogs = pgTable("daily_logs", {
-  id: serial("id").primaryKey(),
-  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  logDate: timestamp("log_date").notNull(),
-  weather: text("weather"),
-  temperature: decimal("temperature", { precision: 5, scale: 2 }), // Optional temp tracking
-  crewOnSite: text("crew_on_site"), // Simple text for now, could be relational
-  workPerformed: text("work_performed").notNull(),
-  issuesEncountered: text("issues_encountered"),
-  safetyObservations: text("safety_observations"),
-  createdById: integer("created_by_id").notNull().references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+// Selections Table (Client choices, e.g., materials, finishes)
+export const selections = pgTable('selections', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(), // e.g., "Kitchen Countertop"
+    description: text('description'),
+    status: text('status'), // e.g., 'Pending', 'Approved', 'Ordered'
+    category: text('category'), // e.g., 'Finishes', 'Fixtures'
+    options: text('options'), // Description of choices offered
+    clientChoice: text('client_choice'), // What the client selected
+    decisionDeadline: date('decision_deadline'),
+    dateApproved: date('date_approved'),
+    supplier: text('supplier'),
+    costEstimate: decimal('cost_estimate', { precision: 10, scale: 2 }),
+    actualCost: decimal('actual_cost', { precision: 10, scale: 2 }),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-// --- Daily Log Photos table ---
-export const dailyLogPhotos = pgTable("daily_log_photos", {
-  id: serial("id").primaryKey(),
-  dailyLogId: integer("daily_log_id").notNull().references(() => dailyLogs.id, { onDelete: 'cascade' }),
-  photoUrl: text("photo_url").notNull(), // URL from R2
-  caption: text("caption"),
-  uploadedById: integer("uploaded_by_id").notNull().references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
 
-// --- Punch List Items table ---
-export const punchListItems = pgTable("punch_list_items", {
-  id: serial("id").primaryKey(),
-  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  description: text("description").notNull(),
-  location: text("location"), // e.g., "Kitchen", "Master Bath"
-  status: text("status").notNull().default("open"), // open, in_progress, resolved, verified
-  priority: text("priority").default("medium"), // low, medium, high
-  assigneeId: integer("assignee_id").references(() => users.id, { onDelete: 'set null' }),
-  dueDate: timestamp("due_date"),
-  photoUrl: text("photo_url"), // Keep photoUrl as it exists in the database
-  createdById: integer("created_by_id").notNull().references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  resolvedAt: timestamp("resolved_at"),
-});
+// --- RELATIONS ---
 
-// --- Relations ---
-export const projectRelations = relations(projects, ({ many, one }) => ({
-  tasks: many(tasks),
-  dailyLogs: many(dailyLogs),
-  punchListItems: many(punchListItems),
-  projectManager: one(users, {
-      fields: [projects.projectManagerId],
-      references: [users.id],
-      relationName: 'ProjectManager',
-  }),
-  clientProjects: many(clientProjects),
-  documents: many(documents),
-  invoices: many(invoices),
-  messages: many(messages),
-  progressUpdates: many(progressUpdates),
-  milestones: many(milestones),
-  selections: many(selections),
+export const usersRelations = relations(users, ({ many }) => ({
+    managedProjects: many(projects, { relationName: 'projectManager' }), // Projects where user is PM
+    clientProjects: many(projects, { relationName: 'clients' }),       // Projects where user is Client (Needs custom query due to array)
+    createdTasks: many(tasks, { relationName: 'createdBy' }),
+    assignedTasks: many(tasks, { relationName: 'assignedTo' }),
+    sentMessages: many(messages, { relationName: 'sender' }),
+    receivedMessages: many(messages, { relationName: 'recipient' }),
+    uploadedDocuments: many(documents),
+    createdProgressUpdates: many(progressUpdates),
+    uploadedMedia: many(media),
+    createdDailyLogs: many(dailyLogs),
+    createdPunchListItems: many(punchListItems, { relationName: 'createdPunchItems' }),
+    assignedPunchListItems: many(punchListItems, { relationName: 'assignedPunchItems' }),
 }));
 
-export const userRelations = relations(users, ({ many }) => ({
-  assignedTasks: many(tasks, { relationName: 'Assignee' }),
-  // createdTasks: many(tasks, { relationName: 'Creator' }), // Need creatorId in tasks if tracking
-  createdDailyLogs: many(dailyLogs),
-  uploadedDailyLogPhotos: many(dailyLogPhotos),
-  createdPunchListItems: many(punchListItems),
-  assignedPunchListItems: many(punchListItems, { relationName: 'PunchListAssignee' }),
-  clientProjects: many(clientProjects),
-  managedProjects: many(projects, { relationName: 'ProjectManager' }),
-  uploadedDocuments: many(documents),
-  sentMessages: many(messages, { relationName: 'Sender' }),
-  receivedMessages: many(messages, { relationName: 'Recipient' }),
-  createdProgressUpdates: many(progressUpdates),
-  uploadedUpdateMedia: many(updateMedia),
+export const projectsRelations = relations(projects, ({ one, many }) => ({
+    // --- ENSURE THIS RELATION EXISTS ---
+    projectManager: one(users, {
+        fields: [projects.projectManagerId],
+        references: [users.id],
+        relationName: 'projectManager' // Optional explicit name matching repo query
+    }),
+    // --- END RELATION CHECK ---
+    // Cannot directly define relation for clientIds array here for Drizzle's 'with'. Handled manually.
+    documents: many(documents),
+    tasks: many(tasks),
+    invoices: many(invoices),
+    messages: many(messages),
+    progressUpdates: many(progressUpdates),
+    dailyLogs: many(dailyLogs),
+    punchListItems: many(punchListItems),
+    milestones: many(milestones),
+    selections: many(selections),
 }));
 
-export const clientProjectRelations = relations(clientProjects, ({ one }) => ({
-    client: one(users, { fields: [clientProjects.clientId], references: [users.id] }),
-    project: one(projects, { fields: [clientProjects.projectId], references: [projects.id] }),
+export const documentsRelations = relations(documents, ({ one }) => ({
+    project: one(projects, {
+        fields: [documents.projectId],
+        references: [projects.id],
+    }),
+    uploadedByUser: one(users, {
+        fields: [documents.uploadedByUserId],
+        references: [users.id],
+    }),
 }));
 
-export const documentRelations = relations(documents, ({ one }) => ({
-    project: one(projects, { fields: [documents.projectId], references: [projects.id] }),
-    uploader: one(users, { fields: [documents.uploadedById], references: [users.id] }),
+export const tasksRelations = relations(tasks, ({ one, many }) => ({
+    project: one(projects, {
+        fields: [tasks.projectId],
+        references: [projects.id],
+    }),
+    assignee: one(users, {
+        fields: [tasks.assignedToUserId],
+        references: [users.id],
+        relationName: 'assignedTo'
+    }),
+    createdBy: one(users, {
+        fields: [tasks.createdById],
+        references: [users.id],
+        relationName: 'createdBy'
+    }),
+    // Dependencies (Task depends on these)
+    dependencies: many(taskDependencies, { relationName: 'dependsOn' }),
+    // Dependents (These tasks depend on this task)
+    dependents: many(taskDependencies, { relationName: 'requiredFor' }),
 }));
 
-export const invoiceRelations = relations(invoices, ({ one, many }) => ({
-    project: one(projects, { fields: [invoices.projectId], references: [projects.id] }),
-    document: one(documents, { fields: [invoices.documentId], references: [documents.id] }),
+export const taskDependenciesRelations = relations(taskDependencies, ({ one }) => ({
+    // Task that requires the dependency
+    task: one(tasks, {
+        fields: [taskDependencies.taskId],
+        references: [tasks.id],
+        relationName: 'requiredFor'
+    }),
+    // Task that must be completed first
+    dependsOnTask: one(tasks, {
+        fields: [taskDependencies.dependsOnTaskId],
+        references: [tasks.id],
+        relationName: 'dependsOn'
+    }),
+}));
+
+
+export const invoicesRelations = relations(invoices, ({ one, many }) => ({
+    project: one(projects, {
+        fields: [invoices.projectId],
+        references: [projects.id],
+    }),
     payments: many(payments),
 }));
 
-export const paymentRelations = relations(payments, ({ one }) => ({
-    invoice: one(invoices, { fields: [payments.invoiceId], references: [invoices.id] }),
+export const paymentsRelations = relations(payments, ({ one }) => ({
+    invoice: one(invoices, {
+        fields: [payments.invoiceId],
+        references: [invoices.id],
+    }),
 }));
 
-export const messageRelations = relations(messages, ({ one }) => ({
-    project: one(projects, { fields: [messages.projectId], references: [projects.id] }),
-    sender: one(users, { fields: [messages.senderId], references: [users.id], relationName: 'Sender' }),
-    recipient: one(users, { fields: [messages.recipientId], references: [users.id], relationName: 'Recipient' }),
+export const messagesRelations = relations(messages, ({ one }) => ({
+    project: one(projects, {
+        fields: [messages.projectId],
+        references: [projects.id],
+    }),
+    sender: one(users, {
+        fields: [messages.senderId],
+        references: [users.id],
+        relationName: 'sender'
+    }),
+    recipient: one(users, {
+        fields: [messages.recipientId],
+        references: [users.id],
+        relationName: 'recipient'
+    }),
+    // parentMessage: one(messages, { fields: [messages.parentMessageId], references: [messages.id] }) // For threading
 }));
 
-export const progressUpdateRelations = relations(progressUpdates, ({ one, many }) => ({
-  project: one(projects, { fields: [progressUpdates.projectId], references: [projects.id] }),
-  creator: one(users, { fields: [progressUpdates.createdById], references: [users.id] }),
-  media: many(updateMedia),
+export const progressUpdatesRelations = relations(progressUpdates, ({ one, many }) => ({
+    project: one(projects, {
+        fields: [progressUpdates.projectId],
+        references: [projects.id],
+    }),
+    createdBy: one(users, {
+        fields: [progressUpdates.createdById],
+        references: [users.id],
+    }),
+    media: many(media),
+    // relatedTask: one(tasks, { fields: [progressUpdates.relatedTaskId], references: [tasks.id] })
 }));
 
-export const updateMediaRelations = relations(updateMedia, ({ one }) => ({
-  update: one(progressUpdates, { fields: [updateMedia.updateId], references: [progressUpdates.id] }),
-  punchListItem: one(punchListItems, { fields: [updateMedia.punchListItemId], references: [punchListItems.id] }),
-  uploader: one(users, { fields: [updateMedia.uploadedById], references: [users.id] }),
+export const mediaRelations = relations(media, ({ one }) => ({
+    progressUpdate: one(progressUpdates, {
+        fields: [media.progressUpdateId],
+        references: [progressUpdates.id],
+    }),
+    dailyLog: one(dailyLogs, {
+        fields: [media.dailyLogId],
+        references: [dailyLogs.id],
+    }),
+    punchListItem: one(punchListItems, {
+        fields: [media.punchListItemId],
+        references: [punchListItems.id],
+    }),
+    uploadedByUser: one(users, {
+        fields: [media.uploadedByUserId],
+        references: [users.id],
+    }),
 }));
 
-export const milestoneRelations = relations(milestones, ({ one }) => ({
-    project: one(projects, { fields: [milestones.projectId], references: [projects.id] }),
+export const dailyLogsRelations = relations(dailyLogs, ({ one, many }) => ({
+    project: one(projects, {
+        fields: [dailyLogs.projectId],
+        references: [projects.id],
+    }),
+    createdBy: one(users, {
+        fields: [dailyLogs.createdById],
+        references: [users.id],
+    }),
+    media: many(media),
 }));
 
-export const selectionRelations = relations(selections, ({ one }) => ({
-    project: one(projects, { fields: [selections.projectId], references: [projects.id] }),
+export const punchListItemsRelations = relations(punchListItems, ({ one, many }) => ({
+    project: one(projects, {
+        fields: [punchListItems.projectId],
+        references: [projects.id],
+    }),
+    createdBy: one(users, {
+        fields: [punchListItems.createdById],
+        references: [users.id],
+        relationName: 'createdPunchItems'
+    }),
+    assignedTo: one(users, {
+        fields: [punchListItems.assignedToUserId],
+        references: [users.id],
+        relationName: 'assignedPunchItems'
+    }),
+    media: many(media),
 }));
 
-export const taskRelations = relations(tasks, ({ one, many }) => ({
-  project: one(projects, { fields: [tasks.projectId], references: [projects.id] }),
-  assignee: one(users, { fields: [tasks.assigneeId], references: [users.id], relationName: 'Assignee' }),
-  predecessorDependencies: many(taskDependencies, { relationName: 'Successor' }),
-  successorDependencies: many(taskDependencies, { relationName: 'Predecessor' }),
+export const milestonesRelations = relations(milestones, ({ one }) => ({
+    project: one(projects, {
+        fields: [milestones.projectId],
+        references: [projects.id],
+    }),
 }));
 
-export const taskDependencyRelations = relations(taskDependencies, ({ one }) => ({
-  predecessor: one(tasks, { fields: [taskDependencies.predecessorId], references: [tasks.id], relationName: 'Predecessor' }),
-  successor: one(tasks, { fields: [taskDependencies.successorId], references: [tasks.id], relationName: 'Successor' }),
-}));
-
-export const dailyLogRelations = relations(dailyLogs, ({ one, many }) => ({
-  project: one(projects, { fields: [dailyLogs.projectId], references: [projects.id] }),
-  creator: one(users, { fields: [dailyLogs.createdById], references: [users.id] }),
-  photos: many(dailyLogPhotos),
-}));
-
-export const dailyLogPhotoRelations = relations(dailyLogPhotos, ({ one }) => ({
-  dailyLog: one(dailyLogs, { fields: [dailyLogPhotos.dailyLogId], references: [dailyLogs.id] }),
-  uploader: one(users, { fields: [dailyLogPhotos.uploadedById], references: [users.id] }),
-}));
-
-export const punchListItemRelations = relations(punchListItems, ({ one, many }) => ({
-  project: one(projects, { fields: [punchListItems.projectId], references: [projects.id] }),
-  assignee: one(users, { fields: [punchListItems.assigneeId], references: [users.id], relationName: 'PunchListAssignee' }),
-  creator: one(users, { fields: [punchListItems.createdById], references: [users.id] }),
-  media: many(updateMedia),
+export const selectionsRelations = relations(selections, ({ one }) => ({
+    project: one(projects, {
+        fields: [selections.projectId],
+        references: [projects.id],
+    }),
 }));
 
 
-// --- Insert Schemas (with Zod validations) ---
-
-// Create insert schemas for each table
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true
-});
-
-export const insertProjectSchema = createInsertSchema(projects)
-  .omit({
-    id: true,
+// --- Zod Schemas for Validation ---
+// Users
+export const insertUserSchema = createInsertSchema(users, {
+    email: z.string().email(),
+    role: z.enum(userRoleEnum.enumValues),
+    fullName: z.string().min(1, "Full name is required"),
+}).omit({
+    id: true, // Usually generated by DB
     createdAt: true,
-    updatedAt: true
-  })
-  .extend({
-    startDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
-    estimatedCompletionDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
-    actualCompletionDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
-    totalBudget: z.union([
-      z.string().transform(val => parseFloat(val.replace(/[^0-9.]/g, ''))).refine(n => !isNaN(n) && n > 0, { message: "Budget must be a positive number" }),
-      z.number().min(1, "Budget must be a positive number")
-    ]),
-    clientIds: z.array(z.number()).optional(),
-  });
-
-export const insertClientProjectSchema = createInsertSchema(clientProjects).omit({
-  id: true,
-  createdAt: true
+    updatedAt: true,
+    hashedPassword: true, // Handled separately
+    verificationToken: true,
+    verificationTokenExpiresAt: true,
+    passwordResetToken: true,
+    passwordResetTokenExpiresAt: true,
+    isVerified: true,
+    profileSetupComplete: true,
 });
+export const selectUserSchema = createSelectSchema(users);
+export type User = z.infer<typeof selectUserSchema>;
+export type NewUser = z.infer<typeof insertUserSchema>;
 
-export const insertDocumentSchema = createInsertSchema(documents).omit({
-  id: true,
-  createdAt: true
-});
+// Projects
+export const insertProjectSchema = createInsertSchema(projects, {
+    budget: z.coerce.number().positive().optional(),
+    clientIds: z.array(z.string().uuid()).optional().nullable(), // Ensure client IDs are UUIDs
+    projectManagerId: z.string().uuid().optional().nullable(), // Ensure PM ID is UUID
+    startDate: z.coerce.date().optional(),
+    endDate: z.coerce.date().optional(),
+    name: z.string().min(1, "Project name is required"),
+}).omit({ id: true, createdAt: true, updatedAt: true });
+export const selectProjectSchema = createSelectSchema(projects);
+export type Project = z.infer<typeof selectProjectSchema>;
+export type NewProject = z.infer<typeof insertProjectSchema>;
 
-export const insertInvoiceSchema = createInsertSchema(invoices).omit({
-  id: true,
-  createdAt: true
-});
+// Documents
+export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true, createdAt: true, updatedAt: true, fileUrl: true });
+export const selectDocumentSchema = createSelectSchema(documents);
+export type Document = z.infer<typeof selectDocumentSchema>;
+export type NewDocument = z.infer<typeof insertDocumentSchema>;
 
-export const insertPaymentSchema = createInsertSchema(payments).omit({
-  id: true,
-  createdAt: true
-});
+// Tasks
+export const insertTaskSchema = createInsertSchema(tasks, {
+     startDate: z.coerce.date().optional(),
+     endDate: z.coerce.date().optional(),
+     estimatedDuration: z.coerce.number().int().optional(),
+     actualDuration: z.coerce.number().int().optional(),
+     progress: z.coerce.number().int().min(0).max(100).optional().default(0),
+     priority: z.coerce.number().int().min(0).max(2).optional().default(0),
+     assignedToUserId: z.string().uuid().optional().nullable(),
+     createdById: z.string().uuid().optional().nullable(),
+     title: z.string().min(1, "Task title is required"),
+}).omit({ id: true, createdAt: true, updatedAt: true });
+export const selectTaskSchema = createSelectSchema(tasks);
+export type Task = z.infer<typeof selectTaskSchema>;
+export type NewTask = z.infer<typeof insertTaskSchema>;
 
-export const insertMessageSchema = createInsertSchema(messages).omit({
-  id: true,
-  createdAt: true,
-  isRead: true
-});
+// Task Dependencies
+export const insertTaskDependencySchema = createInsertSchema(taskDependencies);
+export const selectTaskDependencySchema = createSelectSchema(taskDependencies);
+export type TaskDependency = z.infer<typeof selectTaskDependencySchema>;
+export type NewTaskDependency = z.infer<typeof insertTaskDependencySchema>;
 
-export const insertProgressUpdateSchema = createInsertSchema(progressUpdates).omit({
-  id: true,
-  createdAt: true
-});
+// Invoices
+export const insertInvoiceSchema = createInsertSchema(invoices, {
+    issueDate: z.coerce.date(),
+    dueDate: z.coerce.date().optional(),
+    amount: z.coerce.number().positive(),
+    taxAmount: z.coerce.number().nonnegative().optional().default(0),
+    totalAmount: z.coerce.number().positive(), // Could be calculated on backend
+}).omit({ id: true, createdAt: true, updatedAt: true });
+export const selectInvoiceSchema = createSelectSchema(invoices);
+export type Invoice = z.infer<typeof selectInvoiceSchema>;
+export type NewInvoice = z.infer<typeof insertInvoiceSchema>;
 
-export const insertUpdateMediaSchema = createInsertSchema(updateMedia).omit({
-  id: true,
-  createdAt: true
-}).extend({
-  updateId: z.number().optional().nullable(),
-  punchListItemId: z.number().optional().nullable(),
-});
+// Payments
+export const insertPaymentSchema = createInsertSchema(payments, {
+    paymentDate: z.coerce.date().optional(),
+    amount: z.coerce.number().positive(),
+}).omit({ id: true, createdAt: true });
+export const selectPaymentSchema = createSelectSchema(payments);
+export type Payment = z.infer<typeof selectPaymentSchema>;
+export type NewPayment = z.infer<typeof insertPaymentSchema>;
 
+// Messages
+export const insertMessageSchema = createInsertSchema(messages, {
+    content: z.string().min(1, "Message content cannot be empty"),
+}).omit({ id: true, createdAt: true, isRead: true });
+export const selectMessageSchema = createSelectSchema(messages);
+export type Message = z.infer<typeof selectMessageSchema>;
+export type NewMessage = z.infer<typeof insertMessageSchema>;
 
-export const insertMilestoneSchema = createInsertSchema(milestones).omit({
-  id: true,
-  createdAt: true
-});
+// Progress Updates
+export const insertProgressUpdateSchema = createInsertSchema(progressUpdates, {
+     updateDate: z.coerce.date().optional(),
+     description: z.string().min(1, "Description is required"),
+}).omit({ id: true, createdAt: true });
+export const selectProgressUpdateSchema = createSelectSchema(progressUpdates);
+export type ProgressUpdate = z.infer<typeof selectProgressUpdateSchema>;
+export type NewProgressUpdate = z.infer<typeof insertProgressUpdateSchema>;
 
-export const insertSelectionSchema = createInsertSchema(selections).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true
-});
+// Media
+export const insertMediaSchema = createInsertSchema(media).omit({ id: true, createdAt: true, fileUrl: true });
+export const selectMediaSchema = createSelectSchema(media);
+export type Media = z.infer<typeof selectMediaSchema>;
+export type NewMedia = z.infer<typeof insertMediaSchema>;
 
-// --- MODIFIED Task Insert Schema ---
-export const insertTaskSchema = createInsertSchema(tasks).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-    // Allow strings for ISO dates
-    startDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
-    dueDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
-    // Allow estimatedHours and actualHours to be either number or string
-    estimatedHours: z.union([
-        z.number().positive("Estimated hours must be positive").optional().nullable(),
-        // Allow string, attempt parse, check if result is number
-        z.string().refine((val) => val === "" || val === null || !isNaN(parseFloat(val)), {
-            message: "Estimated hours must be a valid number"
-        }).transform(val => val === "" || val === null ? null : parseFloat(val)).optional().nullable() // transform valid string to number
-    ]),
-    actualHours: z.union([
-        z.number().positive("Actual hours must be positive").optional().nullable(),
-        // Allow string, attempt parse, check if result is number
-        z.string().refine((val) => val === "" || val === null || !isNaN(parseFloat(val)), {
-            message: "Actual hours must be a valid number"
-        }).transform(val => val === "" || val === null ? null : parseFloat(val)).optional().nullable() // transform valid string to number
-    ]),
-    // Ensure progress is within 0-100
-    progress: z.number().int().min(0).max(100).default(0).optional(), // Adding optional if you don't always provide it
-});
-// --- END MODIFIED Task Insert Schema ---
+// Daily Logs
+export const insertDailyLogSchema = createInsertSchema(dailyLogs, {
+    logDate: z.coerce.date().optional(),
+    temperature: z.coerce.number().optional(),
+    personnelCount: z.coerce.number().int().optional(),
+    workPerformed: z.string().min(1, "Work performed details are required"),
+}).omit({ id: true, createdAt: true, updatedAt: true });
+export const selectDailyLogSchema = createSelectSchema(dailyLogs);
+export type DailyLog = z.infer<typeof selectDailyLogSchema>;
+export type NewDailyLog = z.infer<typeof insertDailyLogSchema>;
 
-export const insertTaskDependencySchema = createInsertSchema(taskDependencies).omit({
-  id: true,
-  createdAt: true,
-});
+// Punch List Items
+export const insertPunchListItemSchema = createInsertSchema(punchListItems, {
+    priority: z.coerce.number().int().min(0).max(2).optional().default(0),
+    dueDate: z.coerce.date().optional(),
+    dateCompleted: z.coerce.date().optional(),
+    description: z.string().min(1, "Description is required"),
+}).omit({ id: true, createdAt: true, updatedAt: true });
+export const selectPunchListItemSchema = createSelectSchema(punchListItems);
+export type PunchListItem = z.infer<typeof selectPunchListItemSchema>;
+export type NewPunchListItem = z.infer<typeof insertPunchListItemSchema>;
 
-export const insertDailyLogSchema = createInsertSchema(dailyLogs).omit({
-  id: true,
-  createdAt: true,
-}).extend({
-    logDate: z.union([z.string().datetime(), z.date()]), // Make required
-    // Allow temperature to be number or string, transform string to number
-    temperature: z.union([
-        z.number().optional().nullable(),
-        z.string().refine((val) => val === "" || val === null || !isNaN(parseFloat(val)), {
-             message: "Temperature must be a valid number"
-        }).transform(val => val === "" || val === null ? null : parseFloat(val)).optional().nullable()
-    ]),
-});
+// Milestones
+export const insertMilestoneSchema = createInsertSchema(milestones, {
+    targetDate: z.coerce.date().optional(),
+    completionDate: z.coerce.date().optional(),
+}).omit({ id: true, createdAt: true, updatedAt: true });
+export const selectMilestoneSchema = createSelectSchema(milestones);
+export type Milestone = z.infer<typeof selectMilestoneSchema>;
+export type NewMilestone = z.infer<typeof insertMilestoneSchema>;
 
-export const insertDailyLogPhotoSchema = createInsertSchema(dailyLogPhotos).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertPunchListItemSchema = createInsertSchema(punchListItems).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  resolvedAt: true, // Usually set when status changes
-}).extend({
-  dueDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
-});
-
-// --- Export Types ---
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
-
-export type InsertProject = z.infer<typeof insertProjectSchema>;
-export type Project = typeof projects.$inferSelect;
-
-export type InsertClientProject = z.infer<typeof insertClientProjectSchema>;
-export type ClientProject = typeof clientProjects.$inferSelect;
-
-export type InsertDocument = z.infer<typeof insertDocumentSchema>;
-export type Document = typeof documents.$inferSelect;
-
-export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
-export type Invoice = typeof invoices.$inferSelect;
-
-export type InsertPayment = z.infer<typeof insertPaymentSchema>;
-export type Payment = typeof payments.$inferSelect;
-
-export type InsertMessage = z.infer<typeof insertMessageSchema>;
-export type Message = typeof messages.$inferSelect;
-
-export type InsertProgressUpdate = z.infer<typeof insertProgressUpdateSchema>;
-export type ProgressUpdate = typeof progressUpdates.$inferSelect;
-
-export type InsertUpdateMedia = z.infer<typeof insertUpdateMediaSchema>;
-export type UpdateMedia = typeof updateMedia.$inferSelect;
-
-export type InsertMilestone = z.infer<typeof insertMilestoneSchema>;
-export type Milestone = typeof milestones.$inferSelect;
-
-export type InsertSelection = z.infer<typeof insertSelectionSchema>;
-export type Selection = typeof selections.$inferSelect;
-
-export type InsertTask = z.infer<typeof insertTaskSchema>;
-export type Task = typeof tasks.$inferSelect;
-
-export type InsertTaskDependency = z.infer<typeof insertTaskDependencySchema>;
-export type TaskDependency = typeof taskDependencies.$inferSelect;
-
-export type InsertDailyLog = z.infer<typeof insertDailyLogSchema>;
-export type DailyLog = typeof dailyLogs.$inferSelect;
-
-export type InsertDailyLogPhoto = z.infer<typeof insertDailyLogPhotoSchema>;
-export type DailyLogPhoto = typeof dailyLogPhotos.$inferSelect;
-
-export type InsertPunchListItem = z.infer<typeof insertPunchListItemSchema>;
-export type PunchListItem = typeof punchListItems.$inferSelect;
-
-// --- Export Combined Types ---
-export type DailyLogWithDetails = DailyLog & {
-    creator?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
-    photos?: DailyLogPhoto[];
-};
-export type TaskWithAssignee = Task & { assignee?: Pick<User, 'id' | 'firstName' | 'lastName'> | null };
-export type PunchListItemWithDetails = PunchListItem & {
-    assignee?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
-    creator?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
-    media?: UpdateMedia[];
-};
-export type ProjectWithDetails = Project & {
-    projectManager?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
-    clients?: Pick<User, 'id' | 'firstName' | 'lastName'>[]; // Assuming clients are fetched separately and merged
-};
-export type DocumentWithUploader = Document & {
-    uploader?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
-};
+// Selections
+export const insertSelectionSchema = createInsertSchema(selections, {
+    decisionDeadline: z.coerce.date().optional(),
+    dateApproved: z.coerce.date().optional(),
+    costEstimate: z.coerce.number().optional(),
+    actualCost: z.coerce.number().optional(),
+}).omit({ id: true, createdAt: true, updatedAt: true });
+export const selectSelectionSchema = createSelectSchema(selections);
+export type Selection = z.infer<typeof selectSelectionSchema>;
+export type NewSelection = z.infer<typeof insertSelectionSchema>;

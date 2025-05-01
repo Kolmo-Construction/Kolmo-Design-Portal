@@ -15,9 +15,11 @@ class MediaStorage {
   }
 }
 
-// Changed import from '@/shared/schema' to a relative path
+// Import from scheme with relative path
 import * as schema from '../../../shared/schema'; // Relative path to shared/schema.ts
-import { InsertUpdateMedia, updateMedia } from '../../../shared/schema'; // Relative path to shared/schema.ts
+import { media } from '../../../shared/schema'; // Import the media table
+// Define the type for inserting media
+type InsertMedia = typeof media.$inferInsert;
 
 
 // Update the IMediaRepository interface if you use one elsewhere to reflect transaction parameter if you use one
@@ -32,11 +34,11 @@ export class MediaRepository {
    ) {}
 
 
-  async createMedia(data: InsertUpdateMedia) {
-    if (!data.updateId && !data.punchListItemId) {
-        throw new Error("Either updateId or punchListItemId must be provided");
+  async createMedia(data: InsertMedia) {
+    if (!data.progressUpdateId && !data.punchListItemId && !data.dailyLogId) {
+        throw new Error("Either progressUpdateId, dailyLogId, or punchListItemId must be provided");
     }
-    const result = await this.dbOrTx.insert(updateMedia).values(data).returning();
+    const result = await this.dbOrTx.insert(media).values(data).returning();
     return result[0];
   }
 

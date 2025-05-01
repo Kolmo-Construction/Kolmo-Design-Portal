@@ -1,52 +1,71 @@
-// server/storage/types.ts
+import type {
+    Project,
+    Document,
+    User,
+    Task,
+    TaskDependency,
+    DailyLog,
+    Media,
+    PunchListItem,
+    ProgressUpdate,
+    Invoice,
+} from '@/shared/schema'; // Adjust imports based on your actual schema exports
 
-// Changed import from '../../shared/schema' to a relative path
-import * as schema from '../../shared/schema'; // Relative path to shared/schema.ts
+// --- NEW OR MODIFIED TYPE ---
+export type ProjectWithManagerAndClients = Project & {
+    projectManagerName: string | null;
+    clientNames: string[];
+    // Include other relations if they were part of a previous 'ProjectWithDetails' type
+    // For example:
+    // documents?: Document[];
+    // tasks?: Task[];
+};
+// --- END OF CHANGE ---
 
-// Define reusable types for repository return values
-export type UserProfile = Omit<schema.User, 'password' | 'magicLinkToken' | 'magicLinkExpiry'>; // Corrected field names based on schema
-export type ClientInfo = Pick<schema.User, 'id' | 'firstName' | 'lastName' | 'email'>;
-export type ProjectManagerInfo = Pick<schema.User, 'id' | 'firstName' | 'lastName' | 'email'>;
-
-export type ProjectWithDetails = schema.Project & {
-    clients: ClientInfo[];
-    projectManager: ProjectManagerInfo | null;
+// Keep other existing types if needed
+export type TaskWithAssignee = Task & {
+    assigneeName: string | null;
 };
 
-export type TaskWithAssignee = schema.Task & {
-    assignee: Pick<schema.User, 'id' | 'firstName' | 'lastName'> | null; // Use Pick for consistency
-    // Note: No creator field as the tasks table doesn't have a created_by column
+export type TaskWithDetails = Task & {
+    assignee: User | null; // Or just assigneeName: string | null;
+    dependencies?: TaskDependency[];
+    dependents?: TaskDependency[];
 };
 
-export type MessageWithSender = schema.Message & {
-    sender: Pick<schema.User, 'id' | 'firstName' | 'lastName' | 'role'>;
-    recipient: Pick<schema.User, 'id' | 'firstName' | 'lastName' | 'role'> | null; // Add recipient based on schema relations
+export type DailyLogWithDetails = DailyLog & {
+    createdByFullName: string | null;
+    media: Media[];
 };
 
-export type ProgressUpdateWithDetails = schema.ProgressUpdate & {
-    creator: Pick<schema.User, 'id' | 'firstName' | 'lastName'>, // Use creator based on schema relations
-    media: schema.UpdateMedia[] // Updated to match schema relation name and type
+export type PunchListItemWithDetails = PunchListItem & {
+    createdByFullName: string | null;
+    assignedToFullName: string | null;
+    media: Media[];
 };
 
-export type DailyLogWithAuthor = schema.DailyLog & {
-    creator: Pick<schema.User, 'id' | 'firstName' | 'lastName'>; // Use creator based on schema relations
-    photos: schema.DailyLogPhoto[]; // Include daily log photos based on schema relations
+export type ProgressUpdateWithMedia = ProgressUpdate & {
+    media: Media[];
 };
 
-// Add DailyLogWithDetails for backward compatibility and maintain consistent naming
-export type DailyLogWithDetails = schema.DailyLog & {
-    creator?: Pick<schema.User, 'id' | 'firstName' | 'lastName'> | null;
-    photos?: schema.DailyLogPhoto[];
+export type InvoiceWithDetails = Invoice & {
+    // Add related fields if necessary, e.g., payments
 };
 
-export type PunchListItemWithDetails = schema.PunchListItem & {
-    creator: Pick<schema.User, 'id' | 'firstName' | 'lastName'>; // Use creator based on schema relations
-    assignee: Pick<schema.User, 'id' | 'firstName' | 'lastName'> | null; // Include assignee based on schema relations
-    media: schema.UpdateMedia[]; // Updated to match schema relation name and type
+export type ProjectFullDetails = ProjectWithManagerAndClients & {
+    documents?: Document[];
+    tasks?: TaskWithAssignee[]; // Or TaskWithDetails[]
+    dailyLogs?: DailyLogWithDetails[];
+    punchListItems?: PunchListItemWithDetails[];
+    progressUpdates?: ProgressUpdateWithMedia[];
+    invoices?: InvoiceWithDetails[];
+    // messages, milestones, selections etc. if needed
 };
 
-export type InvoiceWithPayments = schema.Invoice & {
-    payments: schema.Payment[]
-};
-
-// Define other complex types as needed...
+// Interface for User object expected by repositories/controllers
+// Ensure this matches what Passport puts on req.user
+export interface AuthenticatedUser {
+    id: string;
+    role: 'admin' | 'project_manager' | 'client';
+    // Add other fields from User if necessary (e.g., fullName)
+}
