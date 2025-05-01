@@ -1,10 +1,12 @@
+// server/controllers/document.controller.ts
+
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 // Updated import path for the aggregated storage object
 import { storage } from '../storage/index';
 // Import DocumentWithUploader directly from repository
 import { DocumentWithUploader } from '../storage/repositories/document.repository';
-import { insertDocumentSchema, User } from '../../shared/schema'; // Keep User type
+import { insertDocumentSchema, User } from '../../shared/schema'; // Keep User type and ensure it's correctly typed/imported
 import { HttpError } from '../errors';
 // R2 functions are separate from the storage repository
 import { uploadToR2, deleteFromR2, getR2DownloadUrl } from '../r2-upload';
@@ -32,6 +34,12 @@ export const getDocumentsForProject = async (
       throw new HttpError(400, 'Invalid project ID parameter.');
     }
 
+    // Permissions check (example - adjust based on your needs)
+    // Clients/PMs should only access projects they're assigned to.
+    // This logic might be better placed in middleware or called via a service method
+    // For now, assume storage.documents.getDocumentsForProject handles necessary permission checks internally
+    // OR call checkProjectAccess helper if available and appropriate here.
+
     // Use the nested repository: storage.documents
     const documents = await storage.documents.getDocumentsForProject(projectIdNum);
     res.status(200).json(documents);
@@ -53,27 +61,32 @@ export const uploadDocument = async (
   try {
     const { projectId } = req.params;
     const projectIdNum = parseInt(projectId, 10);
-    const user = req.user as User;
+    const user = req.user as User; // Ensure User type is imported
 
     if (isNaN(projectIdNum)) { throw new HttpError(400, 'Invalid project ID parameter.'); }
     if (!user?.id) { throw new HttpError(401, 'Authentication required.'); }
     if (!req.file) { throw new HttpError(400, 'No file uploaded.'); }
 
-    // Verify the user has permission to upload documents to this project
-    // Admin can upload to any project
-    if (user.role !== 'ADMIN') {
-      // Check if user has access to this project
+    // --- Updated Permission Check for Upload ---
+    // 1. Explicitly deny clients
+    if (user.role === 'client') { // <-- ADDED CHECK FOR UPLOAD
+        throw new HttpError(403, 'Clients do not have permission to upload documents.');
+    }
+    // 2. Allow Admins implicitly
+    // 3. Check other roles (e.g., projectManager) for project access
+    else if (user.role !== 'ADMIN') {
       const hasAccess = await storage.projects.checkUserProjectAccess(user.id.toString(), projectIdNum);
-      
       if (!hasAccess) {
         throw new HttpError(403, 'You do not have permission to upload documents to this project.');
       }
     }
+    // --- End Permission Check ---
+
 
     const metaValidation = documentUploadMetaSchema.safeParse(req.body);
     const description = metaValidation.success ? metaValidation.data.description : undefined;
 
-    // 1. Upload file to R2 storage (No change here)
+    // 1. Upload file to R2 storage
     const r2Result = await uploadToR2({
         projectId: projectIdNum,
         fileName: req.file.originalname,
@@ -87,33 +100,33 @@ export const uploadDocument = async (
     uploadedKey = r2Result.key; // Track successful upload
 
     // 2. Prepare document data for DB
-    // Map fields to match the database schema
     const documentData = {
       projectId: projectIdNum,
-      uploadedById: user.id, // Database field is 'uploadedById' not 'uploadedBy'
-      name: req.file.originalname, // Database field is 'name' not 'fileName'
+      uploadedById: user.id,
+      name: req.file.originalname,
       fileSize: req.file.size,
-      fileType: req.file.mimetype, // Database field is 'fileType' not 'mimeType'
-      fileUrl: r2Result.key, // Database field is 'fileUrl' not 'storageKey'
+      fileType: req.file.mimetype,
+      fileUrl: r2Result.key, // Store R2 key
       description: description,
-      category: 'GENERAL', // Default category
+      category: 'GENERAL', // Default category or derive from input
     };
 
-    // Validate against the Drizzle schema before insertion
+    // 3. Validate against the Drizzle schema before insertion
     const dbSchemaValidation = insertDocumentSchema.safeParse(documentData);
      if (!dbSchemaValidation.success) {
         console.error("Document DB schema validation failed:", dbSchemaValidation.error);
+        // Consider sending flattened errors to client: throw new HttpError(400, 'Invalid document data.', dbSchemaValidation.error.flatten());
         throw new HttpError(500, 'Internal server error preparing document data.');
     }
 
-    // Use the nested repository: storage.documents
+    // 4. Use the nested repository to create the document record
     const createdDocument = await storage.documents.createDocument(dbSchemaValidation.data);
 
     if (!createdDocument) {
-        // Should not happen if insert is successful, but handle defensively
          throw new HttpError(500, 'Failed to save document record to database.');
     }
 
+    // Consider fetching the document with uploader details if needed for the response
     res.status(201).json(createdDocument); // Return the basic document record
 
   } catch (error) {
@@ -127,7 +140,7 @@ export const uploadDocument = async (
              console.error("Error during R2 cleanup process:", cleanupError);
         }
     }
-    next(error);
+    next(error); // Pass error to the final error handler
   }
 };
 
@@ -145,80 +158,91 @@ export const deleteDocument = async (
     const { projectId, documentId } = req.params;
     const projectIdNum = parseInt(projectId, 10);
     const documentIdNum = parseInt(documentId, 10);
-    const user = req.user as User;
+    const user = req.user as User; // Ensure User type is imported
 
     if (isNaN(projectIdNum) || isNaN(documentIdNum)) {
       throw new HttpError(400, 'Invalid project or document ID parameter.');
     }
     if (!user?.id) { throw new HttpError(401, 'Authentication required.'); }
 
+    // --- START: Updated Permission Check for Delete ---
     // Verify the user has permission to delete documents from this project
-    // Admin can delete from any project
-    if (user.role !== 'ADMIN') {
-      // Check if user has access to this project
+
+    // 1. Explicitly deny clients
+    if (user.role === 'client') { // <--- ADDED THIS CHECK
+        throw new HttpError(403, 'Clients do not have permission to delete documents.');
+    }
+    // 2. Allow Admins implicitly
+    // 3. Check other roles (e.g., projectManager) for project access
+    else if (user.role !== 'ADMIN') { // Check non-admin, non-client roles
       const hasAccess = await storage.projects.checkUserProjectAccess(user.id.toString(), projectIdNum);
-      
       if (!hasAccess) {
         throw new HttpError(403, 'You do not have permission to delete documents from this project.');
       }
     }
+    // --- END: Updated Permission Check for Delete ---
+
 
     // 1. Fetch the document record to get the storageKey and verify ownership
-    // Use the nested repository: storage.documents
     const document = await storage.documents.getDocumentById(documentIdNum);
 
     if (!document) { throw new HttpError(404, 'Document not found.'); }
     if (document.projectId !== projectIdNum) { throw new HttpError(403, 'Document does not belong to the specified project.'); }
 
-    // Extract storage key from fileUrl (similar to download function)
-    const fileUrl = document.fileUrl;
+    // 2. Extract storage key from fileUrl
+    const fileUrl = document.fileUrl; // This field stores the R2 key
     let key = fileUrl;
-    
-    // Try to extract the key if it's a full URL
+
+    // Attempt to handle cases where full URLs might have been stored previously
+    // This extraction logic might need adjustment based on how keys are actually stored
     if (fileUrl.includes('.com/')) {
-      key = fileUrl.split('.com/')[1];
+      key = fileUrl.split('.com/').pop() || fileUrl;
     } else if (fileUrl.includes('.dev/')) {
-      key = fileUrl.split('.dev/')[1];
-    } else if (fileUrl.includes('/')) {
-      // Fallback: just use the part after the last slash
-      key = fileUrl.split('/').pop() || fileUrl;
+      key = fileUrl.split('.dev/').pop() || fileUrl;
     }
-    
+    // Assuming the key is path-like if not a full URL
     storageKeyToDelete = key;
-    console.log(`Deleting file with key: ${storageKeyToDelete} from fileUrl: ${fileUrl}`);
+    console.log(`Attempting to delete file with key: ${storageKeyToDelete} from derived fileUrl: ${fileUrl}`);
 
-    // 2. Delete the file from R2 storage
+
+    // 3. Delete the file from R2 storage
     await deleteFromR2(storageKeyToDelete);
+    console.log(`Successfully deleted file ${storageKeyToDelete} from R2.`);
 
-    // 3. Delete the document record from the database
-    // Use the nested repository: storage.documents
+
+    // 4. Delete the document record from the database
     const success = await storage.documents.deleteDocument(documentIdNum);
 
     if (!success) {
-       // Should not happen normally if getDocumentById found it
-       throw new HttpError(500, 'Failed to delete document record from database.');
+       // This case might indicate a race condition or inconsistency if the doc existed moments ago
+       console.warn(`Document ${documentIdNum} was not found for DB deletion after R2 deletion attempt.`);
+       // Depending on requirements, you might still consider the operation successful
+       // or throw an error indicating potential inconsistency.
+       // For now, let's treat it as "not found" from the client's perspective if DB delete fails.
+       throw new HttpError(404, 'Document not found for deletion in database.');
     }
 
-    res.status(204).send();
-  } catch (error) {
-     // Note: If DB delete fails after successful R2 delete, the file is orphaned.
-     // More robust handling might re-try DB delete or log for manual intervention.
-     // If R2 delete fails, we still proceed to delete DB record (as per original logic).
-     if (error instanceof HttpError) return next(error); // Pass client errors
-     if (error === deleteFromR2) { // Check if the error originated from R2 delete
-        console.error(`Failed to delete document key ${storageKeyToDelete} from R2, but proceeding with DB delete:`, error);
-        // If R2 fails, we still attempt DB delete in the original logic.
-        // If DB delete *also* fails, the outer catch handles it.
-        // If DB delete succeeds after R2 fail, the DB record is gone but R2 file remains (orphan).
-        // To ensure DB delete runs even after R2 error, the logic would need adjustment,
-        // but let's stick to original flow for now (R2 error stops execution before DB delete).
-        console.error(`Failed to delete document key ${storageKeyToDelete} from R2:`, error);
-        // Pass the error to the client/central handler
-        next(new HttpError(500, `Failed to delete file from storage. Error: ${error instanceof Error ? error.message : 'Unknown R2 error'}`));
+    res.status(204).send(); // Successfully deleted
 
+  } catch (error) {
+     // Log the error regardless of type for server visibility
+     console.error(`Error during document deletion (${documentId}):`, error);
+
+     // Rethrow HttpErrors to be handled by the final error handler
+     if (error instanceof HttpError) {
+        return next(error);
+     }
+
+     // Handle potential R2 errors specifically if possible/needed
+     // (Example check, might need refinement based on actual R2 error structure)
+     if (error && typeof error === 'object' && 'name' in error && typeof error.name === 'string' && error.name.includes('S3')) {
+        // If R2 delete failed, the DB record might still exist.
+        // Consider if you should proceed with DB deletion or not.
+        // Current logic stops here if R2 delete throws.
+        next(new HttpError(500, `Failed to delete file from storage. Error: ${error instanceof Error ? error.message : 'Unknown R2 error'}`));
      } else {
-        // Handle other errors (DB errors, parameter errors passed via next)
-        next(error);
+        // Handle other unexpected errors (DB errors, etc.)
+        next(new HttpError(500, 'An unexpected error occurred while deleting the document.'));
      }
   }
 };
@@ -236,48 +260,42 @@ export const getDocumentDownloadUrl = async (
     const { projectId, documentId } = req.params;
     const projectIdNum = parseInt(projectId, 10);
     const documentIdNum = parseInt(documentId, 10);
-    const user = req.user as User;
+    const user = req.user as User; // Ensure User type is imported
 
     if (isNaN(projectIdNum) || isNaN(documentIdNum)) { throw new HttpError(400, 'Invalid project or document ID parameter.'); }
     if (!user?.id) { throw new HttpError(401, 'Authentication required.'); }
-    
+
     // Verify the user has permission to download documents from this project
-    // Admin can download from any project
+    // This uses the same project access check logic
     if (user.role !== 'ADMIN') {
-      // Check if user has access to this project
       const hasAccess = await storage.projects.checkUserProjectAccess(user.id.toString(), projectIdNum);
-      
       if (!hasAccess) {
         throw new HttpError(403, 'You do not have permission to download documents from this project.');
       }
     }
 
     // 1. Fetch the document record for storageKey and verification
-    // Use the nested repository: storage.documents
     const document = await storage.documents.getDocumentById(documentIdNum);
 
     if (!document) { throw new HttpError(404, 'Document not found.'); }
     if (document.projectId !== projectIdNum) { throw new HttpError(403, 'Document does not belong to the specified project.'); }
 
-    // 2. Extract the correct R2 key from fileUrl 
-    // The field in the database is named fileUrl but it contains the R2 storage key
-    const fileUrl = document.fileUrl;
+    // 2. Extract the correct R2 key from fileUrl
+    const fileUrl = document.fileUrl; // This field contains the R2 key
     let key = fileUrl;
-    
-    // Try to extract the key if it's a full URL
-    if (fileUrl.includes('.com/')) {
-      key = fileUrl.split('.com/')[1];
-    } else if (fileUrl.includes('.dev/')) {
-      key = fileUrl.split('.dev/')[1];
-    } else if (fileUrl.includes('/')) {
-      // Fallback: just use the part after the last slash
-      key = fileUrl.split('/').pop() || fileUrl;
-    }
 
-    console.log(`Generating download URL for key: ${key} from fileUrl: ${fileUrl}`);
-    
-    // Generate a pre-signed download URL from R2
-    const downloadUrl = await getR2DownloadUrl(key, document.name);
+    // Handle potential full URLs stored previously
+    if (fileUrl.includes('.com/')) {
+      key = fileUrl.split('.com/').pop() || fileUrl;
+    } else if (fileUrl.includes('.dev/')) {
+       key = fileUrl.split('.dev/').pop() || fileUrl;
+    }
+    // Assume key is path-like otherwise
+
+    console.log(`Generating download URL for key: ${key} derived from fileUrl: ${fileUrl}`);
+
+    // 3. Generate a pre-signed download URL from R2
+    const downloadUrl = await getR2DownloadUrl(key, document.name); // Pass original name for content-disposition
 
     if (!downloadUrl) { throw new HttpError(500, 'Could not generate download URL.'); }
 
@@ -297,20 +315,17 @@ export const getAllAccessibleDocuments = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const user = req.user as User;
+    const user = req.user as User; // Ensure User type is imported
 
     if (!user?.id) {
       throw new HttpError(401, 'Authentication required.');
     }
 
-    // Use the nested repository: storage.documents
-    // For admin, get all documents, for others get only documents from their projects
-    let documents;
-    if (user.role === 'ADMIN') {
-      documents = await storage.documents.getAllDocuments();
-    } else {
-      documents = await storage.documents.getDocumentsForUser(user.id);
-    }
+    // Use the nested repository which handles role-based access internally
+    const documents = await storage.documents.getDocumentsForUser(user.id);
+
+    // Note: getDocumentsForUser already filters based on role (Admin sees all, others see their projects)
+    // The DocumentWithUploader type mapping is also handled within the repository.
 
     res.status(200).json(documents);
   } catch (error) {

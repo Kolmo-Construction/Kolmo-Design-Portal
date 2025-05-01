@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Document } from "@shared/schema";
+import { Document, Project } from "@shared/schema";
 import { getQueryFn, apiRequest } from "@/lib/queryClient";
 // REMOVED: format import from date-fns
 import {
@@ -11,7 +11,7 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Download, Loader2, FolderOpen, FileIcon, Image as ImageIcon, Upload } from "lucide-react";
+import { FileText, Download, Loader2, FolderOpen, FileIcon, Image as ImageIcon, Upload, Trash2 } from "lucide-react";
 // ADDED Imports from utils
 import { formatDate, formatFileSize, getFileIcon } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -23,6 +23,17 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ProjectDocumentsTabProps {
   projectId: number;
@@ -44,7 +55,18 @@ type UploadFormValues = z.infer<typeof uploadFormSchema>;
 export function ProjectDocumentsTab({ projectId }: ProjectDocumentsTabProps) {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+  
+  // Get project data to check if current user is project manager
+  const { data: project } = useQuery<Project>({
+    queryKey: [`/api/projects/${projectId}`],
+    queryFn: getQueryFn({ on401: "throw" }),
+    enabled: projectId > 0,
+  });
   
   const {
     data: documents = [],
@@ -54,6 +76,20 @@ export function ProjectDocumentsTab({ projectId }: ProjectDocumentsTabProps) {
     queryFn: getQueryFn({ on401: "throw" }),
     enabled: projectId > 0,
   });
+  
+  // Function to check if user can delete documents
+  const canDeleteDocument = () => {
+    if (!user) return false;
+    
+    // Admin can always delete
+    if (user.role === 'ADMIN') return true;
+    
+    // Project managers can delete for their projects
+    if (user.role === 'PROJECT_MANAGER' && project?.projectManagerId === user.id) return true;
+    
+    // All other users cannot delete
+    return false;
+  };
 
   // Initialize form with react-hook-form
   const form = useForm<UploadFormValues>({
@@ -91,6 +127,50 @@ export function ProjectDocumentsTab({ projectId }: ProjectDocumentsTabProps) {
   };
   
   // Handle document upload
+  // Handle document deletion
+  const handleDeleteDocument = async () => {
+    if (!documentToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/documents/${documentToDelete.id}`, {
+        method: "DELETE",
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: "Delete failed" }));
+        throw new Error(errorData.message || "Failed to delete document");
+      }
+      
+      // Success - refresh document list
+      await queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/documents`] });
+      
+      toast({
+        title: "Document Deleted",
+        description: "The document was successfully deleted",
+      });
+      
+      // Close dialog
+      setIsDeleteDialogOpen(false);
+      setDocumentToDelete(null);
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast({
+        title: "Delete Failed",
+        description: error instanceof Error ? error.message : "There was a problem deleting the document",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+  
+  // Open delete confirmation dialog
+  const confirmDeleteDocument = (document: Document) => {
+    setDocumentToDelete(document);
+    setIsDeleteDialogOpen(true);
+  };
+
   const handleUpload = async (values: UploadFormValues) => {
     setIsUploading(true);
     
@@ -195,16 +275,31 @@ export function ProjectDocumentsTab({ projectId }: ProjectDocumentsTabProps) {
                        <p className="text-xs text-slate-400 mt-0.5">Uploaded on {formatDate(doc.createdAt)}</p>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-primary-600 gap-2 flex-shrink-0" // Prevent button from shrinking
-                    onClick={() => handleDownload(doc)}
-                    disabled={!doc.fileUrl}
-                  >
-                    <Download className="h-4 w-4" />
-                    Download
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-primary-600 gap-2 flex-shrink-0" // Prevent button from shrinking
+                      onClick={() => handleDownload(doc)}
+                      disabled={!doc.fileUrl}
+                    >
+                      <Download className="h-4 w-4" />
+                      Download
+                    </Button>
+                    
+                    {/* Only show delete button for admin and project managers on their projects */}
+                    {canDeleteDocument() && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive gap-2 flex-shrink-0"
+                        onClick={() => confirmDeleteDocument(doc)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -293,6 +388,39 @@ export function ProjectDocumentsTab({ projectId }: ProjectDocumentsTabProps) {
           </Form>
         </DialogContent>
       </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Document</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this document? This action cannot be undone
+              and the document will be permanently removed from the server.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault(); // Prevent dialog from closing automatically
+                handleDeleteDocument();
+              }}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>Delete</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
