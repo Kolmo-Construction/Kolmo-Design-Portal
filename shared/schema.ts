@@ -117,7 +117,8 @@ export const progressUpdates = pgTable("progress_updates", {
 // Update media (photos/videos) connected to progress updates OR punch list items
 export const updateMedia = pgTable("update_media", {
   id: serial("id").primaryKey(),
-  updateId: integer("update_id").notNull().references(() => progressUpdates.id),
+  updateId: integer("update_id").references(() => progressUpdates.id),
+  punchListItemId: integer("punch_list_item_id").references(() => punchListItems.id),
   mediaUrl: text("media_url").notNull(),
   mediaType: text("media_type").notNull(), // image, video
   caption: text("caption"),
@@ -290,6 +291,7 @@ export const progressUpdateRelations = relations(progressUpdates, ({ one, many }
 
 export const updateMediaRelations = relations(updateMedia, ({ one }) => ({
   update: one(progressUpdates, { fields: [updateMedia.updateId], references: [progressUpdates.id] }),
+  punchListItem: one(punchListItems, { fields: [updateMedia.punchListItemId], references: [punchListItems.id], relationName: 'PunchListItemMedia' }),
   uploader: one(users, { fields: [updateMedia.uploadedById], references: [users.id] }),
 }));
 
@@ -392,6 +394,9 @@ export const insertProgressUpdateSchema = createInsertSchema(progressUpdates).om
 export const insertUpdateMediaSchema = createInsertSchema(updateMedia).omit({
   id: true,
   createdAt: true
+}).extend({
+  updateId: z.number().optional().nullable(),
+  punchListItemId: z.number().optional().nullable(),
 });
 
 
@@ -526,6 +531,7 @@ export type TaskWithAssignee = Task & { assignee?: Pick<User, 'id' | 'firstName'
 export type PunchListItemWithDetails = PunchListItem & {
     assignee?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
     creator?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
+    media?: UpdateMedia[];
 };
 export type ProjectWithDetails = Project & {
     projectManager?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
