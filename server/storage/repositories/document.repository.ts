@@ -101,20 +101,35 @@ class DocumentRepository implements IDocumentRepository {
 
     async getAllDocuments(): Promise<DocumentWithUploader[]> {
         try {
-            const documents = await this.dbOrTx.query.documents.findMany({
-                orderBy: [desc(schema.documents.createdAt)],
-                with: { // Join with the user who uploaded the document
-                    uploadedBy: {
-                        columns: {
-                            id: true,
-                            firstName: true,
-                            lastName: true,
-                        }
-                    }
-                }
-            });
+            // Fetch documents first
+            const documents = await this.dbOrTx.select().from(schema.documents)
+                .orderBy(desc(schema.documents.createdAt));
             
-            return documents as DocumentWithUploader[];
+            // Then fetch uploader info separately for each document
+            const documentsWithUploader: DocumentWithUploader[] = [];
+            
+            for (const doc of documents) {
+                let uploadedBy = null;
+                
+                if (doc.uploadedById) {
+                    const uploader = await this.dbOrTx.select({
+                        id: schema.users.id,
+                        firstName: schema.users.firstName,
+                        lastName: schema.users.lastName
+                    }).from(schema.users)
+                    .where(eq(schema.users.id, doc.uploadedById))
+                    .then(result => result[0] || null);
+                    
+                    uploadedBy = uploader;
+                }
+                
+                documentsWithUploader.push({
+                    ...doc,
+                    uploadedBy
+                });
+            }
+            
+            return documentsWithUploader;
         } catch (error) {
             console.error('Error fetching all documents:', error);
             throw new Error('Database error while fetching all documents.');
@@ -141,8 +156,8 @@ class DocumentRepository implements IDocumentRepository {
             
             // Combine all project IDs
             const projectIds = [
-                ...userProjects.map(p => p.projectId),
-                ...managedProjects.map(p => p.id)
+                ...userProjects.map((p: { projectId: number }) => p.projectId),
+                ...managedProjects.map((p: { id: number }) => p.id)
             ];
             
             // If user has no projects, return empty array
@@ -150,22 +165,37 @@ class DocumentRepository implements IDocumentRepository {
                 return [];
             }
             
-            // Get documents for all these projects
-            const documents = await this.dbOrTx.query.documents.findMany({
-                where: sql`${schema.documents.projectId} IN (${sql.join(projectIds, sql`, `)})`,
-                orderBy: [desc(schema.documents.createdAt)],
-                with: {
-                    uploadedBy: {
-                        columns: {
-                            id: true, 
-                            firstName: true,
-                            lastName: true
-                        }
-                    }
-                }
-            });
+            // Get documents for all these projects - using a simplified approach
+            // Fetch documents first
+            const documents = await this.dbOrTx.select().from(schema.documents)
+                .where(sql`${schema.documents.projectId} IN (${sql.join(projectIds, sql`, `)})`)
+                .orderBy(desc(schema.documents.createdAt));
             
-            return documents as DocumentWithUploader[];
+            // Then fetch uploader info separately for each document
+            const documentsWithUploader: DocumentWithUploader[] = [];
+            
+            for (const doc of documents) {
+                let uploadedBy = null;
+                
+                if (doc.uploadedById) {
+                    const uploader = await this.dbOrTx.select({
+                        id: schema.users.id,
+                        firstName: schema.users.firstName,
+                        lastName: schema.users.lastName
+                    }).from(schema.users)
+                    .where(eq(schema.users.id, doc.uploadedById))
+                    .then(result => result[0] || null);
+                    
+                    uploadedBy = uploader;
+                }
+                
+                documentsWithUploader.push({
+                    ...doc,
+                    uploadedBy
+                });
+            }
+            
+            return documentsWithUploader;
             
         } catch (error) {
             console.error(`Error fetching documents for user ${userId}:`, error);
