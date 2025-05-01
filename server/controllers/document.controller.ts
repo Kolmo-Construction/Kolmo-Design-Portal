@@ -2,8 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 // Updated import path for the aggregated storage object
 import { storage } from '../storage/index';
-// Import specific types if needed (DocumentWithUploader might be used by FE, but controller methods use base Document or void)
-import { DocumentWithUploader } from '../storage/types';
+// Import DocumentWithUploader directly from repository
+import { DocumentWithUploader } from '../storage/repositories/document.repository';
 import { insertDocumentSchema, User } from '../../shared/schema'; // Keep User type
 import { HttpError } from '../errors';
 // R2 functions are separate from the storage repository
@@ -76,14 +76,16 @@ export const uploadDocument = async (
     uploadedKey = r2Result.key; // Track successful upload
 
     // 2. Prepare document data for DB
+    // Map fields to match the database schema
     const documentData = {
       projectId: projectIdNum,
-      uploadedBy: user.id,
-      fileName: req.file.originalname,
+      uploadedById: user.id, // Database field is 'uploadedById' not 'uploadedBy'
+      name: req.file.originalname, // Database field is 'name' not 'fileName'
       fileSize: req.file.size,
-      mimeType: req.file.mimetype,
-      storageKey: r2Result.key,
+      fileType: req.file.mimetype, // Database field is 'fileType' not 'mimeType'
+      fileUrl: r2Result.key, // Database field is 'fileUrl' not 'storageKey'
       description: description,
+      category: 'GENERAL', // Default category
     };
 
     // Validate against the Drizzle schema before insertion
@@ -144,9 +146,24 @@ export const deleteDocument = async (
     if (!document) { throw new HttpError(404, 'Document not found.'); }
     if (document.projectId !== projectIdNum) { throw new HttpError(403, 'Document does not belong to the specified project.'); }
 
-    storageKeyToDelete = document.storageKey; // Store key for deletion
+    // Extract storage key from fileUrl (similar to download function)
+    const fileUrl = document.fileUrl;
+    let key = fileUrl;
+    
+    // Try to extract the key if it's a full URL
+    if (fileUrl.includes('.com/')) {
+      key = fileUrl.split('.com/')[1];
+    } else if (fileUrl.includes('.dev/')) {
+      key = fileUrl.split('.dev/')[1];
+    } else if (fileUrl.includes('/')) {
+      // Fallback: just use the part after the last slash
+      key = fileUrl.split('/').pop() || fileUrl;
+    }
+    
+    storageKeyToDelete = key;
+    console.log(`Deleting file with key: ${storageKeyToDelete} from fileUrl: ${fileUrl}`);
 
-    // 2. Delete the file from R2 storage (No change here)
+    // 2. Delete the file from R2 storage
     await deleteFromR2(storageKeyToDelete);
 
     // 3. Delete the document record from the database

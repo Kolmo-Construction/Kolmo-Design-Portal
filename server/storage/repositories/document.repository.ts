@@ -1,6 +1,6 @@
 // server/storage/repositories/document.repository.ts
-import { NeonDatabase, PgTransaction } from 'drizzle-orm/neon-serverless';
-import { eq, and, or, sql, desc, asc } from 'drizzle-orm';
+import { NeonDatabase } from 'drizzle-orm/neon-serverless';
+import { eq, and, or, sql, desc, asc, exists } from 'drizzle-orm';
 import * as schema from '../../../shared/schema';
 import { db } from '../../db';
 import { HttpError } from '../../errors';
@@ -26,9 +26,9 @@ export interface IDocumentRepository {
 
 // Implementation
 class DocumentRepository implements IDocumentRepository {
-    private dbOrTx: NeonDatabase<typeof schema> | PgTransaction<any, any, any>;
+    private dbOrTx: NeonDatabase<typeof schema> | any; // Use 'any' for transaction type to avoid compatibility issues
 
-    constructor(databaseOrTx: NeonDatabase<typeof schema> | PgTransaction<any, any, any> = db) {
+    constructor(databaseOrTx: NeonDatabase<typeof schema> | any = db) {
         this.dbOrTx = databaseOrTx;
     }
 
