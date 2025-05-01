@@ -1,12 +1,15 @@
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Project } from "@shared/schema";
+import { Project, ProjectWithDetails } from "@shared/schema";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Users, UserCircle } from "lucide-react";
 
 interface ProjectCardProps {
-  project: Project;
+  project: Project & {
+    projectManager?: { id: number; firstName: string; lastName: string } | null;
+    clients?: { id: number; firstName: string; lastName: string }[];
+  };
 }
 
 export default function ProjectCard({ project }: ProjectCardProps) {
@@ -66,6 +69,22 @@ export default function ProjectCard({ project }: ProjectCardProps) {
       <div className="p-5">
         <h3 className="font-semibold text-slate-800 text-lg mb-2">{project.name}</h3>
         <p className="text-slate-600 text-sm mb-4">{project.address}, {project.city}, {project.state}</p>
+        
+        {/* Project Manager */}
+        {project.projectManager && (
+          <div className="flex items-center text-sm text-slate-500 mb-2">
+            <UserCircle className="h-5 w-5 mr-1" />
+            <span>PM: {project.projectManager.firstName} {project.projectManager.lastName}</span>
+          </div>
+        )}
+        
+        {/* Clients */}
+        {project.clients && project.clients.length > 0 && (
+          <div className="flex items-center text-sm text-slate-500 mb-2">
+            <Users className="h-5 w-5 mr-1" />
+            <span>Client: {project.clients[0].firstName} {project.clients[0].lastName}</span>
+          </div>
+        )}
         
         <div className="flex items-center text-sm text-slate-500 mb-4">
           <CalendarIcon className="h-5 w-5 mr-1" />
