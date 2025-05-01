@@ -9,8 +9,13 @@ import { db } from '../../db'; // Import the database instance
 import { HttpError } from '../../errors';
 // Import updated types including the correct media relation - relative path
 import { PunchListItemWithDetails } from '../types';
+
+// Extend PunchListItemWithDetails with mediaItems for backward compatibility
+interface ExtendedPunchListItemWithDetails extends PunchListItemWithDetails {
+    mediaItems?: schema.UpdateMedia[];
+}
 // Import ONLY the Media Repository INTERFACE for type hinting
-import { IMediaRepository } from './media.repository'; // Relative path to media.repository.ts
+import { IMediaRepository, MediaRepository } from './media.repository'; // Relative path to media.repository.ts
 import { log as logger } from '../../vite'; // Import logger
 
 // --- REMOVED: Placeholder MediaStorage and simpleLogger ---
@@ -45,56 +50,65 @@ export class PunchListRepository implements IPunchListRepository {
 
     // Helper function to fetch item with details (including media)
     private async _getPunchListItemWithDetails(itemId: number): Promise<PunchListItemWithDetails | null> {
+        // Fetch the punch list item with creator and assignee details
         const item = await this.dbOrTx.query.punchListItems.findFirst({
             where: eq(schema.punchListItems.id, itemId),
             with: {
                 creator: { columns: { id: true, firstName: true, lastName: true } },
-                assignee: { columns: { id: true, firstName: true, lastName: true } },
-                 // Fetch related media items using the correct relation name from schema.ts
-                 // Ensure 'media' is the relation defined in punchListItemRelations
-                media: {
-                    columns: {
-                        id: true,
-                        mediaUrl: true,
-                        mediaType: true,
-                        caption: true,
-                        uploadedById: true,
-                        createdAt: true
-                    }
-                }
+                assignee: { columns: { id: true, firstName: true, lastName: true } }
             }
         });
 
         if (!item) return null;
 
-        // Ensure the media property exists and rename for backward compatibility if needed
+        // Separately fetch media for this punch list item
+        const media = await this.dbOrTx.query.updateMedia.findMany({
+            where: eq(schema.updateMedia.punchListItemId, itemId)
+        });
+
+        // Build the full item with media
         const result = {
             ...item,
-            media: item.media || [], // Ensure media is always an array
-            mediaItems: item.media || [] // For compatibility with previous type defs
-        };
+            media: media || [],
+            mediaItems: media || [] // For backward compatibility
+        } as ExtendedPunchListItemWithDetails;
 
-        return result as PunchListItemWithDetails;
+        return result;
     }
 
 
     async getPunchListItemsForProject(projectId: number): Promise<PunchListItemWithDetails[]> {
         try {
+            // First, fetch all punch list items for the project without media
             const items = await this.dbOrTx.query.punchListItems.findMany({
                 where: eq(schema.punchListItems.projectId, projectId),
                 orderBy: [asc(schema.punchListItems.status), asc(schema.punchListItems.createdAt)],
                 with: {
                     creator: { columns: { id: true, firstName: true, lastName: true } },
-                    assignee: { columns: { id: true, firstName: true, lastName: true } },
-                    media: true // Fetch related media directly
+                    assignee: { columns: { id: true, firstName: true, lastName: true } }
                 }
             });
 
-            // Map to ensure 'mediaItems' exists for compatibility if needed elsewhere
-            return items.map(item => ({
-                ...item,
-                mediaItems: item.media || []
-            })) as PunchListItemWithDetails[];
+            // For each item, separately fetch media
+            const itemsWithDetails: PunchListItemWithDetails[] = [];
+            
+            for (const item of items as schema.PunchListItem[]) {
+                // Query media for this punch list item
+                const media = await this.dbOrTx.query.updateMedia.findMany({
+                    where: eq(schema.updateMedia.punchListItemId, item.id)
+                });
+                
+                // Create the combined item with media
+                const itemWithDetails = {
+                    ...item,
+                    media: media || [],
+                    mediaItems: media || [] // For backward compatibility
+                } as ExtendedPunchListItemWithDetails;
+                
+                itemsWithDetails.push(itemWithDetails);
+            }
+
+            return itemsWithDetails;
 
         } catch (error) {
             logger(`Error fetching punch list items for project ${projectId}: ${error instanceof Error ? error.message : error}`, 'PunchListRepo');
@@ -182,10 +196,9 @@ export class PunchListRepository implements IPunchListRepository {
 
         try {
             return await baseDb.transaction(async (tx) => {
-                // *** MODIFIED: Create a new MediaRepository instance using the transaction ***
-                // This requires MediaRepository constructor to accept db/tx and dependencies
-                // Assuming MediaRepository constructor is like: constructor(dbOrTx, mediaStorage, logger)
-                const txMediaRepo = new MediaRepository(tx, this.mediaRepo['mediaStorage'], this.mediaRepo['logger']); // Access private members if needed, or adjust MediaRepo constructor
+                // Create a new MediaRepository instance using the transaction
+                // We'll use a simpler approach by just creating a new instance with the transaction
+                const txMediaRepo = new MediaRepository(tx);
 
                 logger(`Deleting associated media for punch list item ${itemId} within transaction...`, 'PunchListRepo');
                 // *** MODIFIED: Call deleteMediaForPunchListItem on the transaction-aware instance ***
