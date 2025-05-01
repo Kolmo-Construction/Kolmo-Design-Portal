@@ -4,18 +4,44 @@ import { eq, and, or, sql, desc, asc, exists } from 'drizzle-orm';
 import * as schema from '../../../shared/schema';
 import { db } from '../../db';
 import { HttpError } from '../../errors';
-// Import shared types if needed for complex return values, though document schema is simpler
-// import { ... } from '../types';
 
-// Define type for document with the relation name from schema.ts (internal use)
-type DocumentWithUploadRelation = schema.Document & {
-    uploader: Pick<schema.User, 'id' | 'firstName' | 'lastName'> | null;
-};
+// Define interface for document relation output
+interface DocumentWithRelations {
+  id: number;
+  projectId: number;
+  name: string;
+  description: string | null;
+  fileUrl: string;
+  fileType: string;
+  fileSize: number;
+  category: string;
+  uploadedById: number | null;
+  createdAt: Date;
+  uploader: {
+    id: number;
+    firstName: string;
+    lastName: string;
+  } | null;
+}
 
-// Export the user-facing type
-export type DocumentWithUploader = schema.Document & {
-    uploadedBy: Pick<schema.User, 'id' | 'firstName' | 'lastName'> | null;
-};
+// Export the user-facing type with renamed field
+export interface DocumentWithUploader {
+  id: number;
+  projectId: number;
+  name: string;
+  description: string | null;
+  fileUrl: string;
+  fileType: string;
+  fileSize: number;
+  category: string;
+  uploadedById: number | null;
+  createdAt: Date;
+  uploadedBy: {
+    id: number;
+    firstName: string;
+    lastName: string;
+  } | null;
+}
 
 
 // Interface for Document Repository
@@ -54,10 +80,10 @@ class DocumentRepository implements IDocumentRepository {
             });
             
             // Map the relation name from 'uploader' to 'uploadedBy' for consistency
-            return documents.map(doc => ({
+            return documents.map((doc: DocumentWithRelations) => ({
                 ...doc,
                 uploadedBy: doc.uploader
-            })) as unknown as DocumentWithUploader[];
+            })) as DocumentWithUploader[];
         } catch (error) {
             console.error(`Error fetching documents for project ${projectId}:`, error);
             throw new Error('Database error while fetching documents.');
@@ -124,10 +150,10 @@ class DocumentRepository implements IDocumentRepository {
             });
             
             // Map the relation name from 'uploader' to 'uploadedBy' for consistency
-            return documents.map(doc => ({
+            return documents.map((doc: DocumentWithRelations) => ({
                 ...doc,
                 uploadedBy: doc.uploader
-            })) as unknown as DocumentWithUploader[];
+            })) as DocumentWithUploader[];
         } catch (error) {
             console.error('Error fetching all documents:', error);
             throw new Error('Database error while fetching all documents.');
@@ -192,7 +218,7 @@ class DocumentRepository implements IDocumentRepository {
             });
 
             // Map the relation name from 'uploader' to 'uploadedBy' for consistency
-            return documents.map((doc: any) => ({
+            return documents.map((doc: DocumentWithRelations) => ({
                 ...doc,
                 uploadedBy: doc.uploader
             })) as DocumentWithUploader[];
