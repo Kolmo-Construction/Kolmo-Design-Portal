@@ -1,3 +1,5 @@
+// client/src/components/project-details/CreatePunchListItemDialog.tsx
+// Note: Renamed to .tsx for React component
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Dialog,
@@ -9,8 +11,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 // Import schema and types
-import { InsertPunchListItem, insertPunchListItemSchema, User } from "@shared/schema";
-import { useForm } from "react-hook-form";
+import { InsertPunchListItem, insertPunchListItemSchema, User } from "@shared/schema"; // Keep original insert schema for type reference
+import { useForm, FieldErrors } from "react-hook-form"; // Import FieldErrors type
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getQueryFn, apiRequest } from "@/lib/queryClient";
@@ -43,17 +45,31 @@ import { cn, formatDate } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { z } from "zod";
 
-// Form values type, including the optional file
-type PunchListFormValues = z.infer<typeof insertPunchListItemSchema> & {
-    punchPhoto?: FileList | null; // Optional single file
-};
+// *** NEW: Frontend-specific Zod schema for form validation ***
+// Omits fields set by backend or handled separately (like the photo file)
+const punchListFormValidationSchema = insertPunchListItemSchema.omit({
+  id: true,
+  projectId: true,
+  createdById: true,
+  createdAt: true,
+  updatedAt: true,
+  resolvedAt: true,
+  photoUrl: true, // Omit photoUrl as it's handled by file upload, not a direct form field
+}).extend({
+  // Keep date validation if needed, ensure it handles Date objects from picker
+  dueDate: z.union([z.date(), z.string().datetime()]).optional().nullable(),
+});
+
+
+// Use the new schema to infer the form values type
+type PunchListFormValues = z.infer<typeof punchListFormValidationSchema>;
 
 interface CreatePunchListItemDialogProps {
   isOpen: boolean;
-  setIsOpen?: (open: boolean) => void; // Make optional to support both patterns
-  onClose?: () => void; // Add onClose prop for compatibility
+  setIsOpen?: (open: boolean) => void;
+  onClose?: () => void;
   projectId: number;
-  onSuccess?: () => void; // Optional callback
+  onSuccess?: () => void;
 }
 
 export function CreatePunchListItemDialog({
@@ -63,62 +79,54 @@ export function CreatePunchListItemDialog({
   projectId,
   onSuccess
 }: CreatePunchListItemDialogProps) {
-  // Create a handler that works with both patterns
+  // Handler that works with both setIsOpen and onClose patterns
   const handleClose = (open: boolean) => {
     if (!open) {
-      // Handle both callback patterns
-      if (setIsOpen) {
-        setIsOpen(false);
-      }
-      if (onClose) {
-        onClose();
-      }
+      if (setIsOpen) setIsOpen(false);
+      if (onClose) onClose();
     }
   };
+
   const queryClient = useQueryClient();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null); // For image preview
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch potential assignees (same as Task dialog)
+  // Fetch potential assignees
   const {
     data: assignees = [],
     isLoading: isLoadingAssignees
   } = useQuery<User[]>({
-    queryKey: ["/api/project-managers"], // Reusing the same query key
+    queryKey: ["/api/project-managers"],
     queryFn: getQueryFn({ on401: "throw" }),
     enabled: isOpen,
   });
 
-  // Setup form
+  // Setup form using the NEW frontend-specific validation schema
   const form = useForm<PunchListFormValues>({
-    resolver: zodResolver(insertPunchListItemSchema), // Use base schema for validation
+    resolver: zodResolver(punchListFormValidationSchema), // Use the new schema here
     defaultValues: {
-      projectId: projectId, // Not sent in body, but useful for context
+      // projectId is not part of this schema/form state
       description: "",
       location: "",
       status: "open",
       priority: "medium",
       assigneeId: null,
       dueDate: undefined,
-      photoUrl: undefined, // Handled separately via file upload
-      // createdById is set on backend
+      // photoUrl is omitted
     },
   });
 
   // Reset form and file state when dialog opens/closes
   useEffect(() => {
     if (isOpen) {
-      form.reset({
-        projectId: projectId,
+      form.reset({ // Reset using the fields defined in PunchListFormValues
         description: "",
         location: "",
         status: "open",
         priority: "medium",
         assigneeId: null,
         dueDate: undefined,
-        photoUrl: undefined,
-        punchPhoto: null,
       });
       setSelectedFile(null);
       setPreviewUrl(null);
@@ -126,18 +134,16 @@ export function CreatePunchListItemDialog({
          fileInputRef.current.value = "";
       }
     } else {
-        // Clean up preview URL when closing
         if (previewUrl) {
             URL.revokeObjectURL(previewUrl);
             setPreviewUrl(null);
         }
     }
-  }, [isOpen, projectId, form, previewUrl]); // Add previewUrl dependency
+  }, [isOpen, projectId, form, previewUrl]);
 
-  // Mutation hook for creating punch list item
+  // Mutation hook remains the same (sends FormData)
   const createPunchListItemMutation = useMutation({
     mutationFn: (formData: FormData) => {
-      // Use fetch directly for FormData
       return fetch(`/api/projects/${projectId}/punch-list`, {
         method: 'POST',
         body: formData,
@@ -153,8 +159,7 @@ export function CreatePunchListItemDialog({
     onSuccess: () => {
       toast({ title: "Success", description: "Punch list item added successfully." });
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/punch-list`] });
-      if (setIsOpen) setIsOpen(false);
-      if (onClose) onClose();
+      handleClose(false); // Use the combined close handler
       onSuccess?.();
     },
     onError: (err) => {
@@ -167,17 +172,15 @@ export function CreatePunchListItemDialog({
     },
   });
 
-  // Handle file selection
+  // File change handler remains the same
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    // Clean up previous preview URL
     if (previewUrl) {
         URL.revokeObjectURL(previewUrl);
         setPreviewUrl(null);
     }
     if (file) {
-      // Basic validation (optional)
-      const maxSize = 10 * 1024 * 1024; // Example: 10MB limit for photos
+      const maxSize = 10 * 1024 * 1024;
       if (file.size > maxSize) {
          toast({ title: "File Too Large", description: `Photo size cannot exceed ${maxSize / 1024 / 1024}MB.`, variant: "destructive" });
          setSelectedFile(null);
@@ -191,13 +194,13 @@ export function CreatePunchListItemDialog({
            return;
       }
       setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file)); // Create preview URL
+      setPreviewUrl(URL.createObjectURL(file));
     } else {
       setSelectedFile(null);
     }
   };
 
-  // Remove selected file
+  // Remove file handler remains the same
   const removeFile = () => {
     setSelectedFile(null);
     if (previewUrl) {
@@ -209,12 +212,12 @@ export function CreatePunchListItemDialog({
     }
   };
 
-  // Handle form submission
+  // Form submit handler remains the same (constructs FormData)
   const handleFormSubmit = (values: PunchListFormValues) => {
-    console.log("Punch list form submitted:", values);
+    console.log("Punch list form submitted (validated values):", values);
     const formData = new FormData();
 
-    // Append text fields
+    // Append validated text fields
     formData.append('description', values.description);
     if (values.location) formData.append('location', values.location);
     if (values.status) formData.append('status', values.status);
@@ -224,10 +227,22 @@ export function CreatePunchListItemDialog({
 
     // Append the file if selected
     if (selectedFile) {
-      formData.append('punchPhoto', selectedFile, selectedFile.name); // Use 'punchPhoto' as field name
+      formData.append('punchPhoto', selectedFile, selectedFile.name);
     }
 
     createPunchListItemMutation.mutate(formData);
+  };
+
+  // *** NEW: Error handler for react-hook-form validation ***
+  const handleValidationErrors = (errors: FieldErrors<PunchListFormValues>) => {
+    console.error("React Hook Form validation errors:", errors);
+    // Find the first error message to display
+    const firstError = Object.values(errors)[0]?.message;
+    toast({
+        title: "Validation Error",
+        description: typeof firstError === 'string' ? firstError : "Please check the form fields for errors.",
+        variant: "destructive",
+    });
   };
 
   return (
@@ -240,9 +255,9 @@ export function CreatePunchListItemDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Form implementation */}
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1 pr-3">
+          {/* *** Attach the validation error handler *** */}
+          <form onSubmit={form.handleSubmit(handleFormSubmit, handleValidationErrors)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1 pr-3">
 
             {/* Description */}
             <FormField
@@ -390,7 +405,7 @@ export function CreatePunchListItemDialog({
                                 ref={fileInputRef}
                                 id="punchPhoto"
                                 type="file"
-                                accept="image/*" // Only images
+                                accept="image/*"
                                 onChange={handleFileChange}
                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                             />
@@ -408,13 +423,13 @@ export function CreatePunchListItemDialog({
                                 </button>
                             </div>
                          )}
-                         {!previewUrl && selectedFile && ( // Fallback if preview fails but file selected
+                         {!previewUrl && selectedFile && (
                              <span className="text-sm text-muted-foreground">{selectedFile.name}</span>
                          )}
                     </div>
                 </FormControl>
                  <FormDescription>Attach a photo illustrating the item.</FormDescription>
-                <FormMessage />
+                {/* No FormMessage needed here unless adding file-specific validation errors */}
             </FormItem>
 
             {/* Form Buttons */}

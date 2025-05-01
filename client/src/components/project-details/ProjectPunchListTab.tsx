@@ -35,7 +35,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 // Added Image as ImageIcon import again for clarity, removed ListChecks if not used
-import { Loader2, PlusCircle, AlertTriangle, Image as ImageIcon, Pencil, Trash2, MoreHorizontal } from "lucide-react";
+import { Loader2, PlusCircle, AlertTriangle, Image as ImageIcon, Pencil, Trash2, MoreHorizontal, ListChecks } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, cn } from "@/lib/utils";
 // Import Dialogs
