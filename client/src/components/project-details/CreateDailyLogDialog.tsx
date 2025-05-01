@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react'; // Added useEffect
+// client/src/components/project-details/CreateDailyLogDialog.tsx
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -9,12 +10,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 // Import schema and types
-import { InsertDailyLog, insertDailyLogSchema } from "@shared/schema"; // Keep original schema import
+import { InsertDailyLog, insertDailyLogSchema, User } from "@shared/schema"; // Import User type
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-// Import mutation hooks (assuming apiRequest is not used here due to FormData)
-// import { apiRequest } from "@/lib/queryClient";
 import {
   Form,
   FormControl,
@@ -36,8 +35,8 @@ import { CalendarIcon, Loader2, PlusCircle, UploadCloud, X, ImageIcon } from "lu
 import { cn, formatDate } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast"; // Import toast
 import { z } from "zod"; // Import z
+// REMOVED: useAuth import is no longer needed here
 
-// --- MODIFICATION START ---
 // Define a schema specifically for the frontend form validation
 // Omit fields that are set by the backend or derived from context
 const frontendDailyLogSchema = insertDailyLogSchema.omit({
@@ -50,7 +49,6 @@ const frontendDailyLogSchema = insertDailyLogSchema.omit({
 type FrontendDailyLogFormValues = z.infer<typeof frontendDailyLogSchema> & {
     logPhotos?: FileList | null; // For handling file input
 };
-// --- MODIFICATION END ---
 
 interface CreateDailyLogDialogProps {
   isOpen: boolean;
@@ -66,15 +64,14 @@ export function CreateDailyLogDialog({
   onSuccess
 }: CreateDailyLogDialogProps) {
   const queryClient = useQueryClient();
+  // REMOVED: useAuth hook call is no longer needed here
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null); // Ref for clearing file input
 
-  // --- MODIFICATION START ---
   // Setup react-hook-form with Zod validation using the frontend-specific schema
   const form = useForm<FrontendDailyLogFormValues>({ // Use new type
     resolver: zodResolver(frontendDailyLogSchema), // Use new frontend schema
     defaultValues: {
-      // Remove projectId and createdById from defaults
       logDate: new Date(), // Default to today
       weather: "",
       temperature: undefined,
@@ -85,14 +82,11 @@ export function CreateDailyLogDialog({
       logPhotos: null, // Reset file input state
     },
   });
-  // --- MODIFICATION END ---
 
   // Reset form when dialog opens or projectId changes
-  // Use useEffect for side effects like resetting form state
   useEffect(() => {
     if (isOpen) {
       form.reset({
-        // Reset using default values matching the frontend schema
         logDate: new Date(),
         weather: "",
         temperature: undefined,
@@ -111,7 +105,6 @@ export function CreateDailyLogDialog({
 
   // Mutation hook for creating a daily log (using FormData)
   const createDailyLogMutation = useMutation({
-    // Pass the correct type for formValues based on the frontend schema
     mutationFn: async (data: { formValues: FrontendDailyLogFormValues, files: File[] }) => {
       console.log("Starting fetch request to create daily log");
 
@@ -126,10 +119,12 @@ export function CreateDailyLogDialog({
         // Explicitly include the project ID from component props
         formData.append('projectId', projectId.toString());
 
+        // *** FIX: REMOVED createdById from FormData ***
+        // The backend will get this from req.user
+
         // Append text fields from formValues (matching frontendDailyLogSchema)
         formData.append('logDate', new Date(formValues.logDate!).toISOString());
         if (formValues.weather) formData.append('weather', formValues.weather);
-        // Ensure temperature is checked for null explicitly before toString()
         if (formValues.temperature !== undefined && formValues.temperature !== null) {
           formData.append('temperature', formValues.temperature.toString());
         }
@@ -143,7 +138,6 @@ export function CreateDailyLogDialog({
           formData.append('photos', file, file.name); // Backend expects 'photos'
         });
 
-        // projectId comes from component props, not formValues
         const url = `/api/projects/${projectId}/daily-logs`;
         console.log(`Submitting to URL: ${url}`);
 
@@ -154,11 +148,9 @@ export function CreateDailyLogDialog({
         });
         console.log(`Response status: ${response.status}`);
 
-        // Get response text regardless of status to see what's returned
         const responseText = await response.text();
         console.log(`Response text: ${responseText}`);
 
-        // If not OK, throw an error with the response
         if (!response.ok) {
           let errorData;
           try {
@@ -166,10 +158,9 @@ export function CreateDailyLogDialog({
           } catch (e) {
             errorData = { message: responseText || response.statusText };
           }
-          throw new Error(errorData.message || `Failed to create log: ${response.status}`);
+          throw new Error(errorData.message || `Failed to create log: ${response.status}`, { cause: errorData.details });
         }
 
-        // If OK, parse response as JSON
         let responseData;
         try {
           responseData = JSON.parse(responseText);
@@ -181,23 +172,31 @@ export function CreateDailyLogDialog({
         return responseData;
       } catch (error) {
         console.error("Caught error in mutation:", error);
-        // Rethrow to allow onError handler to catch it
         throw error;
       }
     },
     onSuccess: (data) => {
       console.log("Create daily log success:", data);
       toast({ title: "Success", description: "Daily log submitted successfully." });
-      // Invalidate the daily logs query to refetch fresh data
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/daily-logs`] });
-      setIsOpen(false); // Close dialog on success
-      onSuccess?.(); // Call optional success callback
+      setIsOpen(false);
+      onSuccess?.();
     },
     onError: (err) => {
       console.error("Error creating daily log:", err);
+      let description = err instanceof Error ? err.message : "An unknown error occurred.";
+      if (err instanceof Error && (err as any).cause?.fieldErrors) {
+          const fieldErrors = (err as any).cause.fieldErrors;
+          const errorMessages = Object.entries(fieldErrors)
+              .map(([field, messages]) => `${field}: ${(messages as string[]).join(', ')}`)
+              .join('; ');
+          if (errorMessages) {
+              description += ` Details: ${errorMessages}`;
+          }
+      }
       toast({
         title: "Error Submitting Log",
-        description: err instanceof Error ? err.message : "An unknown error occurred.",
+        description: description,
         variant: "destructive",
       });
     },
@@ -206,11 +205,8 @@ export function CreateDailyLogDialog({
   // Handle file selection changes
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
-      // Convert FileList to Array and add to existing selections
       const newFiles = Array.from(event.target.files);
-      // You might want to add checks for file size, type, and total number of files here
-      setSelectedFiles(prev => [...prev, ...newFiles].slice(0, 5)); // Limit to 5 files example
-      // Clear the input value so the same file can be selected again if removed
+      setSelectedFiles(prev => [...prev, ...newFiles].slice(0, 5));
       if (event.target) {
           event.target.value = '';
       }
@@ -220,32 +216,24 @@ export function CreateDailyLogDialog({
   // Remove a selected file from the preview
   const removeFile = (index: number) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-    // Clearing the ref's value doesn't reliably remove specific files from the
-    // underlying input's FileList, but handleFileChange now clears it after selection.
   };
 
-  // --- MODIFICATION START ---
-  // Handle form submission - Accepts values matching the frontend schema
+  // Handle form submission
   const handleFormSubmit = (values: FrontendDailyLogFormValues) => {
-    // console.log("--- handleFormSubmit triggered ---"); // Keep or remove as needed
     console.log("Form values submitted (frontend schema):", values);
     console.log("Selected files:", selectedFiles.map(f => f.name));
 
-    // Trigger the mutation with form values matching FrontendDailyLogFormValues
-    // and the separate files state
     createDailyLogMutation.mutate({
       formValues: values,
       files: selectedFiles
     });
   };
-  // --- MODIFICATION END ---
 
-  // Log render state for debugging button disabled state
   console.log("CreateDailyLogDialog rendering, isPending:", createDailyLogMutation.isPending);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-[600px]"> {/* Wider dialog */}
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Create New Daily Log</DialogTitle>
           <DialogDescription>
@@ -255,10 +243,8 @@ export function CreateDailyLogDialog({
 
         {/* Form implementation */}
         <Form {...form}>
-           {/* --- MODIFICATION: Removed explicit validation error logger --- */}
-           {/* It served its purpose, but react-hook-form typically shows errors */}
            <form
-              onSubmit={form.handleSubmit(handleFormSubmit)} // Pass the success callback only
+              onSubmit={form.handleSubmit(handleFormSubmit)}
               className="space-y-4 max-h-[70vh] overflow-y-auto p-1 pr-3"
             >
 
@@ -311,7 +297,6 @@ export function CreateDailyLogDialog({
                     <FormItem>
                       <FormLabel>Weather</FormLabel>
                       <FormControl>
-                        {/* Use value={field.value ?? ''} to handle null/undefined */}
                         <Input placeholder="e.g., Sunny, Cloudy, Rain" {...field} value={field.value ?? ''} />
                       </FormControl>
                       <FormMessage />
@@ -327,14 +312,12 @@ export function CreateDailyLogDialog({
                       <FormControl>
                         <Input
                           type="number"
-                          step="any" // Allow decimals
+                          step="any"
                           placeholder="e.g., 72.5"
                           {...field}
-                          // Ensure value is controlled and handles undefined/null by showing empty string
                           value={field.value ?? ''}
                           onChange={(e) => {
                             const value = e.target.value;
-                            // Pass undefined if empty, otherwise parse as float
                             field.onChange(value === '' ? undefined : parseFloat(value));
                           }}
                         />
@@ -363,7 +346,7 @@ export function CreateDailyLogDialog({
             {/* Work Performed */}
             <FormField
               control={form.control}
-              name="workPerformed" // This is required by the schema
+              name="workPerformed"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Work Performed*</FormLabel>
@@ -371,7 +354,7 @@ export function CreateDailyLogDialog({
                     <Textarea
                       placeholder="Describe the work completed today..."
                       className="min-h-[100px]"
-                      {...field} // No need for value={field.value ?? ''} as it's required
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />
@@ -424,27 +407,24 @@ export function CreateDailyLogDialog({
                 <FormLabel>Attach Photos (Optional, up to 5)</FormLabel>
                 <FormControl>
                     <div className="flex items-center gap-2">
-                        {/* Use a button styled as the input trigger */}
                         <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="relative">
                             <UploadCloud className="mr-2 h-4 w-4" />
                             Select Files
                         </Button>
-                         {/* Hidden actual file input */}
                         <Input
-                            ref={fileInputRef} // Assign ref
+                            ref={fileInputRef}
                             id="logPhotos"
                             type="file"
-                            multiple // Allow multiple files
-                            accept="image/*" // Accept only images
+                            multiple
+                            accept="image/*"
                             onChange={handleFileChange}
-                            className="absolute w-0 h-0 opacity-0" // Visually hide the input
+                            className="absolute w-0 h-0 opacity-0"
                          />
                          <span className="text-xs text-muted-foreground">
                            {selectedFiles.length} file(s) selected
                         </span>
                     </div>
                 </FormControl>
-                 {/* File Preview */}
                  {selectedFiles.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
                         {selectedFiles.map((file, index) => (
@@ -464,7 +444,6 @@ export function CreateDailyLogDialog({
                     </div>
                  )}
                 <FormDescription>Attach relevant photos for this log entry.</FormDescription>
-                {/* FormMessage could be used here if you implement file-specific validation */}
                 <FormMessage />
              </FormItem>
 
@@ -491,3 +470,4 @@ export function CreateDailyLogDialog({
     </Dialog>
   );
 }
+

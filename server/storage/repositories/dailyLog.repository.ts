@@ -79,9 +79,20 @@ class DailyLogRepository implements IDailyLogRepository {
 
     async createDailyLog(logData: schema.InsertDailyLog): Promise<DailyLogWithDetails | null> {
         try {
-            // Insert new daily log
+            // Process the logDate to ensure it's a valid Date object
+            let processedData = { ...logData };
+            
+            // If logDate is a string, convert it to a Date object
+            if (typeof processedData.logDate === 'string') {
+                console.log(`Converting logDate from string: ${processedData.logDate}`);
+                processedData.logDate = new Date(processedData.logDate);
+            }
+            
+            console.log("Processed data for insert:", JSON.stringify(processedData, null, 2));
+            
+            // Insert new daily log with the processed data
             const insertedLogs = await this.dbOrTx.insert(schema.dailyLogs)
-                .values(logData)
+                .values(processedData)
                 .returning();
 
             if (!insertedLogs || insertedLogs.length === 0) {
@@ -101,9 +112,20 @@ class DailyLogRepository implements IDailyLogRepository {
         logData: Partial<Omit<schema.InsertDailyLog, 'id' | 'projectId' | 'userId'>>
     ): Promise<DailyLogWithDetails | null> {
         try {
-            // Update daily log
+            // Process the logDate to ensure it's a valid Date object if provided
+            let processedData = { ...logData };
+            
+            // If logDate is a string, convert it to a Date object
+            if (processedData.logDate && typeof processedData.logDate === 'string') {
+                console.log(`Converting logDate from string in update: ${processedData.logDate}`);
+                processedData.logDate = new Date(processedData.logDate);
+            }
+            
+            console.log("Processed data for update:", JSON.stringify(processedData, null, 2));
+            
+            // Update daily log with the processed data
             const updatedLogs = await this.dbOrTx.update(schema.dailyLogs)
-                .set(logData)
+                .set(processedData)
                 .where(eq(schema.dailyLogs.id, logId))
                 .returning();
 
