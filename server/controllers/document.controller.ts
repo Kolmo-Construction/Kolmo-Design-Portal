@@ -59,6 +59,17 @@ export const uploadDocument = async (
     if (!user?.id) { throw new HttpError(401, 'Authentication required.'); }
     if (!req.file) { throw new HttpError(400, 'No file uploaded.'); }
 
+    // Verify the user has permission to upload documents to this project
+    // Admin can upload to any project
+    if (user.role !== 'ADMIN') {
+      // Check if user has access to this project
+      const hasAccess = await storage.projects.checkUserProjectAccess(user.id.toString(), projectIdNum);
+      
+      if (!hasAccess) {
+        throw new HttpError(403, 'You do not have permission to upload documents to this project.');
+      }
+    }
+
     const metaValidation = documentUploadMetaSchema.safeParse(req.body);
     const description = metaValidation.success ? metaValidation.data.description : undefined;
 
@@ -134,9 +145,22 @@ export const deleteDocument = async (
     const { projectId, documentId } = req.params;
     const projectIdNum = parseInt(projectId, 10);
     const documentIdNum = parseInt(documentId, 10);
+    const user = req.user as User;
 
     if (isNaN(projectIdNum) || isNaN(documentIdNum)) {
       throw new HttpError(400, 'Invalid project or document ID parameter.');
+    }
+    if (!user?.id) { throw new HttpError(401, 'Authentication required.'); }
+
+    // Verify the user has permission to delete documents from this project
+    // Admin can delete from any project
+    if (user.role !== 'ADMIN') {
+      // Check if user has access to this project
+      const hasAccess = await storage.projects.checkUserProjectAccess(user.id.toString(), projectIdNum);
+      
+      if (!hasAccess) {
+        throw new HttpError(403, 'You do not have permission to delete documents from this project.');
+      }
     }
 
     // 1. Fetch the document record to get the storageKey and verify ownership
@@ -212,8 +236,21 @@ export const getDocumentDownloadUrl = async (
     const { projectId, documentId } = req.params;
     const projectIdNum = parseInt(projectId, 10);
     const documentIdNum = parseInt(documentId, 10);
+    const user = req.user as User;
 
     if (isNaN(projectIdNum) || isNaN(documentIdNum)) { throw new HttpError(400, 'Invalid project or document ID parameter.'); }
+    if (!user?.id) { throw new HttpError(401, 'Authentication required.'); }
+    
+    // Verify the user has permission to download documents from this project
+    // Admin can download from any project
+    if (user.role !== 'ADMIN') {
+      // Check if user has access to this project
+      const hasAccess = await storage.projects.checkUserProjectAccess(user.id.toString(), projectIdNum);
+      
+      if (!hasAccess) {
+        throw new HttpError(403, 'You do not have permission to download documents from this project.');
+      }
+    }
 
     // 1. Fetch the document record for storageKey and verification
     // Use the nested repository: storage.documents

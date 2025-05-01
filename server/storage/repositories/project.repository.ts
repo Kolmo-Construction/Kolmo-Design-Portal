@@ -13,6 +13,7 @@ export interface IProjectRepository {
     getAllProjects(): Promise<ProjectWithDetails[]>;
     getProjectsForUser(userId: string): Promise<ProjectWithDetails[]>;
     getProjectById(projectId: number): Promise<ProjectWithDetails | null>;
+    getProject(projectId: number): Promise<schema.Project | null>; // Basic project without relations
     checkUserProjectAccess(userId: string, projectId: number): Promise<boolean>;
     createProjectWithClients(projectData: schema.InsertProject, clientIds: string[]): Promise<ProjectWithDetails | null>;
     updateProjectDetailsAndClients(projectId: number, projectData: Partial<Omit<schema.InsertProject, 'pmId' | 'id' | 'createdAt' | 'updatedAt'>>, clientIds?: string[]): Promise<ProjectWithDetails | null>;
@@ -93,6 +94,18 @@ class ProjectRepository implements IProjectRepository {
                 }
             });
             return project ? this.mapProjectResult(project) : null;
+        } catch (error) {
+            console.error(`Error fetching project ${projectId}:`, error);
+            throw new Error('Database error while fetching project.');
+        }
+    }
+    
+    async getProject(projectId: number): Promise<schema.Project | null> {
+        try {
+            const project = await this.db.query.projects.findFirst({
+                where: eq(schema.projects.id, projectId)
+            });
+            return project || null;
         } catch (error) {
             console.error(`Error fetching project ${projectId}:`, error);
             throw new Error('Database error while fetching project.');
