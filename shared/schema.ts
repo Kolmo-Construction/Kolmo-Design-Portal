@@ -291,7 +291,7 @@ export const progressUpdateRelations = relations(progressUpdates, ({ one, many }
 
 export const updateMediaRelations = relations(updateMedia, ({ one }) => ({
   update: one(progressUpdates, { fields: [updateMedia.updateId], references: [progressUpdates.id] }),
-  punchListItem: one(punchListItems, { fields: [updateMedia.punchListItemId], references: [punchListItems.id], relationName: 'PunchListItemMedia' }),
+  punchListItem: one(punchListItems, { fields: [updateMedia.punchListItemId], references: [punchListItems.id] }),
   uploader: one(users, { fields: [updateMedia.uploadedById], references: [users.id] }),
 }));
 
@@ -330,7 +330,7 @@ export const punchListItemRelations = relations(punchListItems, ({ one, many }) 
   project: one(projects, { fields: [punchListItems.projectId], references: [projects.id] }),
   assignee: one(users, { fields: [punchListItems.assigneeId], references: [users.id], relationName: 'PunchListAssignee' }),
   creator: one(users, { fields: [punchListItems.createdById], references: [users.id] }),
-  media: many(updateMedia, { relationName: 'PunchListItemMedia' }),
+  media: many(updateMedia),
 }));
 
 
