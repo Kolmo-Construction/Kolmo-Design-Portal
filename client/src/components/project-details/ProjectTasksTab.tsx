@@ -2,7 +2,6 @@
 import React, { useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
-// Make sure Task type from schema doesn't clash with GanttTask alias
 import type { Task as ApiTask, InsertTask, TaskDependency } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,79 +16,64 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
+    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Loader2, PlusCircle, ClipboardList, AlertTriangle, Trash2 } from "lucide-react";
 import { CreateTaskDialog } from "./CreateTaskDialog";
 import { EditTaskDialog } from "./EditTaskDialog";
-// Import Gantt component directly
-import { Gantt, Task as GanttLibraryTask } from "wx-react-gantt"; // Renamed alias
-import "wx-react-gantt/dist/gantt.css";
-// Assuming formatTasksForGantt returns { tasks: FormattedGanttTask[], links: FormattedGanttLink[] }
-// where FormattedGanttTask matches the structure needed by wx-react-gantt
-import { formatTasksForGantt } from "@/lib/gantt-utils";
+
+// --- NEW LIBRARY IMPORTS ---
+import { Gantt, Task, EventOption, StylingOption, ViewMode, DisplayOption } from 'gantt-task-react';
+import "gantt-task-react/dist/index.css"; // Import the CSS for the new library
+// --- END NEW LIBRARY IMPORTS ---
+
+// Import the updated utility function
+import { formatTasksForGanttReact } from "@/lib/gantt-utils"; // Use the function adapted for gantt-task-react
+
+// Hooks
 import { useProjectTaskMutations } from "@/hooks/useProjectTaskMutations";
-import { useGanttInteractions } from "@/hooks/useGanttInteractions";
 import { useTaskDialogs } from "@/hooks/useTaskDialogs";
 
-// Define ViewMode enum based on required library values
-const ViewMode = {
-  Day: "Day",
-  Week: "Week",
-  Month: "Month"
-} as const;
-
-// Create a type from the enum values
-type ViewModeType = typeof ViewMode[keyof typeof ViewMode];
 
 interface ProjectTasksTabProps {
   projectId: number;
 }
 
-// Define our formatted task type that matches the output structure from formatTasksForGantt
-interface FormattedGanttTask {
-    id: string;
-    name: string;
-    start: Date;
-    end: Date;
-    progress: number;
-    type: 'task' | 'milestone' | 'project';
-    isDisabled?: boolean;
-    styles?: object;
-    // Add text field which is required by Gantt component
-    text: string;
-}
+// Type alias for the new library's Task type for clarity
+type GanttReactTask = Task;
 
 export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
-  // Fetch tasks and dependencies
+  // Fetch tasks and dependencies (remains the same)
   const tasksQueryKey = [`/api/projects/${projectId}/tasks`];
-  const dependenciesQueryKey = [`/api/projects/${projectId}/tasks/dependencies`];
+  const dependenciesQueryKey = [`/api/projects/${projectId}/tasks/dependencies`]; // Keep if needed for formatting
 
   const {
-    data: tasks = [], // Default to empty array
+    data: tasks = [],
     isLoading: isLoadingTasks,
     error: errorTasks,
     isError: isErrorTasks,
-    isFetching: isFetchingTasks,
     status: tasksStatus
   } = useQuery<ApiTask[]>({ queryKey: tasksQueryKey, queryFn: getQueryFn({ on401: "throw" }), enabled: !!projectId });
 
+  // Fetch dependencies if your formatter uses them (formatTasksForGanttReact currently uses parentId)
   const {
-      data: dependencies = [], // Default to empty array
+      data: dependencies = [], // Or however dependencies are fetched/structured
       isLoading: isLoadingDeps,
       error: errorDeps,
       isError: isErrorDeps,
-      isFetching: isFetchingDeps,
       status: depsStatus
   } = useQuery<TaskDependency[]>({ queryKey: dependenciesQueryKey, queryFn: getQueryFn({ on401: "throw" }), enabled: !!projectId && !isLoadingTasks });
 
-  // Format tasks for Gantt using useMemo
-  // The type assertion helps TypeScript understand the expected output shape
-  const { tasks: formattedGanttTasks, links: formattedGanttLinks } = useMemo(
-      () => formatTasksForGantt(tasks /* Pass dependencies if needed by formatter */),
-      [tasks /* Add dependencies here if used in formatTasksForGantt */]
-  );
 
-  // Overall Loading and Error states
+  // --- Format tasks using the NEW utility function ---
+  const formattedGanttTasks: GanttReactTask[] = useMemo(
+      () => formatTasksForGanttReact(tasks), // Call the correct formatter
+      [tasks] // Dependencies might be needed if formatter changes: [tasks, dependencies]
+  );
+  // --- END FORMATTING ---
+
+
+  // Overall Loading and Error states (remains the same)
   const isLoading = isLoadingTasks || isLoadingDeps;
   const isError = isErrorTasks || isErrorDeps;
   const error = errorTasks || errorDeps;
@@ -100,24 +84,12 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
       deleteTaskMutation,
       updateTaskDateMutation,
       updateTaskProgressMutation,
-      createDependencyMutation,
-      deleteDependencyMutation,
+      // Dependency mutations might be needed if library supports link creation via UI
+      // createDependencyMutation,
+      // deleteDependencyMutation,
   } = useProjectTaskMutations(projectId);
 
-  // Gantt interactions hook
-  const {
-      handleDateChange,
-      handleProgressChange,
-      handleDependencyLink,
-  } = useGanttInteractions({
-      updateTaskDateMutation,
-      updateTaskProgressMutation,
-      createDependencyMutation,
-      deleteDependencyMutation,
-      tasksQueryKey,
-  });
-
-  // Dialogs hook
+  // Dialogs hook (remains the same)
   const {
       isCreateDialogOpen,
       setIsCreateDialogOpen,
@@ -128,11 +100,11 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
       taskToEdit,
       taskToDelete,
       handleAddTaskClick,
-      handleTaskClick,
-      handleDeleteTrigger
-  } = useTaskDialogs(tasks); // Pass original tasks if needed by dialogs
+      handleTaskClick, // Used by handleDblClick below
+      handleDeleteTrigger // Used by handleTaskDelete below
+  } = useTaskDialogs(tasks);
 
-  // Delete confirmation handler
+  // Delete confirmation handler (remains the same)
   const confirmDelete = useCallback(() => {
       if (taskToDelete) {
           deleteTaskMutation.mutate(taskToDelete.id, {
@@ -142,30 +114,121 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
       }
   }, [taskToDelete, deleteTaskMutation, setIsDeleteDialogOpen]);
 
-  // Debug logging effect
+  // --- Interaction Handlers for gantt-task-react ---
+
+  /**
+   * Handles date changes from dragging/resizing bars.
+   * IMPORTANT: This library might trigger this continuously during drag.
+   * Check the library's documentation if you only want to trigger on drag end.
+   * We also check if dates actually changed before mutating.
+   */
+  const handleTaskChange = useCallback((task: GanttReactTask) => {
+    console.log("[gantt-task-react] onDateChange:", task);
+    const originalTask = tasks.find(t => String(t.id) === task.id);
+
+    // Check if dates actually changed to avoid unnecessary mutations during drag
+    const startDateChanged = originalTask?.startDate !== task.start.toISOString().split('T')[0]; // Compare YYYY-MM-DD part
+    const dueDateChanged = originalTask?.dueDate !== task.end.toISOString().split('T')[0]; // Compare YYYY-MM-DD part
+
+    if (originalTask && (startDateChanged || dueDateChanged)) {
+        console.log(`[gantt-task-react] Dates changed for task ${task.id}. Mutating.`);
+        updateTaskDateMutation.mutate({
+            taskId: parseInt(task.id, 10), // Convert ID back to number if API expects number
+            startDate: task.start.toISOString(),
+            dueDate: task.end.toISOString(),
+        });
+    } else {
+        // console.log(`[gantt-task-react] Dates did not change for task ${task.id}. Skipping mutation.`);
+    }
+  }, [tasks, updateTaskDateMutation]); // Include dependencies
+
+  /**
+   * Handles task deletion triggered by the library's UI (if available).
+   */
+  const handleTaskDelete = useCallback((task: GanttReactTask) => {
+     console.log("[gantt-task-react] onDelete:", task);
+     // Find original task to show name in dialog and trigger confirmation
+     const originalTask = tasks.find(t => String(t.id) === task.id);
+     if (originalTask) {
+         handleDeleteTrigger(originalTask); // Use existing dialog trigger
+     } else {
+         console.warn(`Could not find original task with ID ${task.id} for deletion.`);
+     }
+  }, [tasks, handleDeleteTrigger]); // Include dependencies
+
+  /**
+   * Handles progress changes from dragging the progress handle.
+   */
+  const handleProgressChange = useCallback((task: GanttReactTask) => {
+    console.log("[gantt-task-react] onProgressChange:", task);
+    const originalTask = tasks.find(t => String(t.id) === task.id);
+    // Optional: Check if progress actually changed
+    if (originalTask && originalTask.progress !== task.progress) {
+         updateTaskProgressMutation.mutate({
+             taskId: parseInt(task.id, 10), // Convert ID back to number if API expects number
+             progress: task.progress,
+             // Include other fields if your mutation requires them (like status)
+             // status: task.progress === 100 ? 'COMPLETED' : (task.progress > 0 ? 'IN_PROGRESS' : 'PENDING') // Example status update
+         });
+    }
+  }, [tasks, updateTaskProgressMutation]); // Include dependencies
+
+  /**
+   * Handles double-clicking on a task bar or list item. Opens Edit Dialog.
+   */
+  const handleDblClick = useCallback((task: GanttReactTask) => {
+    console.log("[gantt-task-react] onDoubleClick:", task);
+    const originalTask = tasks.find(t => String(t.id) === task.id);
+    if (originalTask && handleTaskClick) { // handleTaskClick opens the Edit Dialog
+        handleTaskClick(originalTask);
+    } else {
+         console.warn(`Could not find original task with ID ${task.id} for double click.`);
+    }
+  }, [tasks, handleTaskClick]); // Include dependencies
+
+  /**
+   * Handles single-clicking on a task bar or list item. (Optional action)
+   */
+  const handleClick = useCallback((task: GanttReactTask) => {
+    console.log("[gantt-task-react] onClick:", task.id);
+    // Implement single-click behavior if needed (e.g., highlighting, showing details)
+    // Currently does nothing.
+  }, []); // No dependencies needed if it does nothing
+
+  /**
+   * Handles task selection change. (Optional action)
+   */
+  const handleSelect = useCallback((task: GanttReactTask, isSelected: boolean) => {
+    console.log(`[gantt-task-react] onSelect: ${task.name} ${isSelected ? 'selected' : 'unselected'}`);
+    // Implement selection behavior if needed (e.g., managing selected task state)
+  }, []); // No dependencies needed if it does nothing
+
+  /**
+   * Handles clicking the expander icon for project tasks. (Optional action)
+   */
+  const handleExpanderClick = useCallback((task: GanttReactTask) => {
+    console.log("[gantt-task-react] onExpanderClick:", task);
+    // Implement expand/collapse logic if using 'project' type tasks with children
+    // This usually involves managing local state to update the 'hideChildren' property
+    // and potentially re-rendering or passing updated tasks to the Gantt component.
+  }, []); // Dependencies would include state setter if managing expansion
+
+  // --- End Interaction Handlers ---
+
+
+  // Debug logging effect (optional)
   React.useEffect(() => {
-    console.log('ProjectTasksTab State:', {
-      projectId,
-      isLoading,
-      isError,
-      error: error ? (error instanceof Error ? error.message : String(error)) : null,
-      tasksStatus,
-      tasksCount: tasks?.length,
-      depsStatus,
-      depsCount: dependencies?.length,
-      // Log the actual formatted tasks count
-      formattedGanttTasksCount: formattedGanttTasks?.length,
+    console.log('ProjectTasksTab State (gantt-task-react):', {
+      projectId, isLoading, isError, error: error ? (error instanceof Error ? error.message : String(error)) : null,
+      tasksStatus, tasksCount: tasks?.length, formattedGanttTasksCount: formattedGanttTasks?.length,
     });
-  }, [
-      projectId, isLoading, isError, error, tasksStatus, tasks,
-      depsStatus, dependencies, formattedGanttTasks // Dependency array updated
-  ]);
+  }, [ projectId, isLoading, isError, error, tasksStatus, tasks, formattedGanttTasks ]);
 
 
   // --- Render Logic ---
   const renderContent = () => {
-    // Use a more robust initial loading check
-    if (isLoading && tasksStatus !== 'success' && depsStatus !== 'success') {
+    // Initial loading check
+    if (isLoading && tasksStatus !== 'success') {
       return ( /* Skeleton */
          <div className="space-y-4 p-4">
              <Skeleton className="h-8 w-1/4" />
@@ -173,6 +236,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
          </div>
        );
     }
+    // API error check
     if (isError) {
       const errorMessage = error instanceof Error ? error.message : "Could not load tasks or dependencies.";
       return ( /* Error Alert */
@@ -184,10 +248,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
       );
      }
 
-     // --- REMOVED THE PROBLEMATIC ALERT BLOCK ---
-     // The logic below handles empty states correctly.
-
-     // Show empty state only if *initial fetch* resulted in zero tasks and not loading
+     // Empty state if initial fetch resulted in zero tasks
      if (tasks.length === 0 && !isLoading && tasksStatus === 'success') {
         return ( /* Empty state */
             <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed rounded-lg mt-4">
@@ -199,64 +260,52 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
          );
      }
 
-    // Check pending status for mutations that block Gantt interaction
-    const isMutatingGantt = updateTaskDateMutation.isPending ||
-                           updateTaskProgressMutation.isPending ||
-                           createDependencyMutation.isPending ||
-                           deleteDependencyMutation.isPending;
+    // Check pending status for mutations
+    const isMutating = createTaskMutation.isPending || deleteTaskMutation.isPending || updateTaskDateMutation.isPending || updateTaskProgressMutation.isPending;
 
-    // Render Gantt container (even if formattedTasks is empty, the wrapper inside won't render)
+    // Render Gantt container
     return (
         <div className="h-[600px] w-full overflow-auto border rounded-md bg-background relative">
-            {isMutatingGantt && ( /* Loading overlay */
+            {isMutating && ( /* Loading overlay */
                  <div className="absolute inset-0 bg-background/70 flex items-center justify-center z-10">
                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                     <span className="ml-2">Saving changes...</span>
+                     <span className="ml-2">Processing...</span>
                  </div>
             )}
-            {/* Render Gantt only if there are formatted tasks to display */}
+            {/* Render Gantt directly only if there are formatted tasks */}
             {formattedGanttTasks.length > 0 ? (
               <div className="gantt-container relative">
-                {/* Using Gantt component directly */}
+                {console.log('[ProjectTasksTab] Rendering gantt-task-react with tasks:', JSON.parse(JSON.stringify(formattedGanttTasks)))}
+
+                {/* --- Use gantt-task-react Component with Interaction Handlers --- */}
                 <Gantt
-                    tasks={formattedGanttTasks as unknown as GanttLibraryTask[]} // Using unknown to bypass type checking
-                    // Pass formatted links if your Gantt library uses them
-                    // links={formattedGanttLinks}
-                    viewMode="Week" // Or your desired default
-                    onClick={(task) => { // Use the library's task type
-                      try {
-                        // Find the original task by ID
-                        const originalTask = tasks.find(t => String(t.id) === String(task.id));
-                        if (originalTask && handleTaskClick) handleTaskClick(originalTask as any);
-                      } catch (err) { console.error("Error in Gantt onClick handler:", err); }
-                    }}
-                    onDateChange={(task, start, end) => {
-                      try {
-                        if (handleDateChange) handleDateChange(task as any, start, end);
-                      } catch (err) { console.error("Error in Gantt onDateChange handler:", err); }
-                    }}
-                    onProgressChange={(task, progress) => {
-                      try {
-                        if (handleProgressChange) handleProgressChange(task as any, progress);
-                      } catch (err) { console.error("Error in Gantt onProgressChange handler:", err); }
-                    }}
-                    // Adjust based on how wx-react-gantt handles dependency creation events
-                    onRelationChange={(fromTaskId: string | number, toTaskId: string | number) => {
-                      try {
-                         // Ensure IDs are passed correctly to the interaction handler
-                        if (handleDependencyLink) handleDependencyLink(String(fromTaskId), String(toTaskId));
-                      } catch (err) { console.error("Error in Gantt onRelationChange handler:", err); }
-                    }}
-                    listCellWidth={"180px"}
-                    columnWidth={65}
-                    rowHeight={40}
-                    ganttHeight={580} // Adjust height as needed
-                    locale="en-US"
-                    readonly={isMutatingGantt}
+                    tasks={formattedGanttTasks} // Pass formatted tasks
+                    viewMode={ViewMode.Week} // Example view mode
+                    // --- Event Handlers for gantt-task-react ---
+                    onDateChange={handleTaskChange} // Handles drag/resize
+                    onDelete={handleTaskDelete} // Handles delete action (if library UI provides it)
+                    onProgressChange={handleProgressChange} // Handles progress handle drag
+                    onDoubleClick={handleDblClick} // Handles double click
+                    onClick={handleClick} // Handles single click
+                    onSelect={handleSelect} // Handles task selection
+                    onExpanderClick={handleExpanderClick} // Handles expand/collapse for projects
+
+                    // --- Styling & Config Props (Examples - check docs) ---
+                    listCellWidth={"150px"} // Adjust width of the task list column
+                    // columnWidth={60} // Adjust width of date columns in timeline
+                    // ganttHeight={580} // Optional: Set explicit height
+                    // barCornerRadius={4} // Optional: Styling
+                    // handleWidth={8} // Optional: Styling
+                    // Other relevant props:
+                    // locale="en-US" // Set locale for date formatting
+                    // timeStep={3600000} // Example: Set minimum time step (1 hour)
+                    // Tooltip props if needed:
+                    // TooltipContent={({ task, fontSize, fontFamily }) => <div>Custom: {task.name}</div>}
                 />
+                {/* --- End gantt-task-react Component --- */}
               </div>
             ) : (
-                // Optional: Show a message if tasks were fetched but all were filtered out
+                // Show message if tasks were fetched but all were filtered out by formatter
                 tasks.length > 0 && !isLoading && tasksStatus === 'success' && (
                      <div className="flex flex-col items-center justify-center py-16 text-center">
                          <AlertTriangle className="h-8 w-8 text-muted-foreground mb-4" />
@@ -268,7 +317,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                 )
             )}
              <div className="p-2 text-xs text-muted-foreground border-t">
-                 Note: Edit tasks by clicking on them. Change dates by dragging or resizing bars... {/* Shortened */}
+                 Note: Using gantt-task-react library. Interactions enabled.
              </div>
         </div>
     );
@@ -281,6 +330,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
           <CardTitle>Project Tasks & Schedule</CardTitle>
           <CardDescription>Visualize tasks, update dates (drag/resize) and progress (drag handle).</CardDescription>
         </div>
+        {/* Keep Add Task button functional */}
         <Button size="sm" onClick={handleAddTaskClick} className="gap-1" disabled={isLoading && !tasks?.length}>
             <PlusCircle className="h-4 w-4" /> Add Task
         </Button>
@@ -289,7 +339,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
          {renderContent()}
       </CardContent>
 
-      {/* Dialogs using state/handlers from useTaskDialogs hook */}
+      {/* Dialogs remain */}
        <CreateTaskDialog
          isOpen={isCreateDialogOpen}
          setIsOpen={setIsCreateDialogOpen}
@@ -302,10 +352,12 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
        <EditTaskDialog
          isOpen={isEditDialogOpen}
          setIsOpen={setIsEditDialogOpen}
-         taskToEdit={taskToEdit} // Pass original ApiTask if EditDialog expects that
+         taskToEdit={taskToEdit}
          projectId={projectId}
          onDeleteRequest={handleDeleteTrigger}
        />
+
+       {/* --- Ensure AlertDialog Structure is Correct --- */}
        <AlertDialog
           open={isDeleteDialogOpen}
           onOpenChange={setIsDeleteDialogOpen}
@@ -330,6 +382,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+       {/* --- End AlertDialog --- */}
     </Card>
   );
 }

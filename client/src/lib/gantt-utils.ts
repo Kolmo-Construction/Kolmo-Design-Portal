@@ -1,186 +1,185 @@
-import type { Task } from '@/types/wx-react-gantt'; // Assuming GanttTask type is imported or defined
-import type { Task as ApiTask } from '../../server/storage/types'; // Assuming API Task type
-import { differenceInDays, formatISO, parseISO, max, startOfDay, endOfDay, isValid } from 'date-fns';
+// client/src/lib/gantt-utils.ts (Adapted for gantt-task-react)
+import { Task as GanttTaskReact, TaskType } from 'gantt-task-react'; // Import from the new library
+import type { Task as ApiTask } from '../../server/storage/types'; // Your API Task type
+import { parseISO, isValid, differenceInDays, endOfDay } from 'date-fns';
 
-// Define the structure expected by wx-react-gantt more explicitly if not imported
-// This is a *guess* based on common Gantt properties and the error.
-// You should verify this against the wx-react-gantt documentation.
-interface GanttTask extends Task {
-  id: string | number; // Must be unique
+// Define the structure expected by gantt-task-react Task type
+// (Based on common usage - verify with library's actual types if needed)
+// Note: gantt-task-react handles dependencies within the task object itself.
+interface FormattedTask extends GanttTaskReact {
+  // Required fields by gantt-task-react:
+  id: string;
   name: string;
-  start: Date; // Should be Date objects
-  end: Date; // Should be Date objects
-  progress: number; // Typically 0-100
-  type: 'task' | 'milestone' | 'project'; // Crucial property based on the error!
-  dependencies?: (string | number)[]; // Array of dependency task IDs
-  // Add any other properties required by wx-react-gantt
-  // project?: string | number;
-  // displayOrder?: number;
-    styles?: {
-        backgroundColor?: string;
-        progressColor?: string;
-        progressSelectedColor?: string;
-    };
-    isDisabled?: boolean; // Example optional property
+  start: Date;
+  end: Date;
+  type: TaskType; // 'task', 'milestone', 'project'
+  progress: number; // 0-100
+
+  // Optional fields:
+  isDisabled?: boolean;
+  styles?: {
+    backgroundColor?: string;
+    backgroundSelectedColor?: string;
+    progressColor?: string;
+    progressSelectedColor?: string;
+  };
+  dependencies?: string[]; // Array of predecessor task IDs
+  project?: string; // Optional project grouping ID
+  displayOrder?: number; // Optional display order
+  // hideChildren?: boolean; // For project type
 }
-
-// Define the structure for dependencies/links if separate
-interface GanttLink {
-    id: string | number; // Unique ID for the link
-    source: string | number; // Source task ID
-    target: string | number; // Target task ID
-    type: 0 | 1 | 2 | 3; // Link type (e.g., Finish-to-Start) - Check library docs!
-}
-
-
-// Assuming your API returns tasks somewhat like this:
-// type ApiTask = {
-//   id: number;
-//   title: string;
-//   description: string | null;
-//   startDate: string | null; // ISO String?
-//   dueDate: string | null;   // ISO String?
-//   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-//   priority: 'LOW' | 'MEDIUM' | 'HIGH';
-//   projectId: number;
-//   assigneeId: number | null;
-//   parentId: number | null;
-//   createdAt: string;
-//   updatedAt: string;
-//   // Potential field for dependencies? e.g., dependsOn: number[] | null;
-// };
-
 
 /**
- * Transforms API tasks into the format required by wx-react-gantt.
- * Filters out tasks that are missing valid start or due dates from the API.
+ * Transforms API tasks into the format required by gantt-task-react.
+ * Filters out tasks that lack valid core properties.
  * @param apiTasks - Array of tasks fetched from the API.
- * @returns An object containing formatted tasks and links.
+ * @returns An array of formatted tasks suitable for gantt-task-react.
  */
-export function formatTasksForGantt(apiTasks: ApiTask[] | undefined | null): { tasks: GanttTask[], links: GanttLink[] } {
-    // --- Input Validation ---
+export function formatTasksForGanttReact(
+  apiTasks: ApiTask[] | undefined | null
+): FormattedTask[] {
   if (!apiTasks || apiTasks.length === 0) {
-    console.warn('[gantt-utils] No API tasks provided to format.');
-    return { tasks: [], links: [] };
+    return [];
   }
 
-    console.log('[gantt-utils] Input API Tasks:', JSON.parse(JSON.stringify(apiTasks))); // Deep copy for logging
+  console.log('[gantt-utils-react] Input API Tasks:', JSON.parse(JSON.stringify(apiTasks)));
 
-    const formattedTasks: GanttTask[] = [];
-    const taskMap = new Map<number, ApiTask>(); // For quick lookups if needed for dependencies
-    const validTaskIds = new Set<string | number>(); // Keep track of tasks that are valid for Gantt
+  const formattedTasks: FormattedTask[] = [];
+  const taskMap = new Map<number, ApiTask>(); // Map API task ID to task
+  const validTaskIds = new Set<string>(); // Keep track of valid task IDs (using string)
 
-  apiTasks.forEach((apiTask) => {
-        // --- Basic Sanity Check ---
-        if (!apiTask || typeof apiTask.id === 'undefined') {
-            console.warn('[gantt-utils] Skipping invalid API task object:', apiTask);
-            return; // Skip this task if it's fundamentally broken
+  // First pass: Create map and validate basic structure + dates
+  const potentiallyValidTasks = apiTasks.filter((apiTask) => {
+    // Basic Object Validation
+    if (!apiTask || typeof apiTask.id === 'undefined' || apiTask.id === null) {
+      console.warn('[gantt-utils-react] Skipping task with missing or invalid ID:', apiTask);
+      return false;
+    }
+    const taskIdStr = String(apiTask.id); // Use string IDs consistently
+
+    // Ensure name is valid
+    if (typeof apiTask.title !== 'string' || apiTask.title.trim() === '') {
+      console.warn(`[gantt-utils-react] Task ID ${taskIdStr} has missing or empty title. Skipping.`);
+      return false;
+    }
+
+    taskMap.set(apiTask.id, apiTask); // Add to map
+
+    // Date Parsing and Validation
+    if (!apiTask.startDate || !apiTask.dueDate) {
+      console.warn(`[gantt-utils-react] Task ID ${taskIdStr} ('${apiTask.title}') is missing original start or due date. Filtering out.`);
+      return false;
+    }
+    let startDate: Date | null = null;
+    let endDate: Date | null = null;
+    try {
+      startDate = parseISO(apiTask.startDate);
+      endDate = parseISO(apiTask.dueDate);
+    } catch (e) {
+      console.warn(`[gantt-utils-react] Task ID ${taskIdStr} ('${apiTask.title}') failed basic date parsing. Error: ${e}. Skipping.`);
+      return false;
+    }
+
+    if (!isValid(startDate)) {
+      console.warn(`[gantt-utils-react] Task ID ${taskIdStr} ('${apiTask.title}') has invalid start date after parsing: ${apiTask.startDate}. Filtering out.`);
+      return false;
+    }
+    if (!isValid(endDate)) {
+      console.warn(`[gantt-utils-react] Task ID ${taskIdStr} ('${apiTask.title}') has invalid end date after parsing: ${apiTask.dueDate}. Filtering out.`);
+      return false;
+    }
+
+    // Date Adjustment (End before Start)
+    if (endDate < startDate) {
+      console.warn(`[gantt-utils-react] Task ID ${taskIdStr} ('${apiTask.title}') has due date before start date, adjusting end date.`);
+      endDate = endOfDay(startDate);
+      if (!isValid(endDate)) {
+        console.error(`[gantt-utils-react] CRITICAL: Task ID ${taskIdStr} ('${apiTask.title}') has invalid end date *after adjustment*. Skipping.`);
+        return false;
+      }
+      // Store adjusted date back temporarily if needed, or handle in next step
+      apiTask.dueDate = endDate.toISOString(); // Example: updatedueDate for consistency if needed later
+    }
+
+    return true; // Task passed initial validation
+  });
+
+  // Second pass: Format valid tasks and handle dependencies
+  potentiallyValidTasks.forEach((apiTask) => {
+    const taskIdStr = String(apiTask.id);
+    const startDate = parseISO(apiTask.startDate!); // We know these are valid now
+    const endDate = parseISO(apiTask.dueDate!);   // We know these are valid now
+
+    // Progress Calculation & Validation
+    let progress = 0;
+    switch (apiTask.status) {
+      case 'COMPLETED': progress = 100; break;
+      case 'IN_PROGRESS': progress = 50; break; // Placeholder
+      default: progress = 0; break;
+    }
+    if (typeof progress !== 'number' || isNaN(progress) || progress < 0 || progress > 100) {
+      console.warn(`[gantt-utils-react] Task ID ${taskIdStr} ('${apiTask.title}') has invalid progress value (${progress}). Defaulting to 0.`);
+      progress = 0;
+    }
+
+    // Determine Task Type & Validation
+    let taskType: TaskType = 'task'; // Default for gantt-task-react
+    // Example: Identify milestones (if start and end date are the same day)
+    if (differenceInDays(endDate, startDate) === 0) {
+      taskType = 'milestone';
+    }
+    // Add logic for 'project' type if applicable based on your data (e.g., apiTask.isSummary)
+
+    // Validate type against TaskType enum values
+    const validTypes: TaskType[] = ['task', 'milestone', 'project'];
+    if (!validTypes.includes(taskType)) {
+        console.warn(`[gantt-utils-react] Task ID ${taskIdStr} ('${apiTask.title}') has invalid type (${taskType}). Defaulting to 'task'.`);
+        taskType = 'task';
+    }
+
+
+    // Handle Dependencies (gantt-task-react uses `dependencies` array)
+    let dependencies: string[] = [];
+    if (apiTask.parentId !== null && typeof apiTask.parentId !== 'undefined') {
+        // Check if the parent task also passed validation
+        const parentIdStr = String(apiTask.parentId);
+        if (potentiallyValidTasks.some(t => String(t.id) === parentIdStr)) {
+            dependencies.push(parentIdStr);
+        } else {
+             console.warn(`[gantt-utils-react] Task ID ${taskIdStr} dependency parent ID ${parentIdStr} was filtered out. Skipping dependency.`);
         }
-
-        taskMap.set(apiTask.id, apiTask); // Populate map regardless of date validity for dependency checks
-
-        // --- **Date Handling & Validation (Filtering Approach)** ---
-        if (!apiTask.startDate || !apiTask.dueDate) {
-             console.warn(`[gantt-utils] Task ID ${apiTask.id} ('${apiTask.title}') is missing original start or due date. Filtering out from Gantt view.`);
-             return; // Skip task if original dates are missing
-        }
-
-        let startDate: Date | null = parseISO(apiTask.startDate);
-        let endDate: Date | null = parseISO(apiTask.dueDate);
-
-        // Validate parsed dates - skip if invalid
-        if (!isValid(startDate)) {
-             console.warn(`[gantt-utils] Task ID ${apiTask.id} ('${apiTask.title}') has invalid start date string: ${apiTask.startDate}. Filtering out.`);
-             return; // Skip task
-        }
-         if (!isValid(endDate)) {
-             console.warn(`[gantt-utils] Task ID ${apiTask.id} ('${apiTask.title}') has invalid end date string: ${apiTask.dueDate}. Filtering out.`);
-             return; // Skip task
-        }
-
-        // --- Date Adjustment Logic (from logs) ---
-        // Ensure end date is not before start date (only applies if both dates are valid)
-        if (endDate < startDate) {
-            console.warn(`[gantt-utils] Task ID ${apiTask.id} ('${apiTask.title}') has due date before start date, adjusting end date for Gantt.`);
-            // Set end date to be the same as start date (or end of start day)
-            endDate = endOfDay(startDate);
-            // Alternative: Make it one day long: endDate = addDays(startOfDay(startDate), 1);
-        }
+    }
+    // Add logic here if dependencies are stored differently (e.g., an array field on apiTask)
 
 
-        // --- Progress Calculation ---
-        // (Same as before)
-        let progress = 0;
-        switch (apiTask.status) {
-            case 'COMPLETED': progress = 100; break;
-            case 'IN_PROGRESS': progress = 50; break; // Placeholder
-            default: progress = 0; break;
-        }
-
-        // --- **CRUCIAL: Determine Task Type** ---
-        // (Same as before - ensure this logic is correct)
-        let taskType: GanttTask['type'] = 'task'; // Default to 'task'
-        if (differenceInDays(endDate, startDate) === 0) {
-             // taskType = 'milestone'; // Uncomment if this logic applies
-        }
-        // Add other logic based on apiTask fields if necessary
-
-
-        // --- Construct the GanttTask Object ---
-    const ganttTask: GanttTask = {
-      id: String(apiTask.id), // Ensure ID is string if library expects it
-      name: apiTask.title || `Task ${apiTask.id}`, // Provide default name
-      start: startDate, // Use the validated & parsed Date object
-      end: endDate,     // Use the validated & parsed Date object
+    // Construct the GanttTask Object for gantt-task-react
+    const ganttTask: FormattedTask = {
+      id: taskIdStr,
+      name: apiTask.title,
+      start: startDate,
+      end: endDate,
       progress: progress,
-            type: taskType,   // **Assign the determined type**
-            isDisabled: apiTask.status === 'CANCELLED',
-            styles: apiTask.status === 'CANCELLED' ? { backgroundColor: '#cccccc', progressColor: '#999999' } : undefined,
+      type: taskType,
+      isDisabled: apiTask.status === 'CANCELLED',
+      styles: apiTask.status === 'CANCELLED' ? { progressColor: '#aaaaaa', progressSelectedColor: '#888888', backgroundColor: '#e0e0e0', backgroundSelectedColor: '#d0d0d0' } : undefined,
+      dependencies: dependencies, // Add dependencies array
+      // project: String(apiTask.projectId), // Optional: Assign project ID if needed for grouping
+      // displayOrder: apiTask.displayOrder ?? undefined // Optional: Assign display order
     };
 
-        // --- Final Validation (Type Check) ---
-        if (!ganttTask.type) {
-             console.error(`[gantt-utils] CRITICAL: Task ID ${ganttTask.id} is missing 'type' property after formatting! Skipping task.`, ganttTask);
-             return;
-        }
-        // Date validity already checked above
+    // Final check (optional, as filtering done above)
+    if (!ganttTask.id || !ganttTask.name || !ganttTask.start || !ganttTask.end || typeof ganttTask.progress !== 'number' || !ganttTask.type) {
+         console.error(`[gantt-utils-react] CRITICAL: Task ID ${ganttTask.id} failed final validation check before push. Skipping.`, ganttTask);
+         return; // Skip push
+    }
 
-        validTaskIds.add(ganttTask.id); // Mark this task ID as valid for Gantt
+    validTaskIds.add(taskIdStr); // Add to set of valid IDs
     formattedTasks.push(ganttTask);
   });
 
-    // --- Dependency / Link Handling ---
-    // Now filter links to ensure both source and target tasks are included in the final Gantt list
-    const formattedLinks: GanttLink[] = [];
-    apiTasks.forEach(apiTask => {
-        if (apiTask && apiTask.parentId !== null && typeof apiTask.parentId !== 'undefined') {
-            const sourceId = String(apiTask.parentId);
-            const targetId = String(apiTask.id);
 
-            // Check if BOTH the source and target tasks made it into the formattedTasks list
-            if (validTaskIds.has(sourceId) && validTaskIds.has(targetId)) {
-                const link: GanttLink = {
-                    id: `link-${sourceId}-to-${targetId}`,
-                    source: sourceId,
-                    target: targetId,
-                    type: 0 // Assuming 0 is Finish-to-Start (Check library docs!)
-                };
-                formattedLinks.push(link);
-            } else {
-                 // Log if a potential link is skipped because one/both tasks were filtered out
-                 if (!taskMap.has(apiTask.parentId)) {
-                     console.warn(`[gantt-utils] Task ID ${targetId} has dependency on non-existent parent task ID ${sourceId}. Skipping link.`);
-                 } else {
-                     console.log(`[gantt-utils] Skipping link from ${sourceId} to ${targetId} because one or both tasks were filtered out due to missing/invalid dates.`);
-                 }
-            }
-        }
-        // Add more complex dependency logic here if needed
-    });
+  console.log('[gantt-utils-react] Output Formatted Tasks:', JSON.parse(JSON.stringify(formattedTasks)));
 
-
-    console.log('[gantt-utils] Output Formatted Tasks (after filtering):', JSON.parse(JSON.stringify(formattedTasks)));
-    console.log('[gantt-utils] Output Formatted Links (after filtering):', JSON.parse(JSON.stringify(formattedLinks)));
-
-  return { tasks: formattedTasks, links: formattedLinks };
+  return formattedTasks; // gantt-task-react typically takes tasks array directly
 }
+
