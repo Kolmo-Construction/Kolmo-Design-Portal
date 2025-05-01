@@ -12,12 +12,12 @@ export type DocumentWithUploader = schema.Document & {
 
 // Interface for Document Repository
 export interface IDocumentRepository {
-    getDocumentsForProject(projectId: number): Promise<DocumentWithUploader[]>;
-    getDocumentById(documentId: number): Promise<schema.Document | null>;
+    getDocumentsForProject(projectId: string): Promise<DocumentWithUploader[]>;
+    getDocumentById(documentId: string): Promise<schema.Document | null>;
     createDocument(docData: schema.InsertDocument): Promise<schema.Document | null>;
-    deleteDocument(documentId: number): Promise<boolean>;
+    deleteDocument(documentId: string): Promise<boolean>;
     getAllDocuments(): Promise<DocumentWithUploader[]>;
-    getDocumentsForUser(userId: number): Promise<DocumentWithUploader[]>;
+    getDocumentsForUser(userId: string): Promise<DocumentWithUploader[]>;
 }
 
 // Type for user info

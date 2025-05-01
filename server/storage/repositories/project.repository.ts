@@ -13,7 +13,8 @@ export interface IProjectRepository {
     create(projectData: NewProject): Promise<Project>; // Returns base project type
     update(id: string, projectData: Partial<NewProject>): Promise<Project | null>; // Returns base project type or null
     delete(id: string): Promise<boolean>;
-    // Add other methods if they exist in your original repository
+    getAllProjects(): Promise<Project[]>;
+    assignClientToProject?(userId: string, projectId: string): Promise<boolean>; // Optional for now
 }
 
 export class ProjectRepository implements IProjectRepository {
@@ -56,8 +57,9 @@ export class ProjectRepository implements IProjectRepository {
                 with: {
                     projectManager: { // Assumes relation named 'projectManager' is defined in schema.ts
                         columns: {
-                            // Select only necessary fields, e.g., fullName if available, or firstName/lastName
-                            fullName: true, // Adjust if your user schema uses firstName/lastName
+                            // Select only necessary fields, e.g., firstName/lastName
+                            firstName: true,
+                            lastName: true,
                             // id: true, // Include ID if needed elsewhere
                         },
                     },
@@ -79,16 +81,17 @@ export class ProjectRepository implements IProjectRepository {
 
 
             // 3. Fetch client details if there are any client IDs
-            let clientsMap: Map<string, { fullName: string | null }> = new Map();
+            let clientsMap = new Map<string, { firstName: string | null, lastName: string | null }>();
             if (uniqueClientIds.length > 0) {
                 const clientUsers = await db.query.users.findMany({
                     where: inArray(users.id, uniqueClientIds),
                     columns: {
                         id: true,
-                        fullName: true, // Adjust if using firstName/lastName
+                        firstName: true, 
+                        lastName: true,
                     },
                 });
-                clientsMap = new Map(clientUsers.map(c => [c.id, { fullName: c.fullName }]));
+                clientsMap = new Map(clientUsers.map(c => [c.id, { firstName: c.firstName, lastName: c.lastName }]));
                 console.log(`[ProjectRepository] Fetched details for ${clientsMap.size} clients.`);
             }
 
@@ -97,13 +100,27 @@ export class ProjectRepository implements IProjectRepository {
                 // Ensure p.clientIds is treated as an array, filter nulls/undefineds
                 const clientNames = (p.clientIds || [])
                     .filter(id => id != null) // Filter out potential nulls in the array
-                    .map(clientId => clientsMap.get(clientId!)?.fullName) // Use non-null assertion after filtering
+                    .map(clientId => {
+                        const client = clientsMap.get(clientId!);
+                        if (client && (client.firstName || client.lastName)) {
+                            return `${client.firstName || ''} ${client.lastName || ''}`.trim();
+                        }
+                        return null;
+                    })
                     .filter((name): name is string => name !== null && name !== undefined); // Type guard
+
+                // Create a project manager name from firstName and lastName
+                let projectManagerName = null;
+                if (p.projectManager) {
+                    if (p.projectManager.firstName || p.projectManager.lastName) {
+                        projectManagerName = `${p.projectManager.firstName || ''} ${p.projectManager.lastName || ''}`.trim();
+                    }
+                }
 
                 return {
                     ...p, // Spread the original project data
-                    projectManagerName: p.projectManager?.fullName ?? null, // Safely access manager name
-                    clientNames: clientNames, // Assign the array of client names
+                    projectManagerName, 
+                    clientNames, // Assign the array of client names
                  };
             });
 
@@ -130,7 +147,10 @@ export class ProjectRepository implements IProjectRepository {
                 where: eq(projects.id, id),
                 with: {
                     projectManager: {
-                        columns: { fullName: true }, // Adjust if needed
+                        columns: { 
+                            firstName: true,
+                            lastName: true,
+                        },
                     },
                     // Include other relations here if needed for a full detail view
                     // e.g., documents: true, tasks: true, etc.
@@ -148,18 +168,34 @@ export class ProjectRepository implements IProjectRepository {
             if (clientIds.length > 0) {
                 const clientUsers = await db.query.users.findMany({
                     where: inArray(users.id, clientIds),
-                    columns: { fullName: true }, // Adjust if needed
+                    columns: { 
+                        firstName: true,
+                        lastName: true,
+                    },
                 });
-                clientNames = clientUsers.map(c => c.fullName).filter((name): name is string => !!name);
+                clientNames = clientUsers.map(c => {
+                    if (c.firstName || c.lastName) {
+                        return `${c.firstName || ''} ${c.lastName || ''}`.trim();
+                    }
+                    return '';
+                }).filter(Boolean);
                  console.log(`[ProjectRepository] Found ${clientNames.length} client(s) for project ${id}.`);
             } else {
                  console.log(`[ProjectRepository] No client IDs associated with project ${id}.`);
             }
 
+            // Create project manager name
+            let projectManagerName = null;
+            if (project.projectManager) {
+                if (project.projectManager.firstName || project.projectManager.lastName) {
+                    projectManagerName = `${project.projectManager.firstName || ''} ${project.projectManager.lastName || ''}`.trim();
+                }
+            }
+
             return {
                 ...project,
-                projectManagerName: project.projectManager?.fullName ?? null,
-                clientNames: clientNames,
+                projectManagerName,
+                clientNames,
             };
          } catch (error) {
              console.error(`[ProjectRepository] Error in findById for ID ${id}:`, error);
@@ -176,11 +212,7 @@ export class ProjectRepository implements IProjectRepository {
          console.log(`[ProjectRepository] Creating new project: ${projectData.name}`);
          try {
             // Drizzle automatically handles default values like createdAt/updatedAt if defined in schema
-            const [newProject] = await db.insert(projects).values({
-                ...projectData,
-                // Ensure updatedAt is set if your schema doesn't use defaultNow() on update triggers
-                // updatedAt: new Date(),
-            }).returning(); // Return the newly created record
+            const [newProject] = await db.insert(projects).values(projectData).returning();
 
             if (!newProject) {
                  throw new Error("Project creation failed, no record returned.");
@@ -208,9 +240,18 @@ export class ProjectRepository implements IProjectRepository {
             return this.findById(id); // Example: return current data if no changes
         }
         try {
+            // Convert Date objects to strings for database compatibility
+            const processedData: any = { ...projectData };
+            if (processedData.startDate instanceof Date) {
+                processedData.startDate = processedData.startDate.toISOString();
+            }
+            if (processedData.endDate instanceof Date) {
+                processedData.endDate = processedData.endDate.toISOString();
+            }
+            
             const [updatedProject] = await db.update(projects)
                 .set({
-                    ...projectData,
+                    ...processedData,
                     updatedAt: new Date(), // Explicitly set updatedAt on every update
                 })
                 .where(eq(projects.id, id))
@@ -238,12 +279,82 @@ export class ProjectRepository implements IProjectRepository {
         console.log(`[ProjectRepository] Deleting project ID: ${id}`);
         try {
             const result = await db.delete(projects).where(eq(projects.id, id));
-            const success = result.rowCount > 0;
+            const success = result && result.rowCount && result.rowCount > 0;
             console.log(`[ProjectRepository] Project ${id} deletion ${success ? 'successful' : 'failed (not found?)'}.`);
             return success;
         } catch (error) {
             console.error(`[ProjectRepository] Error in delete for ID ${id}:`, error);
-             throw new Error(`Database error while deleting project ${id}.`);
+            throw new Error(`Database error while deleting project ${id}.`);
+        }
+    }
+
+    /**
+     * Assigns a client user to a project.
+     * @param userId - The UUID of the client user.
+     * @param projectId - The UUID of the project.
+     * @returns A promise resolving to true if assignment was successful.
+     */
+    async assignClientToProject(userId: string, projectId: string): Promise<boolean> {
+        console.log(`[ProjectRepository] Assigning client ${userId} to project ${projectId}`);
+        try {
+            // 1. Get the current project to access its clientIds array
+            const project = await db.query.projects.findFirst({
+                where: eq(projects.id, projectId),
+                columns: { clientIds: true }
+            });
+
+            if (!project) {
+                throw new HttpError(404, `Project with ID ${projectId} not found.`);
+            }
+
+            // 2. Check if the client is already assigned
+            const currentClientIds = project.clientIds || [];
+            if (currentClientIds.includes(userId)) {
+                console.log(`[ProjectRepository] Client ${userId} is already assigned to project ${projectId}.`);
+                return true; // Already assigned, so consider it successful
+            }
+
+            // 3. Add the client to the array
+            const updatedClientIds = [...currentClientIds, userId];
+            
+            // 4. Update the project with the new client array
+            const [updatedProject] = await db.update(projects)
+                .set({ 
+                    clientIds: updatedClientIds,
+                    updatedAt: new Date() 
+                })
+                .where(eq(projects.id, projectId))
+                .returning();
+
+            if (!updatedProject) {
+                throw new Error(`Failed to update project ${projectId} with new client.`);
+            }
+
+            console.log(`[ProjectRepository] Client ${userId} successfully assigned to project ${projectId}.`);
+            return true;
+        } catch (error) {
+            console.error(`[ProjectRepository] Error in assignClientToProject:`, error);
+            if (error instanceof HttpError) {
+                throw error; // Re-throw HTTP errors with their status
+            }
+            throw new Error(`Database error while assigning client to project.`);
+        }
+    }
+
+    /**
+     * Gets all projects in the system.
+     * For admin use.
+     */
+    async getAllProjects(): Promise<Project[]> {
+        console.log(`[ProjectRepository] Fetching all projects`);
+        try {
+            const allProjects = await db.query.projects.findMany({
+                orderBy: (p) => [desc(p.createdAt)],
+            });
+            return allProjects;
+        } catch (error) {
+            console.error(`[ProjectRepository] Error in getAllProjects:`, error);
+            throw new Error(`Database error while fetching all projects.`);
         }
     }
 }
