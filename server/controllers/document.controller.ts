@@ -145,14 +145,30 @@ export const deleteDocument = async (
     if (!document) { throw new HttpError(404, 'Document not found.'); }
     if (document.projectId !== projectIdNum) { throw new HttpError(403, 'Document does not belong to the specified project.'); }
 
-    // Extract the key from the fileUrl
+    // Extract the full path key from the fileUrl
     const fileUrl = document.fileUrl;
-    const keyMatch = fileUrl.match(/\/([^\/]+)$/);
-    storageKeyToDelete = keyMatch ? keyMatch[1] : null; // Store key for deletion
+    
+    // Extract the path after the bucket name - handle both URL patterns
+    // Pattern 1: https://pub-xxx.r2.dev/projects/...
+    // Pattern 2: https://xxx.r2.cloudflarestorage.com/bucket-name/projects/...
+    const devMatch = fileUrl.match(/\.r2\.dev\/(.*)/);
+    const cloudflareMatch = fileUrl.match(/\.r2\.cloudflarestorage\.com\/([^\/]+)\/(.*)/);
+    
+    if (devMatch) {
+      storageKeyToDelete = devMatch[1];
+    } else if (cloudflareMatch) {
+      // For cloudflare storage URLs, we need to extract the bucket and the path
+      storageKeyToDelete = cloudflareMatch[2];
+    } else {
+      storageKeyToDelete = null;
+    }
 
     if (!storageKeyToDelete) {
+      console.error('Could not extract storage key from URL:', fileUrl);
       throw new HttpError(500, 'Could not determine storage key from file URL.');
     }
+    
+    console.log('Extracted storage key for deletion:', storageKeyToDelete);
 
     // 2. Delete the file from R2 storage (No change here)
     await deleteFromR2(storageKeyToDelete);
@@ -213,15 +229,30 @@ export const getDocumentDownloadUrl = async (
     if (!document) { throw new HttpError(404, 'Document not found.'); }
     if (document.projectId !== projectIdNum) { throw new HttpError(403, 'Document does not belong to the specified project.'); }
 
-    // Extract the key from the fileUrl
+    // Extract the full path key from the fileUrl
     const fileUrl = document.fileUrl;
-    const keyMatch = fileUrl.match(/\/([^\/]+)$/);
-    const storageKey = keyMatch ? keyMatch[1] : null;
+    
+    // Extract the path after the bucket name - handle both URL patterns
+    // Pattern 1: https://pub-xxx.r2.dev/projects/...
+    // Pattern 2: https://xxx.r2.cloudflarestorage.com/bucket-name/projects/...
+    let storageKey = null;
+    const devMatch = fileUrl.match(/\.r2\.dev\/(.*)/);
+    const cloudflareMatch = fileUrl.match(/\.r2\.cloudflarestorage\.com\/([^\/]+)\/(.*)/);
+    
+    if (devMatch) {
+      storageKey = devMatch[1];
+    } else if (cloudflareMatch) {
+      // For cloudflare storage URLs, we need to extract the bucket and the path
+      storageKey = cloudflareMatch[2];
+    }
 
     if (!storageKey) {
+      console.error('Could not extract storage key from URL:', fileUrl);
       throw new HttpError(500, 'Could not determine storage key from file URL.');
     }
 
+    console.log('Extracted storage key:', storageKey);
+    
     // 2. Generate a pre-signed download URL from R2
     const downloadUrl = await getR2DownloadUrl(storageKey, document.name);
 
