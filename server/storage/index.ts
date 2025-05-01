@@ -1,23 +1,22 @@
-
-
-
 // server/storage/index.ts
-import { userRepository, IUserRepository } from './repositories/user.repository';
-import { projectRepository, IProjectRepository } from './repositories/project.repository';
-import { taskRepository, ITaskRepository } from './repositories/task.repository';
-import { documentRepository, IDocumentRepository } from './repositories/document.repository';
-import { invoiceRepository, IInvoiceRepository } from './repositories/invoice.repository';
-import { messageRepository, IMessageRepository } from './repositories/message.repository';
-import { progressUpdateRepository, IProgressUpdateRepository } from './repositories/progressUpdate.repository'; // Import Progress Update repo
-import { dailyLogRepository, IDailyLogRepository } from './repositories/dailyLog.repository'; // Import Daily Log repo
-import { punchListRepository, IPunchListRepository } from './repositories/punchList.repository'; // Import Punch List repo
-import { mediaRepository, IMediaRepository } from './repositories/media.repository'; // Import Media repo
-
-
-// Import session store types
+import { db, pool } from '../db'; // Import db instance
 import session from 'express-session';
 import connectPg from 'connect-pg-simple';
-import { pool } from '../db';
+
+// Import Repository INTERFACES
+import { IUserRepository, userRepository } from './repositories/user.repository';
+import { IProjectRepository, projectRepository } from './repositories/project.repository';
+import { ITaskRepository, taskRepository } from './repositories/task.repository';
+import { IDocumentRepository, documentRepository } from './repositories/document.repository';
+import { IInvoiceRepository, invoiceRepository } from './repositories/invoice.repository';
+import { IMessageRepository, messageRepository } from './repositories/message.repository';
+import { IProgressUpdateRepository, progressUpdateRepository } from './repositories/progressUpdate.repository';
+import { IDailyLogRepository, dailyLogRepository } from './repositories/dailyLog.repository';
+import { IMediaRepository, mediaRepository } from './repositories/media.repository'; // Import instance for injection
+
+// *** ADDED: Import PunchListRepository CLASS and INTERFACE ***
+import { PunchListRepository, IPunchListRepository } from './repositories/punchList.repository';
+// *** END ADDED ***
 
 // Define the shape of the aggregated storage object
 export interface StorageAggregate {
@@ -27,20 +26,23 @@ export interface StorageAggregate {
     documents: IDocumentRepository;
     invoices: IInvoiceRepository;
     messages: IMessageRepository;
-    progressUpdates: IProgressUpdateRepository; // Add Progress Update repo interface
-    dailyLogs: IDailyLogRepository;           // Add Daily Log repo interface
-    punchLists: IPunchListRepository;         // Add Punch List repo interface
-    media: IMediaRepository;                  // Add Media repo interface
-    sessionStore: session.Store;             // Session store for auth
-    // ... other repositories
+    progressUpdates: IProgressUpdateRepository;
+    dailyLogs: IDailyLogRepository;
+    punchLists: IPunchListRepository; // Use interface
+    media: IMediaRepository;
+    sessionStore: session.Store;
 }
 
 // Create PostgreSQL session store
 const PostgresSessionStore = connectPg(session);
-const sessionStore = new PostgresSessionStore({ 
-    pool, 
-    createTableIfMissing: true 
+const sessionStore = new PostgresSessionStore({
+    pool,
+    createTableIfMissing: true
 });
+
+// *** ADDED: Instantiate PunchListRepository here, injecting dependencies ***
+const punchListRepositoryInstance = new PunchListRepository(db, mediaRepository);
+// *** END ADDED ***
 
 // Export the aggregated object
 export const storage: StorageAggregate = {
@@ -50,15 +52,15 @@ export const storage: StorageAggregate = {
     documents: documentRepository,
     invoices: invoiceRepository,
     messages: messageRepository,
-    progressUpdates: progressUpdateRepository, // Add Progress Update repo instance
-    dailyLogs: dailyLogRepository,           // Add Daily Log repo instance
-    punchLists: punchListRepository,         // Add Punch List repo instance
-    media: mediaRepository,                  // Add Media repo instance
-    sessionStore, // Add session store for authentication
-    // ... add other repositories here
+    progressUpdates: progressUpdateRepository,
+    dailyLogs: dailyLogRepository,
+    punchLists: punchListRepositoryInstance, // Use the newly created instance
+    media: mediaRepository,
+    sessionStore,
 };
 
 // Optionally re-export individual repositories if needed elsewhere
+// (No changes needed here unless you want to export the new instance directly)
 export {
     userRepository,
     projectRepository,
@@ -68,6 +70,6 @@ export {
     messageRepository,
     progressUpdateRepository,
     dailyLogRepository,
-    punchListRepository,
+    punchListRepositoryInstance as punchListRepository, // Export the instance with the original name
     mediaRepository
 };

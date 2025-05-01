@@ -324,10 +324,11 @@ export const dailyLogPhotoRelations = relations(dailyLogPhotos, ({ one }) => ({
   uploader: one(users, { fields: [dailyLogPhotos.uploadedById], references: [users.id] }),
 }));
 
-export const punchListItemRelations = relations(punchListItems, ({ one }) => ({
+export const punchListItemRelations = relations(punchListItems, ({ one, many }) => ({
   project: one(projects, { fields: [punchListItems.projectId], references: [projects.id] }),
   assignee: one(users, { fields: [punchListItems.assigneeId], references: [users.id], relationName: 'PunchListAssignee' }),
   creator: one(users, { fields: [punchListItems.createdById], references: [users.id] }),
+  media: many(updateMedia, { relationName: 'PunchListItemMedia' }),
 }));
 
 
