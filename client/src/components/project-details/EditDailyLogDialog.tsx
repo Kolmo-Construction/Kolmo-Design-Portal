@@ -36,7 +36,7 @@ import { cn, formatDate } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertTitle } from '@/components/ui/alert'; // Import AlertTitle
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'; // Import all alert components
 
 // Define a combined type if the API returns logs with photos and creator
 type DailyLogWithDetails = DailyLog & {
@@ -254,7 +254,7 @@ export function EditDailyLogDialog({
                   status: 'new',
               });
           } else {
-              toast({ title: "Invalid File Type", description: `${file.name} is not a supported image type.`, variant: "warning" });
+              toast({ title: "Invalid File Type", description: `${file.name} is not a supported image type.` });
           }
       }
 
@@ -330,7 +330,7 @@ export function EditDailyLogDialog({
             setIsOpen(false); // Close dialog on full success
         } else {
              // If anything failed, refresh the data to show the current state
-             toast({ title: "Partial Failure", description: "Some operations failed. Please review the log.", variant:"warning"});
+             toast({ title: "Partial Failure", description: "Some operations failed. Please review the log." });
              queryClient.invalidateQueries({ queryKey: dailyLogQueryKey });
         }
     }
