@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { 
   Loader2, PlusCircle, ClipboardList, AlertTriangle, Trash2, Eye, EyeOff,
-  Clock, Calendar, CheckCircle2, ArrowRight, CheckCheck, CircleDot
+  Clock, Calendar, CheckCircle2, ArrowRight, CheckCheck, CircleDot, Upload
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { CreateTaskDialog } from "./CreateTaskDialog";
@@ -291,7 +291,8 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
                      updateTaskDateMutation.isPending || 
                      updateTaskProgressMutation.isPending || 
                      publishTasksMutation.isPending || 
-                     unpublishTasksMutation.isPending;
+                     unpublishTasksMutation.isPending ||
+                     importTasksMutation.isPending;
 
     // If client view, render a more beautiful timeline visualization
     if (isClient) {
