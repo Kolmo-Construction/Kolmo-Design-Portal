@@ -2,7 +2,7 @@
 import React, { useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
-import type { Task as ApiTask, InsertTask, TaskDependency } from "@shared/schema";
+import type { Task as ApiTask, InsertTask, TaskDependency, User } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -33,17 +33,16 @@ import { formatTasksForGanttReact } from "@/lib/gantt-utils"; // Use the functio
 // Hooks
 import { useProjectTaskMutations } from "@/hooks/useProjectTaskMutations";
 import { useTaskDialogs } from "@/hooks/useTaskDialogs";
-import { useAuth } from "@/hooks/useAuth"; // Import auth hook to check user role
-
 
 interface ProjectTasksTabProps {
   projectId: number;
+  user?: User; // Make user optional since it's passed from parent
 }
 
 // Type alias for the new library's Task type for clarity
 type GanttReactTask = Task;
 
-export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
+export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
   // Fetch tasks and dependencies (remains the same)
   const tasksQueryKey = [`/api/projects/${projectId}/tasks`];
   const dependenciesQueryKey = [`/api/projects/${projectId}/tasks/dependencies`]; // Keep if needed for formatting
@@ -283,13 +282,14 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                     tasks={formattedGanttTasks} // Pass formatted tasks
                     viewMode={ViewMode.Week} // Example view mode
                     // --- Event Handlers for gantt-task-react ---
-                    onDateChange={handleTaskChange} // Handles drag/resize
-                    onDelete={handleTaskDelete} // Handles delete action (if library UI provides it)
-                    onProgressChange={handleProgressChange} // Handles progress handle drag
-                    onDoubleClick={handleDblClick} // Handles double click
-                    onClick={handleClick} // Handles single click
-                    onSelect={handleSelect} // Handles task selection
-                    onExpanderClick={handleExpanderClick} // Handles expand/collapse for projects
+                    // Only add mutation handlers for non-client users
+                    onDateChange={!isClient ? handleTaskChange : undefined} // Handles drag/resize
+                    onDelete={!isClient ? handleTaskDelete : undefined} // Handles delete action
+                    onProgressChange={!isClient ? handleProgressChange : undefined} // Handles progress
+                    onDoubleClick={!isClient ? handleDblClick : undefined} // Handles double click
+                    onClick={handleClick} // Always allow single click (view only)
+                    onSelect={handleSelect} // Always allow selection (view only)
+                    onExpanderClick={handleExpanderClick} // Always allow expand/collapse (view only)
 
                     // --- Styling & Config Props (Examples - check docs) ---
                     listCellWidth={"150px"} // Adjust width of the task list column
@@ -318,36 +318,55 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                 )
             )}
              <div className="p-2 text-xs text-muted-foreground border-t">
-                 Note: Using gantt-task-react library. Interactions enabled.
+                 {isClient 
+                   ? "Note: View-only mode. Tasks are displayed in read-only format."
+                   : "Note: Using gantt-task-react library. Drag tasks to adjust dates and progress."}
              </div>
         </div>
     );
   };
+
+  // Check if user is a client
+  const isClient = user?.role === 'client';
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Project Tasks & Schedule</CardTitle>
-          <CardDescription>Visualize tasks, update dates (drag/resize) and progress (drag handle).</CardDescription>
+          <CardDescription>
+            {isClient 
+              ? "View project tasks and schedule timeline." 
+              : "Visualize tasks, update dates (drag/resize) and progress (drag handle)."}
+          </CardDescription>
         </div>
-        {/* Keep Add Task button functional */}
-        <Button size="sm" onClick={handleAddTaskClick} className="gap-1" disabled={isLoading && !tasks?.length}>
-            <PlusCircle className="h-4 w-4" /> Add Task
-        </Button>
+        {/* Only show Add Task button for non-client users */}
+        {!isClient && (
+          <Button size="sm" onClick={handleAddTaskClick} className="gap-1" disabled={isLoading && !tasks?.length}>
+              <PlusCircle className="h-4 w-4" /> Add Task
+          </Button>
+        )}
+        {/* Show view-only indicator for clients */}
+        {isClient && (
+          <div className="flex items-center text-sm text-muted-foreground">
+            <Eye className="h-4 w-4 mr-1" /> View Only
+          </div>
+        )}
       </CardHeader>
       <CardContent>
          {renderContent()}
       </CardContent>
 
-      {/* Dialogs remain */}
-       <CreateTaskDialog
-         isOpen={isCreateDialogOpen}
-         setIsOpen={setIsCreateDialogOpen}
-         projectId={projectId}
-         onSubmit={(values) => createTaskMutation.mutate(values, {
-             onSuccess: () => setIsCreateDialogOpen(false)
-         })}
+      {/* Only render dialogs for non-client users */}
+      {!isClient && (
+        <>
+          <CreateTaskDialog
+            isOpen={isCreateDialogOpen}
+            setIsOpen={setIsCreateDialogOpen}
+            projectId={projectId}
+            onSubmit={(values) => createTaskMutation.mutate(values, {
+                onSuccess: () => setIsCreateDialogOpen(false)
+            })}
          isPending={createTaskMutation.isPending}
        />
        <EditTaskDialog
@@ -384,6 +403,8 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
             </AlertDialogContent>
         </AlertDialog>
        {/* --- End AlertDialog --- */}
+        </>
+      )}
     </Card>
   );
 }

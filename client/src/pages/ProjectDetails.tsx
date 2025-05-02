@@ -175,7 +175,7 @@ export default function ProjectDetails() {
           
           {/* Make Tasks tab content available to all users (including clients) */}
           <TabsContent value="tasks" className="mt-0">
-            {activeTab === 'tasks' && <ProjectTasksTab projectId={projectId} />}
+            {activeTab === 'tasks' && <ProjectTasksTab projectId={projectId} user={user || undefined} />}
           </TabsContent>
           
           {/* Conditionally render internal-only tab content */}
