@@ -34,6 +34,9 @@ import "gantt-task-react/dist/index.css"; // Import the CSS for the new library
 // Import the updated utility function
 import { formatTasksForGanttReact } from "@/lib/gantt-utils"; // Use the function adapted for gantt-task-react
 
+// Import task dialogs including the import dialog
+import { ImportTasksDialog } from "./ImportTasksDialog";
+
 // Hooks
 import { useProjectTaskMutations } from "@/hooks/useProjectTaskMutations";
 import { useTaskDialogs } from "@/hooks/useTaskDialogs";
@@ -93,6 +96,7 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
       // deleteDependencyMutation,
       publishTasksMutation,
       unpublishTasksMutation,
+      importTasksMutation,
   } = useProjectTaskMutations(projectId);
 
   // Dialogs hook (remains the same)
@@ -236,6 +240,9 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
     });
   }, [ projectId, isLoading, isError, error, tasksStatus, tasks, formattedGanttTasks ]);
 
+  // State for import tasks dialog
+  const [isImportDialogOpen, setIsImportDialogOpen] = React.useState(false);
+  
   // Check if user is a client
   const isClient = user?.role === 'client';
 
@@ -646,11 +653,16 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
               : "Visualize tasks, update dates (drag/resize) and progress (drag handle)."}
           </CardDescription>
         </div>
-        {/* Only show Add Task button for non-client users */}
+        {/* Only show task management buttons for non-client users */}
         {!isClient && (
-          <Button size="sm" onClick={handleAddTaskClick} className="gap-1" disabled={isLoading && !tasks?.length}>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => setIsImportDialogOpen(true)} variant="outline" className="gap-1">
+              <Upload className="h-4 w-4" /> Import Tasks
+            </Button>
+            <Button size="sm" onClick={handleAddTaskClick} className="gap-1" disabled={isLoading && !tasks?.length}>
               <PlusCircle className="h-4 w-4" /> Add Task
-          </Button>
+            </Button>
+          </div>
         )}
         {/* Show view-only indicator for clients */}
         {isClient && (
@@ -673,21 +685,35 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
             onSubmit={(values) => createTaskMutation.mutate(values, {
                 onSuccess: () => setIsCreateDialogOpen(false)
             })}
-         isPending={createTaskMutation.isPending}
-       />
-       <EditTaskDialog
-         isOpen={isEditDialogOpen}
-         setIsOpen={setIsEditDialogOpen}
-         taskToEdit={taskToEdit}
-         projectId={projectId}
-         onDeleteRequest={handleDeleteTrigger}
-       />
+            isPending={createTaskMutation.isPending}
+          />
+          
+          <EditTaskDialog
+            isOpen={isEditDialogOpen}
+            setIsOpen={setIsEditDialogOpen}
+            taskToEdit={taskToEdit}
+            projectId={projectId}
+            onDeleteRequest={handleDeleteTrigger}
+          />
+          
+          <ImportTasksDialog
+            isOpen={isImportDialogOpen}
+            setIsOpen={setIsImportDialogOpen}
+            projectId={projectId}
+            onImport={(tasks) => 
+              importTasksMutation.mutate(
+                { projectId, tasks },
+                { onSuccess: () => setIsImportDialogOpen(false) }
+              )
+            }
+            isPending={importTasksMutation.isPending}
+          />
 
-       {/* --- Ensure AlertDialog Structure is Correct --- */}
-       <AlertDialog
-          open={isDeleteDialogOpen}
-          onOpenChange={setIsDeleteDialogOpen}
-        >
+          {/* --- Ensure AlertDialog Structure is Correct --- */}
+          <AlertDialog
+            open={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
+          >
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
@@ -707,8 +733,8 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
-        </AlertDialog>
-       {/* --- End AlertDialog --- */}
+          </AlertDialog>
+          {/* --- End AlertDialog --- */}
         </>
       )}
     </Card>
