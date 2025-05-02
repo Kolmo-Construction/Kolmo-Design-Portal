@@ -325,152 +325,161 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
               Project Timeline Overview
             </h3>
             
-            <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-100">
-                <p className="text-sm font-medium text-slate-500 mb-3">Project Timeline</p>
-                <div className="flex items-center justify-between">
-                  <div className="text-center">
-                    <p className="text-xs text-slate-500">Start Date</p>
-                    <p className="text-base font-medium">{projectStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                  </div>
-                  <div className="flex-grow mx-2 px-2">
-                    <div className="h-0.5 w-full bg-slate-100 relative">
-                      <div className="absolute inset-y-0 left-0 bg-blue-500" style={{ width: `${timeProgress}%` }}></div>
-                      <div 
-                        className="absolute h-3 w-3 bg-red-500 rounded-full -top-1" 
-                        style={{ left: `${timeProgress}%`, transform: 'translateX(-50%)' }}
-                      ></div>
-                    </div>
-                    <p className="text-center text-xs text-slate-500 mt-1">Today</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-slate-500">End Date</p>
-                    <p className="text-base font-medium">{projectEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-100">
-                <p className="text-sm font-medium text-slate-500 mb-3">Tasks Progress</p>
+            <div className="bg-white rounded-lg p-6 shadow-sm border border-slate-100 mb-6">
+              <div className="flex justify-between items-center mb-6">
                 <div className="flex flex-col">
-                  <div className="flex justify-between items-center mb-1">
-                    <p className="text-xs text-slate-500">Completion</p>
-                    <p className="text-xs font-medium">{completionPercentage}%</p>
+                  <h4 className="text-lg font-medium mb-1">Project Duration</h4>
+                  <div className="flex items-center">
+                    <Calendar className="h-4 w-4 mr-2 text-slate-500" />
+                    <p className="text-slate-600">
+                      {projectStart.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} - {projectEnd.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                    </p>
                   </div>
-                  <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden mb-1">
-                    <div 
-                      className="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full" 
-                      style={{ width: `${completionPercentage}%` }}
-                    ></div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center px-3 py-1.5 bg-green-50 rounded-full">
+                    <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+                    <span className="text-sm font-medium text-green-700">
+                      {sortedTasks.filter(t => t.status === 'done').length} Complete
+                    </span>
                   </div>
-                  <div className="flex justify-between text-xs text-slate-500">
-                    <p>{completedTasks} completed</p>
-                    <p>{totalTasks} total tasks</p>
+                  <div className="flex items-center px-3 py-1.5 bg-blue-50 rounded-full">
+                    <div className="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
+                    <span className="text-sm font-medium text-blue-700">
+                      {sortedTasks.filter(t => t.status === 'in_progress').length} In Progress
+                    </span>
                   </div>
                 </div>
               </div>
               
-              <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-100">
-                <p className="text-sm font-medium text-slate-500 mb-3">Task Status Breakdown</p>
-                <div className="space-y-1">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 rounded-sm bg-green-500 mr-2"></div>
-                      <p className="text-xs">Completed</p>
+              <div className="mt-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-slate-500">Project Timeline</span>
+                  <span className="text-sm font-medium">{Math.min(Math.round((new Date().getTime() - projectStart.getTime()) / (projectEnd.getTime() - projectStart.getTime()) * 100), 100)}% Complete</span>
+                </div>
+                
+                <div className="h-1.5 w-full bg-slate-100 rounded-full relative mb-2">
+                  <div 
+                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full" 
+                    style={{ width: `${timeProgress}%` }}
+                  />
+                  
+                  {/* Today marker */}
+                  <div 
+                    className="absolute w-3 h-3 bg-red-500 border-2 border-white rounded-full -top-0.5" 
+                    style={{ left: `${timeProgress}%`, transform: 'translateX(-50%)' }}
+                  >
+                    <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-red-100 text-red-700 text-xs font-medium px-1.5 py-0.5 rounded">
+                      Today
                     </div>
-                    <p className="text-xs font-medium">{sortedTasks.filter(t => t.status === 'done').length}</p>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 rounded-sm bg-blue-500 mr-2"></div>
-                      <p className="text-xs">In Progress</p>
-                    </div>
-                    <p className="text-xs font-medium">{sortedTasks.filter(t => t.status === 'in_progress').length}</p>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 rounded-sm bg-yellow-500 mr-2"></div>
-                      <p className="text-xs">Todo</p>
-                    </div>
-                    <p className="text-xs font-medium">{sortedTasks.filter(t => t.status === 'todo').length}</p>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 rounded-sm bg-red-500 mr-2"></div>
-                      <p className="text-xs">Blocked</p>
-                    </div>
-                    <p className="text-xs font-medium">{sortedTasks.filter(t => t.status === 'blocked').length}</p>
-                  </div>
+                </div>
+                
+                <div className="flex justify-between text-xs text-slate-500">
+                  <span>{projectStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  <span>{projectEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Tasks Timeline */}
-          <div className="p-6 border rounded-xl shadow-sm bg-white">
-            <h3 className="text-xl font-semibold mb-4 text-slate-800 flex items-center">
-              <div className="bg-indigo-100 rounded-full p-1.5 mr-2">
+          <div className="p-6 border rounded-xl shadow-sm bg-gradient-to-b from-white to-slate-50">
+            <h3 className="text-xl font-semibold mb-6 text-slate-800 flex items-center">
+              <div className="bg-indigo-100 rounded-full p-2 mr-3">
                 <ClipboardList className="h-5 w-5 text-indigo-700" />
               </div>
               Project Schedule
             </h3>
             
-            <div className="relative mt-8 mb-4">
-              {/* Timeline bar */}
-              <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-slate-200"></div>
+            <div className="relative mt-12 mb-4">
+              {/* Timeline bar with gradient */}
+              <div className="absolute left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-200 via-blue-300 to-purple-200 rounded-full"></div>
               
               {/* Timeline points */}
-              <div className="space-y-10">
+              <div className="space-y-12">
                 {sortedTasks.map((task, index) => {
-                  // Determine status color
-                  let statusColor = 'bg-slate-400'; // default
-                  let statusTextColor = 'text-slate-800';
+                  // Determine status color and icon
+                  let statusColor = 'bg-slate-400'; 
+                  let statusBg = 'bg-slate-50';
+                  let statusBorder = 'border-slate-200';
+                  let statusIcon = <CircleDot className="h-4 w-4 mr-1.5" />;
+                  
                   if (task.status === 'done') {
                     statusColor = 'bg-green-500';
-                    statusTextColor = 'text-green-800';
+                    statusBg = 'bg-green-50';
+                    statusBorder = 'border-green-200';
+                    statusIcon = <CheckCheck className="h-4 w-4 mr-1.5" />;
                   } else if (task.status === 'in_progress') {
                     statusColor = 'bg-blue-500';
-                    statusTextColor = 'text-blue-800';
+                    statusBg = 'bg-blue-50';
+                    statusBorder = 'border-blue-200';
+                    statusIcon = <Clock className="h-4 w-4 mr-1.5" />;
                   } else if (task.status === 'blocked') {
                     statusColor = 'bg-red-500';
-                    statusTextColor = 'text-red-800';
+                    statusBg = 'bg-red-50';
+                    statusBorder = 'border-red-200';
+                    statusIcon = <AlertTriangle className="h-4 w-4 mr-1.5" />;
                   } else if (task.status === 'todo') {
-                    statusColor = 'bg-yellow-500';
-                    statusTextColor = 'text-yellow-800';
+                    statusColor = 'bg-amber-500';
+                    statusBg = 'bg-amber-50';
+                    statusBorder = 'border-amber-200';
+                    statusIcon = <CircleDot className="h-4 w-4 mr-1.5" />;
                   }
                   
                   // Format dates
                   const startDate = task.startDate ? new Date(task.startDate) : null;
                   const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+                  
+                  // Check if this is the current task
+                  const today = new Date();
+                  const isCurrentTask = startDate && dueDate 
+                    ? today >= startDate && today <= dueDate
+                    : false;
 
                   return (
-                    <div key={task.id} className="relative pl-14">
-                      {/* Timeline point */}
-                      <div className={`absolute left-6 -translate-x-1/2 w-4 h-4 rounded-full ${statusColor} border-4 border-white`}></div>
+                    <div key={task.id} className="relative pl-16" style={{ animationDelay: `${index * 150}ms` }}>
+                      {/* Timeline point with pulse animation for current task */}
+                      <div className={`absolute left-8 -translate-x-1/2 w-5 h-5 rounded-full ${statusColor} border-4 border-white shadow-md z-10 ${isCurrentTask ? 'animate-pulse' : ''}`}></div>
                       
                       {/* Task card with animation */}
                       <div 
-                        className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-200 transform hover:-translate-y-1"
+                        className={`${statusBg} border ${statusBorder} rounded-lg p-5 shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden`}
                       >
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div>
-                            <h4 className="text-lg font-medium">{task.title}</h4>
-                            {task.description && (
-                              <p className="text-slate-600 text-sm mt-1">{task.description}</p>
-                            )}
-                          </div>
-                          
-                          <div className="flex flex-wrap gap-2">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor} bg-opacity-20 ${statusTextColor}`}>
+                        {/* Accent bar */}
+                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${statusColor}`}></div>
+                        
+                        <div className="flex flex-col gap-3">
+                          <div className="flex justify-between items-start">
+                            <h4 className="text-lg font-medium text-slate-800">{task.title}</h4>
+                            
+                            <div className={`flex items-center px-3 py-1 rounded-full text-xs font-medium ${statusBg} ${statusColor.replace('bg-', 'text-')}`}>
+                              {statusIcon}
                               {task.status === 'done' ? 'Completed' : 
                                task.status === 'in_progress' ? 'In Progress' :
                                task.status === 'blocked' ? 'Blocked' : 'Planned'}
-                            </span>
+                            </div>
+                          </div>
+                          
+                          {task.description && (
+                            <p className="text-slate-600 text-sm">{task.description}</p>
+                          )}
+                          
+                          <div className="flex justify-between items-center pt-2">
+                            {startDate && dueDate ? (
+                              <div className="flex items-center text-xs text-slate-500">
+                                <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                                {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-slate-500">No dates specified</div>
+                            )}
                             
-                            {startDate && dueDate && (
-                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
-                                {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                              </span>
+                            {isCurrentTask && (
+                              <div className="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
+                                Current Task
+                              </div>
                             )}
                           </div>
                         </div>
