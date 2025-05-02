@@ -11,14 +11,16 @@ import { TaskWithAssignee } from '../types'; // Import shared types
 // --- UPDATE THE INTERFACE ---
 export interface ITaskRepository {
     getTasksForProject(projectId: number): Promise<TaskWithAssignee[]>;
+    getPublishedTasksForProject(projectId: number): Promise<TaskWithAssignee[]>;
     createTask(taskData: schema.InsertTask): Promise<TaskWithAssignee | null>;
     updateTask(taskId: number, taskData: Partial<Omit<schema.InsertTask, 'id' | 'projectId' | 'createdBy'>>): Promise<TaskWithAssignee | null>;
     deleteTask(taskId: number): Promise<boolean>;
     addTaskDependency(predecessorId: number, successorId: number): Promise<schema.TaskDependency | null>;
     removeTaskDependency(predecessorId: number, successorId: number): Promise<boolean>;
     getTaskById(taskId: number): Promise<TaskWithAssignee | null>;
-    // --- ADD THIS LINE ---
     getDependenciesForProject(projectId: number): Promise<schema.TaskDependency[]>;
+    publishProjectTasks(projectId: number): Promise<boolean>;
+    unpublishProjectTasks(projectId: number): Promise<boolean>;
 }
 
 // Implementation

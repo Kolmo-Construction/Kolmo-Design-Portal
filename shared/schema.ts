@@ -167,6 +167,7 @@ export const tasks = pgTable("tasks", {
   estimatedHours: decimal("estimated_hours", { precision: 5, scale: 2 }), // DECIMAL column
   actualHours: decimal("actual_hours", { precision: 5, scale: 2 }), // DECIMAL column
   // progress field was removed since it doesn't exist in the database
+  publishedAt: timestamp("published_at"), // When the task was published to clients (null = not published)
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
