@@ -1,14 +1,12 @@
 // server/storage/repositories/task.repository.ts
 import { NeonDatabase } from 'drizzle-orm/neon-serverless';
 import { PgTransaction } from 'drizzle-orm/pg-core';
-// --- ADD 'inArray' TO THIS IMPORT ---
 import { eq, and, or, sql, desc, asc, not, inArray } from 'drizzle-orm';
 import * as schema from '../../../shared/schema';
 import { db } from '../../db';
 import { HttpError } from '../../errors';
 import { TaskWithAssignee } from '../types'; // Import shared types
 
-// --- UPDATE THE INTERFACE ---
 export interface ITaskRepository {
     getTasksForProject(projectId: number): Promise<TaskWithAssignee[]>;
     getPublishedTasksForProject(projectId: number): Promise<TaskWithAssignee[]>;
@@ -32,7 +30,6 @@ class TaskRepository implements ITaskRepository {
     }
 
     private async getTaskWithDetails(taskId: number): Promise<TaskWithAssignee | null> {
-        // ... (existing method - no changes needed here)
         const task = await this.dbOrTx.query.tasks.findFirst({
             where: eq(schema.tasks.id, taskId),
             with: {
@@ -45,17 +42,15 @@ class TaskRepository implements ITaskRepository {
     }
 
     async getTaskById(taskId: number): Promise<TaskWithAssignee | null> {
-        // ... (existing method - no changes needed here)
-         try {
+        try {
             return await this.getTaskWithDetails(taskId);
-         } catch (error) {
-             console.error(`Error fetching task ${taskId}:`, error);
-             throw new Error('Database error while fetching task.');
-         }
+        } catch (error) {
+            console.error(`Error fetching task ${taskId}:`, error);
+            throw new Error('Database error while fetching task.');
+        }
     }
 
     async getTasksForProject(projectId: number): Promise<TaskWithAssignee[]> {
-        // ... (existing method - no changes needed here)
         try {
             const tasks = await this.dbOrTx.query.tasks.findMany({
                 where: eq(schema.tasks.projectId, projectId),
@@ -71,8 +66,27 @@ class TaskRepository implements ITaskRepository {
         }
     }
 
+    async getPublishedTasksForProject(projectId: number): Promise<TaskWithAssignee[]> {
+        try {
+            // Only return tasks that have a publishedAt value (have been published)
+            const tasks = await this.dbOrTx.query.tasks.findMany({
+                where: and(
+                    eq(schema.tasks.projectId, projectId),
+                    not(eq(schema.tasks.publishedAt, null))
+                ),
+                orderBy: [asc(schema.tasks.createdAt)],
+                with: {
+                    assignee: { columns: { id: true, firstName: true, lastName: true, email: true } }
+                }
+            });
+            return tasks as TaskWithAssignee[];
+        } catch (error) {
+            console.error(`Error fetching published tasks for project ${projectId}:`, error);
+            throw new Error('Database error while fetching published tasks.');
+        }
+    }
+
     async createTask(taskData: schema.InsertTask): Promise<TaskWithAssignee | null> {
-        // ... (existing method - no changes needed here)
         try {
             const result = await this.dbOrTx.insert(schema.tasks)
                 .values(taskData)
@@ -87,7 +101,6 @@ class TaskRepository implements ITaskRepository {
     }
 
     async updateTask(taskId: number, taskData: Partial<Omit<schema.InsertTask, 'id' | 'projectId' | 'createdBy'>>): Promise<TaskWithAssignee | null> {
-       // ... (existing method - no changes needed here)
         if (Object.keys(taskData).length === 0) {
              console.warn("Update task called with empty data.");
              return this.getTaskWithDetails(taskId);
@@ -107,8 +120,7 @@ class TaskRepository implements ITaskRepository {
     }
 
     async deleteTask(taskId: number): Promise<boolean> {
-        // ... (existing method - no changes needed here)
-         const runDelete = async (tx: NeonDatabase<typeof schema> | PgTransaction<any, any, any>) => {
+        const runDelete = async (tx: NeonDatabase<typeof schema> | PgTransaction<any, any, any>) => {
             await tx.delete(schema.taskDependencies)
                 .where(or(
                     eq(schema.taskDependencies.predecessorId, taskId),
@@ -118,21 +130,20 @@ class TaskRepository implements ITaskRepository {
                 .where(eq(schema.tasks.id, taskId))
                 .returning({ id: schema.tasks.id });
             return result.length > 0;
-         };
+        };
 
-         try {
-             if ('_.isTransaction' in this.dbOrTx && (this.dbOrTx as any)._.isTransaction) {
-                  return await runDelete(this.dbOrTx);
-             } else {
-                 return await (this.dbOrTx as NeonDatabase<typeof schema>).transaction(runDelete);
-             }
-         } catch (error) {
-             console.error(`Error deleting task ${taskId}:`, error);
-             throw new Error('Database error while deleting task.');
-         }
+        try {
+            if ('_.isTransaction' in this.dbOrTx && (this.dbOrTx as any)._.isTransaction) {
+                return await runDelete(this.dbOrTx);
+            } else {
+                return await (this.dbOrTx as NeonDatabase<typeof schema>).transaction(runDelete);
+            }
+        } catch (error) {
+            console.error(`Error deleting task ${taskId}:`, error);
+            throw new Error('Database error while deleting task.');
+        }
     }
 
-    // --- ADD THIS ENTIRE METHOD ---
     async getDependenciesForProject(projectId: number): Promise<schema.TaskDependency[]> {
         try {
             // Fetch tasks belonging to the project first
@@ -160,11 +171,8 @@ class TaskRepository implements ITaskRepository {
             throw new Error('Database error while fetching task dependencies.');
         }
     }
-    // --- END OF ADDED METHOD ---
-
 
     async addTaskDependency(predecessorId: number, successorId: number): Promise<schema.TaskDependency | null> {
-        // ... (existing method - no changes needed here)
         if (predecessorId === successorId) throw new Error("Task cannot depend on itself.");
 
         const existingReverse = await this.dbOrTx.query.taskDependencies.findFirst({
@@ -202,7 +210,6 @@ class TaskRepository implements ITaskRepository {
     }
 
     async removeTaskDependency(predecessorId: number, successorId: number): Promise<boolean> {
-        // ... (existing method - no changes needed here)
         try {
             const result = await this.dbOrTx.delete(schema.taskDependencies)
                 .where(and(
@@ -214,6 +221,43 @@ class TaskRepository implements ITaskRepository {
         } catch (error) {
             console.error(`Error removing dependency ${predecessorId} -> ${successorId}:`, error);
             throw new Error('Database error while removing task dependency.');
+        }
+    }
+
+    async publishProjectTasks(projectId: number): Promise<boolean> {
+        try {
+            // Update all tasks in the project to set publishedAt to current time
+            const now = new Date();
+            const result = await this.dbOrTx.update(schema.tasks)
+                .set({ 
+                    publishedAt: now,
+                    updatedAt: now
+                })
+                .where(eq(schema.tasks.projectId, projectId))
+                .returning({ id: schema.tasks.id });
+            
+            return result.length > 0;
+        } catch (error) {
+            console.error(`Error publishing tasks for project ${projectId}:`, error);
+            throw new Error('Database error while publishing tasks.');
+        }
+    }
+
+    async unpublishProjectTasks(projectId: number): Promise<boolean> {
+        try {
+            // Update all tasks in the project to set publishedAt to null
+            const result = await this.dbOrTx.update(schema.tasks)
+                .set({ 
+                    publishedAt: null,
+                    updatedAt: new Date()
+                })
+                .where(eq(schema.tasks.projectId, projectId))
+                .returning({ id: schema.tasks.id });
+            
+            return result.length > 0;
+        } catch (error) {
+            console.error(`Error unpublishing tasks for project ${projectId}:`, error);
+            throw new Error('Database error while unpublishing tasks.');
         }
     }
 }

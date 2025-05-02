@@ -357,3 +357,73 @@ export const deleteTaskDependency = async (
         next(error); // Pass HttpError or other errors to central handler
     }
 };
+
+/**
+ * Publish all tasks for a project, making them visible to clients.
+ * Assumes projectId is validated and user is authenticated.
+ */
+export const publishProjectTasks = async (
+    req: Request, // Use base Request, projectId checked by middleware
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    logger(`[publishProjectTasks] Handler reached for projectId: ${req.params.projectId}`, 'TaskController');
+    try {
+        // Assuming validateProjectId middleware adds projectIdNum
+        const projectIdNum = (req as any).projectIdNum;
+        if (isNaN(projectIdNum)) {
+            throw new HttpError(400, 'Invalid project ID parameter.');
+        }
+
+        // TODO: Add authorization check: Only admins and project managers should publish tasks
+
+        logger(`[publishProjectTasks] Calling repository to publish tasks for project ${projectIdNum}`, 'TaskController');
+        const success = await storage.tasks.publishProjectTasks(projectIdNum);
+        logger(`[publishProjectTasks] Repository returned success: ${success}`, 'TaskController');
+
+        if (!success) {
+            throw new HttpError(500, 'Failed to publish tasks or no tasks to publish.');
+        }
+
+        // Return a success message
+        res.status(200).json({ message: 'Tasks published successfully' });
+    } catch(error) {
+        logger(`[publishProjectTasks] Error occurred: ${error instanceof Error ? error.message : String(error)}`, 'TaskController');
+        next(error); // Pass HttpError or other errors to central handler
+    }
+};
+
+/**
+ * Unpublish all tasks for a project, hiding them from clients.
+ * Assumes projectId is validated and user is authenticated.
+ */
+export const unpublishProjectTasks = async (
+    req: Request, // Use base Request, projectId checked by middleware
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    logger(`[unpublishProjectTasks] Handler reached for projectId: ${req.params.projectId}`, 'TaskController');
+    try {
+        // Assuming validateProjectId middleware adds projectIdNum
+        const projectIdNum = (req as any).projectIdNum;
+        if (isNaN(projectIdNum)) {
+            throw new HttpError(400, 'Invalid project ID parameter.');
+        }
+
+        // TODO: Add authorization check: Only admins and project managers should unpublish tasks
+
+        logger(`[unpublishProjectTasks] Calling repository to unpublish tasks for project ${projectIdNum}`, 'TaskController');
+        const success = await storage.tasks.unpublishProjectTasks(projectIdNum);
+        logger(`[unpublishProjectTasks] Repository returned success: ${success}`, 'TaskController');
+
+        if (!success) {
+            throw new HttpError(500, 'Failed to unpublish tasks or no tasks to unpublish.');
+        }
+
+        // Return a success message
+        res.status(200).json({ message: 'Tasks unpublished successfully' });
+    } catch(error) {
+        logger(`[unpublishProjectTasks] Error occurred: ${error instanceof Error ? error.message : String(error)}`, 'TaskController');
+        next(error); // Pass HttpError or other errors to central handler
+    }
+};
