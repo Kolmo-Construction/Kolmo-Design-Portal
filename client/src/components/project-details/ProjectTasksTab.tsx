@@ -18,7 +18,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, PlusCircle, ClipboardList, AlertTriangle, Trash2 } from "lucide-react";
+import { Loader2, PlusCircle, ClipboardList, AlertTriangle, Trash2, Eye } from "lucide-react";
 import { CreateTaskDialog } from "./CreateTaskDialog";
 import { EditTaskDialog } from "./EditTaskDialog";
 
@@ -33,6 +33,7 @@ import { formatTasksForGanttReact } from "@/lib/gantt-utils"; // Use the functio
 // Hooks
 import { useProjectTaskMutations } from "@/hooks/useProjectTaskMutations";
 import { useTaskDialogs } from "@/hooks/useTaskDialogs";
+import { useAuth } from "@/hooks/useAuth"; // Import auth hook to check user role
 
 
 interface ProjectTasksTabProps {

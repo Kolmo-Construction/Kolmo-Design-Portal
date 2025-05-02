@@ -148,13 +148,15 @@ export default function ProjectDetails() {
            <div className="overflow-x-auto mb-4 pb-1">
               <TabsList className={cn(
                   "grid grid-flow-col auto-cols-max w-max sm:w-full gap-1",
-                  user?.role === 'client' ? 'sm:grid-cols-5' : 'sm:grid-cols-8' // 5 for client, 8 for internal
+                  user?.role === 'client' ? 'sm:grid-cols-6' : 'sm:grid-cols-8' // 6 for client (added tasks), 8 for internal
               )}>
                  <TabsTrigger value="updates">Updates</TabsTrigger>
-                  {/* Conditionally render internal tabs */}
+                  {/* Make Tasks tab available to all users (including clients) */}
+                  <TabsTrigger value="tasks">Tasks</TabsTrigger>
+                  
+                  {/* Conditionally render internal-only tabs */}
                   {user?.role !== 'client' && (
                      <>
-                       <TabsTrigger value="tasks">Tasks</TabsTrigger>
                        <TabsTrigger value="dailylogs">Daily Logs</TabsTrigger>
                        <TabsTrigger value="punchlist">Punch List</TabsTrigger>
                     </>
@@ -170,12 +172,15 @@ export default function ProjectDetails() {
           <TabsContent value="updates" className="mt-0">
              {activeTab === 'updates' && <ProjectUpdatesTab projectId={projectId} />}
           </TabsContent>
-          {/* Conditionally render internal tab content */}
+          
+          {/* Make Tasks tab content available to all users (including clients) */}
+          <TabsContent value="tasks" className="mt-0">
+            {activeTab === 'tasks' && <ProjectTasksTab projectId={projectId} />}
+          </TabsContent>
+          
+          {/* Conditionally render internal-only tab content */}
           {user?.role !== 'client' && (
             <>
-              <TabsContent value="tasks" className="mt-0">
-                {activeTab === 'tasks' && <ProjectTasksTab projectId={projectId} />}
-              </TabsContent>
               <TabsContent value="dailylogs" className="mt-0">
                 {activeTab === 'dailylogs' && <ProjectDailyLogsTab projectId={projectId} />}
               </TabsContent>
