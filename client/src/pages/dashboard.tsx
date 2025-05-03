@@ -45,92 +45,51 @@ export default function ClientDashboard() {
     queryKey: ["/api/projects"],
   });
 
-  // State to store combined messages, updates and selections across all projects
-  const [allMessages, setAllMessages] = useState<Message[]>([]);
-  const [allUpdates, setAllUpdates] = useState<ProgressUpdate[]>([]);
-  const [allSelections, setAllSelections] = useState<Selection[]>([]);
-  
-  // Use query for all messages
+  // Use query for messages
   const { 
     data: messages = [], 
     isLoading: isLoadingMessages 
   } = useQuery<Message[]>({
     queryKey: ["/api/messages"],
-    // Only fetch if we have projects
-    enabled: projects.length > 0,
   });
   
-  // For each project, fetch project-specific data
-  // This uses individual queries for each project to ensure proper data loading
-  const projectQueries = projects.map(project => {
-    const projectId = project.id;
-    
-    // Project updates query
-    const updatesQuery = useQuery<ProgressUpdate[]>({
-      queryKey: ["/api/projects", projectId, "updates"],
-      queryFn: async () => {
-        const response = await fetch(`/api/projects/${projectId}/updates`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch project updates');
-        }
-        return response.json();
-      },
-      enabled: !!projectId,
-    });
-    
-    // Project selections query
-    const selectionsQuery = useQuery<Selection[]>({
-      queryKey: ["/api/projects", projectId, "selections"],
-      queryFn: async () => {
-        const response = await fetch(`/api/projects/${projectId}/selections`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch project selections');
-        }
-        return response.json();
-      },
-      enabled: !!projectId,
-    });
-    
-    return { 
-      projectId, 
-      updatesQuery, 
-      selectionsQuery
-    };
+  // Simplified approach: fetch first project's selections and updates
+  // This will be sufficient for dashboard preview
+  const firstProjectId = projects.length > 0 ? projects[0].id : undefined;
+  
+  // Query for project selections
+  const { 
+    data: selections = [],
+    isLoading: isLoadingSelections 
+  } = useQuery<Selection[]>({
+    queryKey: ["/api/projects", firstProjectId, "selections"],
+    queryFn: async () => {
+      if (!firstProjectId) return [];
+      const response = await fetch(`/api/projects/${firstProjectId}/selections`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch project selections');
+      }
+      return response.json();
+    },
+    enabled: !!firstProjectId,
   });
   
-  // Determine loading state for project data
-  const isLoadingProjectData = projectQueries.some(
-    query => query.updatesQuery.isLoading || query.selectionsQuery.isLoading
-  );
-  
-  // Combine project data when it's available
-  useEffect(() => {
-    if (!isLoadingProjectData && projects.length > 0) {
-      // Combine all project updates
-      const updates = projectQueries
-        .filter(query => !!query.updatesQuery.data)
-        .flatMap(query => query.updatesQuery.data || []);
-      
-      // Combine all project selections
-      const selections = projectQueries
-        .filter(query => !!query.selectionsQuery.data)
-        .flatMap(query => query.selectionsQuery.data || []);
-      
-      setAllUpdates(updates);
-      setAllSelections(selections);
-    }
-  }, [projectQueries, projects, isLoadingProjectData]);
-  
-  // Set messages from the global messages query
-  useEffect(() => {
-    if (messages.length > 0) {
-      setAllMessages(messages);
-    }
-  }, [messages]);
-  
-  // Loading state for all data
-  const isLoadingSelections = isLoadingProjectData;
-  const isLoadingUpdates = isLoadingProjectData;
+  // Query for project updates
+  const { 
+    data: updates = [],
+    isLoading: isLoadingUpdates 
+  } = useQuery<ProgressUpdate[]>({
+    queryKey: ["/api/projects", firstProjectId, "updates"],
+    queryFn: async () => {
+      if (!firstProjectId) return [];
+      const response = await fetch(`/api/projects/${firstProjectId}/updates`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch project updates');
+      }
+      return response.json();
+    },
+    enabled: !!firstProjectId,
+  });
 
   const handleReviewSelection = (id: number) => {
     toast({
@@ -142,8 +101,8 @@ export default function ClientDashboard() {
   const isLoading = isLoadingProjects || isLoadingMessages || isLoadingUpdates || isLoadingSelections;
 
   // Calculate action items counts for dashboard stats
-  const pendingApprovals = allSelections.filter(s => s.status === "pending").length;
-  const unreadMessages = allMessages.filter(m => !m.isRead).length;
+  const pendingApprovals = selections.filter(s => s.status === "pending").length;
+  const unreadMessages = messages.filter(m => !m.isRead).length;
   
   // Calculate next upcoming event (deadline, milestone, etc.)
   const getNextEvent = () => {
@@ -248,20 +207,20 @@ export default function ClientDashboard() {
                     <div className="h-12 bg-slate-100 rounded"></div>
                     <div className="h-12 bg-slate-100 rounded"></div>
                   </div>
-                ) : allSelections.filter(s => s.status === "pending").length === 0 ? (
+                ) : selections.filter(s => s.status === "pending").length === 0 ? (
                   <div className="text-center py-3 text-slate-500 text-sm">
                     No pending approvals
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {allSelections
+                    {selections
                       .filter(selection => selection.status === "pending")
                       .slice(0, 2)
                       .map((selection) => (
                         <div key={selection.id} className="p-3 bg-slate-50 rounded-lg">
                           <div className="flex justify-between items-start">
                             <div>
-                              <p className="font-medium text-slate-800">{selection.name}</p>
+                              <p className="font-medium text-slate-800">{selection.title || 'Pending Selection'}</p>
                               <p className="text-xs text-slate-500">Requested {selection.createdAt ? formatDistanceToNow(new Date(selection.createdAt), { addSuffix: true }) : 'recently'}</p>
                             </div>
                             <Button 
@@ -277,7 +236,7 @@ export default function ClientDashboard() {
                       ))
                     }
                     
-                    {allSelections.filter(s => s.status === "pending").length > 2 && (
+                    {selections.filter(s => s.status === "pending").length > 2 && (
                       <Link href="/selections">
                         <Button variant="link" size="sm" className="text-primary-600 w-full">
                           View All Approvals
@@ -350,13 +309,13 @@ export default function ClientDashboard() {
                     <div className="h-12 bg-slate-100 rounded"></div>
                     <div className="h-12 bg-slate-100 rounded"></div>
                   </div>
-                ) : allMessages.length === 0 ? (
+                ) : messages.length === 0 ? (
                   <div className="text-center py-3 text-slate-500 text-sm">
                     No messages yet
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {allMessages.slice(0, 2).map((message) => (
+                    {messages.slice(0, 2).map((message) => (
                       <div key={message.id} className={`p-3 rounded-lg ${!message.isRead ? 'bg-primary-50' : 'bg-slate-50'}`}>
                         <div className="flex justify-between">
                           <div className="text-sm font-medium text-slate-800">
@@ -441,10 +400,10 @@ export default function ClientDashboard() {
                         
                         <div className="flex flex-wrap gap-4">
                           {/* Project Manager */}
-                          {project.projectManager && (
+                          {project.projectManagerId && (
                             <div className="flex items-center text-xs text-primary-50">
                               <UserIcon className="h-3 w-3 mr-1" />
-                              PM: {project.projectManager.firstName} {project.projectManager.lastName}
+                              PM: {project.projectManagerId}
                             </div>
                           )}
                           
@@ -499,7 +458,7 @@ export default function ClientDashboard() {
           
           {isLoadingUpdates ? (
             <div className="h-64 bg-slate-200 rounded-xl animate-pulse"></div>
-          ) : allUpdates.length === 0 ? (
+          ) : updates.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
               <div className="rounded-full bg-green-50 p-3 inline-flex mb-4">
                 <ImageIcon className="h-6 w-6 text-green-600" />
@@ -511,7 +470,7 @@ export default function ClientDashboard() {
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
               <div className="flow-root">
                 <ul className="-mb-8">
-                  {allUpdates.slice(0, 3).map((update) => (
+                  {updates.slice(0, 3).map((update) => (
                     <UpdateItem key={update.id} update={update} />
                   ))}
                 </ul>
