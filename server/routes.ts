@@ -22,6 +22,7 @@ import progressUpdateRouter from "@server/routes/progressUpdate.routes";
 import taskRouterModule from "@server/routes/task.routes";
 import dailyLogRouter from "@server/routes/dailyLog.routes"; // Assuming you have this file
 import punchListRouter from "@server/routes/punchList.routes"; // Assuming you have this file
+import ragRouter from "./routes/rag-routes"; // RAG system router
 // Import other routers as needed (milestones, selections, admin, etc.)
 // import milestoneRouter from "@server/routes/milestone.routes";
 // import selectionRouter from "@server/routes/selection.routes";
@@ -146,6 +147,8 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // Example: Admin routes (ensure isAdmin middleware is used appropriately within adminRouter)
   // app.use("/api/admin", isAuthenticated, isAdmin, adminRouter);
 
+  // Mount RAG system routes
+  app.use("/api/rag", ragRouter);
 
   // --- REMOVED: Old inline route definitions and local router variables ---
   // const taskRouter = Router(...) // REMOVED
