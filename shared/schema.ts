@@ -1,11 +1,86 @@
 // shared/schema.ts
 
-import { pgTable, text, serial, integer, decimal, timestamp, boolean, jsonb, foreignKey, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, decimal, timestamp, boolean, jsonb, foreignKey, pgEnum, uuid as pgUuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
-import { vector } from "pgvector/drizzle-orm";
 import { sql } from "drizzle-orm";
+
+// Define project statuses enum
+export const projectStatusEnum = pgEnum('project_status', ['draft', 'finalized', 'archived']);
+
+// Define feedback types enum
+export const feedbackTypeEnum = pgEnum('feedback_type', ['edit', 'approve', 'reject']);
+
+// Define RAG Tables
+
+// Project versions table for immutable versioning of task bundles
+export const projectVersions = pgTable("project_versions", {
+  id: pgUuid("id").primaryKey().default(sql`uuid_generate_v4()`),
+  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  versionNumber: integer("version_number").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Advanced Tasks table for the RAG system
+export const ragTasks = pgTable("rag_tasks", {
+  id: pgUuid("id").primaryKey().default(sql`uuid_generate_v4()`),
+  projectVersionId: pgUuid("project_version_id").notNull().references(() => projectVersions.id, { onDelete: 'cascade' }),
+  taskName: text("task_name").notNull(),
+  trade: text("trade").notNull(), // e.g., 'plumber', 'tile setter'
+  phase: text("phase").notNull(), // e.g., 'Rough-In', 'Finish'
+  description: text("description").notNull(),
+  durationDays: decimal("duration_days", { precision: 5, scale: 2 }).notNull(),
+  requiredMaterials: jsonb("required_materials"), // Array of materials
+  requiredInspections: jsonb("required_inspections"), // Array of inspections
+  notes: text("notes"),
+  isGenerated: boolean("is_generated").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Task dependencies for RAG tasks
+export const ragTaskDependencies = pgTable("rag_task_dependencies", {
+  id: pgUuid("id").primaryKey().default(sql`uuid_generate_v4()`),
+  taskId: pgUuid("task_id").notNull().references(() => ragTasks.id, { onDelete: 'cascade' }),
+  dependsOnTaskId: pgUuid("depends_on_task_id").notNull().references(() => ragTasks.id, { onDelete: 'cascade' }),
+});
+
+// Task chunks for the RAG corpus
+export const taskChunks = pgTable("task_chunks", {
+  id: pgUuid("id").primaryKey().default(sql`uuid_generate_v4()`),
+  taskText: text("task_text").notNull(), // canonical description
+  trade: text("trade").notNull(),
+  phase: text("phase").notNull(),
+  projectType: text("project_type").notNull(),
+  embedding: text("embedding"), // Will store vector data as text for now, will update when pgvector is integrated
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Generation prompts for storing the input spec and prompt
+export const generationPrompts = pgTable("generation_prompts", {
+  id: pgUuid("id").primaryKey().default(sql`uuid_generate_v4()`),
+  projectVersionId: pgUuid("project_version_id").notNull().references(() => projectVersions.id, { onDelete: 'cascade' }),
+  inputText: text("input_text").notNull(), // what the user typed
+  rawPrompt: text("raw_prompt").notNull(),
+  usedEmbeddingIds: jsonb("used_embedding_ids"), // Array of UUIDs
+  llmOutput: jsonb("llm_output"),
+  modelUsed: text("model_used").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Task feedback for refining generations
+export const taskFeedback = pgTable("task_feedback", {
+  id: pgUuid("id").primaryKey().default(sql`uuid_generate_v4()`),
+  taskId: pgUuid("task_id").notNull().references(() => ragTasks.id, { onDelete: 'cascade' }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  feedbackType: feedbackTypeEnum("feedback_type").notNull(),
+  oldValue: jsonb("old_value"),
+  newValue: jsonb("new_value"),
+  comment: text("comment"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 
 // Users table for authentication and profile information
@@ -225,7 +300,35 @@ export const punchListItems = pgTable("punch_list_items", {
   resolvedAt: timestamp("resolved_at"),
 });
 
-// --- Relations ---
+// --- RAG Relations ---
+export const projectVersionRelations = relations(projectVersions, ({ one, many }) => ({
+  project: one(projects, { fields: [projectVersions.projectId], references: [projects.id] }),
+  ragTasks: many(ragTasks),
+  generationPrompts: many(generationPrompts),
+}));
+
+export const ragTaskRelations = relations(ragTasks, ({ one, many }) => ({
+  projectVersion: one(projectVersions, { fields: [ragTasks.projectVersionId], references: [projectVersions.id] }),
+  predecessorDependencies: many(ragTaskDependencies, { relationName: 'Successor' }),
+  successorDependencies: many(ragTaskDependencies, { relationName: 'Predecessor' }),
+  feedback: many(taskFeedback),
+}));
+
+export const ragTaskDependencyRelations = relations(ragTaskDependencies, ({ one }) => ({
+  task: one(ragTasks, { fields: [ragTaskDependencies.taskId], references: [ragTasks.id] }),
+  dependsOnTask: one(ragTasks, { fields: [ragTaskDependencies.dependsOnTaskId], references: [ragTasks.id] }),
+}));
+
+export const generationPromptRelations = relations(generationPrompts, ({ one }) => ({
+  projectVersion: one(projectVersions, { fields: [generationPrompts.projectVersionId], references: [projectVersions.id] }),
+}));
+
+export const taskFeedbackRelations = relations(taskFeedback, ({ one }) => ({
+  task: one(ragTasks, { fields: [taskFeedback.taskId], references: [ragTasks.id] }),
+  user: one(users, { fields: [taskFeedback.userId], references: [users.id] }),
+}));
+
+// --- Original Relations ---
 export const projectRelations = relations(projects, ({ many, one }) => ({
   tasks: many(tasks),
   dailyLogs: many(dailyLogs),
@@ -242,6 +345,7 @@ export const projectRelations = relations(projects, ({ many, one }) => ({
   progressUpdates: many(progressUpdates),
   milestones: many(milestones),
   selections: many(selections),
+  projectVersions: many(projectVersions),
 }));
 
 export const userRelations = relations(users, ({ many }) => ({
@@ -258,6 +362,7 @@ export const userRelations = relations(users, ({ many }) => ({
   receivedMessages: many(messages, { relationName: 'Recipient' }),
   createdProgressUpdates: many(progressUpdates),
   uploadedUpdateMedia: many(updateMedia),
+  taskFeedback: many(taskFeedback),
 }));
 
 export const clientProjectRelations = relations(clientProjects, ({ one }) => ({
@@ -524,6 +629,51 @@ export type DailyLogPhoto = typeof dailyLogPhotos.$inferSelect;
 
 export type InsertPunchListItem = z.infer<typeof insertPunchListItemSchema>;
 export type PunchListItem = typeof punchListItems.$inferSelect;
+
+// RAG System Types
+export type ProjectVersion = typeof projectVersions.$inferSelect;
+export type RagTask = typeof ragTasks.$inferSelect;
+export type RagTaskDependency = typeof ragTaskDependencies.$inferSelect;
+export type TaskChunk = typeof taskChunks.$inferSelect;
+export type GenerationPrompt = typeof generationPrompts.$inferSelect;
+export type TaskFeedback = typeof taskFeedback.$inferSelect;
+
+// Create insert schemas for the RAG system
+export const insertProjectVersionSchema = createInsertSchema(projectVersions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertRagTaskSchema = createInsertSchema(ragTasks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertRagTaskDependencySchema = createInsertSchema(ragTaskDependencies).omit({
+  id: true,
+});
+
+export const insertTaskChunkSchema = createInsertSchema(taskChunks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertGenerationPromptSchema = createInsertSchema(generationPrompts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTaskFeedbackSchema = createInsertSchema(taskFeedback).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertProjectVersion = z.infer<typeof insertProjectVersionSchema>;
+export type InsertRagTask = z.infer<typeof insertRagTaskSchema>;
+export type InsertRagTaskDependency = z.infer<typeof insertRagTaskDependencySchema>;
+export type InsertTaskChunk = z.infer<typeof insertTaskChunkSchema>;
+export type InsertGenerationPrompt = z.infer<typeof insertGenerationPromptSchema>;
+export type InsertTaskFeedback = z.infer<typeof insertTaskFeedbackSchema>;
 
 // --- Export Combined Types ---
 export type DailyLogWithDetails = DailyLog & {
