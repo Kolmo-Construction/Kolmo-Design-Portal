@@ -23,16 +23,14 @@ export async function createProjectVersion(req: Request, res: Response, next: Ne
       throw createBadRequestError('Invalid project ID');
     }
 
-    const parsedData = insertProjectVersionSchema.safeParse({
-      ...req.body,
-      projectId
-    });
+    // Don't require version number in request body - service will handle it
+    const parsedData = {
+      projectId,
+      notes: req.body.notes || null
+      // versionNumber will be handled in the service
+    };
 
-    if (!parsedData.success) {
-      throw createBadRequestError('Invalid project version data', parsedData.error);
-    }
-
-    const result = await ragService.createProjectVersion(parsedData.data);
+    const result = await ragService.createProjectVersion(parsedData);
     res.status(201).json(result);
   } catch (error) {
     next(error);

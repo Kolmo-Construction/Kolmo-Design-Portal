@@ -3,7 +3,7 @@
  * Routes for the RAG (Retrieval Augmented Generation) system
  */
 import { Router } from 'express';
-import { isAuthenticated } from '@server/middleware/auth.middleware';
+import { isAuthenticated, AuthenticatedRequest } from '../middleware/auth.middleware';
 import { hasRole } from '../middleware/role.middleware';
 import * as ragController from '../controllers/rag-controller';
 
