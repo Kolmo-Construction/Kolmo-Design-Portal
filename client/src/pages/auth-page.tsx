@@ -471,23 +471,22 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
         {/* Auth Form */}
         <Card className="w-full">
           <CardHeader className="space-y-1">
-            <div className="flex items-center gap-2 mb-2">
-              <svg className="h-8 w-8 text-primary" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="currentColor"/>
-                <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span className="text-2xl font-bold">BuildPortal</span>
+            <div className="flex justify-center mb-4">
+              <img 
+                src="/assets/kolmo-logo.png" 
+                alt="Kolmo Constructions Logo" 
+                className="h-20 object-contain"
+              />
             </div>
-            <CardTitle className="text-2xl">Welcome to BuildPortal</CardTitle>
-            <CardDescription>
-              Sign in or create an account to access your construction projects
+            <CardTitle className="text-2xl text-center">Kolmo Constructions</CardTitle>
+            <CardDescription className="text-center">
+              Sign in to access your construction project portal
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsList className="hidden">
                 <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="register">Register</TabsTrigger>
               </TabsList>
               
               <TabsContent value="login">
