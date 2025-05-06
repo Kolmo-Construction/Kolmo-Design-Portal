@@ -8,6 +8,7 @@ import Dashboard from "@/pages/dashboard";
 import Projects from "@/pages/projects";
 import ProjectDetails from "@/pages/ProjectDetails";
 import ProjectManagement from "@/pages/ProjectManagement";
+import ProjectGeneration from "@/pages/project-generation";
 import Documents from "@/pages/documents";
 import Financials from "@/pages/financials";
 import Messages from "@/pages/messages";
@@ -37,6 +38,7 @@ function Router() {
       <ProtectedRoute path="/" component={Dashboard} />
       <ProtectedRoute path="/projects" component={Projects} />
       <ProtectedRoute path="/projects/:id" component={ProjectDetails} />
+      <ProtectedRoute path="/projects/:projectId/generate" component={ProjectGeneration} />
       <ProtectedRoute path="/project-management" component={ProjectManagement} />
       <ProtectedRoute path="/documents" component={Documents} />
       <ProtectedRoute path="/financials" component={Financials} />
