@@ -378,6 +378,95 @@ export async function getTaskFeedbackWithUserInfo(taskId: string): Promise<(Task
  * This function will create regular tasks from RAG tasks that can be used in the project's task list
  */
 export async function convertRagTasksToProjectTasks(versionId: string, projectId: number): Promise<void> {
-  // This is a placeholder for future implementation
-  // Will convert the RAG tasks to regular project tasks
+  try {
+    // Check if project exists
+    const projectExists = await db.query.projects.findFirst({
+      where: eq(projects.id, projectId),
+    });
+
+    if (!projectExists) {
+      throw createNotFoundError(`Project with ID ${projectId} not found`);
+    }
+
+    // Check if version exists and belongs to the project
+    const version = await db.query.projectVersions.findFirst({
+      where: and(
+        eq(projectVersions.id, versionId),
+        eq(projectVersions.projectId, projectId)
+      ),
+    });
+
+    if (!version) {
+      throw createNotFoundError(`Project version with ID ${versionId} not found or does not belong to project ${projectId}`);
+    }
+
+    // Get all RAG tasks for this version
+    const ragTasksList = await db.query.ragTasks.findMany({
+      where: eq(ragTasks.projectVersionId, versionId),
+      orderBy: [asc(ragTasks.phase), asc(ragTasks.trade)],
+    });
+
+    if (ragTasksList.length === 0) {
+      throw createBadRequestError('No RAG tasks found for this version');
+    }
+
+    // Begin a transaction
+    await db.transaction(async (tx) => {
+      // Insert regular tasks for each RAG task
+      const taskInserts = ragTasksList.map(ragTask => ({
+        projectId: projectId,
+        title: `${ragTask.phase} - ${ragTask.trade} - ${ragTask.taskName}`,
+        description: ragTask.description,
+        status: 'todo',
+        priority: 'medium',
+        estimatedHours: ragTask.durationDays * 8, // Convert days to hours (8-hour days)
+        // Don't set publishedAt - tasks start unpublished
+      }));
+
+      const insertedTasks = await tx.insert(db.tasks).values(taskInserts).returning({
+        id: db.tasks.id,
+        title: db.tasks.title,
+      });
+
+      // Get RAG task dependencies
+      // Create a mapping from RAG task ID to regular task ID
+      const ragTaskToTaskMap = new Map();
+      
+      for (let i = 0; i < ragTasksList.length; i++) {
+        ragTaskToTaskMap.set(ragTasksList[i].id, insertedTasks[i].id);
+      }
+
+      // For each RAG task, get its dependencies and create regular task dependencies
+      for (const ragTask of ragTasksList) {
+        const dependencies = await db.query.ragTaskDependencies.findMany({
+          where: eq(ragTaskDependencies.taskId, ragTask.id),
+        });
+
+        // Skip if no dependencies
+        if (dependencies.length === 0) continue;
+
+        // Create regular task dependencies
+        const taskDependencyInserts = dependencies.map(dep => {
+          const successorTaskId = ragTaskToTaskMap.get(dep.taskId);
+          const predecessorTaskId = ragTaskToTaskMap.get(dep.dependsOnTaskId);
+
+          return {
+            successorId: successorTaskId,
+            predecessorId: predecessorTaskId,
+            type: 'FS', // Finish-to-Start is the default
+          };
+        });
+
+        // Insert task dependencies if any
+        if (taskDependencyInserts.length > 0) {
+          await tx.insert(db.taskDependencies).values(taskDependencyInserts);
+        }
+      }
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw createBadRequestError('Failed to convert RAG tasks to project tasks');
+  }
 }
