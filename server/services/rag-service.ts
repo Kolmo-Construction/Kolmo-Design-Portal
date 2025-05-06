@@ -421,7 +421,7 @@ export async function convertRagTasksToProjectTasks(versionId: string, projectId
         description: ragTask.description,
         status: 'todo',
         priority: 'medium',
-        estimatedHours: Number(ragTask.durationDays) * 8, // Convert days to hours (8-hour days)
+        estimatedHours: String(Number(ragTask.durationDays) * 8), // Convert days to hours (8-hour days) as string
         // Don't set publishedAt - tasks start unpublished
       }));
 
