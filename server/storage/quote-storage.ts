@@ -99,6 +99,10 @@ export class QuoteStorage {
     return quote || null;
   }
 
+  async getQuoteByToken(token: string): Promise<CustomerQuote | null> {
+    return this.getQuoteByMagicToken(token);
+  }
+
   async updateQuote(id: number, data: Partial<InsertCustomerQuote>): Promise<CustomerQuote | null> {
     // Convert string dates to Date objects for proper database handling
     const processedData = { ...data };
