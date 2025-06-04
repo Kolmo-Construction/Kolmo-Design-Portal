@@ -1,14 +1,16 @@
 import { db } from "../db";
-import { customerQuotes, quoteLineItems, quoteImages } from "@shared/schema";
+import { customerQuotes, quoteLineItems, quoteImages, quoteBeforeAfterPairs } from "@shared/schema";
 import type { 
   CustomerQuote, 
   InsertCustomerQuote,
   QuoteLineItem, 
   InsertQuoteLineItem,
   QuoteImage,
-  InsertQuoteImage
+  InsertQuoteImage,
+  QuoteBeforeAfterPair,
+  InsertQuoteBeforeAfterPair
 } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, asc } from "drizzle-orm";
 
 export class QuoteStorage {
   // Quotes
@@ -237,29 +239,94 @@ export class QuoteStorage {
     return (result.rowCount ?? 0) >= 0; // Allow 0 items to be deleted
   }
 
+  // Before/After Pairs
+  async createBeforeAfterPair(data: InsertQuoteBeforeAfterPair): Promise<QuoteBeforeAfterPair> {
+    const [pair] = await db
+      .insert(quoteBeforeAfterPairs)
+      .values(data)
+      .returning();
+    return pair;
+  }
+
+  async getBeforeAfterPairsByQuoteId(quoteId: number): Promise<QuoteBeforeAfterPair[]> {
+    return await db
+      .select()
+      .from(quoteBeforeAfterPairs)
+      .where(eq(quoteBeforeAfterPairs.quoteId, quoteId))
+      .orderBy(asc(quoteBeforeAfterPairs.sortOrder));
+  }
+
+  async getBeforeAfterPairById(id: number): Promise<QuoteBeforeAfterPair | null> {
+    const [pair] = await db
+      .select()
+      .from(quoteBeforeAfterPairs)
+      .where(eq(quoteBeforeAfterPairs.id, id));
+    return pair || null;
+  }
+
+  async updateBeforeAfterPair(id: number, data: Partial<InsertQuoteBeforeAfterPair>): Promise<QuoteBeforeAfterPair | null> {
+    const [pair] = await db
+      .update(quoteBeforeAfterPairs)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(quoteBeforeAfterPairs.id, id))
+      .returning();
+    return pair || null;
+  }
+
+  async deleteBeforeAfterPair(id: number): Promise<boolean> {
+    const result = await db
+      .delete(quoteBeforeAfterPairs)
+      .where(eq(quoteBeforeAfterPairs.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async deleteBeforeAfterPairsByQuoteId(quoteId: number): Promise<boolean> {
+    const result = await db
+      .delete(quoteBeforeAfterPairs)
+      .where(eq(quoteBeforeAfterPairs.quoteId, quoteId));
+    return (result.rowCount ?? 0) >= 0;
+  }
+
+  async reorderBeforeAfterPairs(quoteId: number, pairIds: number[]): Promise<boolean> {
+    try {
+      for (let i = 0; i < pairIds.length; i++) {
+        await db
+          .update(quoteBeforeAfterPairs)
+          .set({ sortOrder: i, updatedAt: new Date() })
+          .where(eq(quoteBeforeAfterPairs.id, pairIds[i]));
+      }
+      return true;
+    } catch (error) {
+      console.error('Error reordering before/after pairs:', error);
+      return false;
+    }
+  }
+
   // Combined operations
-  async getQuoteWithDetails(id: number): Promise<(CustomerQuote & { lineItems: QuoteLineItem[], images: QuoteImage[] }) | null> {
+  async getQuoteWithDetails(id: number): Promise<(CustomerQuote & { lineItems: QuoteLineItem[], images: QuoteImage[], beforeAfterPairs: QuoteBeforeAfterPair[] }) | null> {
     const quote = await this.getQuoteById(id);
     if (!quote) return null;
 
-    const [lineItems, images] = await Promise.all([
+    const [lineItems, images, beforeAfterPairs] = await Promise.all([
       this.getLineItemsByQuoteId(id),
-      this.getImagesByQuoteId(id)
+      this.getImagesByQuoteId(id),
+      this.getBeforeAfterPairsByQuoteId(id)
     ]);
 
-    return { ...quote, lineItems, images };
+    return { ...quote, lineItems, images, beforeAfterPairs };
   }
 
-  async getQuoteWithDetailsByToken(token: string): Promise<(CustomerQuote & { lineItems: QuoteLineItem[], images: QuoteImage[] }) | null> {
+  async getQuoteWithDetailsByToken(token: string): Promise<(CustomerQuote & { lineItems: QuoteLineItem[], images: QuoteImage[], beforeAfterPairs: QuoteBeforeAfterPair[] }) | null> {
     const quote = await this.getQuoteByMagicToken(token);
     if (!quote) return null;
 
-    const [lineItems, images] = await Promise.all([
+    const [lineItems, images, beforeAfterPairs] = await Promise.all([
       this.getLineItemsByQuoteId(quote.id),
-      this.getImagesByQuoteId(quote.id)
+      this.getImagesByQuoteId(quote.id),
+      this.getBeforeAfterPairsByQuoteId(quote.id)
     ]);
 
-    return { ...quote, lineItems, images };
+    return { ...quote, lineItems, images, beforeAfterPairs };
   }
 }
 

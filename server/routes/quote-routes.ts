@@ -3,7 +3,8 @@ import { quoteStorage } from "../storage/quote-storage";
 import { 
   insertCustomerQuoteSchema, 
   insertQuoteLineItemSchema, 
-  insertQuoteImageSchema 
+  insertQuoteImageSchema,
+  insertQuoteBeforeAfterPairSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -373,5 +374,117 @@ quoteRoutes.delete("/images/:id", async (req, res) => {
   } catch (error) {
     console.error("Error deleting image:", error);
     res.status(500).json({ error: "Failed to delete image" });
+  }
+});
+
+// Before/After Pairs Routes
+
+// Get before/after pairs for a quote
+quoteRoutes.get("/:quoteId/before-after-pairs", async (req, res) => {
+  try {
+    const quoteId = parseInt(req.params.quoteId);
+    if (isNaN(quoteId)) {
+      return res.status(400).json({ error: "Invalid quote ID" });
+    }
+
+    const pairs = await quoteStorage.getBeforeAfterPairsByQuoteId(quoteId);
+    res.json(pairs);
+  } catch (error) {
+    console.error("Error fetching before/after pairs:", error);
+    res.status(500).json({ error: "Failed to fetch before/after pairs" });
+  }
+});
+
+// Create a new before/after pair
+quoteRoutes.post("/:quoteId/before-after-pairs", async (req, res) => {
+  try {
+    const quoteId = parseInt(req.params.quoteId);
+    if (isNaN(quoteId)) {
+      return res.status(400).json({ error: "Invalid quote ID" });
+    }
+
+    const validatedData = insertQuoteBeforeAfterPairSchema.parse({
+      ...req.body,
+      quoteId
+    });
+
+    const pair = await quoteStorage.createBeforeAfterPair(validatedData);
+    res.status(201).json(pair);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: "Validation error", details: error.errors });
+    }
+    console.error("Error creating before/after pair:", error);
+    res.status(500).json({ error: "Failed to create before/after pair" });
+  }
+});
+
+// Update a before/after pair
+quoteRoutes.put("/before-after-pairs/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: "Invalid pair ID" });
+    }
+
+    const validatedData = insertQuoteBeforeAfterPairSchema.partial().parse(req.body);
+    const pair = await quoteStorage.updateBeforeAfterPair(id, validatedData);
+    
+    if (!pair) {
+      return res.status(404).json({ error: "Before/after pair not found" });
+    }
+
+    res.json(pair);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: "Validation error", details: error.errors });
+    }
+    console.error("Error updating before/after pair:", error);
+    res.status(500).json({ error: "Failed to update before/after pair" });
+  }
+});
+
+// Delete a before/after pair
+quoteRoutes.delete("/before-after-pairs/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: "Invalid pair ID" });
+    }
+
+    const success = await quoteStorage.deleteBeforeAfterPair(id);
+    if (!success) {
+      return res.status(404).json({ error: "Before/after pair not found" });
+    }
+
+    res.json({ message: "Before/after pair deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting before/after pair:", error);
+    res.status(500).json({ error: "Failed to delete before/after pair" });
+  }
+});
+
+// Reorder before/after pairs
+quoteRoutes.put("/:quoteId/before-after-pairs/reorder", async (req, res) => {
+  try {
+    const quoteId = parseInt(req.params.quoteId);
+    if (isNaN(quoteId)) {
+      return res.status(400).json({ error: "Invalid quote ID" });
+    }
+
+    const { pairIds } = req.body;
+    if (!Array.isArray(pairIds)) {
+      return res.status(400).json({ error: "pairIds must be an array" });
+    }
+
+    const success = await quoteStorage.reorderBeforeAfterPairs(quoteId, pairIds);
+    if (!success) {
+      return res.status(500).json({ error: "Failed to reorder pairs" });
+    }
+
+    res.json({ message: "Pairs reordered successfully" });
+  } catch (error) {
+    console.error("Error reordering before/after pairs:", error);
+    res.status(500).json({ error: "Failed to reorder before/after pairs" });
   }
 });
