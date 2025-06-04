@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { BeforeAfterSlider } from "./before-after-slider";
+import { MultipleBeforeAfterSlider } from "./multiple-before-after-slider";
 
 interface QuoteData {
   id: number;
@@ -65,6 +65,14 @@ interface QuoteData {
     imageUrl: string;
     caption?: string;
     imageType: string;
+  }>;
+  beforeAfterPairs?: Array<{
+    id: number;
+    title: string;
+    description?: string;
+    beforeImageUrl: string;
+    afterImageUrl: string;
+    sortOrder: number;
   }>;
 }
 
