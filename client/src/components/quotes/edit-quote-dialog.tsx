@@ -166,8 +166,8 @@ export default function EditQuoteDialog({
       });
       
       // Load existing before/after pairs
-      if (quote.beforeAfterPairs) {
-        setBeforeAfterPairs(quote.beforeAfterPairs);
+      if ((quote as any).beforeAfterPairs) {
+        setBeforeAfterPairs((quote as any).beforeAfterPairs);
       }
     }
   }, [quote, open, form]);
@@ -620,17 +620,29 @@ export default function EditQuoteDialog({
               />
             </div>
 
-            {/* Before/After Images Section */}
+            {/* Multiple Before/After Image Pairs */}
+            <Separator />
+            <div className="space-y-4">
+              {quote && (
+                <BeforeAfterPairsManager 
+                  quoteId={quote.id}
+                  pairs={beforeAfterPairs}
+                  onPairsChange={setBeforeAfterPairs}
+                />
+              )}
+            </div>
+
+            {/* Color Verification Section */}
             <div className="space-y-4">
               <FormField
                 control={form.control}
-                name="showBeforeAfter"
+                name="showColorVerification"
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
-                      <FormLabel className="text-base">Before/After Images</FormLabel>
+                      <FormLabel className="text-base">Color Verification</FormLabel>
                       <div className="text-sm text-muted-foreground">
-                        Show before and after comparison
+                        Show color verification section
                       </div>
                     </div>
                     <FormControl>
@@ -643,16 +655,16 @@ export default function EditQuoteDialog({
                 )}
               />
 
-              {form.watch("showBeforeAfter") && (
+              {form.watch("showColorVerification") && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Before/After Configuration</CardTitle>
-                    <CardDescription>Configure the before/after image section</CardDescription>
+                    <CardTitle>Color Verification</CardTitle>
+                    <CardDescription>Configure the color verification section</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <FormField
                       control={form.control}
-                      name="beforeAfterTitle"
+                      name="colorVerificationTitle"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Section Title</FormLabel>
@@ -666,49 +678,17 @@ export default function EditQuoteDialog({
                     
                     <FormField
                       control={form.control}
-                      name="beforeAfterDescription"
+                      name="colorVerificationDescription"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Description</FormLabel>
                           <FormControl>
-                            <Textarea {...field} rows={2} placeholder="Brief description of the transformation..." />
+                            <Textarea {...field} rows={2} placeholder="Brief description of color verification..." />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-
-                    {quote && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <ImageUpload
-                          quoteId={quote.id}
-                          imageType="before"
-                          onImageUploaded={(url, key) => {
-                            toast({
-                              title: "Before image uploaded",
-                              description: "The before image has been uploaded successfully.",
-                            });
-                            queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
-                          }}
-                          existingImage={quote.beforeImageUrl || undefined}
-                          label="Before Image"
-                        />
-                        
-                        <ImageUpload
-                          quoteId={quote.id}
-                          imageType="after"
-                          onImageUploaded={(url, key) => {
-                            toast({
-                              title: "After image uploaded",
-                              description: "The after image has been uploaded successfully.",
-                            });
-                            queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
-                          }}
-                          existingImage={quote.afterImageUrl || undefined}
-                          label="After Image"
-                        />
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
               )}
