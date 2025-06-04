@@ -85,12 +85,19 @@ export default function BeforeAfterPairsManager({ quoteId, onPairsChange }: Befo
 
   // Update pair mutation
   const updatePairMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<PairFormData> }) =>
-      apiRequest({
-        url: `/api/quotes/before-after-pairs/${id}`,
+    mutationFn: async ({ id, data }: { id: number; data: Partial<PairFormData> }) => {
+      const response = await fetch(`/api/quotes/before-after-pairs/${id}`, {
         method: "PUT",
-        data,
-      }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update before/after pair');
+      }
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes", quoteId, "before-after-pairs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
@@ -112,11 +119,15 @@ export default function BeforeAfterPairsManager({ quoteId, onPairsChange }: Befo
 
   // Delete pair mutation
   const deletePairMutation = useMutation({
-    mutationFn: (id: number) =>
-      apiRequest({
-        url: `/api/quotes/before-after-pairs/${id}`,
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/quotes/before-after-pairs/${id}`, {
         method: "DELETE",
-      }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete before/after pair');
+      }
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes", quoteId, "before-after-pairs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
@@ -137,12 +148,19 @@ export default function BeforeAfterPairsManager({ quoteId, onPairsChange }: Befo
 
   // Reorder pairs mutation
   const reorderPairsMutation = useMutation({
-    mutationFn: (pairIds: number[]) =>
-      apiRequest({
-        url: `/api/quotes/${quoteId}/before-after-pairs/reorder`,
+    mutationFn: async (pairIds: number[]) => {
+      const response = await fetch(`/api/quotes/${quoteId}/before-after-pairs/reorder`, {
         method: "PUT",
-        data: { pairIds },
-      }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ pairIds }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to reorder before/after pairs');
+      }
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes", quoteId, "before-after-pairs"] });
       onPairsChange?.();
