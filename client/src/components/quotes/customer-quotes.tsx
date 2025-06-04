@@ -311,6 +311,24 @@ export default function CustomerQuotes() {
                     <div className="text-muted-foreground">
                       Valid until {new Date(quote.validUntil).toLocaleDateString()}
                     </div>
+                    {quote.magicToken && (
+                      <div className="mt-2">
+                        <div className="font-medium text-muted-foreground text-xs">Customer Link</div>
+                        <div className="flex items-center space-x-2">
+                          <code className="text-xs bg-muted px-2 py-1 rounded">
+                            /quote/{quote.magicToken}
+                          </code>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCopyMagicLink(quote)}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>

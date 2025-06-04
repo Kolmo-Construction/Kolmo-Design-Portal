@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { BeforeAfterSlider } from "./before-after-slider";
 
 interface QuoteData {
   id: number;
@@ -301,13 +302,25 @@ export default function QuoteView() {
           </CardContent>
         </Card>
 
-        {/* Images */}
-        {quote.images.length > 0 && (
+        {/* Before/After Images */}
+        {quote.showBeforeAfter && (quote.beforeImageUrl || quote.afterImageUrl) && (
+          <div className="mb-6">
+            <BeforeAfterSlider
+              beforeImageUrl={quote.beforeImageUrl}
+              afterImageUrl={quote.afterImageUrl}
+              title={quote.beforeAfterTitle}
+              description={quote.beforeAfterDescription}
+            />
+          </div>
+        )}
+
+        {/* Other Project Images */}
+        {quote.images && quote.images.length > 0 && (
           <Card className="mb-6">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <ImageIcon className="w-5 h-5 mr-2" />
-                Project Images
+                Additional Project Images
               </CardTitle>
             </CardHeader>
             <CardContent>
