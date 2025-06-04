@@ -88,8 +88,8 @@ export async function uploadToR2(options: {
   try {
     await R2.send(command);
 
-    // Construct the public URL for R2 storage using Cloudflare public domain
-    const fileUrl = `https://pub-${bucketName}.r2.dev/${key}`;
+    // Use server proxy URL instead of direct R2 URL for reliable access
+    const fileUrl = `/api/storage/image/${encodeURIComponent(key)}`;
 
     console.log(`Successfully uploaded ${options.fileName} to ${fileUrl}`);
     return {
