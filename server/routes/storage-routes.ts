@@ -63,6 +63,7 @@ storageRoutes.get('/image/:key', async (req, res, next) => {
 /**
  * Proxy image from R2 storage to avoid CORS issues
  * This function handles fetching images from R2 with extensive fallbacks
+ * No authentication required for public image access
  */
 storageRoutes.get('/proxy/:key(*)', async (req, res, next) => {
   try {

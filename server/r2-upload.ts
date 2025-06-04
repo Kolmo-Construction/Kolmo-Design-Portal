@@ -88,8 +88,8 @@ export async function uploadToR2(options: {
   try {
     await R2.send(command);
 
-    // Use server proxy URL instead of direct R2 URL for reliable access
-    const fileUrl = `/api/storage/image/${encodeURIComponent(key)}`;
+    // Use server proxy URL that serves actual image data instead of JSON
+    const fileUrl = `/api/storage/proxy/${encodeURIComponent(key)}`;
 
     console.log(`Successfully uploaded ${options.fileName} to ${fileUrl}`);
     return {
