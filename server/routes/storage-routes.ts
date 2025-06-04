@@ -45,7 +45,7 @@ const upload = multer({
 /**
  * Get a signed URL for an image in R2 storage
  */
-storageRoutes.get('/image/:key', async (req, res, next) => {
+storageRoutes.get('/image/:key', isAuthenticated, async (req, res, next) => {
   try {
     const { key } = req.params;
     
@@ -101,7 +101,7 @@ storageRoutes.get('/proxy/:key(*)', async (req, res, next) => {
 /**
  * Check if a file exists in R2 storage
  */
-storageRoutes.head('/check/:key(*)', async (req, res, next) => {
+storageRoutes.head('/check/:key(*)', isAuthenticated, async (req, res, next) => {
   try {
     const key = req.params.key;
     

@@ -159,8 +159,8 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // Mount Quote Management routes (authenticated)
   app.use("/api/quotes", isAuthenticated, quoteRoutes);
 
-  // Mount Storage/R2 routes
-  app.use("/api/storage", isAuthenticated, storageRoutes);
+  // Mount Storage/R2 routes with mixed authentication
+  app.use("/api/storage", storageRoutes);
 
   // --- REMOVED: Old inline route definitions and local router variables ---
   // const taskRouter = Router(...) // REMOVED
