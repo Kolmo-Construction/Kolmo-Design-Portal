@@ -704,6 +704,89 @@ export default function CreateQuoteDialog({ open, onOpenChange, onSuccess }: Cre
               </CardContent>
             </Card>
 
+            {/* Before/After Images */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Before/After Images</CardTitle>
+                <CardDescription>Upload before and after images to showcase project transformation</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <FormField
+                    control={form.control}
+                    name="showBeforeAfter"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>
+                            Show Before/After Section
+                          </FormLabel>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                {form.watch("showBeforeAfter") && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="beforeAfterTitle"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Section Title</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Project Transformation" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <FormField
+                      control={form.control}
+                      name="beforeAfterDescription"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} rows={2} placeholder="Brief description of the transformation..." />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <h4 className="text-sm font-medium mb-3">Before Image</h4>
+                        {/* Image upload component will be added here after quote creation */}
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                          <p className="text-sm text-gray-500">Upload after creating quote</p>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <h4 className="text-sm font-medium mb-3">After Image</h4>
+                        {/* Image upload component will be added here after quote creation */}
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                          <p className="text-sm text-gray-500">Upload after creating quote</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Additional Details */}
             <Card>
               <CardHeader>
