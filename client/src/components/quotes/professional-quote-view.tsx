@@ -181,7 +181,7 @@ export default function ProfessionalQuoteView() {
                 />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-slate-800">Kolmo Construction</h1>
+                <h1 className="text-3xl font-bold text-slate-800 font-montserrat">Kolmo Construction</h1>
                 <p className="text-slate-600 text-lg">Licensed & Bonded General Contractor</p>
                 <p className="text-slate-500 text-sm mt-1">WA License #KOLMO*123BC</p>
               </div>
@@ -205,7 +205,7 @@ export default function ProfessionalQuoteView() {
                 <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
                 QUOTE PROPOSAL
               </div>
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">{quote.projectTitle}</h2>
+              <h2 className="text-3xl font-bold text-slate-900 mb-2 font-montserrat">{quote.projectTitle}</h2>
               <p className="text-slate-600 text-lg">Quote #{quote.quoteNumber}</p>
               <p className="text-slate-500 text-sm mt-1">Prepared for {quote.customerName}</p>
             </div>
@@ -233,7 +233,7 @@ export default function ProfessionalQuoteView() {
           {/* Customer & Project Info Grid */}
           <div className="grid md:grid-cols-2 gap-8 pt-8 border-t border-gray-100">
             <div>
-              <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center font-montserrat">
                 <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
                   <Building2 className="w-4 h-4 text-blue-600" />
                 </div>
@@ -266,7 +266,7 @@ export default function ProfessionalQuoteView() {
             </div>
             
             <div>
-              <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center font-montserrat">
                 <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
                   <Phone className="w-4 h-4 text-green-600" />
                 </div>
