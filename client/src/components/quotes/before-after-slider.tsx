@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { 
+  ReactCompareSlider, 
+  ReactCompareSliderImage 
+} from 'react-compare-slider';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface BeforeAfterSliderProps {
   beforeImageUrl?: string;
@@ -16,13 +18,71 @@ export function BeforeAfterSlider({
   title = "Project Transformation",
   description
 }: BeforeAfterSliderProps) {
-  const [showAfter, setShowAfter] = useState(false);
-
   // Don't render if no images are available
   if (!beforeImageUrl && !afterImageUrl) {
     return null;
   }
 
+  // If we have both images, show the compare slider
+  if (beforeImageUrl && afterImageUrl) {
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+          {description && (
+            <p className="text-muted-foreground">{description}</p>
+          )}
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="aspect-video rounded-lg overflow-hidden border">
+              <ReactCompareSlider
+                itemOne={
+                  <ReactCompareSliderImage
+                    src={beforeImageUrl}
+                    alt="Before renovation"
+                    style={{ objectFit: 'cover' }}
+                    onError={(e) => {
+                      console.error("Error loading before image:", beforeImageUrl);
+                    }}
+                  />
+                }
+                itemTwo={
+                  <ReactCompareSliderImage
+                    src={afterImageUrl}
+                    alt="After renovation"
+                    style={{ objectFit: 'cover' }}
+                    onError={(e) => {
+                      console.error("Error loading after image:", afterImageUrl);
+                    }}
+                  />
+                }
+                position={50}
+                style={{ 
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: '0.5rem'
+                }}
+              />
+            </div>
+            <div className="flex justify-between items-center">
+              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                Before
+              </Badge>
+              <div className="text-sm text-muted-foreground">
+                Drag the slider to compare
+              </div>
+              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                After
+              </Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // If we only have one image, show it individually
   return (
     <Card className="w-full">
       <CardHeader>
@@ -32,10 +92,9 @@ export function BeforeAfterSlider({
         )}
       </CardHeader>
       <CardContent>
-        <div className="relative">
-          {/* Image Container */}
-          <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden">
-            {beforeImageUrl && !showAfter && (
+        <div className="space-y-3">
+          <div className="aspect-video rounded-lg overflow-hidden border bg-gray-100">
+            {beforeImageUrl && (
               <img
                 src={beforeImageUrl}
                 alt="Before"
@@ -46,7 +105,7 @@ export function BeforeAfterSlider({
                 }}
               />
             )}
-            {afterImageUrl && showAfter && (
+            {afterImageUrl && !beforeImageUrl && (
               <img
                 src={afterImageUrl}
                 alt="After"
@@ -57,70 +116,12 @@ export function BeforeAfterSlider({
                 }}
               />
             )}
-            
-            {/* Image Label */}
-            <div className="absolute top-4 left-4">
-              <span className="bg-black/70 text-white px-3 py-1 rounded-full text-sm font-medium">
-                {showAfter ? "After" : "Before"}
-              </span>
-            </div>
-
-            {/* Navigation Buttons */}
-            {beforeImageUrl && afterImageUrl && (
-              <>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="absolute left-4 top-1/2 transform -translate-y-1/2"
-                  onClick={() => setShowAfter(false)}
-                  disabled={!showAfter}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2"
-                  onClick={() => setShowAfter(true)}
-                  disabled={showAfter}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </>
-            )}
           </div>
-
-          {/* Toggle Buttons */}
-          {beforeImageUrl && afterImageUrl && (
-            <div className="flex justify-center mt-4 space-x-2">
-              <Button
-                variant={!showAfter ? "default" : "outline"}
-                size="sm"
-                onClick={() => setShowAfter(false)}
-              >
-                Before
-              </Button>
-              <Button
-                variant={showAfter ? "default" : "outline"}
-                size="sm"
-                onClick={() => setShowAfter(true)}
-              >
-                After
-              </Button>
-            </div>
-          )}
-
-          {/* Single Image Labels */}
-          {beforeImageUrl && !afterImageUrl && (
-            <div className="text-center mt-2">
-              <span className="text-sm text-muted-foreground">Before Image</span>
-            </div>
-          )}
-          {!beforeImageUrl && afterImageUrl && (
-            <div className="text-center mt-2">
-              <span className="text-sm text-muted-foreground">After Image</span>
-            </div>
-          )}
+          <div className="text-center">
+            <Badge variant="outline" className={beforeImageUrl ? "bg-red-50 text-red-700 border-red-200" : "bg-green-50 text-green-700 border-green-200"}>
+              {beforeImageUrl ? "Before" : "After"}
+            </Badge>
+          </div>
         </div>
       </CardContent>
     </Card>
