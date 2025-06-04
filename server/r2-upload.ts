@@ -20,7 +20,7 @@ if (!accountId || !accessKeyId || !secretAccessKey || !bucketName) {
 
 const r2Endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
 
-const R2 = new S3Client({
+export const r2Client = new S3Client({
   region: "auto", // R2 specific region
   endpoint: r2Endpoint,
   credentials: {
@@ -28,6 +28,8 @@ const R2 = new S3Client({
     secretAccessKey: secretAccessKey || '',
   },
 });
+
+const R2 = r2Client;
 
 // Define the return type for the uploadToR2 function
 interface UploadResult {

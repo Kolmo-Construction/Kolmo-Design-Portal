@@ -12,6 +12,9 @@ export const projectStatusEnum = pgEnum('project_status', ['draft', 'finalized',
 // Define feedback types enum
 export const feedbackTypeEnum = pgEnum('feedback_type', ['edit', 'approve', 'reject']);
 
+// Define quote status enum
+export const quoteStatusEnum = pgEnum('quote_status', ['draft', 'sent', 'viewed', 'accepted', 'declined', 'expired']);
+
 // Define RAG Tables
 
 // Project versions table for immutable versioning of task bundles
@@ -300,6 +303,77 @@ export const punchListItems = pgTable("punch_list_items", {
   resolvedAt: timestamp("resolved_at"),
 });
 
+// --- Quote Management Tables ---
+
+// Customer quotes table
+export const customerQuotes = pgTable("customer_quotes", {
+  id: serial("id").primaryKey(),
+  quoteNumber: text("quote_number").notNull().unique(),
+  magicToken: pgUuid("magic_token").notNull().unique().default(sql`uuid_generate_v4()`),
+  customerName: text("customer_name").notNull(),
+  customerEmail: text("customer_email").notNull(),
+  customerPhone: text("customer_phone"),
+  customerAddress: text("customer_address"),
+  projectTitle: text("project_title").notNull(),
+  projectDescription: text("project_description").notNull(),
+  projectType: text("project_type").notNull(),
+  projectLocation: text("project_location"),
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).notNull(),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  estimatedStartDate: timestamp("estimated_start_date"),
+  estimatedCompletionDate: timestamp("estimated_completion_date"),
+  validUntil: timestamp("valid_until").notNull(),
+  status: quoteStatusEnum("status").notNull().default("draft"),
+  viewedAt: timestamp("viewed_at"),
+  respondedAt: timestamp("responded_at"),
+  customerResponse: text("customer_response"), // 'accepted' or 'declined'
+  customerNotes: text("customer_notes"),
+  showBeforeAfter: boolean("show_before_after").default(false),
+  beforeImageUrl: text("before_image_url"),
+  afterImageUrl: text("after_image_url"),
+  beforeAfterTitle: text("before_after_title"),
+  beforeAfterDescription: text("before_after_description"),
+  showColorVerification: boolean("show_color_verification").default(false),
+  colorVerificationTitle: text("color_verification_title"),
+  colorVerificationDescription: text("color_verification_description"),
+  paintColors: jsonb("paint_colors"), // Object of area: color mappings
+  permitRequired: boolean("permit_required").default(false),
+  permitDetails: text("permit_details"),
+  downPaymentPercentage: decimal("down_payment_percentage", { precision: 5, scale: 2 }),
+  milestonePaymentPercentage: decimal("milestone_payment_percentage", { precision: 5, scale: 2 }),
+  finalPaymentPercentage: decimal("final_payment_percentage", { precision: 5, scale: 2 }),
+  milestoneDescription: text("milestone_description"),
+  creditCardProcessingFee: decimal("credit_card_processing_fee", { precision: 5, scale: 2 }),
+  acceptsCreditCards: boolean("accepts_credit_cards").default(true),
+  createdBy: integer("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Quote line items table
+export const quoteLineItems = pgTable("quote_line_items", {
+  id: serial("id").primaryKey(),
+  quoteId: integer("quote_id").notNull().references(() => customerQuotes.id, { onDelete: 'cascade' }),
+  category: text("category").notNull(),
+  description: text("description").notNull(),
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull(),
+  unit: text("unit").notNull(),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Quote images table
+export const quoteImages = pgTable("quote_images", {
+  id: serial("id").primaryKey(),
+  quoteId: integer("quote_id").notNull().references(() => customerQuotes.id, { onDelete: 'cascade' }),
+  imageUrl: text("image_url").notNull(),
+  caption: text("caption"),
+  imageType: text("image_type").notNull(), // 'project', 'before', 'after', 'reference'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // --- RAG Relations ---
 export const projectVersionRelations = relations(projectVersions, ({ one, many }) => ({
   project: one(projects, { fields: [projectVersions.projectId], references: [projects.id] }),
@@ -439,6 +513,21 @@ export const punchListItemRelations = relations(punchListItems, ({ one, many }) 
   assignee: one(users, { fields: [punchListItems.assigneeId], references: [users.id], relationName: 'PunchListAssignee' }),
   creator: one(users, { fields: [punchListItems.createdById], references: [users.id] }),
   media: many(updateMedia),
+}));
+
+// Quote relations
+export const customerQuoteRelations = relations(customerQuotes, ({ one, many }) => ({
+  creator: one(users, { fields: [customerQuotes.createdBy], references: [users.id] }),
+  lineItems: many(quoteLineItems),
+  images: many(quoteImages),
+}));
+
+export const quoteLineItemRelations = relations(quoteLineItems, ({ one }) => ({
+  quote: one(customerQuotes, { fields: [quoteLineItems.quoteId], references: [customerQuotes.id] }),
+}));
+
+export const quoteImageRelations = relations(quoteImages, ({ one }) => ({
+  quote: one(customerQuotes, { fields: [quoteImages.quoteId], references: [customerQuotes.id] }),
 }));
 
 
@@ -612,6 +701,30 @@ export const insertTaskChunkSchema = createInsertSchema(taskChunks).omit({
   createdAt: true,
 });
 
+// --- Quote Insert Schemas ---
+export const insertCustomerQuoteSchema = createInsertSchema(customerQuotes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  magicToken: true, // Auto-generated
+}).extend({
+  estimatedStartDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
+  estimatedCompletionDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
+  validUntil: z.union([z.string().datetime(), z.date()]),
+  viewedAt: z.union([z.string().datetime(), z.date()]).optional().nullable(),
+  respondedAt: z.union([z.string().datetime(), z.date()]).optional().nullable(),
+});
+
+export const insertQuoteLineItemSchema = createInsertSchema(quoteLineItems).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertQuoteImageSchema = createInsertSchema(quoteImages).omit({
+  id: true,
+  createdAt: true,
+});
+
 // --- Export Types ---
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -679,6 +792,18 @@ export type DailyLogPhoto = typeof dailyLogPhotos.$inferSelect;
 
 export type InsertPunchListItem = z.infer<typeof insertPunchListItemSchema>;
 export type PunchListItem = typeof punchListItems.$inferSelect;
+
+// Quote types
+export type InsertCustomerQuote = z.infer<typeof insertCustomerQuoteSchema>;
+export type CustomerQuote = typeof customerQuotes.$inferSelect;
+
+export type InsertQuoteLineItem = z.infer<typeof insertQuoteLineItemSchema>;
+export type QuoteLineItem = typeof quoteLineItems.$inferSelect;
+
+export type InsertQuoteImage = z.infer<typeof insertQuoteImageSchema>;
+export type QuoteImage = typeof quoteImages.$inferSelect;
+
+export type QuoteStatus = typeof customerQuotes.status.enumValues[number];
 
 // These types are already defined above
 

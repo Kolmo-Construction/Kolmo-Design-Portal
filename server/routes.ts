@@ -23,6 +23,8 @@ import taskRouterModule from "@server/routes/task.routes";
 import dailyLogRouter from "@server/routes/dailyLog.routes"; // Assuming you have this file
 import punchListRouter from "@server/routes/punchList.routes"; // Assuming you have this file
 import ragRouter from "./routes/rag-routes"; // RAG system router
+import { quoteRoutes } from "./routes/quote-routes"; // Quote management router
+import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
 // Import other routers as needed (milestones, selections, admin, etc.)
 // import milestoneRouter from "@server/routes/milestone.routes";
 // import selectionRouter from "@server/routes/selection.routes";
@@ -149,6 +151,12 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // Mount RAG system routes
   app.use("/api/rag", ragRouter);
+
+  // Mount Quote Management routes
+  app.use("/api/quotes", isAuthenticated, quoteRoutes);
+
+  // Mount Storage/R2 routes
+  app.use("/api/storage", isAuthenticated, storageRoutes);
 
   // --- REMOVED: Old inline route definitions and local router variables ---
   // const taskRouter = Router(...) // REMOVED
