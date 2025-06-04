@@ -29,8 +29,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import type { CustomerQuote } from "@shared/schema";
+import { ImageUpload } from "./image-upload";
 
 const quoteFormSchema = z.object({
   projectType: z.string().min(1, "Project type is required"),
@@ -554,6 +558,100 @@ export default function EditQuoteDialog({
                   </FormItem>
                 )}
               />
+            </div>
+
+            {/* Before/After Images Section */}
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="showBeforeAfter"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Before/After Images</FormLabel>
+                      <div className="text-sm text-muted-foreground">
+                        Show before and after comparison
+                      </div>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              {form.watch("showBeforeAfter") && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Before/After Configuration</CardTitle>
+                    <CardDescription>Configure the before/after image section</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="beforeAfterTitle"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Section Title</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Project Transformation" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="beforeAfterDescription"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} rows={2} placeholder="Brief description of the transformation..." />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {quote && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <ImageUpload
+                          quoteId={quote.id}
+                          imageType="before"
+                          onImageUploaded={(url, key) => {
+                            toast({
+                              title: "Before image uploaded",
+                              description: "The before image has been uploaded successfully.",
+                            });
+                            queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
+                          }}
+                          existingImage={quote.beforeImageUrl || undefined}
+                          label="Before Image"
+                        />
+                        
+                        <ImageUpload
+                          quoteId={quote.id}
+                          imageType="after"
+                          onImageUploaded={(url, key) => {
+                            toast({
+                              title: "After image uploaded",
+                              description: "The after image has been uploaded successfully.",
+                            });
+                            queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
+                          }}
+                          existingImage={quote.afterImageUrl || undefined}
+                          label="After Image"
+                        />
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             <div className="flex justify-end space-x-2">
