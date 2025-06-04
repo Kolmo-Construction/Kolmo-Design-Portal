@@ -412,45 +412,52 @@ export default function ProfessionalQuoteView() {
           </div>
         )}
 
-        {/* Payment Schedule */}
+        {/* Investment & Payment Structure */}
         {(quote.downPaymentPercentage || quote.acceptsCreditCards) && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
-            <h3 className="text-xl font-semibold text-slate-800 mb-6 flex items-center">
-              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
-                <DollarSign className="w-4 h-4 text-orange-600" />
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-10 mb-8">
+            <h3 className="text-2xl font-semibold text-primary mb-8 flex items-center">
+              <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center mr-4">
+                <DollarSign className="w-6 h-6 text-accent" />
               </div>
-              Payment Schedule
+              Investment & Payment Structure
             </h3>
             
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="space-y-8">
+              {/* Payment Breakdown */}
               <div>
-                <h4 className="font-medium text-slate-800 mb-4">Payment Structure</h4>
-                <div className="space-y-3">
+                <h4 className="text-lg font-semibold text-slate-800 mb-6">Payment Breakdown</h4>
+                <div className="space-y-4">
                   {quote.downPaymentPercentage && (
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <span className="text-slate-600">Down Payment ({quote.downPaymentPercentage}%):</span>
-                      <span className="font-medium text-slate-800">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-5 bg-slate-50 rounded-xl border border-slate-100">
+                      <div className="mb-2 sm:mb-0">
+                        <span className="text-slate-700 font-semibold">Initial Payment</span>
+                        <div className="text-sm text-muted-foreground">Due upon contract signing ({quote.downPaymentPercentage}%)</div>
+                      </div>
+                      <span className="text-xl font-bold text-accent">
                         {formatCurrency((parseFloat(quote.totalAmount) * parseFloat(quote.downPaymentPercentage) / 100).toString())}
                       </span>
                     </div>
                   )}
                   {quote.milestonePaymentPercentage && (
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <span className="text-slate-600">Milestone Payment ({quote.milestonePaymentPercentage}%):</span>
-                      <span className="font-medium text-slate-800">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-5 bg-slate-50 rounded-xl border border-slate-100">
+                      <div className="mb-2 sm:mb-0">
+                        <span className="text-slate-700 font-semibold">Progress Payment</span>
+                        <div className="text-sm text-muted-foreground">
+                          {quote.milestoneDescription || `At project milestone (${quote.milestonePaymentPercentage}%)`}
+                        </div>
+                      </div>
+                      <span className="text-xl font-bold text-accent">
                         {formatCurrency((parseFloat(quote.totalAmount) * parseFloat(quote.milestonePaymentPercentage) / 100).toString())}
                       </span>
                     </div>
                   )}
-                  {quote.milestoneDescription && quote.milestoneDescription.length > 0 && (
-                    <p className="text-sm text-slate-600 italic">
-                      {quote.milestoneDescription}
-                    </p>
-                  )}
                   {quote.finalPaymentPercentage && (
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <span className="text-slate-600">Final Payment ({quote.finalPaymentPercentage}%):</span>
-                      <span className="font-medium text-slate-800">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-5 bg-slate-50 rounded-xl border border-slate-100">
+                      <div className="mb-2 sm:mb-0">
+                        <span className="text-slate-700 font-semibold">Final Payment</span>
+                        <div className="text-sm text-muted-foreground">Upon project completion ({quote.finalPaymentPercentage}%)</div>
+                      </div>
+                      <span className="text-xl font-bold text-accent">
                         {formatCurrency((parseFloat(quote.totalAmount) * parseFloat(quote.finalPaymentPercentage) / 100).toString())}
                       </span>
                     </div>
@@ -458,28 +465,37 @@ export default function ProfessionalQuoteView() {
                 </div>
               </div>
               
+              {/* Payment Methods */}
               <div>
-                <h4 className="font-medium text-slate-800 mb-4">Payment Options</h4>
-                <div className="space-y-3">
+                <h4 className="text-lg font-semibold text-slate-800 mb-6">Accepted Payment Methods</h4>
+                <div className="grid sm:grid-cols-2 gap-4">
                   {quote.acceptsCreditCards && (
-                    <div className="p-4 border border-green-200 bg-green-50 rounded-lg">
-                      <div className="flex items-center mb-2">
-                        <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
-                        <span className="font-medium text-green-800">Credit Cards Accepted</span>
+                    <div className="p-5 border border-primary/20 bg-primary/5 rounded-xl">
+                      <div className="flex items-center mb-3">
+                        <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mr-3">
+                          <CheckCircle className="w-4 h-4 text-primary" />
+                        </div>
+                        <span className="font-semibold text-slate-800">Credit & Debit Cards</span>
                       </div>
-                      {quote.creditCardProcessingFee && quote.creditCardProcessingFee.length > 0 && (
-                        <p className="text-sm text-green-700">
-                          Processing fee: {quote.creditCardProcessingFee}%
+                      {quote.creditCardProcessingFee && quote.creditCardProcessingFee.length > 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          {quote.creditCardProcessingFee}% processing fee applies
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Visa, MasterCard, American Express
                         </p>
                       )}
                     </div>
                   )}
-                  <div className="p-4 border border-blue-200 bg-blue-50 rounded-lg">
-                    <div className="flex items-center mb-2">
-                      <CheckCircle className="w-5 h-5 text-blue-600 mr-2" />
-                      <span className="font-medium text-blue-800">Check/Bank Transfer</span>
+                  <div className="p-5 border border-accent/20 bg-accent/5 rounded-xl">
+                    <div className="flex items-center mb-3">
+                      <div className="w-8 h-8 bg-accent/10 rounded-lg flex items-center justify-center mr-3">
+                        <CheckCircle className="w-4 h-4 text-accent" />
+                      </div>
+                      <span className="font-semibold text-slate-800">Bank Transfer & Check</span>
                     </div>
-                    <p className="text-sm text-blue-700">No additional fees</p>
+                    <p className="text-sm text-muted-foreground">No additional processing fees</p>
                   </div>
                 </div>
               </div>
@@ -487,52 +503,73 @@ export default function ProfessionalQuoteView() {
           </div>
         )}
 
-        {/* Action Buttons */}
+        {/* Decision Section */}
         {!hasResponded && !isExpired && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-            <h3 className="text-xl font-semibold text-slate-800 mb-6">Ready to move forward?</h3>
-            <div className="flex flex-col sm:flex-row gap-4">
+          <div className="bg-gradient-to-br from-primary to-secondary rounded-2xl shadow-lg border border-primary/20 p-6 sm:p-10 mb-8">
+            <div className="text-center mb-8">
+              <h3 className="text-2xl sm:text-3xl font-bold text-white mb-4">Ready to Start Your Project?</h3>
+              <p className="text-primary-foreground/90 text-base sm:text-lg max-w-2xl mx-auto">
+                Let's bring your vision to life with Kolmo's expert craftsmanship and innovative approach to construction.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 max-w-2xl mx-auto">
               <Button 
                 onClick={() => handleResponse("accepted")}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white py-4 text-lg font-medium"
+                className="flex-1 bg-accent hover:bg-accent/90 text-white py-4 sm:py-5 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
                 size="lg"
               >
-                <CheckCircle className="w-5 h-5 mr-2" />
-                Accept Quote
+                <CheckCircle className="w-6 h-6 mr-3" />
+                Yes, Let's Begin
               </Button>
               <Button 
                 onClick={() => handleResponse("declined")}
                 variant="outline"
-                className="flex-1 border-red-300 text-red-700 hover:bg-red-50 py-4 text-lg font-medium"
+                className="flex-1 bg-white/10 border-white/30 text-white hover:bg-white/20 py-4 sm:py-5 text-lg font-semibold rounded-xl backdrop-blur-sm transition-all duration-200"
                 size="lg"
               >
-                <XCircle className="w-5 h-5 mr-2" />
-                Decline Quote
+                <XCircle className="w-6 h-6 mr-3" />
+                Not Right Now
               </Button>
+            </div>
+            <div className="text-center mt-6">
+              <p className="text-primary-foreground/80 text-sm">
+                Questions? Contact us at <span className="font-semibold text-accent">(206) 410-5100</span> or <span className="font-semibold text-accent">projects@kolmo.io</span>
+              </p>
             </div>
           </div>
         )}
 
         {/* Response Display */}
         {hasResponded && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-            <h3 className="text-xl font-semibold text-slate-800 mb-4">Your Response</h3>
-            <div className="flex items-center space-x-3 mb-4">
-              {quote.customerResponse === "accepted" ? (
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              ) : (
-                <XCircle className="w-6 h-6 text-red-600" />
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-10 mb-8">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 mx-auto">
+                {quote.customerResponse === "accepted" ? (
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-8 h-8 text-green-600" />
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                    <XCircle className="w-8 h-8 text-red-600" />
+                  </div>
+                )}
+              </div>
+              <h3 className="text-2xl font-bold text-primary mb-2">
+                {quote.customerResponse === "accepted" ? "Quote Accepted!" : "Quote Declined"}
+              </h3>
+              <p className="text-muted-foreground text-base">
+                Response received on {formatDate(quote.respondedAt)}
+              </p>
+              {quote.customerResponse === "accepted" && (
+                <p className="text-slate-700 mt-4 text-lg">
+                  Thank you for choosing Kolmo Construction! Our team will contact you within 24 hours to discuss next steps.
+                </p>
               )}
-              <span className="text-lg font-medium">
-                Quote {quote.customerResponse === "accepted" ? "Accepted" : "Declined"}
-              </span>
-              <span className="text-sm text-slate-500">
-                on {formatDate(quote.respondedAt)}
-              </span>
             </div>
             {quote.customerNotes && (
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-slate-700">{quote.customerNotes}</p>
+              <div className="bg-slate-50 rounded-xl p-6 border border-slate-100">
+                <h4 className="font-semibold text-slate-800 mb-3">Your Message:</h4>
+                <p className="text-slate-700 leading-relaxed">{quote.customerNotes}</p>
               </div>
             )}
           </div>
