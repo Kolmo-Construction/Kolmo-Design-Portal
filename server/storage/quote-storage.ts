@@ -27,7 +27,7 @@ export class QuoteStorage {
 
     const [quote] = await db
       .insert(customerQuotes)
-      .values(processedData)
+      .values([processedData])
       .returning();
     return quote;
   }

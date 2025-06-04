@@ -8,7 +8,11 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Form,
   FormControl,
@@ -17,12 +21,16 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import type { CustomerQuote } from "@shared/schema";
 
 const quoteFormSchema = z.object({
   projectType: z.string().min(1, "Project type is required"),
@@ -40,6 +48,14 @@ const quoteFormSchema = z.object({
   estimatedStartDate: z.string().optional(),
   estimatedCompletionDate: z.string().optional(),
   validUntil: z.string().min(1, "Valid until date is required"),
+  showBeforeAfter: z.boolean().default(false),
+  beforeAfterTitle: z.string().optional(),
+  beforeAfterDescription: z.string().optional(),
+  showColorVerification: z.boolean().default(false),
+  colorVerificationTitle: z.string().optional(),
+  colorVerificationDescription: z.string().optional(),
+  permitRequired: z.boolean().default(false),
+  permitDetails: z.string().optional(),
   downPaymentPercentage: z.string().optional(),
   milestonePaymentPercentage: z.string().optional(),
   finalPaymentPercentage: z.string().optional(),
@@ -50,39 +66,19 @@ const quoteFormSchema = z.object({
 
 type QuoteFormData = z.infer<typeof quoteFormSchema>;
 
-interface QuoteData {
-  id: number;
-  projectType: string;
-  quoteNumber: string;
-  customerName: string;
-  customerEmail: string;
-  customerPhone?: string;
-  customerAddress?: string;
-  projectTitle: string;
-  projectDescription: string;
-  projectLocation?: string;
-  subtotal: string;
-  taxAmount: string;
-  totalAmount: string;
-  estimatedStartDate?: string;
-  estimatedCompletionDate?: string;
-  validUntil: string;
-  downPaymentPercentage?: string;
-  milestonePaymentPercentage?: string;
-  finalPaymentPercentage?: string;
-  milestoneDescription?: string;
-  acceptsCreditCards?: boolean;
-  creditCardProcessingFee?: string;
-}
-
 interface EditQuoteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  quote: QuoteData | null;
+  quote: CustomerQuote | null;
   onSuccess?: () => void;
 }
 
-export default function EditQuoteDialog({ open, onOpenChange, quote, onSuccess }: EditQuoteDialogProps) {
+export default function EditQuoteDialog({ 
+  open, 
+  onOpenChange, 
+  quote, 
+  onSuccess 
+}: EditQuoteDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -104,6 +100,14 @@ export default function EditQuoteDialog({ open, onOpenChange, quote, onSuccess }
       estimatedStartDate: quote?.estimatedStartDate || "",
       estimatedCompletionDate: quote?.estimatedCompletionDate || "",
       validUntil: quote?.validUntil || "",
+      showBeforeAfter: quote?.showBeforeAfter || false,
+      beforeAfterTitle: quote?.beforeAfterTitle || "",
+      beforeAfterDescription: quote?.beforeAfterDescription || "",
+      showColorVerification: quote?.showColorVerification || false,
+      colorVerificationTitle: quote?.colorVerificationTitle || "",
+      colorVerificationDescription: quote?.colorVerificationDescription || "",
+      permitRequired: quote?.permitRequired || false,
+      permitDetails: quote?.permitDetails || "",
       downPaymentPercentage: quote?.downPaymentPercentage || "",
       milestonePaymentPercentage: quote?.milestonePaymentPercentage || "",
       finalPaymentPercentage: quote?.finalPaymentPercentage || "",
@@ -114,10 +118,19 @@ export default function EditQuoteDialog({ open, onOpenChange, quote, onSuccess }
   });
 
   const updateQuoteMutation = useMutation({
-    mutationFn: (data: QuoteFormData) => apiRequest(`/api/quotes/${quote?.id}`, {
-      method: "PUT",
-      body: data,
-    }),
+    mutationFn: async (data: QuoteFormData) => {
+      const response = await fetch(`/api/quotes/${quote?.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update quote');
+      }
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
       toast({
@@ -127,10 +140,10 @@ export default function EditQuoteDialog({ open, onOpenChange, quote, onSuccess }
       onOpenChange(false);
       onSuccess?.();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to update quote",
+        description: "Failed to update quote",
         variant: "destructive",
       });
     },
@@ -144,12 +157,43 @@ export default function EditQuoteDialog({ open, onOpenChange, quote, onSuccess }
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Quote #{quote?.quoteNumber}</DialogTitle>
+          <DialogTitle>Edit Quote</DialogTitle>
+          <DialogDescription>
+            Update the quote details and project information.
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Project Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="projectType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project Type</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select project type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="residential-painting">Residential Painting</SelectItem>
+                        <SelectItem value="commercial-painting">Commercial Painting</SelectItem>
+                        <SelectItem value="interior-painting">Interior Painting</SelectItem>
+                        <SelectItem value="exterior-painting">Exterior Painting</SelectItem>
+                        <SelectItem value="cabinet-refinishing">Cabinet Refinishing</SelectItem>
+                        <SelectItem value="deck-staining">Deck Staining</SelectItem>
+                        <SelectItem value="pressure-washing">Pressure Washing</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="quoteNumber"
@@ -166,32 +210,52 @@ export default function EditQuoteDialog({ open, onOpenChange, quote, onSuccess }
 
               <FormField
                 control={form.control}
-                name="projectType"
+                name="projectTitle"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Project Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select project type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="kitchen">Kitchen Renovation</SelectItem>
-                        <SelectItem value="bathroom">Bathroom Renovation</SelectItem>
-                        <SelectItem value="addition">Home Addition</SelectItem>
-                        <SelectItem value="exterior">Exterior Work</SelectItem>
-                        <SelectItem value="flooring">Flooring</SelectItem>
-                        <SelectItem value="roofing">Roofing</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>Project Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Kitchen Cabinet Refinishing" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="projectLocation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project Location</FormLabel>
+                    <FormControl>
+                      <Input placeholder="123 Main St, City, State" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
 
+            <FormField
+              control={form.control}
+              name="projectDescription"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Project Description</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Detailed description of the project scope and requirements..."
+                      className="min-h-[100px]"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Customer Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Customer Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -236,67 +300,16 @@ export default function EditQuoteDialog({ open, onOpenChange, quote, onSuccess }
                     </FormItem>
                   )}
                 />
-
-                <FormField
-                  control={form.control}
-                  name="customerAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Customer Address</FormLabel>
-                      <FormControl>
-                        <Input placeholder="123 Main St, City, State 12345" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Project Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="projectTitle"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Project Title</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Kitchen Renovation Project" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="projectLocation"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Project Location</FormLabel>
-                      <FormControl>
-                        <Input placeholder="123 Main St, City, State" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
 
               <FormField
                 control={form.control}
-                name="projectDescription"
+                name="customerAddress"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Project Description</FormLabel>
+                    <FormLabel>Customer Address</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Detailed description of the project scope and work to be performed..." 
-                        rows={4}
-                        {...field} 
-                      />
+                      <Textarea placeholder="123 Main St, City, State, ZIP" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -304,6 +317,7 @@ export default function EditQuoteDialog({ open, onOpenChange, quote, onSuccess }
               />
             </div>
 
+            {/* Pricing Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Pricing</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -314,7 +328,7 @@ export default function EditQuoteDialog({ open, onOpenChange, quote, onSuccess }
                     <FormItem>
                       <FormLabel>Subtotal</FormLabel>
                       <FormControl>
-                        <Input placeholder="15000.00" {...field} />
+                        <Input placeholder="5000.00" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -328,7 +342,7 @@ export default function EditQuoteDialog({ open, onOpenChange, quote, onSuccess }
                     <FormItem>
                       <FormLabel>Tax Amount</FormLabel>
                       <FormControl>
-                        <Input placeholder="1200.00" {...field} />
+                        <Input placeholder="400.00" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -342,7 +356,7 @@ export default function EditQuoteDialog({ open, onOpenChange, quote, onSuccess }
                     <FormItem>
                       <FormLabel>Total Amount</FormLabel>
                       <FormControl>
-                        <Input placeholder="16200.00" {...field} />
+                        <Input placeholder="5400.00" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -351,8 +365,9 @@ export default function EditQuoteDialog({ open, onOpenChange, quote, onSuccess }
               </div>
             </div>
 
+            {/* Timeline */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Timeline & Terms</h3>
+              <h3 className="text-lg font-semibold">Timeline</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
@@ -396,6 +411,149 @@ export default function EditQuoteDialog({ open, onOpenChange, quote, onSuccess }
                   )}
                 />
               </div>
+            </div>
+
+            {/* Payment Terms */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Payment Terms</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="acceptsCreditCards"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Accepts Credit Cards</FormLabel>
+                        <div className="text-sm text-muted-foreground">
+                          Allow credit card payments
+                        </div>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="creditCardProcessingFee"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Credit Card Processing Fee (%)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="3.0" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="downPaymentPercentage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Down Payment (%)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="25.0" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="milestonePaymentPercentage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Milestone Payment (%)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="50.0" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="finalPaymentPercentage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Final Payment (%)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="25.0" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="milestoneDescription"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Milestone Description</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Description of milestone requirements..."
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Additional Options */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Additional Options</h3>
+              
+              <FormField
+                control={form.control}
+                name="permitRequired"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Permit Required</FormLabel>
+                      <div className="text-sm text-muted-foreground">
+                        Project requires permits
+                      </div>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="permitDetails"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Permit Details</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Details about required permits..."
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <div className="flex justify-end space-x-2">

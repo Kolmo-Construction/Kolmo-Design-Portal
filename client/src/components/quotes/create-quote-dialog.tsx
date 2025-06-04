@@ -88,10 +88,19 @@ export default function CreateQuoteDialog({ open, onOpenChange, onSuccess }: Cre
   });
 
   const createQuoteMutation = useMutation({
-    mutationFn: (data: QuoteFormData) => apiRequest(`/api/quotes`, {
-      method: "POST",
-      body: data,
-    }),
+    mutationFn: async (data: QuoteFormData) => {
+      const response = await fetch(`/api/quotes`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to create quote');
+      }
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
       toast({

@@ -56,9 +56,15 @@ export default function CustomerQuotes() {
   });
 
   const deleteQuoteMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/quotes/${id}`, {
-      method: "DELETE",
-    }),
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/quotes/${id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete quote');
+      }
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
       toast({
@@ -76,9 +82,18 @@ export default function CustomerQuotes() {
   });
 
   const sendQuoteMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/quotes/${id}/send`, {
-      method: "POST",
-    }),
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/quotes/${id}/send`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      if (!response.ok) {
+        throw new Error('Failed to send quote');
+      }
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
       toast({
