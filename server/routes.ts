@@ -156,14 +156,10 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // Mount public quote view routes (no authentication required) - MUST COME FIRST
   app.use("/api/quotes/view", publicQuoteRoutes);
   
-  // Mount public storage routes for image access (no authentication required)
-  app.use("/api/storage/image", storageRoutes);
-  app.use("/api/storage/proxy", storageRoutes);
-  
   // Mount Quote Management routes (authenticated)
   app.use("/api/quotes", isAuthenticated, quoteRoutes);
 
-  // Mount Storage/R2 routes (authenticated)
+  // Mount Storage/R2 routes
   app.use("/api/storage", isAuthenticated, storageRoutes);
 
   // --- REMOVED: Old inline route definitions and local router variables ---
