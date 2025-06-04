@@ -38,9 +38,12 @@ export class QuoteStorage {
     // Generate magic token for customer access
     const magicToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     
+    // Extract line items for separate handling
+    const { lineItems, ...quoteData } = data;
+    
     // Convert string dates to Date objects for proper database handling
     const processedData = { 
-      ...data, 
+      ...quoteData, 
       quoteNumber,
       magicToken
     };
@@ -59,6 +62,17 @@ export class QuoteStorage {
       .insert(customerQuotes)
       .values(processedData)
       .returning();
+
+    // Create line items if provided
+    if (lineItems && lineItems.length > 0) {
+      for (const item of lineItems) {
+        await this.createLineItem({
+          quoteId: quote.id,
+          ...item
+        });
+      }
+    }
+
     return quote;
   }
 

@@ -364,6 +364,7 @@ export const quoteLineItems = pgTable("quote_line_items", {
   quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull(),
   unit: text("unit").notNull(),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  discountPercentage: decimal("discount_percentage", { precision: 5, scale: 2 }).default("0"),
   totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
