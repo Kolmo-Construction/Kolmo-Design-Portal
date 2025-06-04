@@ -180,7 +180,7 @@ export default function CreateQuoteDialog({ open, onOpenChange, onSuccess }: Cre
         })),
       };
       
-      return await apiRequest("/api/quotes", "POST", payload);
+      return await apiRequest("POST", "/api/quotes", payload);
     },
     onSuccess: () => {
       toast({
