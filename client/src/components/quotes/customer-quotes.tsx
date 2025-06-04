@@ -43,9 +43,16 @@ export default function CustomerQuotes() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: quotes = [], isLoading } = useQuery({
+  const { data: quotes = [], isLoading, error } = useQuery({
     queryKey: ["/api/quotes"],
-    queryFn: () => fetch("/api/quotes").then(res => res.json()),
+    queryFn: async () => {
+      const response = await fetch("/api/quotes");
+      if (!response.ok) {
+        throw new Error('Failed to fetch quotes');
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const deleteQuoteMutation = useMutation({
