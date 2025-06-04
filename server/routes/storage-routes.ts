@@ -145,6 +145,47 @@ storageRoutes.post('/upload/quote/:quoteId', isAuthenticated, upload.single('ima
       imageType: imageType || 'general',
     });
 
+    // Update database with the R2 URL based on image type
+    const { db } = await import('../db');
+    const { quoteImages, customerQuotes } = await import('../../shared/schema');
+    const { eq, and } = await import('drizzle-orm');
+
+    if (imageType === 'before') {
+      // Update the before image URL in the quote
+      await db.update(customerQuotes)
+        .set({ beforeImageUrl: result.url })
+        .where(eq(customerQuotes.id, parseInt(quoteId)));
+      
+      // Also update the before image record
+      await db.update(quoteImages)
+        .set({ imageUrl: result.url, caption: caption || null })
+        .where(and(
+          eq(quoteImages.quoteId, parseInt(quoteId)),
+          eq(quoteImages.imageType, 'before')
+        ));
+    } else if (imageType === 'after') {
+      // Update the after image URL in the quote
+      await db.update(customerQuotes)
+        .set({ afterImageUrl: result.url })
+        .where(eq(customerQuotes.id, parseInt(quoteId)));
+      
+      // Also update the after image record
+      await db.update(quoteImages)
+        .set({ imageUrl: result.url, caption: caption || null })
+        .where(and(
+          eq(quoteImages.quoteId, parseInt(quoteId)),
+          eq(quoteImages.imageType, 'after')
+        ));
+    } else {
+      // For other image types, update the corresponding image record
+      await db.update(quoteImages)
+        .set({ imageUrl: result.url, caption: caption || null })
+        .where(and(
+          eq(quoteImages.quoteId, parseInt(quoteId)),
+          eq(quoteImages.imageType, imageType || 'general')
+        ));
+    }
+
     res.json({
       success: true,
       url: result.url,
