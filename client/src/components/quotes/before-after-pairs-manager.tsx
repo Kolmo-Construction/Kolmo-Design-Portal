@@ -143,7 +143,7 @@ export function BeforeAfterPairsManager({ quoteId, pairs, onPairsChange }: Befor
         beforeImageUrl: formData.beforeImageUrl,
         afterImageUrl: formData.afterImageUrl,
         sortOrder: editingPair?.sortOrder || pairs.length,
-        createdAt: editingPair?.createdAt || new Date().toISOString()
+        createdAt: typeof editingPair?.createdAt === 'string' ? new Date(editingPair.createdAt) : editingPair?.createdAt || new Date()
       };
 
       let updatedPairs;

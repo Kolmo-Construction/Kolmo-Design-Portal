@@ -162,6 +162,9 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // Mount Storage/R2 routes with mixed authentication
   app.use("/api/storage", storageRoutes);
+  
+  // Mount Before/After Pairs management routes (authenticated)
+  app.use("/api", beforeAfterRoutes);
 
   // --- REMOVED: Old inline route definitions and local router variables ---
   // const taskRouter = Router(...) // REMOVED
