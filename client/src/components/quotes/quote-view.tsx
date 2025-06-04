@@ -164,20 +164,36 @@ export default function QuoteView() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4">
-        {/* Header */}
+        {/* Kolmo Header */}
         <div className="bg-white rounded-lg shadow-sm p-8 mb-6">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Quote {quote.quoteNumber}
-              </h1>
-              <p className="text-lg text-gray-600">{quote.projectTitle}</p>
+          <div className="flex justify-between items-center mb-8">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-slate-600 to-slate-700 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-xl">K</span>
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-slate-800">Kolmo</h1>
+                <p className="text-sm text-slate-600">Premier Construction & Remodeling</p>
+              </div>
             </div>
             <div className="text-right">
-              <div className="text-3xl font-bold text-blue-600 mb-1">
+              <p className="text-sm text-slate-600">4018 NE 125th St, Seattle, WA 98125</p>
+              <p className="text-sm text-slate-600">(206) 410-5100 • projects@kolmo.io</p>
+            </div>
+          </div>
+          
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                Quote {quote.quoteNumber}
+              </h2>
+              <p className="text-lg text-slate-600">{quote.projectTitle}</p>
+            </div>
+            <div className="text-right">
+              <div className="text-3xl font-bold text-orange-500 mb-1">
                 {formatCurrency(quote.totalAmount)}
               </div>
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-slate-600">
                 Valid until {formatDate(quote.validUntil)}
               </div>
               {isExpired && (
@@ -470,6 +486,59 @@ export default function QuoteView() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Kolmo Footer */}
+        <div className="bg-white rounded-lg shadow-sm p-8 mt-6">
+          <div className="border-t pt-6">
+            <div className="grid md:grid-cols-3 gap-6">
+              <div>
+                <h4 className="font-semibold text-slate-800 mb-3">Contact Information</h4>
+                <div className="space-y-2 text-sm text-slate-600">
+                  <div className="flex items-center space-x-2">
+                    <Phone className="w-4 h-4" />
+                    <span>(206) 410-5100</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Mail className="w-4 h-4" />
+                    <span>projects@kolmo.io</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <MapPin className="w-4 h-4" />
+                    <span>4018 NE 125th St, Seattle, WA 98125</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="font-semibold text-slate-800 mb-3">Business Hours</h4>
+                <div className="space-y-1 text-sm text-slate-600">
+                  <p>Monday - Friday: 8:00 AM - 5:00 PM</p>
+                  <p>Saturday: 9:00 AM - 1:00 PM</p>
+                  <p>Sunday: Closed</p>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="font-semibold text-slate-800 mb-3">About Kolmo</h4>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Licensed and bonded general contractor delivering high-quality residential and commercial construction services with smart technology, transparency, and expert craftsmanship.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex justify-center items-center mt-6 pt-6 border-t">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-slate-600 to-slate-700 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">K</span>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-800">Kolmo Construction</p>
+                  <p className="text-xs text-slate-500">Innovate Everyday. Residential & Commercial</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
