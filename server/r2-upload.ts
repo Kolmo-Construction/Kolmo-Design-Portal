@@ -6,23 +6,20 @@ import path from 'path';
 import { HttpError } from './errors';
 
 // --- R2 Configuration ---
-const accountId = process.env.R2_ACCOUNT_ID;
-const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-const bucketName = process.env.R2_BUCKET_NAME;
-const r2PublicUrl = process.env.R2_PUBLIC_URL?.replace(/\/$/, ''); // Remove trailing slash if exists
+const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+const region = process.env.AWS_REGION || "auto";
+const bucketName = process.env.AWS_S3_BUCKET;
 
-if (!accountId || !accessKeyId || !secretAccessKey || !bucketName) {
+if (!accessKeyId || !secretAccessKey || !bucketName) {
   console.warn(
-    "WARNING: R2 environment variables (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME) are not fully set. File uploads will fail."
+    "WARNING: AWS S3/R2 environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET) are not fully set. File uploads will fail."
   );
 }
 
-const r2Endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
-
+// For Cloudflare R2, we use auto region and S3-compatible endpoint
 export const r2Client = new S3Client({
-  region: "auto", // R2 specific region
-  endpoint: r2Endpoint,
+  region: region,
   credentials: {
     accessKeyId: accessKeyId || '',
     secretAccessKey: secretAccessKey || '',
@@ -38,22 +35,23 @@ interface UploadResult {
 }
 
 /**
- * Uploads a file to Cloudflare R2
+ * Uploads a file to R2 storage
  * @param options Options for the upload
  * @returns Object with the URL and storage key of the uploaded file
  */
 export async function uploadToR2(options: {
-  projectId: number;
+  quoteId: number;
   fileName: string;
   buffer: Buffer;
   mimetype: string;
+  imageType?: string;
 }): Promise<UploadResult> {
-  if (!bucketName || !accountId || !accessKeyId || !secretAccessKey) {
+  if (!bucketName || !accessKeyId || !secretAccessKey) {
     throw new HttpError(500, "R2 storage is not configured.");
   }
 
-  // Construct the destination path using projectId
-  const destinationPath = `projects/${options.projectId}/documents/`;
+  // Construct the destination path using quoteId
+  const destinationPath = `quotes/${options.quoteId}/images/`;
 
   // Generate a unique filename to avoid collisions but keep original extension
   const uniqueSuffix = randomBytes(16).toString('hex');
@@ -80,16 +78,8 @@ export async function uploadToR2(options: {
   try {
     await R2.send(command);
 
-    // Construct the public URL
-    let fileUrl: string;
-    if (r2PublicUrl) {
-      // Use the custom/public domain if provided
-      fileUrl = `${r2PublicUrl}/${key}`;
-    } else {
-      // Fallback to standard S3-compatible URL structure (may not work if bucket isn't public)
-      console.warn("R2_PUBLIC_URL not set, constructing potentially non-public URL.");
-      fileUrl = `${r2Endpoint}/${bucketName}/${key}`; // Less reliable, depends on bucket settings
-    }
+    // Construct the public URL for R2 storage
+    const fileUrl = `https://${bucketName}.s3.amazonaws.com/${key}`;
 
     console.log(`Successfully uploaded ${options.fileName} to ${fileUrl}`);
     return {
@@ -114,7 +104,7 @@ export async function uploadToR2(options: {
  * @returns Promise that resolves when the file is deleted
  */
 export async function deleteFromR2(key: string): Promise<void> {
-  if (!bucketName || !accountId || !accessKeyId || !secretAccessKey) {
+  if (!bucketName || !accessKeyId || !secretAccessKey) {
     throw new HttpError(500, "R2 storage is not configured.");
   }
 
@@ -142,7 +132,7 @@ export async function deleteFromR2(key: string): Promise<void> {
  * @returns Promise that resolves to the signed download URL
  */
 export async function getR2DownloadUrl(key: string, originalFilename?: string): Promise<string> {
-  if (!bucketName || !accountId || !accessKeyId || !secretAccessKey) {
+  if (!bucketName || !accessKeyId || !secretAccessKey) {
     throw new HttpError(500, "R2 storage is not configured.");
   }
 
