@@ -385,22 +385,9 @@ export default function ProfessionalQuoteView() {
           )}
         </div>
 
-        {/* Before/After Images */}
-        {quote.showBeforeAfter && (quote.beforeImageUrl || quote.afterImageUrl) && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
-            <h3 className="text-xl font-semibold text-slate-800 mb-6 flex items-center">
-              <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center mr-3">
-                <Camera className="w-4 h-4 text-teal-600" />
-              </div>
-              Project Transformation
-            </h3>
-            <BeforeAfterSlider
-              beforeImageUrl={quote.beforeImageUrl}
-              afterImageUrl={quote.afterImageUrl}
-              title={quote.beforeAfterTitle}
-              description={quote.beforeAfterDescription}
-            />
-          </div>
+        {/* Multiple Before/After Image Pairs */}
+        {quote.beforeAfterPairs && quote.beforeAfterPairs.length > 0 && (
+          <MultipleBeforeAfterSlider pairs={quote.beforeAfterPairs} />
         )}
 
         {/* Additional Project Images */}
