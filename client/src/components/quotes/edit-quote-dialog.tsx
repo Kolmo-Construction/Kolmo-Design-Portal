@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useForm } from "react-hook-form";
+import React, { useState, useEffect, useCallback } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
@@ -32,10 +32,22 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Plus, Trash2, Calculator } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import type { CustomerQuote } from "@shared/schema";
 import { ImageUpload } from "./image-upload";
 import SimpleBeforeAfterManager from "./simple-before-after-manager";
+
+// Line item schema
+const lineItemSchema = z.object({
+  category: z.string().min(1, "Category is required"),
+  description: z.string().min(1, "Description is required"),
+  quantity: z.string().min(1, "Quantity is required"),
+  unit: z.string().min(1, "Unit is required"),
+  unitPrice: z.string().min(1, "Unit price is required"),
+  discountPercentage: z.string().default("0"),
+});
 
 const quoteFormSchema = z.object({
   projectType: z.string().min(1, "Project type is required"),
@@ -47,13 +59,15 @@ const quoteFormSchema = z.object({
   projectTitle: z.string().min(1, "Project title is required"),
   projectDescription: z.string().min(1, "Project description is required"),
   projectLocation: z.string().optional(),
-  subtotal: z.string().min(1, "Subtotal is required"),
-  taxAmount: z.string().min(1, "Tax amount is required"),
-  totalAmount: z.string().min(1, "Total amount is required"),
+  subtotal: z.string().optional(),
+  taxAmount: z.string().optional(),
+  totalAmount: z.string().optional(),
+  taxPercentage: z.string().default("0"),
+  discountPercentage: z.string().default("0"),
   estimatedStartDate: z.string().optional(),
   estimatedCompletionDate: z.string().optional(),
   validUntil: z.string().min(1, "Valid until date is required"),
-
+  lineItems: z.array(lineItemSchema).min(1, "At least one line item is required"),
   showColorVerification: z.boolean().default(false),
   colorVerificationTitle: z.string().optional(),
   colorVerificationDescription: z.string().optional(),
@@ -85,6 +99,15 @@ export default function EditQuoteDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Calculate totals state
+  const [calculatedTotals, setCalculatedTotals] = useState({
+    subtotal: 0,
+    discountAmount: 0,
+    taxableAmount: 0,
+    taxAmount: 0,
+    totalAmount: 0,
+  });
+
   // Helper function to convert Date to string for form inputs
   const formatDateForInput = (date: string | Date | null | undefined): string => {
     if (!date || date === null) return "";
@@ -113,10 +136,19 @@ export default function EditQuoteDialog({
       subtotal: "",
       taxAmount: "",
       totalAmount: "",
+      taxPercentage: "0",
+      discountPercentage: "0",
       estimatedStartDate: "",
       estimatedCompletionDate: "",
       validUntil: "",
-
+      lineItems: [{
+        category: "",
+        description: "",
+        quantity: "1",
+        unit: "",
+        unitPrice: "0",
+        discountPercentage: "0",
+      }],
       showColorVerification: false,
       colorVerificationTitle: "",
       colorVerificationDescription: "",
@@ -130,6 +162,58 @@ export default function EditQuoteDialog({
       creditCardProcessingFee: "",
     },
   });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "lineItems",
+  });
+
+  // Calculate line item total with discount
+  const calculateLineItemTotal = useCallback((quantity: string, unitPrice: string, discountPercentage: string) => {
+    const qty = parseFloat(quantity) || 0;
+    const price = parseFloat(unitPrice) || 0;
+    const discount = parseFloat(discountPercentage) || 0;
+    
+    const subtotal = qty * price;
+    const discountAmount = subtotal * (discount / 100);
+    return subtotal - discountAmount;
+  }, []);
+
+  // Calculate all totals
+  const calculateTotals = useCallback(() => {
+    const lineItems = form.getValues("lineItems");
+    const taxPercentage = parseFloat(form.getValues("taxPercentage")) || 0;
+    const discountPercentage = parseFloat(form.getValues("discountPercentage")) || 0;
+
+    // Calculate subtotal from all line items
+    const subtotal = lineItems.reduce((sum, item) => {
+      return sum + calculateLineItemTotal(item.quantity, item.unitPrice, item.discountPercentage);
+    }, 0);
+
+    // Apply global discount
+    const globalDiscountAmount = subtotal * (discountPercentage / 100);
+    const afterGlobalDiscount = subtotal - globalDiscountAmount;
+
+    // Calculate tax on discounted amount
+    const taxAmount = afterGlobalDiscount * (taxPercentage / 100);
+    const totalAmount = afterGlobalDiscount + taxAmount;
+
+    setCalculatedTotals({
+      subtotal,
+      discountAmount: globalDiscountAmount,
+      taxableAmount: afterGlobalDiscount,
+      taxAmount,
+      totalAmount,
+    });
+  }, [form, calculateLineItemTotal]);
+
+  // Recalculate totals whenever form values change
+  useEffect(() => {
+    const subscription = form.watch(() => {
+      calculateTotals();
+    });
+    return () => subscription.unsubscribe();
+  }, [form, calculateTotals]);
 
   // Reset form values when quote data changes
   React.useEffect(() => {
