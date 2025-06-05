@@ -231,9 +231,26 @@ export default function EditQuoteDialog({
         subtotal: quote.subtotal || "",
         taxAmount: quote.taxAmount || "",
         totalAmount: quote.totalAmount || "",
+        taxPercentage: quote.taxPercentage || "0",
+        discountPercentage: quote.discountPercentage || "0",
         estimatedStartDate: formatDateForInput(quote.estimatedStartDate),
         estimatedCompletionDate: formatDateForInput(quote.estimatedCompletionDate),
         validUntil: formatDateForInput(quote.validUntil),
+        lineItems: (quote as any).lineItems?.length > 0 ? (quote as any).lineItems.map((item: any) => ({
+          category: item.category || "",
+          description: item.description || "",
+          quantity: item.quantity || "1",
+          unit: item.unit || "",
+          unitPrice: item.unitPrice || "0",
+          discountPercentage: item.discountPercentage || "0",
+        })) : [{
+          category: "",
+          description: "",
+          quantity: "1",
+          unit: "",
+          unitPrice: "0",
+          discountPercentage: "0",
+        }],
 
         showColorVerification: quote.showColorVerification || false,
         colorVerificationTitle: quote.colorVerificationTitle || "",
@@ -252,26 +269,23 @@ export default function EditQuoteDialog({
 
   const updateQuoteMutation = useMutation({
     mutationFn: async (data: QuoteFormData) => {
-      // Convert date strings to Date objects for backend validation
-      const processedData = {
+      const payload = {
         ...data,
+        subtotal: calculatedTotals.subtotal.toFixed(2),
+        discountAmount: calculatedTotals.discountAmount.toFixed(2),
+        taxableAmount: calculatedTotals.taxableAmount.toFixed(2),
+        taxAmount: calculatedTotals.taxAmount.toFixed(2),
+        totalAmount: calculatedTotals.totalAmount.toFixed(2),
+        lineItems: data.lineItems.map(item => ({
+          ...item,
+          totalPrice: calculateLineItemTotal(item.quantity, item.unitPrice, item.discountPercentage).toFixed(2),
+        })),
         estimatedStartDate: data.estimatedStartDate ? new Date(data.estimatedStartDate) : undefined,
         estimatedCompletionDate: data.estimatedCompletionDate ? new Date(data.estimatedCompletionDate) : undefined,
         validUntil: data.validUntil ? new Date(data.validUntil) : undefined,
       };
-
-      const response = await fetch(`/api/quotes/${quote?.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(processedData),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update quote');
-      }
-      return response.json();
+      
+      return await apiRequest("PUT", `/api/quotes/${quote?.id}`, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
@@ -293,6 +307,23 @@ export default function EditQuoteDialog({
 
   const onSubmit = (data: QuoteFormData) => {
     updateQuoteMutation.mutate(data);
+  };
+
+  const addLineItem = () => {
+    append({
+      category: "",
+      description: "",
+      quantity: "1",
+      unit: "",
+      unitPrice: "0",
+      discountPercentage: "0",
+    });
+  };
+
+  const removeLineItem = (index: number) => {
+    if (fields.length > 1) {
+      remove(index);
+    }
   };
 
   return (
@@ -458,6 +489,194 @@ export default function EditQuoteDialog({
                 )}
               />
             </div>
+
+            {/* Line Items */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  Line Items
+                  <Button type="button" onClick={addLineItem} variant="outline" size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Item
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {fields.map((field, index) => (
+                  <div key={field.id} className="border rounded-lg p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium">Item {index + 1}</h4>
+                      {fields.length > 1 && (
+                        <Button
+                          type="button"
+                          onClick={() => removeLineItem(index)}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`lineItems.${index}.category`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Category</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="e.g., Materials" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`lineItems.${index}.description`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Item description" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`lineItems.${index}.unit`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Unit</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="e.g., sq ft, hours" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`lineItems.${index}.quantity`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Quantity</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="number" min="0" step="0.01" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`lineItems.${index}.unitPrice`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Unit Price ($)</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="number" min="0" step="0.01" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`lineItems.${index}.discountPercentage`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Discount (%)</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="number" min="0" max="100" step="0.01" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="flex items-end">
+                        <div className="text-sm">
+                          <div className="font-medium text-muted-foreground">Total</div>
+                          <div className="font-semibold text-lg">
+                            ${calculateLineItemTotal(
+                              form.watch(`lineItems.${index}.quantity`) || "0",
+                              form.watch(`lineItems.${index}.unitPrice`) || "0",
+                              form.watch(`lineItems.${index}.discountPercentage`) || "0"
+                            ).toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Totals Summary */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calculator className="h-5 w-5" />
+                  Quote Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="taxPercentage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tax Rate (%)</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="number" min="0" max="100" step="0.01" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="discountPercentage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Global Discount (%)</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="number" min="0" max="100" step="0.01" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Subtotal:</span>
+                    <span>${calculatedTotals.subtotal.toFixed(2)}</span>
+                  </div>
+                  {calculatedTotals.discountAmount > 0 && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Global Discount:</span>
+                      <span>-${calculatedTotals.discountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm">
+                    <span>Tax:</span>
+                    <span>${calculatedTotals.taxAmount.toFixed(2)}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between font-semibold text-lg">
+                    <span>Total:</span>
+                    <span>${calculatedTotals.totalAmount.toFixed(2)}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Pricing Information */}
             <div className="space-y-4">
