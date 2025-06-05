@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { BeforeAfterSlider } from "./before-after-slider";
+import type { QuoteBeforeAfterPair } from "@shared/schema";
 
 interface QuoteData {
   id: number;
@@ -85,6 +86,17 @@ export default function ProfessionalQuoteView() {
       return response.json();
     },
     enabled: !!token
+  });
+
+  // Fetch before/after pairs for this quote
+  const { data: beforeAfterPairs = [] } = useQuery({
+    queryKey: [`/api/quotes/${quote?.id}/before-after-pairs`],
+    queryFn: async (): Promise<QuoteBeforeAfterPair[]> => {
+      const response = await fetch(`/api/quotes/${quote.id}/before-after-pairs`);
+      if (!response.ok) throw new Error('Failed to fetch before/after pairs');
+      return response.json();
+    },
+    enabled: !!quote?.id
   });
 
   const respondMutation = useMutation({

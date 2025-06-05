@@ -67,11 +67,17 @@ storageRoutes.get('/image/:key', isAuthenticated, async (req, res, next) => {
  */
 storageRoutes.get('/proxy/:key(*)', async (req, res, next) => {
   try {
-    const key = req.params.key;
+    let key = req.params.key;
     
-    if (!key) {
+    if (!key || key.trim() === '') {
+      console.log('Storage proxy error: Empty key received');
+      console.log('Full URL:', req.originalUrl);
+      console.log('Params:', req.params);
       throw createBadRequestError('Image key is required');
     }
+
+    // Decode the URL-encoded key
+    key = decodeURIComponent(key);
 
     // Get signed URL and fetch the image
     const signedUrl = await getR2DownloadUrl(key);
