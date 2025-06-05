@@ -163,7 +163,7 @@ export function ImageUpload({
                 <img
                   src={existingImage}
                   alt={getImageTypeLabel()}
-                  className="w-full h-48 object-cover rounded-lg"
+                  className="w-full h-32 object-cover rounded-lg"
                 />
                 <Badge 
                   variant="outline" 

@@ -391,19 +391,19 @@ export default function ProfessionalQuoteView() {
 
         {/* Multiple Before/After Pairs */}
         {beforeAfterPairs && beforeAfterPairs.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
-            <h3 className="text-xl font-semibold text-slate-800 mb-6 flex items-center">
-              <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center mr-3">
-                <Camera className="w-4 h-4 text-teal-600" />
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+            <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+              <div className="w-6 h-6 bg-teal-100 rounded-lg flex items-center justify-center mr-2">
+                <Camera className="w-3 h-3 text-teal-600" />
               </div>
               Project Transformations
             </h3>
-            <div className="space-y-8">
+            <div className="space-y-4">
               {beforeAfterPairs.map((pair) => (
-                <div key={pair.id} className="border border-gray-200 rounded-lg p-6">
-                  <h4 className="text-lg font-semibold text-slate-800 mb-2">{pair.title}</h4>
+                <div key={pair.id} className="border border-gray-200 rounded-lg p-3">
+                  <h4 className="text-base font-semibold text-slate-800 mb-1">{pair.title}</h4>
                   {pair.description && (
-                    <p className="text-slate-600 mb-4">{pair.description}</p>
+                    <p className="text-slate-600 text-sm mb-3">{pair.description}</p>
                   )}
                   {(pair.beforeImageUrl && pair.afterImageUrl) ? (
                     <BeforeAfterSlider
@@ -413,10 +413,10 @@ export default function ProfessionalQuoteView() {
                       description={pair.description || undefined}
                     />
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                       {pair.beforeImageUrl && (
-                        <div className="space-y-2">
-                          <div className="aspect-[4/3] h-48 rounded-lg overflow-hidden border">
+                        <div className="space-y-1">
+                          <div className="aspect-[3/2] h-32 rounded-md overflow-hidden border">
                             <img 
                               src={pair.beforeImageUrl} 
                               alt="Before"
@@ -428,15 +428,15 @@ export default function ProfessionalQuoteView() {
                             />
                           </div>
                           <div className="text-center">
-                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs">
                               Before
                             </Badge>
                           </div>
                         </div>
                       )}
                       {pair.afterImageUrl && (
-                        <div className="space-y-2">
-                          <div className="aspect-[4/3] h-48 rounded-lg overflow-hidden border">
+                        <div className="space-y-1">
+                          <div className="aspect-[3/2] h-32 rounded-md overflow-hidden border">
                             <img 
                               src={pair.afterImageUrl} 
                               alt="After"
@@ -448,7 +448,7 @@ export default function ProfessionalQuoteView() {
                             />
                           </div>
                           <div className="text-center">
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
                               After
                             </Badge>
                           </div>
