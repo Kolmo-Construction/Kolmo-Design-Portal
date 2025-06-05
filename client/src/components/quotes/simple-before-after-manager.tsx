@@ -21,6 +21,8 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [editingDescription, setEditingDescription] = useState("");
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -113,6 +115,36 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
     updatePairMutation.mutate({ id: pairId, data: updateData });
   }, [updatePairMutation]);
 
+  const handleStartEdit = useCallback((pair: QuoteBeforeAfterPair) => {
+    setEditingId(pair.id);
+    setEditingTitle(pair.title || "");
+    setEditingDescription(pair.description || "");
+  }, []);
+
+  const handleSaveEdit = useCallback((pairId: number) => {
+    if (!editingTitle.trim()) {
+      toast({ title: "Error", description: "Please enter a title.", variant: "destructive" });
+      return;
+    }
+    
+    updatePairMutation.mutate({ 
+      id: pairId, 
+      data: { 
+        title: editingTitle, 
+        description: editingDescription 
+      } 
+    });
+    setEditingId(null);
+    setEditingTitle("");
+    setEditingDescription("");
+  }, [editingTitle, editingDescription, updatePairMutation, toast]);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingId(null);
+    setEditingTitle("");
+    setEditingDescription("");
+  }, []);
+
   if (isLoading) {
     return <div className="text-center py-4">Loading before/after pairs...</div>;
   }
@@ -189,28 +221,69 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
           <Card key={pair.id} className="border">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-base">{pair.title}</CardTitle>
-                  {pair.description && (
-                    <p className="text-sm text-muted-foreground mt-1">{pair.description}</p>
+                <div className="flex-1">
+                  {editingId === pair.id ? (
+                    <div className="space-y-2">
+                      <Input
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        placeholder="Enter title..."
+                        className="text-base font-semibold"
+                      />
+                      <Textarea
+                        value={editingDescription}
+                        onChange={(e) => setEditingDescription(e.target.value)}
+                        placeholder="Enter description (optional)..."
+                        rows={2}
+                        className="text-sm"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <CardTitle className="text-base">{pair.title}</CardTitle>
+                      {pair.description && (
+                        <p className="text-sm text-muted-foreground mt-1">{pair.description}</p>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setEditingId(editingId === pair.id ? null : pair.id)}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleDeletePair(pair.id)}
-                    disabled={deletePairMutation.isPending}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {editingId === pair.id ? (
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={() => handleSaveEdit(pair.id)}
+                        disabled={updatePairMutation.isPending || !editingTitle.trim()}
+                      >
+                        <Save className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleCancelEdit}
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleStartEdit(pair)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDeletePair(pair.id)}
+                        disabled={deletePairMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </CardHeader>
