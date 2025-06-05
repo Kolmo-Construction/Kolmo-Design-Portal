@@ -159,12 +159,7 @@ storageRoutes.post('/upload/quote/:quoteId', isAuthenticated, upload.single('ima
     const { eq, and } = await import('drizzle-orm');
 
     if (imageType === 'before') {
-      // Update the before image URL in the quote
-      await db.update(customerQuotes)
-        .set({ beforeImageUrl: result.url })
-        .where(eq(customerQuotes.id, parseInt(quoteId)));
-      
-      // Also update the before image record
+      // Update the before image record
       await db.update(quoteImages)
         .set({ imageUrl: result.url, caption: caption || null })
         .where(and(
@@ -172,12 +167,7 @@ storageRoutes.post('/upload/quote/:quoteId', isAuthenticated, upload.single('ima
           eq(quoteImages.imageType, 'before')
         ));
     } else if (imageType === 'after') {
-      // Update the after image URL in the quote
-      await db.update(customerQuotes)
-        .set({ afterImageUrl: result.url })
-        .where(eq(customerQuotes.id, parseInt(quoteId)));
-      
-      // Also update the after image record
+      // Update the after image record
       await db.update(quoteImages)
         .set({ imageUrl: result.url, caption: caption || null })
         .where(and(

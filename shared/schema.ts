@@ -333,11 +333,7 @@ export const customerQuotes = pgTable("customer_quotes", {
   respondedAt: timestamp("responded_at"),
   customerResponse: text("customer_response"), // 'accepted' or 'declined'
   customerNotes: text("customer_notes"),
-  showBeforeAfter: boolean("show_before_after").default(false),
-  beforeImageUrl: text("before_image_url"),
-  afterImageUrl: text("after_image_url"),
-  beforeAfterTitle: text("before_after_title"),
-  beforeAfterDescription: text("before_after_description"),
+
   showColorVerification: boolean("show_color_verification").default(false),
   colorVerificationTitle: text("color_verification_title"),
   colorVerificationDescription: text("color_verification_description"),
