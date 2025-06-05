@@ -20,9 +20,7 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
   const [isAdding, setIsAdding] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editingTitle, setEditingTitle] = useState("");
-  const [editingDescription, setEditingDescription] = useState("");
+  const [editingPair, setEditingPair] = useState<QuoteBeforeAfterPair | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -116,36 +114,32 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
   }, [updatePairMutation]);
 
   const handleStartEdit = useCallback((pair: QuoteBeforeAfterPair) => {
-    setEditingId(pair.id);
-    setEditingTitle(pair.title || "");
-    setEditingDescription(pair.description || "");
+    setEditingPair(JSON.parse(JSON.stringify(pair))); // Create a deep copy to avoid direct state mutation
   }, []);
 
-  const handleSaveEdit = useCallback((pairId: number) => {
-    if (!editingTitle.trim()) {
+  const handleSaveEdit = useCallback(() => {
+    if (!editingPair) return;
+
+    if (!editingPair.title || !editingPair.title.trim()) {
       toast({ title: "Error", description: "Please enter a title.", variant: "destructive" });
       return;
     }
     
     updatePairMutation.mutate({ 
-      id: pairId, 
+      id: editingPair.id, 
       data: { 
-        title: editingTitle, 
-        description: editingDescription 
+        title: editingPair.title, 
+        description: editingPair.description 
       } 
     }, {
       onSuccess: () => {
-        setEditingId(null);
-        setEditingTitle("");
-        setEditingDescription("");
+        setEditingPair(null); // Exit edit mode
       }
     });
-  }, [editingTitle, editingDescription, updatePairMutation, toast]);
+  }, [editingPair, updatePairMutation, toast]);
 
   const handleCancelEdit = useCallback(() => {
-    setEditingId(null);
-    setEditingTitle("");
-    setEditingDescription("");
+    setEditingPair(null);
   }, []);
 
   if (isLoading) {
@@ -159,7 +153,7 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
         <div className="flex items-center gap-2">
           <Badge variant="secondary">{pairs.length} pairs</Badge>
           {!isAdding && (
-            <Button onClick={() => setIsAdding(true)} size="sm">
+            <Button type="button" onClick={() => setIsAdding(true)} size="sm">
               <Plus className="h-4 w-4 mr-2" />
               Add Before/After
             </Button>
@@ -225,17 +219,17 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  {editingId === pair.id ? (
+                  {editingPair?.id === pair.id ? (
                     <div className="space-y-2">
                       <Input
-                        value={editingTitle}
-                        onChange={(e) => setEditingTitle(e.target.value)}
+                        value={editingPair.title || ""}
+                        onChange={(e) => setEditingPair(p => p ? { ...p, title: e.target.value } : null)}
                         placeholder="Enter title..."
                         className="text-base font-semibold"
                       />
                       <Textarea
-                        value={editingDescription}
-                        onChange={(e) => setEditingDescription(e.target.value)}
+                        value={editingPair.description || ""}
+                        onChange={(e) => setEditingPair(p => p ? { ...p, description: e.target.value } : null)}
                         placeholder="Enter description (optional)..."
                         rows={2}
                         className="text-sm"
@@ -251,12 +245,12 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {editingId === pair.id ? (
+                  {editingPair?.id === pair.id ? (
                     <>
                       <Button
                         size="sm"
-                        onClick={() => handleSaveEdit(pair.id)}
-                        disabled={updatePairMutation.isPending || !editingTitle.trim()}
+                        onClick={handleSaveEdit}
+                        disabled={updatePairMutation.isPending || !editingPair?.title?.trim()}
                       >
                         <Save className="h-4 w-4 mr-1" />
                         {updatePairMutation.isPending ? "Saving..." : "Save"}
@@ -275,7 +269,10 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleStartEdit(pair)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartEdit(pair);
+                        }}
                       >
                         <Edit2 className="h-4 w-4" />
                       </Button>
