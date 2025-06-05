@@ -79,10 +79,28 @@ export class QuoteStorage {
   }
 
   async getQuotes(): Promise<CustomerQuote[]> {
-    return await db
+    const quotes = await db
       .select()
       .from(customerQuotes)
       .orderBy(desc(customerQuotes.createdAt));
+    
+    // Fetch line items for all quotes
+    const quotesWithLineItems = await Promise.all(
+      quotes.map(async (quote) => {
+        const lineItems = await db
+          .select()
+          .from(quoteLineItems)
+          .where(eq(quoteLineItems.quoteId, quote.id))
+          .orderBy(quoteLineItems.id);
+        
+        return {
+          ...quote,
+          lineItems
+        } as any;
+      })
+    );
+    
+    return quotesWithLineItems;
   }
 
   async getQuoteById(id: number): Promise<CustomerQuote | null> {
