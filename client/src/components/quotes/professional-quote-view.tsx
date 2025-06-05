@@ -409,8 +409,6 @@ export default function ProfessionalQuoteView() {
                     <BeforeAfterSlider
                       beforeImageUrl={pair.beforeImageUrl || undefined}
                       afterImageUrl={pair.afterImageUrl || undefined}
-                      title={pair.title || undefined}
-                      description={pair.description || undefined}
                     />
                   ) : (
                     <div className="flex gap-2">

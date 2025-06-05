@@ -133,10 +133,13 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
         title: editingTitle, 
         description: editingDescription 
       } 
+    }, {
+      onSuccess: () => {
+        setEditingId(null);
+        setEditingTitle("");
+        setEditingDescription("");
+      }
     });
-    setEditingId(null);
-    setEditingTitle("");
-    setEditingDescription("");
   }, [editingTitle, editingDescription, updatePairMutation, toast]);
 
   const handleCancelEdit = useCallback(() => {
@@ -255,12 +258,14 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
                         onClick={() => handleSaveEdit(pair.id)}
                         disabled={updatePairMutation.isPending || !editingTitle.trim()}
                       >
-                        <Save className="h-4 w-4" />
+                        <Save className="h-4 w-4 mr-1" />
+                        {updatePairMutation.isPending ? "Saving..." : "Save"}
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={handleCancelEdit}
+                        disabled={updatePairMutation.isPending}
                       >
                         Cancel
                       </Button>

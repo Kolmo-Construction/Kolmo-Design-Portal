@@ -15,7 +15,7 @@ interface BeforeAfterSliderProps {
 export function BeforeAfterSlider({
   beforeImageUrl,
   afterImageUrl,
-  title = "Project Transformation",
+  title,
   description
 }: BeforeAfterSliderProps) {
   // Don't render if no images are available
@@ -25,6 +25,56 @@ export function BeforeAfterSlider({
 
   // If we have both images, show the compare slider
   if (beforeImageUrl && afterImageUrl) {
+    // If no title/description provided, render just the slider without card wrapper
+    if (!title && !description) {
+      return (
+        <div className="space-y-4">
+          <div className="aspect-video rounded-lg overflow-hidden border">
+            <ReactCompareSlider
+              itemOne={
+                <ReactCompareSliderImage
+                  src={beforeImageUrl}
+                  alt="Before renovation"
+                  style={{ objectFit: 'cover' }}
+                  onError={(e) => {
+                    console.error("Error loading before image:", beforeImageUrl);
+                  }}
+                />
+              }
+              itemTwo={
+                <ReactCompareSliderImage
+                  src={afterImageUrl}
+                  alt="After renovation"
+                  style={{ objectFit: 'cover' }}
+                  onError={(e) => {
+                    console.error("Error loading after image:", afterImageUrl);
+                  }}
+                />
+              }
+              position={50}
+              style={{ 
+                width: '100%',
+                height: '100%',
+                borderRadius: '0.5rem'
+              }}
+            />
+          </div>
+          <div className="flex justify-between items-center">
+            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+              Before
+            </Badge>
+            <div className="text-sm text-muted-foreground">
+              Drag the slider to compare
+            </div>
+            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+              After
+            </Badge>
+          </div>
+        </div>
+      );
+    }
+    
+    // With title/description, render with card wrapper
     return (
       <Card className="w-full">
         <CardHeader>
