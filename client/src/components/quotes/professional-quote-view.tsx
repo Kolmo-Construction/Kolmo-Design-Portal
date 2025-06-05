@@ -344,7 +344,7 @@ export default function ProfessionalQuoteView() {
                     </tr>
                   </thead>
                   <tbody>
-                    {quote.lineItems.map((item, index) => (
+                    {quote.lineItems.map((item: any, index: number) => (
                       <tr key={item.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                         <td className="py-4 px-6">
                           <div>
@@ -466,7 +466,7 @@ export default function ProfessionalQuoteView() {
               Additional Project Gallery
             </h3>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {quote.images.map((image) => (
+              {quote.images.map((image: any) => (
                 <div key={image.id} className="group">
                   <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
                     <img

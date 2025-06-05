@@ -232,50 +232,7 @@ export default function QuoteDetailsDialog({
             </>
           )}
 
-          {/* Before/After Section */}
-          {quote.showBeforeAfter && (
-            <>
-              <Separator />
-              <div>
-                <h3 className="text-lg font-semibold mb-3">
-                  {quote.beforeAfterTitle || "Before/After Comparison"}
-                </h3>
-                {quote.beforeAfterDescription && (
-                  <p className="text-sm text-gray-600 mb-4">{quote.beforeAfterDescription}</p>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500 mb-2">Before</p>
-                    <div className="bg-gray-100 rounded-lg h-48 flex items-center justify-center">
-                      {quote.beforeImageUrl ? (
-                        <img 
-                          src={quote.beforeImageUrl} 
-                          alt="Before" 
-                          className="max-h-full max-w-full rounded-lg"
-                        />
-                      ) : (
-                        <p className="text-gray-500">No image uploaded</p>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-500 mb-2">After</p>
-                    <div className="bg-gray-100 rounded-lg h-48 flex items-center justify-center">
-                      {quote.afterImageUrl ? (
-                        <img 
-                          src={quote.afterImageUrl} 
-                          alt="After" 
-                          className="max-h-full max-w-full rounded-lg"
-                        />
-                      ) : (
-                        <p className="text-gray-500">No image uploaded</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
+
 
           {/* Color Verification */}
           {quote.showColorVerification && (

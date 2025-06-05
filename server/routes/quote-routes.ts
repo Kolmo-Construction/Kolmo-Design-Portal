@@ -47,12 +47,12 @@ const createQuoteSchema = z.object({
   colorVerificationDescription: z.string().optional(),
   permitRequired: z.boolean().default(false),
   permitDetails: z.string().optional(),
-  downPaymentPercentage: z.string().optional().transform(val => val === "" ? undefined : parseFloat(val)),
-  milestonePaymentPercentage: z.string().optional().transform(val => val === "" ? undefined : parseFloat(val)),
-  finalPaymentPercentage: z.string().optional().transform(val => val === "" ? undefined : parseFloat(val)),
+  downPaymentPercentage: z.string().optional().transform(val => !val || val === "" ? undefined : parseFloat(val)),
+  milestonePaymentPercentage: z.string().optional().transform(val => !val || val === "" ? undefined : parseFloat(val)),
+  finalPaymentPercentage: z.string().optional().transform(val => !val || val === "" ? undefined : parseFloat(val)),
   milestoneDescription: z.string().optional(),
   acceptsCreditCards: z.boolean().default(false),
-  creditCardProcessingFee: z.string().optional().transform(val => val === "" ? undefined : parseFloat(val)),
+  creditCardProcessingFee: z.string().optional().transform(val => !val || val === "" ? undefined : parseFloat(val)),
   lineItems: z.array(lineItemSchema).min(1, "At least one line item is required"),
 });
 
