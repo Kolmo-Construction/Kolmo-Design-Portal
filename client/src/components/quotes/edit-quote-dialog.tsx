@@ -86,8 +86,8 @@ export default function EditQuoteDialog({
   const queryClient = useQueryClient();
 
   // Helper function to convert Date to string for form inputs
-  const formatDateForInput = (date: string | Date | undefined): string => {
-    if (!date) return "";
+  const formatDateForInput = (date: string | Date | null | undefined): string => {
+    if (!date || date === null) return "";
     if (typeof date === "string") {
       // If it's already an ISO string, extract just the date part
       if (date.includes('T')) {
@@ -614,77 +614,24 @@ export default function EditQuoteDialog({
               />
             </div>
 
-            {/* Before/After Images Section */}
-            <div className="space-y-4">
-              <FormField
-                control={form.control}
-                name="showBeforeAfter"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Before/After Images</FormLabel>
-                      <div className="text-sm text-muted-foreground">
-                        Show before and after comparison
-                      </div>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              {form.watch("showBeforeAfter") && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Before/After Configuration</CardTitle>
-                    <CardDescription>Configure the before/after image section</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="beforeAfterTitle"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Section Title</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Project Transformation" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="beforeAfterDescription"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description</FormLabel>
-                          <FormControl>
-                            <Textarea {...field} rows={2} placeholder="Brief description of the transformation..." />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {quote && (
-                      <SimpleBeforeAfterManager 
-                        quoteId={quote.id}
-                        onPairsChange={() => {
-                          queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
-                          if (onSuccess) onSuccess();
-                        }}
-                      />
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+            {/* Before/After Images Management */}
+            {quote && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Before/After Image Pairs</CardTitle>
+                  <CardDescription>Manage multiple before/after image pairs for this quote</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <SimpleBeforeAfterManager 
+                    quoteId={quote.id}
+                    onPairsChange={() => {
+                      queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
+                      if (onSuccess) onSuccess();
+                    }}
+                  />
+                </CardContent>
+              </Card>
+            )}
 
             <div className="flex justify-end space-x-2">
               <Button
