@@ -90,7 +90,20 @@ export class QuoteStorage {
       .select()
       .from(customerQuotes)
       .where(eq(customerQuotes.id, id));
-    return quote || null;
+    
+    if (!quote) return null;
+    
+    // Fetch related line items
+    const lineItems = await db
+      .select()
+      .from(quoteLineItems)
+      .where(eq(quoteLineItems.quoteId, id))
+      .orderBy(quoteLineItems.id);
+    
+    return {
+      ...quote,
+      lineItems
+    } as any;
   }
 
   async getQuoteByMagicToken(token: string): Promise<CustomerQuote | null> {
@@ -98,25 +111,42 @@ export class QuoteStorage {
       .select()
       .from(customerQuotes)
       .where(eq(customerQuotes.magicToken, token));
-    return quote || null;
+    
+    if (!quote) return null;
+    
+    // Fetch related line items
+    const lineItems = await db
+      .select()
+      .from(quoteLineItems)
+      .where(eq(quoteLineItems.quoteId, quote.id))
+      .orderBy(quoteLineItems.id);
+    
+    return {
+      ...quote,
+      lineItems
+    } as any;
   }
 
   async getQuoteByToken(token: string): Promise<CustomerQuote | null> {
     return this.getQuoteByMagicToken(token);
   }
 
-  async updateQuote(id: number, data: Partial<InsertCustomerQuote>): Promise<CustomerQuote | null> {
+  async updateQuote(id: number, data: Partial<InsertCustomerQuote & { lineItems?: any[] }>): Promise<CustomerQuote | null> {
+    // Extract line items from the data
+    const { lineItems, ...quoteData } = data;
+    
     // Convert string dates to Date objects for proper database handling
-    const processedData = { ...data };
-    if (processedData.validUntil && typeof processedData.validUntil === 'string') {
-      processedData.validUntil = new Date(processedData.validUntil);
-    }
-    if (processedData.estimatedStartDate && typeof processedData.estimatedStartDate === 'string') {
-      processedData.estimatedStartDate = new Date(processedData.estimatedStartDate);
-    }
-    if (processedData.estimatedCompletionDate && typeof processedData.estimatedCompletionDate === 'string') {
-      processedData.estimatedCompletionDate = new Date(processedData.estimatedCompletionDate);
-    }
+    const processedData: any = { ...quoteData };
+    
+    // Handle date fields specifically
+    const dateFields = ['validUntil', 'estimatedStartDate', 'estimatedCompletionDate'] as const;
+    dateFields.forEach(field => {
+      if (processedData[field]) {
+        if (typeof processedData[field] === 'string') {
+          processedData[field] = new Date(processedData[field]);
+        }
+      }
+    });
 
     // Handle numeric fields - remove empty strings and undefined values to prevent database errors
     const numericFields = [
@@ -131,11 +161,38 @@ export class QuoteStorage {
       }
     });
 
+    // Update the quote
+    const updateData = { ...processedData, updatedAt: new Date() };
     const [quote] = await db
       .update(customerQuotes)
-      .set({ ...processedData, updatedAt: new Date() })
+      .set(updateData)
       .where(eq(customerQuotes.id, id))
       .returning();
+
+    // Handle line items if provided
+    if (lineItems && Array.isArray(lineItems)) {
+      // Delete existing line items
+      await db
+        .delete(quoteLineItems)
+        .where(eq(quoteLineItems.quoteId, id));
+
+      // Insert new line items
+      if (lineItems.length > 0) {
+        const lineItemsToInsert = lineItems.map(item => ({
+          quoteId: id,
+          category: item.category || '',
+          description: item.description || '',
+          quantity: item.quantity || '1',
+          unit: item.unit || '',
+          unitPrice: item.unitPrice || '0',
+          discountPercentage: item.discountPercentage || '0',
+          totalPrice: item.totalPrice || '0'
+        }));
+
+        await db.insert(quoteLineItems).values(lineItemsToInsert);
+      }
+    }
+
     return quote || null;
   }
 
