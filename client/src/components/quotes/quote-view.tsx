@@ -34,11 +34,7 @@ interface QuoteData {
   customerResponse?: string;
   customerNotes?: string;
   createdAt: string;
-  showBeforeAfter?: boolean;
-  beforeImageUrl?: string;
-  afterImageUrl?: string;
-  beforeAfterTitle?: string;
-  beforeAfterDescription?: string;
+
   showColorVerification?: boolean;
   colorVerificationTitle?: string;
   colorVerificationDescription?: string;
