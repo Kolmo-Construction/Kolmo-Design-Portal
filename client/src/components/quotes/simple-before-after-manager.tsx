@@ -217,28 +217,30 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
       {/* Existing Pairs */}
       <div className="space-y-4">
         {pairs.map((pair) => (
-          <Card key={pair.id} className="border">
+          <Card key={pair.id} className="border" onClick={(e) => e.stopPropagation()}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div className="flex-1">
+                <div className="flex-1" onClick={(e) => e.stopPropagation()}>
                   {editingPair?.id === pair.id ? (
-                    <div className="space-y-2">
+                    <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
                       <Input
                         value={editingPair.title || ""}
                         onChange={(e) => setEditingPair(p => p ? { ...p, title: e.target.value } : null)}
+                        onClick={(e) => e.stopPropagation()}
                         placeholder="Enter title..."
                         className="text-base font-semibold"
                       />
                       <Textarea
                         value={editingPair.description || ""}
                         onChange={(e) => setEditingPair(p => p ? { ...p, description: e.target.value } : null)}
+                        onClick={(e) => e.stopPropagation()}
                         placeholder="Enter description (optional)..."
                         rows={2}
                         className="text-sm"
                       />
                     </div>
                   ) : (
-                    <div>
+                    <div onClick={(e) => e.stopPropagation()}>
                       <CardTitle className="text-base">{pair.title}</CardTitle>
                       {pair.description && (
                         <p className="text-sm text-muted-foreground mt-1">{pair.description}</p>
@@ -246,7 +248,7 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                   {editingPair?.id === pair.id ? (
                     <>
                       <Button
@@ -295,7 +297,7 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent onClick={(e) => e.stopPropagation()}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Before Image Upload */}
                 <div>
