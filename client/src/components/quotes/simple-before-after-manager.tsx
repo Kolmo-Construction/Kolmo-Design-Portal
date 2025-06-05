@@ -191,6 +191,7 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
 
             <div className="flex gap-2">
               <Button
+                type="button"
                 onClick={handleCreatePair}
                 disabled={createPairMutation.isPending || !newTitle.trim()}
               >
@@ -198,6 +199,7 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
                 {createPairMutation.isPending ? "Creating..." : "Create Pair"}
               </Button>
               <Button
+                type="button"
                 variant="outline"
                 onClick={() => {
                   setIsAdding(false);
@@ -248,6 +250,7 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
                   {editingPair?.id === pair.id ? (
                     <>
                       <Button
+                        type="button"
                         size="sm"
                         onClick={handleSaveEdit}
                         disabled={updatePairMutation.isPending || !editingPair?.title?.trim()}
@@ -256,6 +259,7 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
                         {updatePairMutation.isPending ? "Saving..." : "Save"}
                       </Button>
                       <Button
+                        type="button"
                         size="sm"
                         variant="outline"
                         onClick={handleCancelEdit}
@@ -267,6 +271,7 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
                   ) : (
                     <>
                       <Button
+                        type="button"
                         size="sm"
                         variant="outline"
                         onClick={(e) => {
@@ -277,6 +282,7 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
                         <Edit2 className="h-4 w-4" />
                       </Button>
                       <Button
+                        type="button"
                         size="sm"
                         variant="destructive"
                         onClick={() => handleDeletePair(pair.id)}
