@@ -101,7 +101,7 @@ export default function ProfessionalQuoteView() {
 
   const respondMutation = useMutation({
     mutationFn: async ({ response, notes }: { response: string; notes?: string }) => {
-      const res = await fetch(`/api/quotes/respond/${token}`, {
+      const res = await fetch(`/api/quotes/view/${token}/respond`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ response, notes })
