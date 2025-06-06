@@ -31,9 +31,24 @@ export async function comparePasswords(supplied: string, stored: string) {
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
-// Generate a unique token for magic links
+// Generate a unique token for magic links using proper UUID v4
 function generateMagicLinkToken(): string {
-  return randomBytes(32).toString("hex");
+  // Generate a proper UUID v4 format
+  const bytes = randomBytes(16);
+  
+  // Set version (4) and variant bits according to RFC 4122
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // Version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // Variant 10
+  
+  // Format as UUID string
+  const hex = bytes.toString('hex');
+  return [
+    hex.substring(0, 8),
+    hex.substring(8, 12),
+    hex.substring(12, 16),
+    hex.substring(16, 20),
+    hex.substring(20, 32)
+  ].join('-');
 }
 
 // Calculate expiry time (default: 24 hours from now)
@@ -162,6 +177,35 @@ export function setupAuth(app: Express) {
       done(null, user);
     } catch (err) {
       done(err);
+    }
+  });
+
+  // Request magic link endpoint
+  app.post("/api/auth/magic-link", async (req, res, next) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      // Call the createAndSendMagicLink function
+      const success = await createAndSendMagicLink(email);
+
+      if (success) {
+        return res.status(200).json({ 
+          message: "If an account exists for this email, a magic link has been sent." 
+        });
+      } else {
+        return res.status(200).json({ 
+          message: "If an account exists for this email, a magic link has been sent." 
+        });
+      }
+    } catch (error) {
+      console.error('Error in magic link request:', error);
+      return res.status(200).json({ 
+        message: "If an account exists for this email, a magic link has been sent." 
+      });
     }
   });
 
