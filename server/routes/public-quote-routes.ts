@@ -62,23 +62,3 @@ publicQuoteRoutes.post("/:token/respond", async (req, res) => {
     res.status(500).json({ error: "Failed to respond to quote" });
   }
 });
-
-// Get before/after pairs for a quote by token - NO AUTHENTICATION REQUIRED
-publicQuoteRoutes.get("/:token/before-after-pairs", async (req, res) => {
-  try {
-    const { token } = req.params;
-    
-    // First get the quote to verify the token is valid
-    const quote = await quoteStorage.getQuoteByToken(token);
-    if (!quote) {
-      return res.status(404).json({ error: "Quote not found" });
-    }
-
-    // Get before/after pairs for this quote
-    const pairs = await quoteStorage.getBeforeAfterPairsByQuoteId(quote.id);
-    res.json(pairs);
-  } catch (error) {
-    console.error("Error fetching before/after pairs:", error);
-    res.status(500).json({ error: "Failed to fetch before/after pairs" });
-  }
-});

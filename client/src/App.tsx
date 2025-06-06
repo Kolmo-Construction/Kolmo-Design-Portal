@@ -50,8 +50,8 @@ function Router() {
       <ProtectedRoute path="/selections" component={Selections} />
       <ProtectedRoute path="/settings" component={Settings} />
       <ProtectedRoute path="/user-management" component={UserManagement} />
-      <Route path="/quotes/:token" component={QuoteViewPage} />
       <ProtectedRoute path="/quotes" component={CustomerQuotesPage} />
+      <Route path="/quote/:token" component={QuoteViewPage} />
       {/* Development-only routes */}
       {import.meta.env.DEV && (
         <Route path="/dev-tools">
