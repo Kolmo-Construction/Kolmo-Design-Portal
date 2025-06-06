@@ -37,6 +37,8 @@ const createLineItemSchema = z.object({
   quantity: z.string().min(1, "Quantity is required"),
   unit: z.string().min(1, "Unit is required"),
   unitPrice: z.string().min(1, "Unit price is required"),
+  discountPercentage: z.string().optional().default("0"),
+  discountAmount: z.string().optional().default("0"),
 });
 
 type CreateLineItemForm = z.infer<typeof createLineItemSchema>;
@@ -59,6 +61,8 @@ export function CreateLineItemDialog({ quoteId, open, onOpenChange }: CreateLine
       quantity: "1",
       unit: "each",
       unitPrice: "",
+      discountPercentage: "0",
+      discountAmount: "0",
     },
   });
 
@@ -66,12 +70,28 @@ export function CreateLineItemDialog({ quoteId, open, onOpenChange }: CreateLine
     mutationFn: async (data: CreateLineItemForm) => {
       const quantity = parseFloat(data.quantity);
       const unitPrice = parseFloat(data.unitPrice);
-      const totalPrice = quantity * unitPrice;
+      const discountPercentage = parseFloat(data.discountPercentage || "0");
+      const discountAmount = parseFloat(data.discountAmount || "0");
+      
+      // Calculate total before discount
+      const subtotal = quantity * unitPrice;
+      
+      // Apply discount (percentage takes precedence over fixed amount)
+      let discount = 0;
+      if (discountPercentage > 0) {
+        discount = (subtotal * discountPercentage) / 100;
+      } else if (discountAmount > 0) {
+        discount = discountAmount;
+      }
+      
+      const totalPrice = subtotal - discount;
 
       return await apiRequest(`/api/quotes/${quoteId}/line-items`, "POST", {
         ...data,
         quantity: quantity.toString(),
         unitPrice: unitPrice.toString(),
+        discountPercentage: discountPercentage.toString(),
+        discountAmount: discount.toString(),
         totalPrice: totalPrice.toString(),
       });
     },

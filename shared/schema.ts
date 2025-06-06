@@ -376,6 +376,11 @@ export const quoteLineItems = pgTable("quote_line_items", {
   quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull().default('1'),
   unit: text("unit").default("each"), // each, sq ft, linear ft, hours
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  
+  // Discount fields
+  discountPercentage: decimal("discount_percentage", { precision: 5, scale: 2 }).default('0'),
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default('0'),
+  
   totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
   
   // Display order
@@ -835,6 +840,8 @@ export const insertQuoteLineItemSchema = createInsertSchema(quoteLineItems).omit
   quantity: z.union([z.number(), z.string().transform(val => parseFloat(val))]).default(1),
   unitPrice: z.union([z.string(), z.number().transform(val => val.toString())]),
   totalPrice: z.union([z.string(), z.number().transform(val => val.toString())]),
+  discountPercentage: z.union([z.number(), z.string().transform(val => parseFloat(val))]).default(0).optional(),
+  discountAmount: z.union([z.string(), z.number().transform(val => val.toString())]).default('0').optional(),
 });
 
 export const insertQuoteMediaSchema = createInsertSchema(quoteMedia).omit({
