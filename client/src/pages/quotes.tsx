@@ -23,9 +23,7 @@ export default function QuotesPage() {
 
   const sendQuoteMutation = useMutation({
     mutationFn: async (quoteId: number) => {
-      return await apiRequest(`/api/quotes/${quoteId}/send`, {
-        method: "POST",
-      });
+      return await apiRequest(`/api/quotes/${quoteId}/send`, "POST");
     },
     onSuccess: (data) => {
       toast({
@@ -45,9 +43,7 @@ export default function QuotesPage() {
 
   const deleteQuoteMutation = useMutation({
     mutationFn: async (quoteId: number) => {
-      return await apiRequest(`/api/quotes/${quoteId}`, {
-        method: "DELETE",
-      });
+      return await apiRequest(`/api/quotes/${quoteId}`, "DELETE");
     },
     onSuccess: () => {
       toast({

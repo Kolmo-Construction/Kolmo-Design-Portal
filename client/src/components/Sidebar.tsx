@@ -13,7 +13,8 @@ import {
   LogOut,
   HelpCircle,
   Phone,
-  ClipboardList
+  ClipboardList,
+  FileTextIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
