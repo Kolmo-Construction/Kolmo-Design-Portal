@@ -304,42 +304,7 @@ export const punchListItems = pgTable("punch_list_items", {
 
 
 
-// Quote line items table
-export const quoteLineItems = pgTable("quote_line_items", {
-  id: serial("id").primaryKey(),
-  quoteId: integer("quote_id").notNull().references(() => customerQuotes.id, { onDelete: 'cascade' }),
-  category: text("category").notNull(),
-  description: text("description").notNull(),
-  quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull(),
-  unit: text("unit").notNull(),
-  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
-  discountPercentage: decimal("discount_percentage", { precision: 5, scale: 2 }).default("0"),
-  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
 
-// Quote images table
-export const quoteImages = pgTable("quote_images", {
-  id: serial("id").primaryKey(),
-  quoteId: integer("quote_id").notNull().references(() => customerQuotes.id, { onDelete: 'cascade' }),
-  imageUrl: text("image_url").notNull(),
-  caption: text("caption"),
-  imageType: text("image_type").notNull(), // 'project', 'before', 'after', 'reference'
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-// Quote before/after pairs table for multiple transformation comparisons
-export const quoteBeforeAfterPairs = pgTable("quote_before_after_pairs", {
-  id: serial("id").primaryKey(),
-  quoteId: integer("quote_id").notNull().references(() => customerQuotes.id, { onDelete: 'cascade' }),
-  beforeImageUrl: text("before_image_url"),
-  afterImageUrl: text("after_image_url"),
-  title: text("title"),
-  description: text("description"),
-  sortOrder: integer("sort_order").notNull().default(0),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
 
 // --- RAG Relations ---
 export const projectVersionRelations = relations(projectVersions, ({ one, many }) => ({
@@ -482,25 +447,8 @@ export const punchListItemRelations = relations(punchListItems, ({ one, many }) 
   media: many(updateMedia),
 }));
 
-// Quote relations
-export const customerQuoteRelations = relations(customerQuotes, ({ one, many }) => ({
-  creator: one(users, { fields: [customerQuotes.createdBy], references: [users.id] }),
-  lineItems: many(quoteLineItems),
-  images: many(quoteImages),
-  beforeAfterPairs: many(quoteBeforeAfterPairs),
-}));
 
-export const quoteLineItemRelations = relations(quoteLineItems, ({ one }) => ({
-  quote: one(customerQuotes, { fields: [quoteLineItems.quoteId], references: [customerQuotes.id] }),
-}));
 
-export const quoteImageRelations = relations(quoteImages, ({ one }) => ({
-  quote: one(customerQuotes, { fields: [quoteImages.quoteId], references: [customerQuotes.id] }),
-}));
-
-export const quoteBeforeAfterPairRelations = relations(quoteBeforeAfterPairs, ({ one }) => ({
-  quote: one(customerQuotes, { fields: [quoteBeforeAfterPairs.quoteId], references: [customerQuotes.id] }),
-}));
 
 
 // --- Insert Schemas (with Zod validations) ---
@@ -673,35 +621,7 @@ export const insertTaskChunkSchema = createInsertSchema(taskChunks).omit({
   createdAt: true,
 });
 
-// --- Quote Insert Schemas ---
-export const insertCustomerQuoteSchema = createInsertSchema(customerQuotes).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  magicToken: true, // Auto-generated
-}).extend({
-  estimatedStartDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
-  estimatedCompletionDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
-  validUntil: z.union([z.string().datetime(), z.date()]),
-  viewedAt: z.union([z.string().datetime(), z.date()]).optional().nullable(),
-  respondedAt: z.union([z.string().datetime(), z.date()]).optional().nullable(),
-});
 
-export const insertQuoteLineItemSchema = createInsertSchema(quoteLineItems).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertQuoteImageSchema = createInsertSchema(quoteImages).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertQuoteBeforeAfterPairSchema = createInsertSchema(quoteBeforeAfterPairs).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
 
 // --- Export Types ---
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -771,20 +691,7 @@ export type DailyLogPhoto = typeof dailyLogPhotos.$inferSelect;
 export type InsertPunchListItem = z.infer<typeof insertPunchListItemSchema>;
 export type PunchListItem = typeof punchListItems.$inferSelect;
 
-// Quote types
-export type InsertCustomerQuote = z.infer<typeof insertCustomerQuoteSchema>;
-export type CustomerQuote = typeof customerQuotes.$inferSelect;
 
-export type InsertQuoteLineItem = z.infer<typeof insertQuoteLineItemSchema>;
-export type QuoteLineItem = typeof quoteLineItems.$inferSelect;
-
-export type InsertQuoteImage = z.infer<typeof insertQuoteImageSchema>;
-export type QuoteImage = typeof quoteImages.$inferSelect;
-
-export type InsertQuoteBeforeAfterPair = z.infer<typeof insertQuoteBeforeAfterPairSchema>;
-export type QuoteBeforeAfterPair = typeof quoteBeforeAfterPairs.$inferSelect;
-
-export type QuoteStatus = typeof customerQuotes.status.enumValues[number];
 
 // These types are already defined above
 
