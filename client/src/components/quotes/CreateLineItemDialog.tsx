@@ -86,7 +86,7 @@ export function CreateLineItemDialog({ quoteId, open, onOpenChange }: CreateLine
       
       const totalPrice = subtotal - discount;
 
-      return await apiRequest(`/api/quotes/${quoteId}/line-items`, "POST", {
+      return await apiRequest("POST", `/api/quotes/${quoteId}/line-items`, {
         ...data,
         quantity: quantity.toString(),
         unitPrice: unitPrice.toString(),
