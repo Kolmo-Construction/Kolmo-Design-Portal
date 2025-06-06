@@ -211,7 +211,12 @@ export class QuoteStorage {
       }
     }
 
-    return quote || null;
+    if (!quote) {
+      return null;
+    }
+
+    // Fetch and return the full quote with the updated line items
+    return this.getQuoteById(id);
   }
 
   async deleteQuote(id: number): Promise<boolean> {
