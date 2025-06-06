@@ -102,6 +102,7 @@ export function CreateLineItemDialog({ quoteId, open, onOpenChange }: CreateLine
       });
       queryClient.invalidateQueries({ queryKey: [`/api/quotes/${quoteId}/line-items`] });
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/quotes/${quoteId}`] });
       form.reset();
       onOpenChange(false);
     },

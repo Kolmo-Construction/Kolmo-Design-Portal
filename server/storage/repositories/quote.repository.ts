@@ -72,7 +72,7 @@ export class QuoteRepository {
           ...data,
           accessToken,
           subtotal: data.subtotal || "0",
-          taxRate: data.taxRate || "0.1060",
+          taxRate: data.taxRate || "10.60",
           taxAmount: data.taxAmount || "0",
           total: data.total || "0",
           downPaymentPercentage: data.downPaymentPercentage || 30,
@@ -432,8 +432,9 @@ export class QuoteRepository {
           // Use manually entered tax amount
           taxAmount = parseFloat(quote.taxAmount || "0");
         } else {
-          // Calculate tax based on rate
-          const taxRate = parseFloat(quote.taxRate || "0.1060");
+          // Calculate tax based on rate (stored as percentage, e.g., 10.60 for 10.60%)
+          const taxRatePercent = parseFloat(quote.taxRate || "10.60");
+          const taxRate = taxRatePercent / 100; // Convert percentage to decimal
           taxAmount = discountedSubtotal * taxRate;
         }
 

@@ -62,6 +62,7 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
       });
       queryClient.invalidateQueries({ queryKey: [`/api/quotes/${quote.id}/line-items`] });
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/quotes/${quote.id}`] });
     },
     onError: () => {
       toast({

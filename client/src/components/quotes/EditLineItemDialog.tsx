@@ -82,6 +82,7 @@ export function EditLineItemDialog({ lineItem, open, onOpenChange }: EditLineIte
       });
       queryClient.invalidateQueries({ queryKey: [`/api/quotes/${lineItem.quoteId}/line-items`] });
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/quotes/${lineItem.quoteId}`] });
       onOpenChange(false);
     },
     onError: () => {
