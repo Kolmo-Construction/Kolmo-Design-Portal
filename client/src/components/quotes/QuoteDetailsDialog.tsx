@@ -418,10 +418,10 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
                     <span>Final Payment ({currentQuote.finalPaymentPercentage}%)</span>
                     <span>{formatCurrency((parseFloat(currentQuote.total.toString()) * (currentQuote.finalPaymentPercentage || 0)) / 100)}</span>
                   </div>
-                  {quote.milestoneDescription && (
+                  {currentQuote.milestoneDescription && (
                     <div className="mt-4">
                       <div className="text-sm font-medium text-gray-500 mb-1">Milestone Description</div>
-                      <div className="text-sm">{quote.milestoneDescription}</div>
+                      <div className="text-sm">{currentQuote.milestoneDescription}</div>
                     </div>
                   )}
                 </div>
@@ -537,7 +537,7 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
       )}
 
       <QuoteFinancialsDialog
-        quote={quote}
+        quote={currentQuote}
         open={showFinancials}
         onOpenChange={setShowFinancials}
       />
