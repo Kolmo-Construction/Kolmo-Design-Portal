@@ -646,40 +646,44 @@ export default function ProfessionalQuoteView() {
           </Card>
         )}
 
-        {/* Response Display */}
+        {/* Response Status */}
         {hasResponded && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-10 mb-8">
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 mx-auto">
-                {quote.customerResponse === "accepted" ? (
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-8 h-8 text-green-600" />
-                  </div>
-                ) : (
-                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-                    <XCircle className="w-8 h-8 text-red-600" />
+          <Card className="mb-8">
+            <CardContent className="p-6 sm:p-8">
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 mx-auto">
+                  {quote.customerResponse === "accepted" ? (
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                      <CheckCircle className="w-8 h-8 text-green-600" />
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                      <XCircle className="w-8 h-8 text-red-600" />
+                    </div>
+                  )}
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-2">
+                  {quote.customerResponse === "accepted" ? "Quote Accepted!" : "Quote Declined"}
+                </h3>
+                <p className="text-slate-600 text-base">
+                  Response received on {formatDate(quote.respondedAt)}
+                </p>
+                {quote.customerResponse === "accepted" && (
+                  <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                    <p className="text-green-800 text-lg font-medium">
+                      Thank you for choosing Kolmo Construction! Our team will contact you within 24 hours to discuss next steps.
+                    </p>
                   </div>
                 )}
               </div>
-              <h3 className="text-2xl font-bold text-primary mb-2">
-                {quote.customerResponse === "accepted" ? "Quote Accepted!" : "Quote Declined"}
-              </h3>
-              <p className="text-muted-foreground text-base">
-                Response received on {formatDate(quote.respondedAt)}
-              </p>
-              {quote.customerResponse === "accepted" && (
-                <p className="text-slate-700 mt-4 text-lg">
-                  Thank you for choosing Kolmo Construction! Our team will contact you within 24 hours to discuss next steps.
-                </p>
+              {quote.customerNotes && (
+                <div className="bg-slate-50 rounded-lg p-6 border border-slate-100">
+                  <h4 className="font-semibold text-slate-800 mb-3">Your Message:</h4>
+                  <p className="text-slate-700 leading-relaxed">{quote.customerNotes}</p>
+                </div>
               )}
-            </div>
-            {quote.customerNotes && (
-              <div className="bg-slate-50 rounded-xl p-6 border border-slate-100">
-                <h4 className="font-semibold text-slate-800 mb-3">Your Message:</h4>
-                <p className="text-slate-700 leading-relaxed">{quote.customerNotes}</p>
-              </div>
-            )}
-          </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Response Dialog */}
@@ -723,62 +727,80 @@ export default function ProfessionalQuoteView() {
           </DialogContent>
         </Dialog>
 
-        {/* Professional Footer */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mt-8">
-          <div className="border-t pt-6">
-            <div className="grid md:grid-cols-3 gap-8">
+        {/* Company Information Footer */}
+        <Card className="mt-8">
+          <CardContent className="p-6 sm:p-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div>
-                <h4 className="font-semibold text-slate-800 mb-4">Contact Information</h4>
-                <div className="space-y-3 text-sm text-slate-600">
+                <h4 className="font-semibold text-slate-800 mb-4 flex items-center">
+                  <Phone className="w-5 h-5 mr-2 text-primary" />
+                  Contact Information
+                </h4>
+                <div className="space-y-3 text-slate-600">
                   <div className="flex items-center space-x-3">
-                    <Phone className="w-4 h-4" />
+                    <Phone className="w-4 h-4 text-slate-400" />
                     <span>(206) 410-5100</span>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <Mail className="w-4 h-4" />
+                    <Mail className="w-4 h-4 text-slate-400" />
                     <span>projects@kolmo.io</span>
                   </div>
-                  <div className="flex items-center space-x-3">
-                    <MapPin className="w-4 h-4" />
-                    <span>4018 NE 125th St, Seattle, WA 98125</span>
+                  <div className="flex items-start space-x-3">
+                    <MapPin className="w-4 h-4 text-slate-400 mt-0.5" />
+                    <span>4018 NE 125th St<br />Seattle, WA 98125</span>
                   </div>
                 </div>
               </div>
               
               <div>
-                <h4 className="font-semibold text-slate-800 mb-4">Business Hours</h4>
-                <div className="space-y-2 text-sm text-slate-600">
-                  <p>Monday - Friday: 8:00 AM - 5:00 PM</p>
-                  <p>Saturday: 9:00 AM - 1:00 PM</p>
-                  <p>Sunday: Closed</p>
+                <h4 className="font-semibold text-slate-800 mb-4 flex items-center">
+                  <Clock className="w-5 h-5 mr-2 text-accent" />
+                  Business Hours
+                </h4>
+                <div className="space-y-2 text-slate-600">
+                  <div className="flex justify-between">
+                    <span>Monday - Friday:</span>
+                    <span>8:00 AM - 5:00 PM</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Saturday:</span>
+                    <span>9:00 AM - 1:00 PM</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Sunday:</span>
+                    <span>Closed</span>
+                  </div>
                 </div>
               </div>
               
               <div>
-                <h4 className="font-semibold text-slate-800 mb-4">About Kolmo</h4>
-                <p className="text-sm text-slate-600 leading-relaxed">
+                <h4 className="font-semibold text-slate-800 mb-4 flex items-center">
+                  <Building className="w-5 h-5 mr-2 text-green-600" />
+                  About Kolmo
+                </h4>
+                <p className="text-slate-600 leading-relaxed">
                   Licensed and bonded general contractor delivering high-quality residential and commercial construction services with smart technology, transparency, and expert craftsmanship.
                 </p>
               </div>
             </div>
             
-            <div className="flex justify-center items-center mt-8 pt-6 border-t">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 flex items-center justify-center">
+            <div className="flex justify-center items-center mt-8 pt-6 border-t border-slate-200">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-white rounded-lg shadow-sm border border-slate-200 p-2 flex items-center justify-center">
                   <img 
                     src={kolmoLogoPath} 
                     alt="Kolmo Construction" 
                     className="w-full h-full object-contain"
                   />
                 </div>
-                <div>
-                  <p className="font-semibold text-slate-800">Kolmo Construction</p>
-                  <p className="text-xs text-slate-500">Innovate Everyday. Residential & Commercial</p>
+                <div className="text-center">
+                  <p className="font-bold text-slate-900 text-lg">Kolmo Construction</p>
+                  <p className="text-slate-500 text-sm">Innovate Everyday. Residential & Commercial</p>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
