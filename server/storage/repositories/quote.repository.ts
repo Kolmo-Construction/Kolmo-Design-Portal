@@ -364,16 +364,16 @@ export class QuoteRepository {
       };
 
       if (data.discountPercentage !== undefined) {
-        updateData.discountPercentage = data.discountPercentage;
+        updateData.discountPercentage = data.discountPercentage === "" ? "0" : data.discountPercentage;
       }
       if (data.discountAmount !== undefined) {
-        updateData.discountAmount = data.discountAmount;
+        updateData.discountAmount = data.discountAmount === "" ? "0" : data.discountAmount;
       }
       if (data.taxRate !== undefined) {
-        updateData.taxRate = data.taxRate;
+        updateData.taxRate = data.taxRate === "" ? "0" : data.taxRate;
       }
       if (data.taxAmount !== undefined) {
-        updateData.taxAmount = data.taxAmount;
+        updateData.taxAmount = data.taxAmount === "" ? "0" : data.taxAmount;
       }
       if (data.isManualTax !== undefined) {
         updateData.isManualTax = data.isManualTax;
