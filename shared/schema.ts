@@ -415,6 +415,15 @@ export const quoteResponses = pgTable("quote_responses", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Quote access tokens table for secure customer access
+export const quoteAccessTokens = pgTable("quote_access_tokens", {
+  id: serial("id").primaryKey(),
+  quoteId: integer("quote_id").notNull().references(() => quotes.id, { onDelete: 'cascade' }),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 
 
 

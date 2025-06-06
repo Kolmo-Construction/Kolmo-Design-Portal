@@ -2,66 +2,60 @@ import { db } from "../../db";
 import { 
   quotes, 
   quoteLineItems, 
-  quoteImages, 
+  quoteMedia, 
   quoteResponses,
-  quoteAccessTokens,
-  type Quote,
-  type QuoteLineItem,
-  type QuoteImage,
-  type QuoteResponse,
-  type QuoteAccessToken,
-  type InsertQuote,
-  type InsertQuoteLineItem,
-  type InsertQuoteResponse
+  quoteAccessTokens
 } from "@shared/schema";
 import { eq, desc, and, gte } from "drizzle-orm";
-import { uploadToR2, deleteFromR2 } from "../../r2-upload";
 import { v4 as uuidv4 } from "uuid";
 
 export class QuoteRepository {
   async getAllQuotes() {
-    return await db
-      .select()
-      .from(quotes)
-      .orderBy(desc(quotes.createdAt));
+    try {
+      return await db
+        .select()
+        .from(quotes)
+        .orderBy(desc(quotes.createdAt));
+    } catch (error) {
+      console.error("Error fetching quotes:", error);
+      return [];
+    }
   }
 
   async getQuoteById(id: number) {
-    const [quote] = await db
-      .select()
-      .from(quotes)
-      .where(eq(quotes.id, id));
+    try {
+      const [quote] = await db
+        .select()
+        .from(quotes)
+        .where(eq(quotes.id, id));
 
-    if (!quote) {
+      if (!quote) {
+        return null;
+      }
+
+      // Get line items
+      const lineItems = await db
+        .select()
+        .from(quoteLineItems)
+        .where(eq(quoteLineItems.quoteId, id))
+        .orderBy(quoteLineItems.id);
+
+      // Get responses
+      const responses = await db
+        .select()
+        .from(quoteResponses)
+        .where(eq(quoteResponses.quoteId, id))
+        .orderBy(desc(quoteResponses.createdAt));
+
+      return {
+        ...quote,
+        lineItems,
+        responses
+      };
+    } catch (error) {
+      console.error("Error fetching quote:", error);
       return null;
     }
-
-    // Get line items
-    const lineItems = await db
-      .select()
-      .from(quoteLineItems)
-      .where(eq(quoteLineItems.quoteId, id))
-      .orderBy(quoteLineItems.id);
-
-    // Get images
-    const images = await db
-      .select()
-      .from(quoteImages)
-      .where(eq(quoteImages.quoteId, id));
-
-    // Get responses
-    const responses = await db
-      .select()
-      .from(quoteResponses)
-      .where(eq(quoteResponses.quoteId, id))
-      .orderBy(desc(quoteResponses.createdAt));
-
-    return {
-      ...quote,
-      lineItems,
-      images,
-      responses
-    };
   }
 
   async createQuote(data: Omit<InsertQuote, 'accessToken'>) {
@@ -73,10 +67,10 @@ export class QuoteRepository {
       .values({
         ...data,
         accessToken,
-        subtotal: data.subtotal || "0",
-        taxRate: data.taxRate || "0",
-        taxAmount: data.taxAmount || "0",
-        total: data.total || "0",
+        subtotal: typeof data.subtotal === 'string' ? data.subtotal : '0',
+        taxRate: typeof data.taxRate === 'string' ? data.taxRate : '0.1060',
+        taxAmount: typeof data.taxAmount === 'string' ? data.taxAmount : '0',
+        total: typeof data.total === 'string' ? data.total : '0',
         downPaymentPercentage: data.downPaymentPercentage || 30,
         milestonePaymentPercentage: data.milestonePaymentPercentage || 40,
         finalPaymentPercentage: data.finalPaymentPercentage || 30,
