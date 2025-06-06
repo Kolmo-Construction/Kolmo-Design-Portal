@@ -69,7 +69,7 @@ export function EditLineItemDialog({ lineItem, open, onOpenChange }: EditLineIte
       const unitPrice = parseFloat(data.unitPrice);
       const totalPrice = quantity * unitPrice;
 
-      return await apiRequest(`/api/quotes/line-items/${lineItem.id}`, "PATCH", {
+      return await apiRequest("PATCH", `/api/quotes/line-items/${lineItem.id}`, {
         ...data,
         quantity: quantity.toString(),
         unitPrice: unitPrice.toString(),
