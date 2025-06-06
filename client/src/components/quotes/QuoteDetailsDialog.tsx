@@ -407,15 +407,15 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
               <CardContent>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span>Down Payment ({currentQuote.downPaymentPercentage}%)</span>
+                    <span>Down Payment ({currentQuote.downPaymentPercentage || 0}%)</span>
                     <span>{formatCurrency((parseFloat(currentQuote.total.toString()) * (currentQuote.downPaymentPercentage || 0)) / 100)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Milestone Payment ({currentQuote.milestonePaymentPercentage}%)</span>
+                    <span>Milestone Payment ({currentQuote.milestonePaymentPercentage || 0}%)</span>
                     <span>{formatCurrency((parseFloat(currentQuote.total.toString()) * (currentQuote.milestonePaymentPercentage || 0)) / 100)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Final Payment ({currentQuote.finalPaymentPercentage}%)</span>
+                    <span>Final Payment ({currentQuote.finalPaymentPercentage || 0}%)</span>
                     <span>{formatCurrency((parseFloat(currentQuote.total.toString()) * (currentQuote.finalPaymentPercentage || 0)) / 100)}</span>
                   </div>
                   {currentQuote.milestoneDescription && (
