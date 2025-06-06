@@ -1,392 +1,341 @@
 import { db } from "../../db";
-import { eq, desc, and, sql } from "drizzle-orm";
 import { 
   quotes, 
   quoteLineItems, 
-  quoteMedia, 
+  quoteImages, 
   quoteResponses,
-  users,
+  quoteAccessTokens,
   type Quote,
   type QuoteLineItem,
-  type QuoteMedia,
+  type QuoteImage,
   type QuoteResponse,
+  type QuoteAccessToken,
   type InsertQuote,
   type InsertQuoteLineItem,
-  type InsertQuoteMedia,
-  type InsertQuoteResponse,
-  type QuoteWithDetails
+  type InsertQuoteResponse
 } from "@shared/schema";
-import { createNotFoundError, createBadRequestError } from "../../errors";
-import { randomBytes } from "crypto";
+import { eq, desc, and, gte } from "drizzle-orm";
+import { uploadToR2, deleteFromR2 } from "../../r2-upload";
+import { v4 as uuidv4 } from "uuid";
 
 export class QuoteRepository {
-  
-  // Generate unique quote number
-  private generateQuoteNumber(): string {
-    const timestamp = Date.now();
-    return `QUO-${timestamp}`;
+  async getAllQuotes() {
+    return await db
+      .select()
+      .from(quotes)
+      .orderBy(desc(quotes.createdAt));
   }
 
-  // Generate secure access token
-  private generateAccessToken(): string {
-    return randomBytes(32).toString('hex');
-  }
+  async getQuoteById(id: number) {
+    const [quote] = await db
+      .select()
+      .from(quotes)
+      .where(eq(quotes.id, id));
 
-  // Create a new quote
-  async createQuote(data: InsertQuote): Promise<Quote> {
-    const quoteData: any = {
-      ...data,
-      quoteNumber: this.generateQuoteNumber(),
-      accessToken: this.generateAccessToken(),
-      validUntil: typeof data.validUntil === 'string' ? new Date(data.validUntil) : data.validUntil,
-      estimatedStartDate: data.estimatedStartDate ? (typeof data.estimatedStartDate === 'string' ? new Date(data.estimatedStartDate) : data.estimatedStartDate) : null,
-      estimatedCompletionDate: data.estimatedCompletionDate ? (typeof data.estimatedCompletionDate === 'string' ? new Date(data.estimatedCompletionDate) : data.estimatedCompletionDate) : null,
-      subtotal: data.subtotal?.toString() || '0',
-      taxRate: data.taxRate?.toString() || '0.1060',
-      taxAmount: data.taxAmount?.toString() || '0',
-      total: data.total?.toString() || '0',
+    if (!quote) {
+      return null;
+    }
+
+    // Get line items
+    const lineItems = await db
+      .select()
+      .from(quoteLineItems)
+      .where(eq(quoteLineItems.quoteId, id))
+      .orderBy(quoteLineItems.id);
+
+    // Get images
+    const images = await db
+      .select()
+      .from(quoteImages)
+      .where(eq(quoteImages.quoteId, id));
+
+    // Get responses
+    const responses = await db
+      .select()
+      .from(quoteResponses)
+      .where(eq(quoteResponses.quoteId, id))
+      .orderBy(desc(quoteResponses.createdAt));
+
+    return {
+      ...quote,
+      lineItems,
+      images,
+      responses
     };
+  }
+
+  async createQuote(data: Omit<InsertQuote, 'accessToken'>) {
+    // Generate unique access token
+    const accessToken = uuidv4();
 
     const [quote] = await db
       .insert(quotes)
-      .values(quoteData)
+      .values({
+        ...data,
+        accessToken,
+        subtotal: data.subtotal || "0",
+        taxRate: data.taxRate || "0",
+        taxAmount: data.taxAmount || "0",
+        total: data.total || "0",
+        downPaymentPercentage: data.downPaymentPercentage || 30,
+        milestonePaymentPercentage: data.milestonePaymentPercentage || 40,
+        finalPaymentPercentage: data.finalPaymentPercentage || 30,
+      })
+      .returning();
+
+    // Create access token record
+    await db
+      .insert(quoteAccessTokens)
+      .values({
+        quoteId: quote.id,
+        token: accessToken,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      });
+
+    return quote;
+  }
+
+  async updateQuote(id: number, data: Partial<InsertQuote>) {
+    const [quote] = await db
+      .update(quotes)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(eq(quotes.id, id))
       .returning();
 
     return quote;
   }
 
-  // Get all quotes with details
-  async getAllQuotes(): Promise<QuoteWithDetails[]> {
-    const quotesWithDetails = await db
-      .select({
-        quote: quotes,
-        creator: {
-          id: users.id,
-          firstName: users.firstName,
-          lastName: users.lastName,
-        }
-      })
-      .from(quotes)
-      .leftJoin(users, eq(quotes.createdById, users.id))
-      .orderBy(desc(quotes.createdAt));
-
-    const result: QuoteWithDetails[] = [];
-
-    for (const row of quotesWithDetails) {
-      const lineItems = await this.getQuoteLineItems(row.quote.id);
-      const media = await this.getQuoteMedia(row.quote.id);
-      const responses = await this.getQuoteResponses(row.quote.id);
-
-      result.push({
-        ...row.quote,
-        creator: row.creator,
-        lineItems,
-        media,
-        responses,
-      });
-    }
-
-    return result;
-  }
-
-  // Get quote by ID with details
-  async getQuoteById(id: number): Promise<QuoteWithDetails | null> {
-    const [quoteWithCreator] = await db
-      .select({
-        quote: quotes,
-        creator: {
-          id: users.id,
-          firstName: users.firstName,
-          lastName: users.lastName,
-        }
-      })
-      .from(quotes)
-      .leftJoin(users, eq(quotes.createdById, users.id))
-      .where(eq(quotes.id, id));
-
-    if (!quoteWithCreator) return null;
-
-    const lineItems = await this.getQuoteLineItems(id);
-    const media = await this.getQuoteMedia(id);
-    const responses = await this.getQuoteResponses(id);
-
-    return {
-      ...quoteWithCreator.quote,
-      creator: quoteWithCreator.creator,
-      lineItems,
-      media,
-      responses,
-    };
-  }
-
-  // Get quote by access token (for customer portal)
-  async getQuoteByAccessToken(accessToken: string): Promise<QuoteWithDetails | null> {
-    const [quote] = await db
+  async deleteQuote(id: number) {
+    // Delete associated images from R2
+    const images = await db
       .select()
-      .from(quotes)
-      .where(eq(quotes.accessToken, accessToken));
+      .from(quoteImages)
+      .where(eq(quoteImages.quoteId, id));
 
-    if (!quote) return null;
-
-    // Mark as viewed
-    await this.markQuoteAsViewed(quote.id);
-
-    const lineItems = await this.getQuoteLineItems(quote.id);
-    const media = await this.getQuoteMedia(quote.id);
-    const responses = await this.getQuoteResponses(quote.id);
-
-    return {
-      ...quote,
-      lineItems,
-      media,
-      responses,
-    };
-  }
-
-  // Update quote
-  async updateQuote(id: number, data: Partial<InsertQuote>): Promise<Quote> {
-    const updateData: any = { ...data, updatedAt: new Date() };
-    
-    // Handle date conversions
-    if (updateData.validUntil && typeof updateData.validUntil === 'string') {
-      updateData.validUntil = new Date(updateData.validUntil);
-    }
-    if (updateData.estimatedStartDate && typeof updateData.estimatedStartDate === 'string') {
-      updateData.estimatedStartDate = new Date(updateData.estimatedStartDate);
-    }
-    if (updateData.estimatedCompletionDate && typeof updateData.estimatedCompletionDate === 'string') {
-      updateData.estimatedCompletionDate = new Date(updateData.estimatedCompletionDate);
+    for (const image of images) {
+      try {
+        await deleteFromR2(image.storageKey);
+      } catch (error) {
+        console.error(`Failed to delete image ${image.storageKey}:`, error);
+      }
     }
 
-    const [updated] = await db
-      .update(quotes)
-      .set(updateData)
-      .where(eq(quotes.id, id))
-      .returning();
-
-    if (!updated) {
-      throw createNotFoundError("Quote");
-    }
-
-    return updated;
-  }
-
-  // Delete quote
-  async deleteQuote(id: number): Promise<void> {
-    const result = await db
+    // Delete quote (cascade will handle related records)
+    await db
       .delete(quotes)
       .where(eq(quotes.id, id));
 
-    if (result.rowCount === 0) {
-      throw createNotFoundError("Quote");
-    }
+    return true;
   }
 
-  // Mark quote as viewed
-  async markQuoteAsViewed(id: number): Promise<void> {
-    await db
-      .update(quotes)
-      .set({ viewedAt: new Date() })
-      .where(and(eq(quotes.id, id), sql`viewed_at IS NULL`));
-  }
-
-  // Mark quote as sent
-  async markQuoteAsSent(id: number): Promise<void> {
-    await db
-      .update(quotes)
-      .set({ 
-        sentAt: new Date(),
-        status: 'sent'
-      })
-      .where(eq(quotes.id, id));
-  }
-
-  // Line Items Management
-  async getQuoteLineItems(quoteId: number): Promise<QuoteLineItem[]> {
+  async getQuoteLineItems(quoteId: number) {
     return await db
       .select()
       .from(quoteLineItems)
       .where(eq(quoteLineItems.quoteId, quoteId))
-      .orderBy(quoteLineItems.sortOrder);
+      .orderBy(quoteLineItems.id);
   }
 
-  async createQuoteLineItem(data: InsertQuoteLineItem): Promise<QuoteLineItem> {
-    const lineItemData = {
-      ...data,
-      quantity: data.quantity.toString(),
-      unitPrice: data.unitPrice.toString(),
-      totalPrice: data.totalPrice.toString(),
-    };
-
+  async createLineItem(quoteId: number, data: Omit<InsertQuoteLineItem, 'quoteId'>) {
     const [lineItem] = await db
       .insert(quoteLineItems)
-      .values(lineItemData)
+      .values({
+        ...data,
+        quoteId,
+      })
       .returning();
 
     // Recalculate quote totals
-    await this.recalculateQuoteTotals(data.quoteId);
+    await this.recalculateQuoteTotals(quoteId);
 
     return lineItem;
   }
 
-  async updateQuoteLineItem(id: number, data: Partial<InsertQuoteLineItem>): Promise<QuoteLineItem> {
-    const updateData: any = {
-      ...data,
-      updatedAt: new Date(),
-    };
-
-    // Convert numeric values to strings for database
-    if (updateData.quantity !== undefined) updateData.quantity = updateData.quantity.toString();
-    if (updateData.unitPrice !== undefined) updateData.unitPrice = updateData.unitPrice.toString();
-    if (updateData.totalPrice !== undefined) updateData.totalPrice = updateData.totalPrice.toString();
-
-    const [updated] = await db
+  async updateLineItem(id: number, data: Partial<InsertQuoteLineItem>) {
+    const [lineItem] = await db
       .update(quoteLineItems)
-      .set(updateData)
-      .where(eq(quoteLineItems.id, id))
-      .returning();
-
-    if (!updated) {
-      throw createNotFoundError("Quote line item");
-    }
-
-    // Recalculate quote totals
-    await this.recalculateQuoteTotals(updated.quoteId);
-
-    return updated;
-  }
-
-  async deleteQuoteLineItem(id: number): Promise<void> {
-    const [deleted] = await db
-      .delete(quoteLineItems)
-      .where(eq(quoteLineItems.id, id))
-      .returning();
-
-    if (!deleted) {
-      throw createNotFoundError("Quote line item");
-    }
-
-    // Recalculate quote totals
-    await this.recalculateQuoteTotals(deleted.quoteId);
-  }
-
-  // Recalculate quote totals
-  async recalculateQuoteTotals(quoteId: number): Promise<void> {
-    const items = await this.getQuoteLineItems(quoteId);
-    const subtotal = items.reduce((sum, item) => sum + parseFloat(item.totalPrice.toString()), 0);
-    
-    const [quote] = await db
-      .select({ taxRate: quotes.taxRate })
-      .from(quotes)
-      .where(eq(quotes.id, quoteId));
-
-    if (!quote) return;
-
-    const taxAmount = subtotal * parseFloat((quote.taxRate || '0.1060').toString());
-    const total = subtotal + taxAmount;
-
-    await db
-      .update(quotes)
       .set({
-        subtotal: subtotal.toString(),
-        taxAmount: taxAmount.toString(),
-        total: total.toString(),
+        ...data,
         updatedAt: new Date(),
       })
-      .where(eq(quotes.id, quoteId));
-  }
-
-  // Media Management
-  async getQuoteMedia(quoteId: number): Promise<QuoteMedia[]> {
-    return await db
-      .select()
-      .from(quoteMedia)
-      .where(eq(quoteMedia.quoteId, quoteId))
-      .orderBy(quoteMedia.sortOrder);
-  }
-
-  async createQuoteMedia(data: InsertQuoteMedia): Promise<QuoteMedia> {
-    const [media] = await db
-      .insert(quoteMedia)
-      .values(data)
+      .where(eq(quoteLineItems.id, id))
       .returning();
 
-    return media;
-  }
-
-  async deleteQuoteMedia(id: number): Promise<void> {
-    const result = await db
-      .delete(quoteMedia)
-      .where(eq(quoteMedia.id, id));
-
-    if (result.rowCount === 0) {
-      throw createNotFoundError("Quote media");
+    if (lineItem) {
+      // Recalculate quote totals
+      await this.recalculateQuoteTotals(lineItem.quoteId);
     }
+
+    return lineItem;
   }
 
-  // Response Management
-  async getQuoteResponses(quoteId: number): Promise<QuoteResponse[]> {
-    return await db
+  async deleteLineItem(id: number) {
+    const [lineItem] = await db
       .select()
-      .from(quoteResponses)
-      .where(eq(quoteResponses.quoteId, quoteId))
-      .orderBy(desc(quoteResponses.createdAt));
+      .from(quoteLineItems)
+      .where(eq(quoteLineItems.id, id));
+
+    if (!lineItem) {
+      return false;
+    }
+
+    await db
+      .delete(quoteLineItems)
+      .where(eq(quoteLineItems.id, id));
+
+    // Recalculate quote totals
+    await this.recalculateQuoteTotals(lineItem.quoteId);
+
+    return true;
   }
 
-  async createQuoteResponse(data: InsertQuoteResponse): Promise<QuoteResponse> {
+  async uploadQuoteImage(quoteId: number, file: Express.Multer.File, type: string, caption?: string) {
+    // Upload to R2
+    const { url, key } = await uploadToR2({
+      buffer: file.buffer,
+      filename: file.originalname,
+      contentType: file.mimetype,
+      folder: `quotes/${quoteId}`,
+    });
+
+    // Save to database
+    const [image] = await db
+      .insert(quoteImages)
+      .values({
+        quoteId,
+        type,
+        url,
+        storageKey: key,
+        caption,
+        filename: file.originalname,
+        fileSize: file.size,
+        mimeType: file.mimetype,
+      })
+      .returning();
+
+    return image;
+  }
+
+  async deleteQuoteImage(id: number) {
+    const [image] = await db
+      .select()
+      .from(quoteImages)
+      .where(eq(quoteImages.id, id));
+
+    if (!image) {
+      return false;
+    }
+
+    // Delete from R2
+    try {
+      await deleteFromR2(image.storageKey);
+    } catch (error) {
+      console.error(`Failed to delete image ${image.storageKey}:`, error);
+    }
+
+    // Delete from database
+    await db
+      .delete(quoteImages)
+      .where(eq(quoteImages.id, id));
+
+    return true;
+  }
+
+  async getQuoteByAccessToken(token: string) {
+    // Check if token is valid and not expired
+    const [accessToken] = await db
+      .select()
+      .from(quoteAccessTokens)
+      .where(
+        and(
+          eq(quoteAccessTokens.token, token),
+          gte(quoteAccessTokens.expiresAt, new Date())
+        )
+      );
+
+    if (!accessToken) {
+      return null;
+    }
+
+    return await this.getQuoteById(accessToken.quoteId);
+  }
+
+  async createQuoteResponse(token: string, data: InsertQuoteResponse) {
+    // Verify token and get quote
+    const [accessToken] = await db
+      .select()
+      .from(quoteAccessTokens)
+      .where(
+        and(
+          eq(quoteAccessTokens.token, token),
+          gte(quoteAccessTokens.expiresAt, new Date())
+        )
+      );
+
+    if (!accessToken) {
+      return null;
+    }
+
+    // Create response
     const [response] = await db
       .insert(quoteResponses)
-      .values(data)
+      .values({
+        ...data,
+        quoteId: accessToken.quoteId,
+      })
       .returning();
 
-    // Update quote status and response timestamp
-    let status = 'pending';
-    if (data.action === 'accepted') status = 'accepted';
-    if (data.action === 'declined') status = 'declined';
-
+    // Update quote status based on response
     await db
       .update(quotes)
       .set({
-        status,
+        status: data.action === 'accepted' ? 'accepted' : 'declined',
         respondedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(quotes.id, data.quoteId));
+      .where(eq(quotes.id, accessToken.quoteId));
 
     return response;
   }
 
-  // Customer response (public endpoint)
-  async respondToQuote(
-    accessToken: string, 
-    action: 'accepted' | 'declined' | 'requested_changes',
-    customerData: {
-      customerName?: string;
-      customerEmail?: string;
-      message?: string;
-      ipAddress?: string;
-      userAgent?: string;
-    }
-  ): Promise<QuoteResponse> {
-    const quote = await this.getQuoteByAccessToken(accessToken);
+  private async recalculateQuoteTotals(quoteId: number) {
+    // Get all line items for the quote
+    const lineItems = await db
+      .select()
+      .from(quoteLineItems)
+      .where(eq(quoteLineItems.quoteId, quoteId));
+
+    // Calculate subtotal
+    const subtotal = lineItems.reduce((sum, item) => {
+      return sum + parseFloat(item.totalPrice);
+    }, 0);
+
+    // Get current quote to preserve tax rate
+    const [quote] = await db
+      .select()
+      .from(quotes)
+      .where(eq(quotes.id, quoteId));
+
     if (!quote) {
-      throw createNotFoundError("Quote");
+      return;
     }
 
-    // Check if quote is still valid
-    if (new Date() > new Date(quote.validUntil)) {
-      throw createBadRequestError("Quote has expired");
-    }
+    const taxRate = parseFloat(quote.taxRate) || 0;
+    const taxAmount = subtotal * taxRate;
+    const total = subtotal + taxAmount;
 
-    // Check if already responded
-    if (quote.responses && quote.responses.length > 0) {
-      throw createBadRequestError("Quote has already been responded to");
-    }
-
-    return await this.createQuoteResponse({
-      quoteId: quote.id,
-      action,
-      ...customerData,
-    });
+    // Update quote totals
+    await db
+      .update(quotes)
+      .set({
+        subtotal: subtotal.toFixed(2),
+        taxAmount: taxAmount.toFixed(2),
+        total: total.toFixed(2),
+        updatedAt: new Date(),
+      })
+      .where(eq(quotes.id, quoteId));
   }
 }

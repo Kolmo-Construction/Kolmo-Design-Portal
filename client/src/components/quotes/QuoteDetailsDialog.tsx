@@ -46,9 +46,7 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
 
   const deleteLineItemMutation = useMutation({
     mutationFn: async (lineItemId: number) => {
-      return await apiRequest(`/api/quotes/line-items/${lineItemId}`, {
-        method: "DELETE",
-      });
+      return await apiRequest(`/api/quotes/line-items/${lineItemId}`, "DELETE");
     },
     onSuccess: () => {
       toast({

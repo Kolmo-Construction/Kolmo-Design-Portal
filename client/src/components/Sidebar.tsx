@@ -69,6 +69,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
   const adminNavLinks = [
     { href: "/", icon: <HomeIcon className="h-5 w-5 mr-3" />, label: "Dashboard" },
     { href: "/projects", icon: <Building2 className="h-5 w-5 mr-3" />, label: "Projects" },
+    { href: "/quotes", icon: <FileTextIcon className="h-5 w-5 mr-3" />, label: "Quotes" },
     { href: "/documents", icon: <FileText className="h-5 w-5 mr-3" />, label: "Documents" },
     { href: "/financials", icon: <ClipboardList className="h-5 w-5 mr-3" />, label: "Financials" },
     { href: "/messages", icon: <MessageSquare className="h-5 w-5 mr-3" />, label: "Messages" },

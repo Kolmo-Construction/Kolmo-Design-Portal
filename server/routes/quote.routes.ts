@@ -1,53 +1,30 @@
 import { Router } from "express";
 import { isAuthenticated } from "../middleware/auth.middleware";
-import { hasRole } from "../middleware/role.middleware";
-import { upload } from "../middleware/upload.middleware";
-import {
-  // Admin controllers
-  getAllQuotes,
-  getQuoteById,
-  createQuote,
-  updateQuote,
-  deleteQuote,
-  sendQuoteToCustomer,
-  
-  // Line item controllers
-  getQuoteLineItems,
-  createQuoteLineItem,
-  updateQuoteLineItem,
-  deleteQuoteLineItem,
-  
-  // Media controllers
-  uploadQuoteMedia,
-  deleteQuoteMedia,
-  
-  // Customer portal controllers (public)
-  getQuoteByToken,
-  respondToQuote,
-} from "../controllers/quote.controller";
+import { QuoteController } from "../controllers/quote.controller";
 
 const router = Router();
+const quoteController = new QuoteController();
 
-// Admin routes (authenticated)
-router.get("/", isAuthenticated, getAllQuotes);
-router.get("/:id", isAuthenticated, getQuoteById);
-router.post("/", isAuthenticated, createQuote);
-router.put("/:id", isAuthenticated, updateQuote);
-router.delete("/:id", isAuthenticated, deleteQuote);
-router.post("/:id/send", isAuthenticated, sendQuoteToCustomer);
+// Protected admin routes
+router.get("/", isAuthenticated, quoteController.getAllQuotes.bind(quoteController));
+router.post("/", isAuthenticated, quoteController.createQuote.bind(quoteController));
+router.get("/:id", isAuthenticated, quoteController.getQuoteById.bind(quoteController));
+router.patch("/:id", isAuthenticated, quoteController.updateQuote.bind(quoteController));
+router.delete("/:id", isAuthenticated, quoteController.deleteQuote.bind(quoteController));
+router.post("/:id/send", isAuthenticated, quoteController.sendQuote.bind(quoteController));
 
-// Line item routes (authenticated)
-router.get("/:quoteId/line-items", isAuthenticated, getQuoteLineItems);
-router.post("/:quoteId/line-items", isAuthenticated, createQuoteLineItem);
-router.put("/line-items/:id", isAuthenticated, updateQuoteLineItem);
-router.delete("/line-items/:id", isAuthenticated, deleteQuoteLineItem);
+// Line item routes
+router.get("/:id/line-items", isAuthenticated, quoteController.getQuoteLineItems.bind(quoteController));
+router.post("/:id/line-items", isAuthenticated, quoteController.createLineItem.bind(quoteController));
+router.patch("/line-items/:lineItemId", isAuthenticated, quoteController.updateLineItem.bind(quoteController));
+router.delete("/line-items/:lineItemId", isAuthenticated, quoteController.deleteLineItem.bind(quoteController));
 
-// Media routes (authenticated)
-router.post("/:quoteId/media", isAuthenticated, upload.single('file'), uploadQuoteMedia);
-router.delete("/:quoteId/media/:id", isAuthenticated, deleteQuoteMedia);
+// Image routes
+router.post("/:id/images", isAuthenticated, quoteController.uploadQuoteImage.bind(quoteController));
+router.delete("/images/:imageId", isAuthenticated, quoteController.deleteQuoteImage.bind(quoteController));
 
-// Customer portal routes (public)
-router.get("/public/:token", getQuoteByToken);
-router.post("/public/:token/respond", respondToQuote);
+// Public customer routes (no authentication required)
+router.get("/public/:token", quoteController.getQuoteByToken.bind(quoteController));
+router.post("/public/:token/respond", quoteController.respondToQuote.bind(quoteController));
 
 export default router;

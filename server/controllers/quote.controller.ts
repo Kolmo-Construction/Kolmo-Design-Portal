@@ -1,327 +1,303 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { QuoteRepository } from "../storage/repositories/quote.repository";
-import { 
-  insertQuoteSchema, 
-  insertQuoteLineItemSchema, 
-  insertQuoteResponseSchema,
-  insertQuoteMediaSchema 
-} from "@shared/schema";
-import { HttpError, createBadRequestError, createNotFoundError } from "../errors";
-import { uploadToR2, deleteFromR2 } from "../r2-upload";
-import { sendEmail } from "../email";
+import { createInsertSchema } from "drizzle-zod";
+import { quotes, quoteLineItems, quoteResponses } from "@shared/schema";
+import { z } from "zod";
 
-const quoteRepo = new QuoteRepository();
+const createQuoteSchema = createInsertSchema(quotes).omit({
+  id: true,
+  accessToken: true,
+  createdAt: true,
+  updatedAt: true,
+});
 
-// Admin Controllers
-export const getAllQuotes = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const quotes = await quoteRepo.getAllQuotes();
-    res.json(quotes);
-  } catch (error) {
-    next(error);
+const createLineItemSchema = createInsertSchema(quoteLineItems).omit({
+  id: true,
+  quoteId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+const createResponseSchema = createInsertSchema(quoteResponses).omit({
+  id: true,
+  quoteId: true,
+  createdAt: true,
+});
+
+export class QuoteController {
+  private quoteRepository: QuoteRepository;
+
+  constructor() {
+    this.quoteRepository = new QuoteRepository();
   }
-};
 
-export const getQuoteById = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      throw createBadRequestError("Invalid quote ID");
+  async getAllQuotes(req: Request, res: Response) {
+    try {
+      const quotes = await this.quoteRepository.getAllQuotes();
+      res.json(quotes);
+    } catch (error) {
+      console.error("Error fetching quotes:", error);
+      res.status(500).json({ error: "Failed to fetch quotes" });
     }
-
-    const quote = await quoteRepo.getQuoteById(id);
-    if (!quote) {
-      throw createNotFoundError("Quote");
-    }
-
-    res.json(quote);
-  } catch (error) {
-    next(error);
   }
-};
 
-export const createQuote = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const validationResult = insertQuoteSchema.safeParse(req.body);
-    if (!validationResult.success) {
-      throw createBadRequestError("Invalid quote data", validationResult.error.flatten());
+  async getQuoteById(req: Request, res: Response) {
+    try {
+      const quoteId = parseInt(req.params.id);
+      if (isNaN(quoteId)) {
+        return res.status(400).json({ error: "Invalid quote ID" });
+      }
+
+      const quote = await this.quoteRepository.getQuoteById(quoteId);
+      if (!quote) {
+        return res.status(404).json({ error: "Quote not found" });
+      }
+
+      res.json(quote);
+    } catch (error) {
+      console.error("Error fetching quote:", error);
+      res.status(500).json({ error: "Failed to fetch quote" });
     }
-
-    const user = req.user as any;
-    const quoteData = {
-      ...validationResult.data,
-      createdById: user.id,
-    };
-
-    const quote = await quoteRepo.createQuote(quoteData);
-    res.status(201).json(quote);
-  } catch (error) {
-    next(error);
   }
-};
 
-export const updateQuote = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      throw createBadRequestError("Invalid quote ID");
+  async createQuote(req: Request, res: Response) {
+    try {
+      const validatedData = createQuoteSchema.parse(req.body);
+      const quote = await this.quoteRepository.createQuote(validatedData);
+      res.status(201).json(quote);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
+      console.error("Error creating quote:", error);
+      res.status(500).json({ error: "Failed to create quote" });
     }
-
-    const validationResult = insertQuoteSchema.partial().safeParse(req.body);
-    if (!validationResult.success) {
-      throw createBadRequestError("Invalid quote data", validationResult.error.flatten());
-    }
-
-    const quote = await quoteRepo.updateQuote(id, validationResult.data);
-    res.json(quote);
-  } catch (error) {
-    next(error);
   }
-};
 
-export const deleteQuote = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      throw createBadRequestError("Invalid quote ID");
+  async updateQuote(req: Request, res: Response) {
+    try {
+      const quoteId = parseInt(req.params.id);
+      if (isNaN(quoteId)) {
+        return res.status(400).json({ error: "Invalid quote ID" });
+      }
+
+      const validatedData = createQuoteSchema.partial().parse(req.body);
+      const quote = await this.quoteRepository.updateQuote(quoteId, validatedData);
+      
+      if (!quote) {
+        return res.status(404).json({ error: "Quote not found" });
+      }
+
+      res.json(quote);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
+      console.error("Error updating quote:", error);
+      res.status(500).json({ error: "Failed to update quote" });
     }
-
-    await quoteRepo.deleteQuote(id);
-    res.status(204).send();
-  } catch (error) {
-    next(error);
   }
-};
 
-export const sendQuoteToCustomer = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      throw createBadRequestError("Invalid quote ID");
+  async deleteQuote(req: Request, res: Response) {
+    try {
+      const quoteId = parseInt(req.params.id);
+      if (isNaN(quoteId)) {
+        return res.status(400).json({ error: "Invalid quote ID" });
+      }
+
+      const success = await this.quoteRepository.deleteQuote(quoteId);
+      if (!success) {
+        return res.status(404).json({ error: "Quote not found" });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting quote:", error);
+      res.status(500).json({ error: "Failed to delete quote" });
     }
-
-    const quote = await quoteRepo.getQuoteById(id);
-    if (!quote) {
-      throw createNotFoundError("Quote");
-    }
-
-    // Generate quote link
-    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
-    const quoteLink = `${baseUrl}/quotes/${quote.accessToken}`;
-
-    // Send email to customer
-    const emailSent = await sendEmail({
-      to: quote.customerEmail,
-      subject: `Your Project Quote from Kolmo Construction - ${quote.quoteNumber}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Your Project Quote is Ready</h2>
-          <p>Dear ${quote.customerName},</p>
-          <p>We've prepared a detailed quote for your ${quote.projectType} project. You can view and respond to your quote using the link below:</p>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${quoteLink}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View Your Quote</a>
-          </div>
-          
-          <p><strong>Quote Details:</strong></p>
-          <ul>
-            <li>Quote Number: ${quote.quoteNumber}</li>
-            <li>Project: ${quote.title}</li>
-            <li>Total Amount: $${parseFloat(quote.total.toString()).toLocaleString()}</li>
-            <li>Valid Until: ${new Date(quote.validUntil).toLocaleDateString()}</li>
-          </ul>
-          
-          <p>If you have any questions about this quote, please don't hesitate to contact us.</p>
-          
-          <p>Best regards,<br>
-          Kolmo Construction<br>
-          (206) 410-5100<br>
-          projects@kolmo.io</p>
-        </div>
-      `,
-    });
-
-    if (emailSent) {
-      await quoteRepo.markQuoteAsSent(id);
-      res.json({ message: "Quote sent successfully", quoteLink });
-    } else {
-      throw new HttpError(500, "Failed to send quote email");
-    }
-  } catch (error) {
-    next(error);
   }
-};
 
-// Line Item Controllers
-export const getQuoteLineItems = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const quoteId = parseInt(req.params.quoteId);
-    if (isNaN(quoteId)) {
-      throw createBadRequestError("Invalid quote ID");
+  async sendQuote(req: Request, res: Response) {
+    try {
+      const quoteId = parseInt(req.params.id);
+      if (isNaN(quoteId)) {
+        return res.status(400).json({ error: "Invalid quote ID" });
+      }
+
+      const quote = await this.quoteRepository.sendQuote(quoteId);
+      if (!quote) {
+        return res.status(404).json({ error: "Quote not found" });
+      }
+
+      res.json({ message: "Quote sent successfully", quote });
+    } catch (error) {
+      console.error("Error sending quote:", error);
+      res.status(500).json({ error: "Failed to send quote" });
     }
-
-    const lineItems = await quoteRepo.getQuoteLineItems(quoteId);
-    res.json(lineItems);
-  } catch (error) {
-    next(error);
   }
-};
 
-export const createQuoteLineItem = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const quoteId = parseInt(req.params.quoteId);
-    if (isNaN(quoteId)) {
-      throw createBadRequestError("Invalid quote ID");
+  async getQuoteLineItems(req: Request, res: Response) {
+    try {
+      const quoteId = parseInt(req.params.id);
+      if (isNaN(quoteId)) {
+        return res.status(400).json({ error: "Invalid quote ID" });
+      }
+
+      const lineItems = await this.quoteRepository.getQuoteLineItems(quoteId);
+      res.json(lineItems);
+    } catch (error) {
+      console.error("Error fetching line items:", error);
+      res.status(500).json({ error: "Failed to fetch line items" });
     }
-
-    const validationResult = insertQuoteLineItemSchema.safeParse({
-      ...req.body,
-      quoteId,
-    });
-    
-    if (!validationResult.success) {
-      throw createBadRequestError("Invalid line item data", validationResult.error.flatten());
-    }
-
-    const lineItem = await quoteRepo.createQuoteLineItem(validationResult.data);
-    res.status(201).json(lineItem);
-  } catch (error) {
-    next(error);
   }
-};
 
-export const updateQuoteLineItem = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      throw createBadRequestError("Invalid line item ID");
+  async createLineItem(req: Request, res: Response) {
+    try {
+      const quoteId = parseInt(req.params.id);
+      if (isNaN(quoteId)) {
+        return res.status(400).json({ error: "Invalid quote ID" });
+      }
+
+      const validatedData = createLineItemSchema.parse(req.body);
+      const lineItem = await this.quoteRepository.createLineItem(quoteId, validatedData);
+      res.status(201).json(lineItem);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
+      console.error("Error creating line item:", error);
+      res.status(500).json({ error: "Failed to create line item" });
     }
-
-    const validationResult = insertQuoteLineItemSchema.partial().safeParse(req.body);
-    if (!validationResult.success) {
-      throw createBadRequestError("Invalid line item data", validationResult.error.flatten());
-    }
-
-    const lineItem = await quoteRepo.updateQuoteLineItem(id, validationResult.data);
-    res.json(lineItem);
-  } catch (error) {
-    next(error);
   }
-};
 
-export const deleteQuoteLineItem = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      throw createBadRequestError("Invalid line item ID");
+  async updateLineItem(req: Request, res: Response) {
+    try {
+      const lineItemId = parseInt(req.params.lineItemId);
+      if (isNaN(lineItemId)) {
+        return res.status(400).json({ error: "Invalid line item ID" });
+      }
+
+      const validatedData = createLineItemSchema.partial().parse(req.body);
+      const lineItem = await this.quoteRepository.updateLineItem(lineItemId, validatedData);
+      
+      if (!lineItem) {
+        return res.status(404).json({ error: "Line item not found" });
+      }
+
+      res.json(lineItem);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
+      console.error("Error updating line item:", error);
+      res.status(500).json({ error: "Failed to update line item" });
     }
-
-    await quoteRepo.deleteQuoteLineItem(id);
-    res.status(204).send();
-  } catch (error) {
-    next(error);
   }
-};
 
-// Media Controllers
-export const uploadQuoteMedia = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const quoteId = parseInt(req.params.quoteId);
-    if (isNaN(quoteId)) {
-      throw createBadRequestError("Invalid quote ID");
+  async deleteLineItem(req: Request, res: Response) {
+    try {
+      const lineItemId = parseInt(req.params.lineItemId);
+      if (isNaN(lineItemId)) {
+        return res.status(400).json({ error: "Invalid line item ID" });
+      }
+
+      const success = await this.quoteRepository.deleteLineItem(lineItemId);
+      if (!success) {
+        return res.status(404).json({ error: "Line item not found" });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting line item:", error);
+      res.status(500).json({ error: "Failed to delete line item" });
     }
-
-    if (!req.file) {
-      throw createBadRequestError("No file uploaded");
-    }
-
-    const user = req.user as any;
-    
-    // Upload to R2
-    const uploadResult = await uploadToR2({
-      buffer: req.file.buffer,
-      fileName: req.file.originalname,
-      mimetype: req.file.mimetype,
-      path: 'quotes/',
-    });
-
-    // Save media record
-    const mediaData = {
-      quoteId,
-      mediaUrl: uploadResult.url,
-      mediaType: req.file.mimetype.startsWith('image/') ? 'image' : 'video',
-      caption: req.body.caption || '',
-      category: req.body.category || 'reference',
-      uploadedById: user.id,
-    };
-
-    const media = await quoteRepo.createQuoteMedia(mediaData);
-    res.status(201).json(media);
-  } catch (error) {
-    next(error);
   }
-};
 
-export const deleteQuoteMedia = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      throw createBadRequestError("Invalid media ID");
+  async uploadQuoteImage(req: Request, res: Response) {
+    try {
+      const quoteId = parseInt(req.params.id);
+      if (isNaN(quoteId)) {
+        return res.status(400).json({ error: "Invalid quote ID" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const { type, caption } = req.body;
+      const image = await this.quoteRepository.uploadQuoteImage(
+        quoteId,
+        req.file,
+        type,
+        caption
+      );
+
+      res.status(201).json(image);
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      res.status(500).json({ error: "Failed to upload image" });
     }
-
-    // Get media info before deleting
-    const quote = await quoteRepo.getQuoteById(parseInt(req.params.quoteId));
-    const media = quote?.media?.find(m => m.id === id);
-    
-    if (media) {
-      // Extract key from URL and delete from R2
-      const urlParts = media.mediaUrl.split('/');
-      const key = urlParts.slice(-2).join('/'); // folder/filename
-      await deleteFromR2(key);
-    }
-
-    await quoteRepo.deleteQuoteMedia(id);
-    res.status(204).send();
-  } catch (error) {
-    next(error);
   }
-};
 
-// Customer Portal Controllers (Public)
-export const getQuoteByToken = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { token } = req.params;
-    
-    const quote = await quoteRepo.getQuoteByAccessToken(token);
-    if (!quote) {
-      throw createNotFoundError("Quote");
+  async deleteQuoteImage(req: Request, res: Response) {
+    try {
+      const imageId = parseInt(req.params.imageId);
+      if (isNaN(imageId)) {
+        return res.status(400).json({ error: "Invalid image ID" });
+      }
+
+      const success = await this.quoteRepository.deleteQuoteImage(imageId);
+      if (!success) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting image:", error);
+      res.status(500).json({ error: "Failed to delete image" });
     }
-
-    res.json(quote);
-  } catch (error) {
-    next(error);
   }
-};
 
-export const respondToQuote = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { token } = req.params;
-    const { action, customerName, customerEmail, message } = req.body;
+  async getQuoteByToken(req: Request, res: Response) {
+    try {
+      const { token } = req.params;
+      if (!token) {
+        return res.status(400).json({ error: "Token is required" });
+      }
 
-    if (!action || !['accepted', 'declined', 'requested_changes'].includes(action)) {
-      throw createBadRequestError("Invalid action");
+      const quote = await this.quoteRepository.getQuoteByAccessToken(token);
+      if (!quote) {
+        return res.status(404).json({ error: "Quote not found or expired" });
+      }
+
+      res.json(quote);
+    } catch (error) {
+      console.error("Error fetching quote by token:", error);
+      res.status(500).json({ error: "Failed to fetch quote" });
     }
-
-    const response = await quoteRepo.respondToQuote(token, action, {
-      customerName,
-      customerEmail,
-      message,
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent'),
-    });
-
-    res.status(201).json(response);
-  } catch (error) {
-    next(error);
   }
-};
+
+  async respondToQuote(req: Request, res: Response) {
+    try {
+      const { token } = req.params;
+      if (!token) {
+        return res.status(400).json({ error: "Token is required" });
+      }
+
+      const validatedData = createResponseSchema.parse(req.body);
+      const response = await this.quoteRepository.createQuoteResponse(token, validatedData);
+      
+      if (!response) {
+        return res.status(404).json({ error: "Quote not found or expired" });
+      }
+
+      res.status(201).json(response);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
+      console.error("Error creating quote response:", error);
+      res.status(500).json({ error: "Failed to create response" });
+    }
+  }
+}

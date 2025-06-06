@@ -80,14 +80,11 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
 
   const createQuoteMutation = useMutation({
     mutationFn: async (data: CreateQuoteForm) => {
-      return await apiRequest("/api/quotes", {
-        method: "POST",
-        body: JSON.stringify({
-          ...data,
-          validUntil: data.validUntil.toISOString(),
-          estimatedStartDate: data.estimatedStartDate?.toISOString(),
-          estimatedCompletionDate: data.estimatedCompletionDate?.toISOString(),
-        }),
+      return await apiRequest("/api/quotes", "POST", {
+        ...data,
+        validUntil: data.validUntil.toISOString(),
+        estimatedStartDate: data.estimatedStartDate?.toISOString(),
+        estimatedCompletionDate: data.estimatedCompletionDate?.toISOString(),
       });
     },
     onSuccess: () => {
