@@ -1,6 +1,5 @@
-import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -58,7 +57,7 @@ export function EditLineItemDialog({ lineItem, open, onOpenChange }: EditLineIte
       category: lineItem.category,
       description: lineItem.description,
       quantity: lineItem.quantity.toString(),
-      unit: lineItem.unit,
+      unit: lineItem.unit || "",
       unitPrice: lineItem.unitPrice.toString(),
     },
   });
@@ -94,7 +93,7 @@ export function EditLineItemDialog({ lineItem, open, onOpenChange }: EditLineIte
     },
   });
 
-  const onSubmit = (data: EditLineItemForm) => {
+  const onSubmit: SubmitHandler<EditLineItemForm> = (data) => {
     editLineItemMutation.mutate(data);
   };
 

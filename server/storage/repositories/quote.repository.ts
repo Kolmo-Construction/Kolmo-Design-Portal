@@ -175,6 +175,8 @@ export class QuoteRepository {
 
   async updateLineItem(id: number, data: any) {
     try {
+      console.log(`Updating line item ${id} with data:`, data);
+      
       const updateData = {
         ...data,
         updatedAt: new Date(),
@@ -183,13 +185,25 @@ export class QuoteRepository {
         totalPrice: data.totalPrice ? data.totalPrice.toString() : undefined,
       };
 
+      // Remove undefined values
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] === undefined) {
+          delete updateData[key];
+        }
+      });
+
+      console.log(`Update data after processing:`, updateData);
+
       const [updatedLineItem] = await db
         .update(quoteLineItems)
         .set(updateData)
         .where(eq(quoteLineItems.id, id))
         .returning();
 
+      console.log(`Updated line item:`, updatedLineItem);
+
       if (updatedLineItem) {
+        console.log(`Recalculating totals for quote ${updatedLineItem.quoteId}`);
         await this.recalculateQuoteTotals(updatedLineItem.quoteId);
       }
 
