@@ -436,6 +436,14 @@ export class QuoteRepository {
             updatedAt: new Date(),
           })
           .where(eq(quotes.id, quoteId));
+
+        console.log(`Recalculated totals for quote ${quoteId}:`, {
+          subtotal: subtotal.toString(),
+          totalDiscount: totalDiscount.toString(), 
+          discountedSubtotal: discountedSubtotal.toString(),
+          taxAmount: taxAmount.toString(),
+          total: total.toString()
+        });
       }
     } catch (error) {
       console.error("Error recalculating quote totals:", error);

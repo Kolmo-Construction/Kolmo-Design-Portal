@@ -1,0 +1,19 @@
+
+9:06:10 PM [server-setup] Vite Dev Server configured.
+9:06:10 PM [server-setup] Server listening on port 5000
+Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+9:06:31 PM [express] GET /api/user 304 in 135ms :: {"id":1,"username":"admin","email":"admin@example.com","firstName":"Admin","lastName":"User","pho...
+9:06:31 PM [AuthMiddleware] [isAuthenticated] Checking auth for: GET /api/quotes
+9:06:31 PM [AuthMiddleware] [isAuthenticated] Session: {"cookie":{"originalMaxAge":86400000,"expires":"2025-06-07T19:25:31.332Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"passport":{"user":1}}
+9:06:31 PM [AuthMiddleware] [isAuthenticated] User: {"id":1,"username":"admin","password":"9ebd14e7ac0ca36de489b44cac2e92de2adbafb444ee5fe591a004d268979d3d30b4ee8ea410f1dfba101c3d7f4953bf1c6d9f4bbf9fefab875bced57b77c595.dbd6121dc51aad9fc3f97cc8e76bc223","email":"admin@example.com","firstName":"Admin","lastName":"User","phone":null,"role":"admin","createdAt":"2025-04-25T14:57:20.717Z","updatedAt":"2025-06-06T14:09:52.612Z","magicLinkToken":null,"magicLinkExpiry":null,"isActivated":true}
+9:06:31 PM [AuthMiddleware] [isAuthenticated] IsAuthenticated: true
+9:06:31 PM [AuthMiddleware] [isAuthenticated] User IS authenticated: ID 1
+9:06:31 PM [express] GET /api/quotes 304 in 182ms :: [{"id":1,"quoteNumber":"KOL-2025-001","title":"Backyard Landscape Design & Installation","descrip...
+9:06:33 PM [AuthMiddleware] [isAuthenticated] Checking auth for: GET /api/quotes/1/line-items
+9:06:33 PM [AuthMiddleware] [isAuthenticated] Session: {"cookie":{"originalMaxAge":86400000,"expires":"2025-06-07T19:25:31.332Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"passport":{"user":1}}
+9:06:33 PM [AuthMiddleware] [isAuthenticated] User: {"id":1,"username":"admin","password":"9ebd14e7ac0ca36de489b44cac2e92de2adbafb444ee5fe591a004d268979d3d30b4ee8ea410f1dfba101c3d7f4953bf1c6d9f4bbf9fefab875bced57b77c595.dbd6121dc51aad9fc3f97cc8e76bc223","email":"admin@example.com","firstName":"Admin","lastName":"User","phone":null,"role":"admin","createdAt":"2025-04-25T14:57:20.717Z","updatedAt":"2025-06-06T14:09:52.612Z","magicLinkToken":null,"magicLinkExpiry":null,"isActivated":true}
+9:06:33 PM [AuthMiddleware] [isAuthenticated] IsAuthenticated: true
+9:06:33 PM [AuthMiddleware] [isAuthenticated] User IS authenticated: ID 1
+9:06:33 PM [express] GET /api/quotes/1/line-items 304 in 167ms :: [{"id":61,"quoteId":1,"category":"Labor","description":"Test line item","quantity":"1.00","unit":...
