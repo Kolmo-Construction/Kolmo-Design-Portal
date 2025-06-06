@@ -18,8 +18,12 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
     const requestPath = `${req.method} ${req.originalUrl}`;
     logger(`[isAuthenticated] Checking auth for: ${requestPath}`, 'AuthMiddleware'); // Use logger
 
+    logger(`[isAuthenticated] Session: ${JSON.stringify(req.session)}`, 'AuthMiddleware');
+    logger(`[isAuthenticated] User: ${JSON.stringify(req.user)}`, 'AuthMiddleware');
+    logger(`[isAuthenticated] IsAuthenticated: ${req.isAuthenticated()}`, 'AuthMiddleware');
+
     // Use req.isAuthenticated() provided by Passport
-    if (req.isAuthenticated()) {
+    if (req.isAuthenticated() && req.user) {
         // Type assertion to use AuthenticatedRequest features if needed downstream
         const authReq = req as AuthenticatedRequest;
         logger(`[isAuthenticated] User IS authenticated: ID ${authReq.user?.id}`, 'AuthMiddleware');
