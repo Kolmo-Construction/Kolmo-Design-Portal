@@ -215,13 +215,9 @@ export default function EditQuoteDialog({
     return () => subscription.unsubscribe();
   }, [form, calculateTotals]);
 
-  // Track if form has been initialized to prevent unnecessary resets
-  const initializedQuoteId = React.useRef<number | null>(null);
-
-  // Reset form values only when quote changes (not on every open)
+  // Reset form with quote data when the quote prop changes
   React.useEffect(() => {
-    if (quote && open && quote.id !== initializedQuoteId.current) {
-      initializedQuoteId.current = quote.id;
+    if (quote) {
       form.reset({
         projectType: quote.projectType || "",
         quoteNumber: quote.quoteNumber || "",
@@ -243,10 +239,10 @@ export default function EditQuoteDialog({
         lineItems: (quote as any).lineItems?.length > 0 ? (quote as any).lineItems.map((item: any) => ({
           category: item.category || "",
           description: item.description || "",
-          quantity: item.quantity || "1",
+          quantity: String(item.quantity) || "1",
           unit: item.unit || "",
-          unitPrice: item.unitPrice || "0",
-          discountPercentage: item.discountPercentage || "0",
+          unitPrice: String(item.unitPrice) || "0",
+          discountPercentage: String(item.discountPercentage) || "0",
         })) : [{
           category: "",
           description: "",
@@ -255,28 +251,20 @@ export default function EditQuoteDialog({
           unitPrice: "0",
           discountPercentage: "0",
         }],
-
         showColorVerification: quote.showColorVerification || false,
         colorVerificationTitle: quote.colorVerificationTitle || "",
         colorVerificationDescription: quote.colorVerificationDescription || "",
         permitRequired: quote.permitRequired || false,
         permitDetails: quote.permitDetails || "",
-        downPaymentPercentage: quote.downPaymentPercentage || "",
-        milestonePaymentPercentage: quote.milestonePaymentPercentage || "",
-        finalPaymentPercentage: quote.finalPaymentPercentage || "",
+        downPaymentPercentage: String(quote.downPaymentPercentage) || "",
+        milestonePaymentPercentage: String(quote.milestonePaymentPercentage) || "",
+        finalPaymentPercentage: String(quote.finalPaymentPercentage) || "",
         milestoneDescription: quote.milestoneDescription || "",
         acceptsCreditCards: quote.acceptsCreditCards || false,
-        creditCardProcessingFee: quote.creditCardProcessingFee || "",
+        creditCardProcessingFee: String(quote.creditCardProcessingFee) || "",
       });
     }
-  }, [quote, open, form]);
-
-  // Clear initialized quote ID when dialog closes
-  React.useEffect(() => {
-    if (!open) {
-      initializedQuoteId.current = null;
-    }
-  }, [open]);
+  }, [quote, form.reset]);
 
   const updateQuoteMutation = useMutation({
     mutationFn: async (data: QuoteFormData) => {

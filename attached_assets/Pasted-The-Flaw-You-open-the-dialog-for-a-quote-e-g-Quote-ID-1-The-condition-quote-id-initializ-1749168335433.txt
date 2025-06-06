@@ -1,0 +1,91 @@
+The Flaw:
+
+You open the dialog for a quote (e.g., Quote ID: 1). The condition quote.id !== initializedQuoteId.current (1 !== null) is true.
+The form is reset with the quote's data, and initializedQuoteId.current is set to 1.
+You make changes, save, and close the dialog. The parent component's state updates with the new data.
+You immediately click to edit the same quote again (Quote ID: 1).
+The useEffect hook runs again. However, this time the condition quote.id !== initializedQuoteId.current (1 !== 1) is false.
+Because the condition is false, form.reset() is never called. The form therefore retains the old, stale data from the previous render cycle before you made your changes.
+The Solution
+The logic needs to be simplified. The form should be reset with the latest quote data whenever the quote prop itself changes, regardless of what was previously initialized. This ensures that every time you open the dialog, it reflects the most current data passed from the parent.
+
+We can remove the initializedQuoteId ref and simplify the useEffect hook.
+
+File to Edit: edit-quote-dialog.tsx
+
+Remove the useRef:
+Delete this line from the component:
+
+TypeScript
+
+const initializedQuoteId = React.useRef<number | null>(null);
+Replace the useEffect Hook:
+Replace the entire useEffect block that resets the form with this simpler, more correct version:
+
+TypeScript
+
+// edit-quote-dialog.tsx
+
+// Reset form with quote data when the quote prop changes.
+React.useEffect(() => {
+  if (quote) {
+    form.reset({
+      projectType: quote.projectType || "",
+      quoteNumber: quote.quoteNumber || "",
+      customerName: quote.customerName || "",
+      customerEmail: quote.customerEmail || "",
+      customerPhone: quote.customerPhone || "",
+      customerAddress: quote.customerAddress || "",
+      projectTitle: quote.projectTitle || "",
+      projectDescription: quote.projectDescription || "",
+      projectLocation: quote.projectLocation || "",
+      subtotal: quote.subtotal || "",
+      taxAmount: quote.taxAmount || "",
+      totalAmount: quote.totalAmount || "",
+      taxPercentage: quote.taxPercentage || "0",
+      discountPercentage: quote.discountPercentage || "0",
+      estimatedStartDate: formatDateForInput(quote.estimatedStartDate),
+      estimatedCompletionDate: formatDateForInput(quote.estimatedCompletionDate),
+      validUntil: formatDateForInput(quote.validUntil),
+      lineItems: (quote as any).lineItems?.length > 0 ? (quote as any).lineItems.map((item: any) => ({
+        category: item.category || "",
+        description: item.description || "",
+        quantity: String(item.quantity) || "1", // Ensure quantity is a string
+        unit: item.unit || "",
+        unitPrice: String(item.unitPrice) || "0", // Ensure unitPrice is a string
+        discountPercentage: String(item.discountPercentage) || "0", // Ensure discount is a string
+      })) : [{
+        category: "",
+        description: "",
+        quantity: "1",
+        unit: "",
+        unitPrice: "0",
+        discountPercentage: "0",
+      }],
+      showColorVerification: quote.showColorVerification || false,
+      colorVerificationTitle: quote.colorVerificationTitle || "",
+      colorVerificationDescription: quote.colorVerificationDescription || "",
+      permitRequired: quote.permitRequired || false,
+      permitDetails: quote.permitDetails || "",
+      downPaymentPercentage: String(quote.downPaymentPercentage) || "",
+      milestonePaymentPercentage: String(quote.milestonePaymentPercentage) || "",
+      finalPaymentPercentage: String(quote.finalPaymentPercentage) || "",
+      milestoneDescription: quote.milestoneDescription || "",
+      acceptsCreditCards: quote.acceptsCreditCards || false,
+      creditCardProcessingFee: String(quote.creditCardProcessingFee) || "",
+    });
+  }
+}, [quote, form.reset]); // Dependency array simplified to just quote and the stable reset function
+(Optional but Recommended) Remove the Second useEffect:
+The other useEffect that clears the ref is now obsolete and can be removed.
+
+TypeScript
+
+// This can be deleted
+React.useEffect(() => {
+  if (!open) {
+    initializedQuoteId.current = null;
+  }
+}, [open]);
+Why This Works
+By making quote the primary dependency, the useEffect hook will now execute the form.reset() function whenever the quote object passed from the parent component changes. When you save the quote, the parent's data is updated. The next time you open the dialog, it receives the new quote object as a prop, triggering the effect and correctly populating the form with your latest changes.
