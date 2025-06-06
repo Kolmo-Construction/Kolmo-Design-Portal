@@ -35,6 +35,7 @@ interface QuoteData {
   customerResponse?: string;
   customerNotes?: string;
   createdAt: string;
+
   showColorVerification?: boolean;
   colorVerificationTitle?: string;
   colorVerificationDescription?: string;
@@ -69,6 +70,8 @@ export default function ProfessionalQuoteView() {
   const [customerNotes, setCustomerNotes] = useState("");
   const [showResponseDialog, setShowResponseDialog] = useState(false);
   const [pendingResponse, setPendingResponse] = useState<"accepted" | "declined" | null>(null);
+  const [selectedColors, setSelectedColors] = useState<Record<string, string>>({});
+  const [hasColorChanges, setHasColorChanges] = useState(false);
   const { toast } = useToast();
 
   const formatCurrency = (amount: string | number) => {
@@ -87,7 +90,7 @@ export default function ProfessionalQuoteView() {
     });
   };
 
-  const { data: quote, isLoading, error } = useQuery({
+  const { data: quote, isLoading, error, refetch } = useQuery({
     queryKey: [`/api/quotes/view/${token}`],
     queryFn: async () => {
       const response = await fetch(`/api/quotes/view/${token}`);
@@ -110,6 +113,13 @@ export default function ProfessionalQuoteView() {
     enabled: !!quote?.id
   });
 
+  // Initialize color selections from quote data
+  useEffect(() => {
+    if (quote?.paintColors) {
+      setSelectedColors(quote.paintColors);
+    }
+  }, [quote]);
+
   const respondMutation = useMutation({
     mutationFn: async ({ response, notes }: { response: string; notes?: string }) => {
       const res = await fetch(`/api/quotes/view/${token}/respond`, {
@@ -128,6 +138,7 @@ export default function ProfessionalQuoteView() {
       setShowResponseDialog(false);
       setPendingResponse(null);
       setCustomerNotes("");
+      refetch();
     },
   });
 
@@ -154,6 +165,29 @@ export default function ProfessionalQuoteView() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Kolmo.io Header */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <img src={kolmoLogoPath} alt="Kolmo.io" className="h-8 w-auto" />
+              <div className="text-sm text-gray-600">
+                Quote #{quote.quoteNumber}
+              </div>
+            </div>
+            <Badge variant={
+              quote.status === 'accepted' ? 'default' :
+              quote.status === 'declined' ? 'destructive' :
+              isExpired ? 'secondary' : 'outline'
+            }>
+              {quote.status === 'accepted' ? 'Accepted' :
+               quote.status === 'declined' ? 'Declined' :
+               isExpired ? 'Expired' : 'Pending'}
+            </Badge>
+          </div>
+        </div>
+      </div>
+
       <div className="max-w-4xl mx-auto py-8 px-4">
         {/* Response Required Banner */}
         {!hasResponded && !isExpired && (
@@ -238,7 +272,7 @@ export default function ProfessionalQuoteView() {
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="space-y-0">
-                    {quote.lineItems.map((item, index) => (
+                    {quote.lineItems.map((item) => (
                       <div key={item.id} className="flex justify-between items-start p-6 border-b border-gray-100 last:border-0">
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{item.category}</p>
@@ -253,6 +287,52 @@ export default function ProfessionalQuoteView() {
                       </div>
                     ))}
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Color Verification Section */}
+            {quote.showColorVerification && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Palette className="h-5 w-5 text-blue-600" />
+                    {quote.colorVerificationTitle || "Color Verification"}
+                  </CardTitle>
+                  {quote.colorVerificationDescription && (
+                    <p className="text-sm text-gray-600">{quote.colorVerificationDescription}</p>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  {quote.paintColors && Object.keys(quote.paintColors).length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {Object.entries(quote.paintColors).map(([area, color]) => (
+                        <div key={area} className="text-center">
+                          <div
+                            className="w-full h-20 rounded-lg border-2 border-gray-200 mb-2"
+                            style={{ backgroundColor: color }}
+                          />
+                          <p className="text-sm font-medium text-gray-900">{area}</p>
+                          <p className="text-xs text-gray-600">{color}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Permit Information */}
+            {quote.permitRequired && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-orange-600" />
+                    Permit Requirements
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-700">{quote.permitDetails}</p>
                 </CardContent>
               </Card>
             )}
@@ -374,6 +454,34 @@ export default function ProfessionalQuoteView() {
                     title={pair.title}
                     description={pair.description}
                   />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Project Images */}
+        {quote.images && quote.images.length > 0 && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Camera className="h-5 w-5" />
+                Project Gallery
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {quote.images.map((image) => (
+                  <div key={image.id} className="space-y-2">
+                    <img
+                      src={image.imageUrl}
+                      alt={image.caption || "Project image"}
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                    {image.caption && (
+                      <p className="text-sm text-gray-600">{image.caption}</p>
+                    )}
+                  </div>
                 ))}
               </div>
             </CardContent>
