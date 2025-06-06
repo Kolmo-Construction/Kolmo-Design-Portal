@@ -23,8 +23,7 @@ import taskRouterModule from "@server/routes/task.routes";
 import dailyLogRouter from "@server/routes/dailyLog.routes"; // Assuming you have this file
 import punchListRouter from "@server/routes/punchList.routes"; // Assuming you have this file
 import ragRouter from "./routes/rag-routes"; // RAG system router
-import { quoteRoutes } from "./routes/quote-routes"; // Quote management router
-import { publicQuoteRoutes } from "./routes/public-quote-routes"; // Public quote access router
+
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
 // Import other routers as needed (milestones, selections, admin, etc.)
 // import milestoneRouter from "@server/routes/milestone.routes";
@@ -153,11 +152,7 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // Mount RAG system routes
   app.use("/api/rag", ragRouter);
 
-  // Mount public quote view routes (no authentication required) - MUST COME FIRST
-  app.use("/api/quotes/view", publicQuoteRoutes);
-  
-  // Mount Quote Management routes (authenticated)
-  app.use("/api/quotes", isAuthenticated, quoteRoutes);
+
 
   // Mount Storage/R2 routes with mixed authentication
   app.use("/api/storage", storageRoutes);
