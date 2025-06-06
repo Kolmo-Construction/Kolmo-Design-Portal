@@ -283,20 +283,6 @@ export class QuoteRepository {
     }
   }
 
-  async createQuoteResponseByToken(token: string, data: any) {
-    try {
-      const quote = await this.getQuoteByAccessToken(token);
-      if (!quote) {
-        return null;
-      }
-
-      return await this.createQuoteResponse(quote.id, data);
-    } catch (error) {
-      console.error("Error creating quote response by token:", error);
-      throw error;
-    }
-  }
-
   private async recalculateQuoteTotals(quoteId: number) {
     try {
       const lineItems = await db

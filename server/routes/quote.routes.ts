@@ -27,10 +27,4 @@ router.delete("/images/:imageId", isAuthenticated, quoteController.deleteQuoteIm
 router.get("/public/:token", quoteController.getQuoteByToken.bind(quoteController));
 router.post("/public/:token/respond", quoteController.respondToQuote.bind(quoteController));
 
-// Public line item routes for customers
-router.get("/public/:token/line-items", quoteController.getQuoteLineItemsByToken.bind(quoteController));
-router.post("/public/:token/line-items", quoteController.createLineItemByToken.bind(quoteController));
-router.patch("/public/:token/line-items/:lineItemId", quoteController.updateLineItemByToken.bind(quoteController));
-router.delete("/public/:token/line-items/:lineItemId", quoteController.deleteLineItemByToken.bind(quoteController));
-
 export default router;

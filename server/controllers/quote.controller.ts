@@ -123,7 +123,24 @@ export class QuoteController {
     }
   }
 
+  async sendQuote(req: Request, res: Response) {
+    try {
+      const quoteId = parseInt(req.params.id);
+      if (isNaN(quoteId)) {
+        return res.status(400).json({ error: "Invalid quote ID" });
+      }
 
+      const quote = await this.quoteRepository.sendQuote(quoteId);
+      if (!quote) {
+        return res.status(404).json({ error: "Quote not found" });
+      }
+
+      res.json({ message: "Quote sent successfully", quote });
+    } catch (error) {
+      console.error("Error sending quote:", error);
+      res.status(500).json({ error: "Failed to send quote" });
+    }
+  }
 
   async getQuoteLineItems(req: Request, res: Response) {
     try {
@@ -283,7 +300,7 @@ export class QuoteController {
       }
 
       const validatedData = createResponseSchema.parse(req.body);
-      const response = await this.quoteRepository.createQuoteResponseByToken(token, validatedData);
+      const response = await this.quoteRepository.createQuoteResponse(token, validatedData);
       
       if (!response) {
         return res.status(404).json({ error: "Quote not found or expired" });
@@ -397,118 +414,6 @@ This quote is valid until ${new Date(quote.validUntil).toLocaleDateString()}.
     } catch (error) {
       console.error("Error sending quote:", error);
       res.status(500).json({ error: "Failed to send quote" });
-    }
-  }
-
-  // Public line item methods for customer access via token
-  async getQuoteLineItemsByToken(req: Request, res: Response) {
-    try {
-      const { token } = req.params;
-      const quote = await this.quoteRepository.getQuoteByAccessToken(token);
-      
-      if (!quote) {
-        return res.status(404).json({ error: "Quote not found or expired" });
-      }
-
-      const lineItems = await this.quoteRepository.getQuoteLineItems(quote.id);
-      res.json(lineItems);
-    } catch (error) {
-      console.error("Error fetching quote line items by token:", error);
-      res.status(500).json({ error: "Failed to fetch line items" });
-    }
-  }
-
-  async createLineItemByToken(req: Request, res: Response) {
-    try {
-      const { token } = req.params;
-      const quote = await this.quoteRepository.getQuoteByAccessToken(token);
-      
-      if (!quote) {
-        return res.status(404).json({ error: "Quote not found or expired" });
-      }
-
-      // Check if quote is still editable (not accepted/declined)
-      if (quote.status === 'accepted' || quote.status === 'declined' || quote.status === 'expired') {
-        return res.status(403).json({ error: "Quote is no longer editable" });
-      }
-
-      const validatedData = createLineItemSchema.parse(req.body);
-      const lineItem = await this.quoteRepository.createLineItem(quote.id, validatedData);
-      
-      res.status(201).json(lineItem);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Invalid data", details: error.errors });
-      }
-      console.error("Error creating line item by token:", error);
-      res.status(500).json({ error: "Failed to create line item" });
-    }
-  }
-
-  async updateLineItemByToken(req: Request, res: Response) {
-    try {
-      const { token, lineItemId } = req.params;
-      const quote = await this.quoteRepository.getQuoteByAccessToken(token);
-      
-      if (!quote) {
-        return res.status(404).json({ error: "Quote not found or expired" });
-      }
-
-      // Check if quote is still editable
-      if (quote.status === 'accepted' || quote.status === 'declined' || quote.status === 'expired') {
-        return res.status(403).json({ error: "Quote is no longer editable" });
-      }
-
-      const lineItemIdInt = parseInt(lineItemId);
-      if (isNaN(lineItemIdInt)) {
-        return res.status(400).json({ error: "Invalid line item ID" });
-      }
-
-      const validatedData = createLineItemSchema.partial().parse(req.body);
-      const lineItem = await this.quoteRepository.updateLineItem(lineItemIdInt, validatedData);
-      
-      if (!lineItem) {
-        return res.status(404).json({ error: "Line item not found" });
-      }
-
-      res.json(lineItem);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Invalid data", details: error.errors });
-      }
-      console.error("Error updating line item by token:", error);
-      res.status(500).json({ error: "Failed to update line item" });
-    }
-  }
-
-  async deleteLineItemByToken(req: Request, res: Response) {
-    try {
-      const { token, lineItemId } = req.params;
-      const quote = await this.quoteRepository.getQuoteByAccessToken(token);
-      
-      if (!quote) {
-        return res.status(404).json({ error: "Quote not found or expired" });
-      }
-
-      // Check if quote is still editable
-      if (quote.status === 'accepted' || quote.status === 'declined' || quote.status === 'expired') {
-        return res.status(403).json({ error: "Quote is no longer editable" });
-      }
-
-      const lineItemIdInt = parseInt(lineItemId);
-      if (isNaN(lineItemIdInt)) {
-        return res.status(400).json({ error: "Invalid line item ID" });
-      }
-
-      const success = await this.quoteRepository.deleteLineItem(lineItemIdInt);
-      if (!success) {
-        return res.status(404).json({ error: "Line item not found" });
-      }
-
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error deleting line item by token:", error);
-      res.status(500).json({ error: "Failed to delete line item" });
     }
   }
 }

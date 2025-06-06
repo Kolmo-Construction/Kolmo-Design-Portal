@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, X, MessageSquare, Calendar, MapPin, Clock, Plus, Edit, Trash2 } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Check, X, MessageSquare, Calendar, MapPin, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -68,10 +68,7 @@ export default function CustomerQuotePage() {
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [message, setMessage] = useState("");
-  const [showCreateLineItem, setShowCreateLineItem] = useState(false);
-  const [editingLineItem, setEditingLineItem] = useState<any>(null);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   const { data: quote, isLoading, error } = useQuery({
     queryKey: [`/api/quotes/public/${token}`],
@@ -96,26 +93,6 @@ export default function CustomerQuotePage() {
       toast({
         title: "Error",
         description: "Failed to send response",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deleteLineItemMutation = useMutation({
-    mutationFn: async (lineItemId: number) => {
-      return await apiRequest(`/api/quotes/public/${token}/line-items/${lineItemId}`, "DELETE");
-    },
-    onSuccess: () => {
-      toast({
-        title: "Line Item Deleted",
-        description: "Line item has been removed successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: [`/api/quotes/public/${token}`] });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to delete line item",
         variant: "destructive",
       });
     },
@@ -313,64 +290,23 @@ export default function CustomerQuotePage() {
         {quoteData.lineItems && quoteData.lineItems.length > 0 && (
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>Project Breakdown</CardTitle>
-                  <CardDescription>Detailed cost breakdown for your project</CardDescription>
-                </div>
-                {!hasResponded && !isExpired && (
-                  <Button
-                    onClick={() => setShowCreateLineItem(true)}
-                    className="flex items-center gap-2"
-                    size="sm"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Item
-                  </Button>
-                )}
-              </div>
+              <CardTitle>Project Breakdown</CardTitle>
+              <CardDescription>Detailed cost breakdown for your project</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {quoteData.lineItems.map((item, index) => (
                   <div key={item.id} className="border-l-4 border-blue-500 pl-4 py-2">
                     <div className="flex justify-between items-start">
-                      <div className="flex-1">
+                      <div>
                         <div className="font-medium">{item.category}</div>
                         <div className="text-sm text-gray-600">{item.description}</div>
                         <div className="text-sm text-gray-500">
                           {parseFloat(item.quantity)} {item.unit} × {formatCurrency(item.unitPrice)}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-right">
-                          <div className="font-semibold">{formatCurrency(item.totalPrice)}</div>
-                        </div>
-                        {!hasResponded && !isExpired && (
-                          <div className="flex gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setEditingLineItem(item)}
-                              className="p-2"
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                if (confirm('Are you sure you want to delete this line item?')) {
-                                  deleteLineItemMutation.mutate(item.id);
-                                }
-                              }}
-                              className="p-2 text-red-600 hover:text-red-700"
-                              disabled={deleteLineItemMutation.isPending}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        )}
+                      <div className="text-right">
+                        <div className="font-semibold">{formatCurrency(item.totalPrice)}</div>
                       </div>
                     </div>
                   </div>
