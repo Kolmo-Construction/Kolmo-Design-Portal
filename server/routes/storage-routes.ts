@@ -164,21 +164,19 @@ storageRoutes.post('/upload', isAuthenticated, upload.single('file'), async (req
  */
 storageRoutes.post('/upload-local', isAuthenticated, async (req, res, next) => {
   try {
-    const { quoteId, fileName, base64Data, mimeType, imageType } = req.body;
+    const { fileName, base64Data, mimeType } = req.body;
     
-    if (!quoteId || !fileName || !base64Data) {
-      throw createBadRequestError('Quote ID, file name, and base64 data are required');
+    if (!fileName || !base64Data) {
+      throw createBadRequestError('File name and base64 data are required');
     }
 
     // Convert base64 to buffer
     const buffer = Buffer.from(base64Data, 'base64');
 
     const result = await uploadToR2({
-      quoteId: parseInt(quoteId),
       fileName,
       buffer,
       mimetype: mimeType || 'application/octet-stream',
-      imageType: imageType || 'general',
     });
 
     res.json({

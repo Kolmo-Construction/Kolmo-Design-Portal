@@ -50,18 +50,16 @@ interface UploadResult {
  * @returns Object with the URL and storage key of the uploaded file
  */
 export async function uploadToR2(options: {
-  quoteId: number;
   fileName: string;
   buffer: Buffer;
   mimetype: string;
-  imageType?: string;
 }): Promise<UploadResult> {
   if (!bucketName || !accessKeyId || !secretAccessKey) {
     throw new HttpError(500, "R2 storage is not configured.");
   }
 
-  // Construct the destination path using quoteId
-  const destinationPath = `quotes/${options.quoteId}/images/`;
+  // Construct the destination path for general uploads
+  const destinationPath = `uploads/`;
 
   // Generate a unique filename to avoid collisions but keep original extension
   const uniqueSuffix = randomBytes(16).toString('hex');
