@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { formatDate, formatCurrency } from "@/lib/utils";
 import { QuoteWithDetails, QuoteLineItem } from "@shared/schema";
 import { CreateLineItemDialog } from "./CreateLineItemDialog";
 import { EditLineItemDialog } from "./EditLineItemDialog";
@@ -45,7 +46,7 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: lineItems = [], isLoading: lineItemsLoading } = useQuery({
+  const { data: lineItems = [], isLoading: lineItemsLoading } = useQuery<QuoteLineItem[]>({
     queryKey: [`/api/quotes/${quote.id}/line-items`],
     enabled: !!quote.id,
     retry: false,
@@ -108,16 +109,7 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
     sendQuoteMutation.mutate({ customerEmail, customerName });
   };
 
-  const formatCurrency = (amount: string | number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(typeof amount === 'string' ? parseFloat(amount) : amount);
-  };
 
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString();
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -284,7 +276,7 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {lineItems.map((item: QuoteLineItem) => (
+                      {lineItems.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">{item.category}</TableCell>
                           <TableCell>{item.description}</TableCell>
@@ -381,7 +373,7 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
                     <span>
                       Tax 
                       {quote.isManualTax ? " (Manual)" : 
-                        quote.taxRate ? ` (${(parseFloat(quote.taxRate.toString()) * 100).toFixed(2)}%)` : ""
+                        quote.taxRate ? ` (${parseFloat(quote.taxRate.toString()).toFixed(2)}%)` : ""
                       }
                     </span>
                     <span>{formatCurrency(quote.taxAmount || "0")}</span>

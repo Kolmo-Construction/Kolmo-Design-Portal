@@ -204,4 +204,15 @@ export const getMilestoneVisuals = (milestone: Milestone): { icon: React.ReactEl
   return { icon, colorClass };
 };
 
+/**
+ * Formats a monetary amount as currency.
+ */
+export const formatCurrency = (amount: string | number) => {
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD'
+  }).format(num || 0);
+};
+
 // --- End Helper Functions ---
