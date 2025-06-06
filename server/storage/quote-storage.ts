@@ -70,7 +70,13 @@ export class QuoteStorage {
       for (const item of lineItems) {
         await this.createLineItem({
           quoteId: quote.id,
-          ...item
+          category: item.category || '',
+          description: item.description || '',
+          quantity: String(item.quantity || '0'),
+          unit: item.unit || '',
+          unitPrice: String(item.unitPrice || '0'),
+          discountPercentage: String(item.discountPercentage || '0'),
+          totalPrice: String(item.totalPrice || '0')
         });
       }
     }
@@ -188,16 +194,16 @@ export class QuoteStorage {
       await db.delete(quoteLineItems).where(eq(quoteLineItems.quoteId, id));
 
       if (lineItems.length > 0) {
-        // --- FIX: Convert line item numeric fields from string to number ---
+        // --- FIX: Convert line item numeric fields to strings for decimal columns ---
         const lineItemsToInsert = lineItems.map(item => ({
           quoteId: id,
           category: item.category || '',
           description: item.description || '',
-          quantity: parseFloat(String(item.quantity) || '0'),
+          quantity: String(item.quantity || '0'),
           unit: item.unit || '',
-          unitPrice: parseFloat(String(item.unitPrice) || '0'),
-          discountPercentage: parseFloat(String(item.discountPercentage) || '0'),
-          totalPrice: parseFloat(String(item.totalPrice) || '0')
+          unitPrice: String(item.unitPrice || '0'),
+          discountPercentage: String(item.discountPercentage || '0'),
+          totalPrice: String(item.totalPrice || '0')
         }));
         // --- END FIX ---
 

@@ -287,11 +287,13 @@ export default function EditQuoteDialog({
       return await apiRequest("PUT", `/api/quotes/${quote?.id}`, payload);
     },
     onSuccess: (updatedQuote: any) => {
-      // Manually update the cache with the fresh data from the server
-      queryClient.setQueryData(['/api/quotes'], (oldData: any[] | undefined) => {
-        if (!oldData) return [updatedQuote];
-        return oldData.map(q => q.id === updatedQuote.id ? updatedQuote : q);
-      });
+      // Invalidate all quote-related queries to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
+      
+      // Also invalidate specific quote query if it exists
+      if (quote?.id) {
+        queryClient.invalidateQueries({ queryKey: ['/api/quotes', quote.id] });
+      }
 
       toast({
         title: "Success",
