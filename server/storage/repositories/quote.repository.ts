@@ -149,22 +149,20 @@ export class QuoteRepository {
 
   async createLineItem(quoteId: number, data: any) {
     try {
-      const lineItemData = {
-        quoteId,
-        category: data.category,
-        description: data.description,
-        quantity: data.quantity ? data.quantity.toString() : "1",
-        unit: data.unit || "each",
-        unitPrice: data.unitPrice ? data.unitPrice.toString() : "0",
-        discountPercentage: data.discountPercentage ? data.discountPercentage.toString() : "0",
-        discountAmount: data.discountAmount ? data.discountAmount.toString() : "0",
-        totalPrice: data.totalPrice ? data.totalPrice.toString() : "0",
-        sortOrder: data.sortOrder || 0,
-      } as const;
-
       const [lineItem] = await db
         .insert(quoteLineItems)
-        .values(lineItemData)
+        .values({
+          quoteId,
+          category: data.category,
+          description: data.description,
+          quantity: data.quantity ? data.quantity.toString() : "1",
+          unit: data.unit || "each",
+          unitPrice: data.unitPrice ? data.unitPrice.toString() : "0",
+          discountPercentage: data.discountPercentage ? data.discountPercentage.toString() : "0",
+          discountAmount: data.discountAmount ? data.discountAmount.toString() : "0",
+          totalPrice: data.totalPrice ? data.totalPrice.toString() : "0",
+          sortOrder: data.sortOrder || 0,
+        })
         .returning();
 
       await this.recalculateQuoteTotals(quoteId);
