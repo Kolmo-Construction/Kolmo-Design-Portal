@@ -239,14 +239,15 @@ export class QuoteController {
         return res.status(400).json({ error: "No file uploaded" });
       }
 
-      const { type, caption } = req.body;
-      const image = await this.quoteRepository.uploadQuoteImage(
-        quoteId,
-        req.file,
-        type,
-        caption
-      );
+      const imageData = {
+        url: req.file.path || req.file.filename,
+        type: req.body.type || 'image',
+        caption: req.body.caption,
+        category: req.body.category || 'reference',
+        uploadedById: (req as any).user?.id || 1,
+      };
 
+      const image = await this.quoteRepository.uploadQuoteImage(quoteId, imageData);
       res.status(201).json(image);
     } catch (error) {
       console.error("Error uploading image:", error);
@@ -299,13 +300,15 @@ export class QuoteController {
         return res.status(400).json({ error: "Token is required" });
       }
 
-      const validatedData = createResponseSchema.parse(req.body);
-      const response = await this.quoteRepository.createQuoteResponse(token, validatedData);
-      
-      if (!response) {
+      // First get the quote to get its ID
+      const quote = await this.quoteRepository.getQuoteByAccessToken(token);
+      if (!quote) {
         return res.status(404).json({ error: "Quote not found or expired" });
       }
 
+      const validatedData = createResponseSchema.parse(req.body);
+      const response = await this.quoteRepository.createQuoteResponse(quote.id, validatedData);
+      
       res.status(201).json(response);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -313,107 +316,6 @@ export class QuoteController {
       }
       console.error("Error creating quote response:", error);
       res.status(500).json({ error: "Failed to create response" });
-    }
-  }
-
-  async sendQuote(req: Request, res: Response) {
-    try {
-      const quoteId = parseInt(req.params.id);
-      if (isNaN(quoteId)) {
-        return res.status(400).json({ error: "Invalid quote ID" });
-      }
-
-      const { customerEmail, customerName } = req.body;
-      if (!customerEmail || !customerName) {
-        return res.status(400).json({ error: "Customer email and name are required" });
-      }
-
-      // Get the quote details
-      const quote = await this.quoteRepository.getQuoteById(quoteId);
-      if (!quote) {
-        return res.status(404).json({ error: "Quote not found" });
-      }
-
-      // Generate the customer link
-      const customerLink = `${req.protocol}://${req.get('host')}/quotes/${quote.accessToken}`;
-
-      // Send the email
-      const emailSent = await sendEmail({
-        to: customerEmail,
-        subject: `Quote ${quote.quoteNumber} - ${quote.title}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Quote from Kolmo Construction</h2>
-            <p>Dear ${customerName},</p>
-            <p>Thank you for your interest in our construction services. We have prepared a detailed quote for your project: <strong>${quote.title}</strong></p>
-            
-            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3>Quote Summary</h3>
-              <p><strong>Quote Number:</strong> ${quote.quoteNumber}</p>
-              <p><strong>Project:</strong> ${quote.title}</p>
-              <p><strong>Total Amount:</strong> $${parseFloat(quote.total.toString()).toLocaleString()}</p>
-              <p><strong>Valid Until:</strong> ${new Date(quote.validUntil).toLocaleDateString()}</p>
-            </div>
-
-            <p>You can view the complete quote details, including all line items and project specifications, by clicking the link below:</p>
-            
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${customerLink}" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
-                View Your Quote
-              </a>
-            </div>
-
-            <p>If you have any questions about this quote or would like to discuss your project further, please don't hesitate to contact us.</p>
-            
-            <p>Best regards,<br>
-            The Kolmo Construction Team</p>
-            
-            <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e5e5;">
-            <p style="font-size: 12px; color: #666;">
-              This quote is valid until ${new Date(quote.validUntil).toLocaleDateString()}. 
-              You can access your quote anytime using the link above.
-            </p>
-          </div>
-        `,
-        text: `
-Dear ${customerName},
-
-Thank you for your interest in our construction services. We have prepared a detailed quote for your project: ${quote.title}
-
-Quote Details:
-- Quote Number: ${quote.quoteNumber}
-- Project: ${quote.title}
-- Total Amount: $${parseFloat(quote.total.toString()).toLocaleString()}
-- Valid Until: ${new Date(quote.validUntil).toLocaleDateString()}
-
-You can view the complete quote details by visiting: ${customerLink}
-
-If you have any questions about this quote or would like to discuss your project further, please don't hesitate to contact us.
-
-Best regards,
-The Kolmo Construction Team
-
-This quote is valid until ${new Date(quote.validUntil).toLocaleDateString()}.
-        `
-      });
-
-      if (!emailSent) {
-        return res.status(500).json({ error: "Failed to send email" });
-      }
-
-      // Update quote status to 'sent' if it was previously 'draft'
-      if (quote.status === 'draft') {
-        await this.quoteRepository.updateQuote(quoteId, { status: 'sent' });
-      }
-
-      res.json({ 
-        success: true, 
-        message: "Quote sent successfully",
-        customerLink 
-      });
-    } catch (error) {
-      console.error("Error sending quote:", error);
-      res.status(500).json({ error: "Failed to send quote" });
     }
   }
 }

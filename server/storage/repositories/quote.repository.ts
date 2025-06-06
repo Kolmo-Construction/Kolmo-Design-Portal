@@ -155,12 +155,12 @@ export class QuoteRepository {
           quoteId,
           category: data.category,
           description: data.description,
-          quantity: data.quantity ? data.quantity.toString() : "1",
+          quantity: data.quantity || "1",
           unit: data.unit || "each",
-          unitPrice: data.unitPrice ? data.unitPrice.toString() : "0",
-          discountPercentage: data.discountPercentage ? data.discountPercentage.toString() : "0",
-          discountAmount: data.discountAmount ? data.discountAmount.toString() : "0",
-          totalPrice: data.totalPrice ? data.totalPrice.toString() : "0",
+          unitPrice: data.unitPrice || "0",
+          discountPercentage: data.discountPercentage || "0",
+          discountAmount: data.discountAmount || "0",
+          totalPrice: data.totalPrice || "0",
           sortOrder: data.sortOrder || 0,
         })
         .returning();
@@ -280,6 +280,60 @@ export class QuoteRepository {
     } catch (error) {
       console.error("Error creating quote response:", error);
       throw error;
+    }
+  }
+
+  async sendQuote(quoteId: number) {
+    try {
+      const [updatedQuote] = await db
+        .update(quotes)
+        .set({
+          status: 'sent',
+          sentAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(quotes.id, quoteId))
+        .returning();
+
+      return updatedQuote;
+    } catch (error) {
+      console.error("Error sending quote:", error);
+      return null;
+    }
+  }
+
+  async uploadQuoteImage(quoteId: number, imageData: any) {
+    try {
+      const [quoteImage] = await db
+        .insert(quoteMedia)
+        .values({
+          quoteId,
+          mediaUrl: imageData.url,
+          mediaType: imageData.type || 'image',
+          caption: imageData.caption,
+          category: imageData.category || 'reference',
+          uploadedById: imageData.uploadedById,
+        })
+        .returning();
+
+      return quoteImage;
+    } catch (error) {
+      console.error("Error uploading quote image:", error);
+      throw error;
+    }
+  }
+
+  async deleteQuoteImage(imageId: number) {
+    try {
+      const [deletedImage] = await db
+        .delete(quoteMedia)
+        .where(eq(quoteMedia.id, imageId))
+        .returning();
+
+      return !!deletedImage;
+    } catch (error) {
+      console.error("Error deleting quote image:", error);
+      return false;
     }
   }
 
