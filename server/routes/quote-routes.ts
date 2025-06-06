@@ -112,7 +112,8 @@ quoteRoutes.put("/:id", async (req, res) => {
       return res.status(400).json({ error: "Invalid quote ID" });
     }
 
-    const validatedData = insertCustomerQuoteSchema.partial().parse(req.body);
+    // Use the same validation schema as creation but make everything optional
+    const validatedData = createQuoteSchema.partial().parse(req.body);
     const quote = await quoteStorage.updateQuote(id, validatedData);
     
     if (!quote) {
