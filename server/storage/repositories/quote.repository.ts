@@ -57,7 +57,10 @@ export class QuoteRepository {
                 'id', ${quoteLineItems.id},
                 'description', ${quoteLineItems.description},
                 'quantity', ${quoteLineItems.quantity},
+                'unit', ${quoteLineItems.unit},
                 'unitPrice', ${quoteLineItems.unitPrice},
+                'discountPercentage', ${quoteLineItems.discountPercentage},
+                'discountAmount', ${quoteLineItems.discountAmount},
                 'totalPrice', ${quoteLineItems.totalPrice},
                 'category', ${quoteLineItems.category}
               )

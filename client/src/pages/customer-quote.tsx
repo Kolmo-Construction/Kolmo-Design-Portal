@@ -392,8 +392,8 @@ export default function CustomerQuotePage() {
                           {/* Show line item discount if present */}
                           {(parseFloat(item.discountPercentage || '0') > 0 || parseFloat(item.discountAmount || '0') > 0) && (
                             <div className="text-sm" style={{color: '#db973c'}}>
-                              Discount {parseFloat(item.discountPercentage || '0') > 0 && `(${parseFloat(item.discountPercentage)}%)`}: 
-                              -{formatCurrency(item.discountAmount || '0')}
+                              Discount {parseFloat(item.discountPercentage || '0') > 0 && `(${parseFloat(item.discountPercentage || '0')}%)`}: 
+                              -{formatCurrency((item.discountAmount || '0').toString())}
                             </div>
                           )}
                         </div>
@@ -471,7 +471,7 @@ export default function CustomerQuotePage() {
             {(parseFloat(quoteData.discountPercentage || '0') > 0 || parseFloat(quoteData.discountAmount || '0') > 0) && (
               <div className="flex justify-between items-center" style={{color: '#db973c'}}>
                 <span className="text-lg">
-                  Discount {parseFloat(quoteData.discountPercentage || '0') > 0 && `(${parseFloat(quoteData.discountPercentage)}%)`}
+                  Discount {parseFloat(quoteData.discountPercentage || '0') > 0 && `(${parseFloat(quoteData.discountPercentage || '0')}%)`}
                 </span>
                 <span className="text-lg font-semibold">
                   -{formatCurrency(quoteData.discountAmount || '0')}
