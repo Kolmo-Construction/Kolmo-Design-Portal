@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -42,8 +42,8 @@ const editQuoteSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
   quoteNumber: z.string().min(1, "Quote number is required"),
-  status: z.enum(["draft", "sent", "accepted", "rejected", "expired"]),
-  validUntil: z.date(),
+  status: z.string(),
+  validUntil: z.string(),
   customerName: z.string().min(1, "Customer name is required"),
   customerEmail: z.string().email("Valid email is required"),
   customerPhone: z.string().optional(),
@@ -52,8 +52,8 @@ const editQuoteSchema = z.object({
   location: z.string().optional(),
   scopeDescription: z.string().optional(),
   projectNotes: z.string().optional(),
-  estimatedStartDate: z.date().optional(),
-  estimatedCompletionDate: z.date().optional(),
+  estimatedStartDate: z.string().optional(),
+  estimatedCompletionDate: z.string().optional(),
   downPaymentPercentage: z.number().min(0).max(100),
   milestonePaymentPercentage: z.number().min(0).max(100),
   finalPaymentPercentage: z.number().min(0).max(100),

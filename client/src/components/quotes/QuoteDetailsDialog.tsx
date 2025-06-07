@@ -29,7 +29,7 @@ import { QuoteWithDetails, QuoteLineItem } from "@shared/schema";
 import { CreateLineItemDialog } from "./CreateLineItemDialog";
 import { EditLineItemDialog } from "./EditLineItemDialog";
 import { QuoteFinancialsDialog } from "./QuoteFinancialsDialog";
-import { EditQuoteDialog } from "./EditQuoteDialog";
+import { SimpleEditQuoteDialog } from "./SimpleEditQuoteDialog";
 
 interface QuoteDetailsDialogProps {
   quote: QuoteWithDetails;
@@ -555,7 +555,7 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
         onOpenChange={setShowFinancials}
       />
 
-      <EditQuoteDialog
+      <SimpleEditQuoteDialog
         quote={currentQuote}
         open={showEditQuote}
         onOpenChange={setShowEditQuote}
