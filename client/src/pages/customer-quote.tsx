@@ -25,6 +25,9 @@ interface QuoteResponse {
   projectType: string;
   location?: string;
   subtotal: string;
+  discountPercentage?: string;
+  discountAmount?: string;
+  discountedSubtotal?: string;
   taxRate: string;
   taxAmount: string;
   total: string;
@@ -49,6 +52,8 @@ interface QuoteResponse {
     quantity: string;
     unit: string;
     unitPrice: string;
+    discountPercentage?: string;
+    discountAmount?: string;
     totalPrice: string;
   }>;
   responses?: Array<{
@@ -380,12 +385,27 @@ export default function CustomerQuotePage() {
                             <p className="text-sm" style={{color: '#4a6670'}}>{item.description}</p>
                           </div>
                         </div>
-                        <div className="text-sm ml-11" style={{color: '#4a6670'}}>
-                          {parseFloat(item.quantity)} {item.unit} × {formatCurrency(item.unitPrice)} each
+                        <div className="text-sm ml-11 space-y-1">
+                          <div style={{color: '#4a6670'}}>
+                            {parseFloat(item.quantity)} {item.unit} × {formatCurrency(item.unitPrice)} each
+                          </div>
+                          {/* Show line item discount if present */}
+                          {(parseFloat(item.discountPercentage || '0') > 0 || parseFloat(item.discountAmount || '0') > 0) && (
+                            <div className="text-sm" style={{color: '#db973c'}}>
+                              Discount {parseFloat(item.discountPercentage || '0') > 0 && `(${parseFloat(item.discountPercentage)}%)`}: 
+                              -{formatCurrency(item.discountAmount || '0')}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="text-right sm:text-left">
                         <div className="text-xl font-bold" style={{color: '#1a1a1a'}}>{formatCurrency(item.totalPrice)}</div>
+                        {/* Show original price if discounted */}
+                        {(parseFloat(item.discountPercentage || '0') > 0 || parseFloat(item.discountAmount || '0') > 0) && (
+                          <div className="text-sm line-through" style={{color: '#4a6670'}}>
+                            {formatCurrency((parseFloat(item.quantity) * parseFloat(item.unitPrice)).toString())}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -446,6 +466,27 @@ export default function CustomerQuotePage() {
               <span className="text-lg">Project Subtotal</span>
               <span className="text-lg font-semibold">{formatCurrency(quoteData.subtotal)}</span>
             </div>
+            
+            {/* Show discount if present */}
+            {(parseFloat(quoteData.discountPercentage || '0') > 0 || parseFloat(quoteData.discountAmount || '0') > 0) && (
+              <div className="flex justify-between items-center" style={{color: '#db973c'}}>
+                <span className="text-lg">
+                  Discount {parseFloat(quoteData.discountPercentage || '0') > 0 && `(${parseFloat(quoteData.discountPercentage)}%)`}
+                </span>
+                <span className="text-lg font-semibold">
+                  -{formatCurrency(quoteData.discountAmount || '0')}
+                </span>
+              </div>
+            )}
+            
+            {/* Show discounted subtotal if discount applied */}
+            {(parseFloat(quoteData.discountPercentage || '0') > 0 || parseFloat(quoteData.discountAmount || '0') > 0) && (
+              <div className="flex justify-between items-center text-white/80">
+                <span className="text-lg">Discounted Subtotal</span>
+                <span className="text-lg font-semibold">{formatCurrency(quoteData.discountedSubtotal || quoteData.subtotal)}</span>
+              </div>
+            )}
+            
             <div className="flex justify-between items-center text-white/80">
               <span className="text-lg">Tax ({parseFloat(quoteData.taxRate)}%)</span>
               <span className="text-lg font-semibold">{formatCurrency(quoteData.taxAmount)}</span>
