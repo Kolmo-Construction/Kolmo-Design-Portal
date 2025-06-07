@@ -29,6 +29,7 @@ import { QuoteWithDetails, QuoteLineItem } from "@shared/schema";
 import { CreateLineItemDialog } from "./CreateLineItemDialog";
 import { EditLineItemDialog } from "./EditLineItemDialog";
 import { QuoteFinancialsDialog } from "./QuoteFinancialsDialog";
+import { EditQuoteDialog } from "./EditQuoteDialog";
 
 interface QuoteDetailsDialogProps {
   quote: QuoteWithDetails;
@@ -41,6 +42,7 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
   const [editingLineItem, setEditingLineItem] = useState<QuoteLineItem | null>(null);
   const [showSendQuote, setShowSendQuote] = useState(false);
   const [showFinancials, setShowFinancials] = useState(false);
+  const [showEditQuote, setShowEditQuote] = useState(false);
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerName, setCustomerName] = useState("");
   const { toast } = useToast();
@@ -170,12 +172,23 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
                 </DialogTitle>
                 <DialogDescription>{currentQuote.title}</DialogDescription>
               </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-green-600">
-                  {formatCurrency(currentQuote.total)}
-                </div>
-                <div className="text-sm text-gray-500">
-                  Valid until {formatDate(currentQuote.validUntil)}
+              <div className="flex items-center gap-4">
+                <Button
+                  onClick={() => setShowEditQuote(true)}
+                  size="sm"
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  Edit Quote
+                </Button>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-green-600">
+                    {formatCurrency(currentQuote.total)}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    Valid until {formatDate(currentQuote.validUntil)}
+                  </div>
                 </div>
               </div>
             </div>
@@ -540,6 +553,12 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
         quote={currentQuote}
         open={showFinancials}
         onOpenChange={setShowFinancials}
+      />
+
+      <EditQuoteDialog
+        quote={currentQuote}
+        open={showEditQuote}
+        onOpenChange={setShowEditQuote}
       />
     </>
   );
