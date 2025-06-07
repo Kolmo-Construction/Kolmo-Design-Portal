@@ -277,7 +277,10 @@ export default function CustomerQuotePage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button 
                   onClick={() => setShowResponse(true)}
-                  className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg font-semibold"
+                  className="px-8 py-3 text-lg font-semibold text-white"
+                  style={{backgroundColor: '#db973c'}}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#c8863a'}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = '#db973c'}
                   size="lg"
                 >
                   <Check className="h-5 w-5 mr-2" />
@@ -286,14 +289,17 @@ export default function CustomerQuotePage() {
                 <Button 
                   variant="outline" 
                   onClick={() => setShowResponse(true)}
-                  className="bg-white/10 border-white/30 text-white hover:bg-white/20 px-8 py-3"
+                  className="px-8 py-3 text-white border-white/30"
+                  style={{backgroundColor: 'rgba(255,255,255,0.1)'}}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)'}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
                   size="lg"
                 >
                   <MessageSquare className="h-5 w-5 mr-2" />
                   Ask Questions
                 </Button>
               </div>
-              <p className="text-blue-200 text-sm mt-4">
+              <p className="text-white/70 text-sm mt-4">
                 Valid until {formatDate(quoteData.validUntil)} • Free consultations available
               </p>
             </div>
@@ -301,44 +307,44 @@ export default function CustomerQuotePage() {
         )}
 
         {/* Project Information */}
-        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-          <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
-            <h3 className="text-xl font-bold text-slate-900">Project Details</h3>
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
+            <h3 className="text-xl font-bold" style={{color: '#1a1a1a'}}>Project Details</h3>
           </div>
           <div className="p-6">
             <div className="mb-6">
-              <h4 className="text-2xl font-bold text-slate-900 mb-2">{quoteData.title}</h4>
-              <div className="flex items-center gap-2 text-emerald-600 font-medium mb-4">
+              <h4 className="text-2xl font-bold mb-2" style={{color: '#1a1a1a'}}>{quoteData.title}</h4>
+              <div className="flex items-center gap-2 font-medium mb-4" style={{color: '#db973c'}}>
                 <Home className="h-5 w-5" />
                 <span>{quoteData.projectType}</span>
               </div>
               {quoteData.description && (
-                <p className="text-slate-700 leading-relaxed">{quoteData.description}</p>
+                <p className="leading-relaxed" style={{color: '#4a6670'}}>{quoteData.description}</p>
               )}
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl">
-                <MapPin className="h-5 w-5 text-emerald-600" />
+              <div className="flex items-center gap-3 p-4 rounded-xl" style={{backgroundColor: '#f5f5f5'}}>
+                <MapPin className="h-5 w-5" style={{color: '#db973c'}} />
                 <div>
-                  <div className="text-sm font-medium text-slate-500">Location</div>
-                  <div className="font-semibold text-slate-900">{quoteData.location || "To be determined"}</div>
+                  <div className="text-sm font-medium" style={{color: '#4a6670'}}>Location</div>
+                  <div className="font-semibold" style={{color: '#1a1a1a'}}>{quoteData.location || "To be determined"}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl">
-                <Calendar className="h-5 w-5 text-emerald-600" />
+              <div className="flex items-center gap-3 p-4 rounded-xl" style={{backgroundColor: '#f5f5f5'}}>
+                <Calendar className="h-5 w-5" style={{color: '#db973c'}} />
                 <div>
-                  <div className="text-sm font-medium text-slate-500">Project Start</div>
-                  <div className="font-semibold text-slate-900">
+                  <div className="text-sm font-medium" style={{color: '#4a6670'}}>Project Start</div>
+                  <div className="font-semibold" style={{color: '#1a1a1a'}}>
                     {quoteData.estimatedStartDate ? formatDate(quoteData.estimatedStartDate) : "To be scheduled"}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl">
-                <Clock className="h-5 w-5 text-emerald-600" />
+              <div className="flex items-center gap-3 p-4 rounded-xl" style={{backgroundColor: '#f5f5f5'}}>
+                <Clock className="h-5 w-5" style={{color: '#db973c'}} />
                 <div>
-                  <div className="text-sm font-medium text-slate-500">Completion</div>
-                  <div className="font-semibold text-slate-900">
+                  <div className="text-sm font-medium" style={{color: '#4a6670'}}>Completion</div>
+                  <div className="font-semibold" style={{color: '#1a1a1a'}}>
                     {quoteData.estimatedCompletionDate ? formatDate(quoteData.estimatedCompletionDate) : "To be determined"}
                   </div>
                 </div>
@@ -349,37 +355,37 @@ export default function CustomerQuotePage() {
 
         {/* Project Breakdown */}
         {quoteData.lineItems && quoteData.lineItems.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
               <div className="flex items-center gap-3">
-                <Calculator className="h-6 w-6 text-emerald-600" />
+                <Calculator className="h-6 w-6" style={{color: '#db973c'}} />
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">Investment Breakdown</h3>
-                  <p className="text-slate-600">Transparent pricing for every component</p>
+                  <h3 className="text-xl font-bold" style={{color: '#1a1a1a'}}>Investment Breakdown</h3>
+                  <p style={{color: '#4a6670'}}>Transparent pricing for every component</p>
                 </div>
               </div>
             </div>
             <div className="p-6">
               <div className="space-y-4">
                 {quoteData.lineItems.map((item, index) => (
-                  <div key={item.id} className="group hover:bg-slate-50 rounded-xl p-4 transition-colors border border-slate-100">
+                  <div key={item.id} className="group rounded-xl p-4 transition-colors border border-gray-100" style={{'&:hover': {backgroundColor: '#f5f5f5'}}}>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <div className="bg-emerald-100 rounded-full p-2">
-                            <Wrench className="h-4 w-4 text-emerald-600" />
+                          <div className="rounded-full p-2" style={{backgroundColor: '#f5f5f5'}}>
+                            <Wrench className="h-4 w-4" style={{color: '#db973c'}} />
                           </div>
                           <div>
-                            <h4 className="font-semibold text-slate-900">{item.category}</h4>
-                            <p className="text-slate-600 text-sm">{item.description}</p>
+                            <h4 className="font-semibold" style={{color: '#1a1a1a'}}>{item.category}</h4>
+                            <p className="text-sm" style={{color: '#4a6670'}}>{item.description}</p>
                           </div>
                         </div>
-                        <div className="text-sm text-slate-500 ml-11">
+                        <div className="text-sm ml-11" style={{color: '#4a6670'}}>
                           {parseFloat(item.quantity)} {item.unit} × {formatCurrency(item.unitPrice)} each
                         </div>
                       </div>
                       <div className="text-right sm:text-left">
-                        <div className="text-xl font-bold text-slate-900">{formatCurrency(item.totalPrice)}</div>
+                        <div className="text-xl font-bold" style={{color: '#1a1a1a'}}>{formatCurrency(item.totalPrice)}</div>
                       </div>
                     </div>
                   </div>
