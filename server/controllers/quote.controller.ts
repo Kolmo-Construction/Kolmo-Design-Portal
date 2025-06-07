@@ -288,6 +288,113 @@ export class QuoteController {
     }
   }
 
+  async uploadBeforeAfterImage(req: Request, res: Response) {
+    try {
+      const quoteId = parseInt(req.params.id);
+      const imageType = req.params.type;
+      
+      if (isNaN(quoteId)) {
+        return res.status(400).json({ error: "Invalid quote ID" });
+      }
+
+      if (!['before', 'after'].includes(imageType)) {
+        return res.status(400).json({ error: "Image type must be 'before' or 'after'" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const caption = req.body.caption || '';
+      
+      // Update the quote with the new image URL and caption
+      const updateData = imageType === 'before' 
+        ? { beforeImageUrl: req.file.path || req.file.filename, beforeImageCaption: caption }
+        : { afterImageUrl: req.file.path || req.file.filename, afterImageCaption: caption };
+
+      const updatedQuote = await this.quoteRepository.updateQuote(quoteId, updateData);
+      
+      if (!updatedQuote) {
+        return res.status(404).json({ error: "Quote not found" });
+      }
+
+      res.status(200).json({
+        message: `${imageType} image uploaded successfully`,
+        imageUrl: req.file.path || req.file.filename,
+        caption: caption
+      });
+    } catch (error) {
+      console.error("Error uploading before/after image:", error);
+      res.status(500).json({ error: "Failed to upload image" });
+    }
+  }
+
+  async updateImageCaption(req: Request, res: Response) {
+    try {
+      const quoteId = parseInt(req.params.id);
+      const imageType = req.params.type;
+      const { caption } = req.body;
+      
+      if (isNaN(quoteId)) {
+        return res.status(400).json({ error: "Invalid quote ID" });
+      }
+
+      if (!['before', 'after'].includes(imageType)) {
+        return res.status(400).json({ error: "Image type must be 'before' or 'after'" });
+      }
+
+      const updateData = imageType === 'before' 
+        ? { beforeImageCaption: caption }
+        : { afterImageCaption: caption };
+
+      const updatedQuote = await this.quoteRepository.updateQuote(quoteId, updateData);
+      
+      if (!updatedQuote) {
+        return res.status(404).json({ error: "Quote not found" });
+      }
+
+      res.status(200).json({
+        message: `${imageType} image caption updated successfully`,
+        caption: caption
+      });
+    } catch (error) {
+      console.error("Error updating image caption:", error);
+      res.status(500).json({ error: "Failed to update caption" });
+    }
+  }
+
+  async deleteBeforeAfterImage(req: Request, res: Response) {
+    try {
+      const quoteId = parseInt(req.params.id);
+      const imageType = req.params.type;
+      
+      if (isNaN(quoteId)) {
+        return res.status(400).json({ error: "Invalid quote ID" });
+      }
+
+      if (!['before', 'after'].includes(imageType)) {
+        return res.status(400).json({ error: "Image type must be 'before' or 'after'" });
+      }
+
+      const updateData = imageType === 'before' 
+        ? { beforeImageUrl: null, beforeImageCaption: null }
+        : { afterImageUrl: null, afterImageCaption: null };
+
+      const updatedQuote = await this.quoteRepository.updateQuote(quoteId, updateData);
+      
+      if (!updatedQuote) {
+        return res.status(404).json({ error: "Quote not found" });
+      }
+
+      res.status(200).json({
+        message: `${imageType} image deleted successfully`
+      });
+    } catch (error) {
+      console.error("Error deleting before/after image:", error);
+      res.status(500).json({ error: "Failed to delete image" });
+    }
+  }
+
   async getQuoteByToken(req: Request, res: Response) {
     try {
       const { token } = req.params;

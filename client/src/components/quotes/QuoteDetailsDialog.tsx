@@ -262,6 +262,18 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
               </CardContent>
             </Card>
 
+            {/* Before/After Images Management */}
+            <QuoteImageManager
+              quoteId={currentQuote.id}
+              beforeImageUrl={currentQuote.beforeImageUrl || undefined}
+              afterImageUrl={currentQuote.afterImageUrl || undefined}
+              beforeImageCaption={currentQuote.beforeImageCaption || undefined}
+              afterImageCaption={currentQuote.afterImageCaption || undefined}
+              onImagesUpdated={() => {
+                queryClient.invalidateQueries({ queryKey: [`/api/quotes/${currentQuote.id}`] });
+              }}
+            />
+
             {/* Line Items */}
             <Card>
               <CardHeader>

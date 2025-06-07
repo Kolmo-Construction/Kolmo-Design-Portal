@@ -1,9 +1,25 @@
 import { Router } from "express";
+import multer from "multer";
 import { isAuthenticated } from "../middleware/auth.middleware";
 import { QuoteController } from "../controllers/quote.controller";
 
 const router = Router();
 const quoteController = new QuoteController();
+
+// Configure multer for file uploads
+const upload = multer({
+  dest: 'uploads/quotes/',
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
 
 // Protected admin routes
 router.get("/", isAuthenticated, quoteController.getAllQuotes.bind(quoteController));
@@ -23,6 +39,11 @@ router.delete("/line-items/:lineItemId", isAuthenticated, quoteController.delete
 // Image routes
 router.post("/:id/images", isAuthenticated, quoteController.uploadQuoteImage.bind(quoteController));
 router.delete("/images/:imageId", isAuthenticated, quoteController.deleteQuoteImage.bind(quoteController));
+
+// Before/After image specific routes
+router.post("/:id/images/:type", isAuthenticated, upload.single('image'), quoteController.uploadBeforeAfterImage.bind(quoteController));
+router.patch("/:id/images/:type/caption", isAuthenticated, quoteController.updateImageCaption.bind(quoteController));
+router.delete("/:id/images/:type", isAuthenticated, quoteController.deleteBeforeAfterImage.bind(quoteController));
 
 // Public customer routes (no authentication required)
 router.get("/public/:token", quoteController.getQuoteByToken.bind(quoteController));
