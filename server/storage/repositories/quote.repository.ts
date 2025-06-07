@@ -9,16 +9,68 @@ import {
   type InsertQuoteLineItem,
   type InsertQuoteResponse
 } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 
 export class QuoteRepository {
   async getAllQuotes() {
     try {
-      return await db
-        .select()
+      const quotesWithLineItems = await db
+        .select({
+          id: quotes.id,
+          quoteNumber: quotes.quoteNumber,
+          title: quotes.title,
+          description: quotes.description,
+          customerName: quotes.customerName,
+          customerEmail: quotes.customerEmail,
+          customerPhone: quotes.customerPhone,
+          customerAddress: quotes.customerAddress,
+          projectType: quotes.projectType,
+          location: quotes.location,
+          subtotal: quotes.subtotal,
+          discountPercentage: quotes.discountPercentage,
+          discountAmount: quotes.discountAmount,
+          discountedSubtotal: quotes.discountedSubtotal,
+          taxRate: quotes.taxRate,
+          taxAmount: quotes.taxAmount,
+          isManualTax: quotes.isManualTax,
+          total: quotes.total,
+          downPaymentPercentage: quotes.downPaymentPercentage,
+          milestonePaymentPercentage: quotes.milestonePaymentPercentage,
+          finalPaymentPercentage: quotes.finalPaymentPercentage,
+          milestoneDescription: quotes.milestoneDescription,
+          estimatedStartDate: quotes.estimatedStartDate,
+          estimatedCompletionDate: quotes.estimatedCompletionDate,
+          validUntil: quotes.validUntil,
+          status: quotes.status,
+          projectNotes: quotes.projectNotes,
+          accessToken: quotes.accessToken,
+          sentAt: quotes.sentAt,
+          viewedAt: quotes.viewedAt,
+          respondedAt: quotes.respondedAt,
+          createdById: quotes.createdById,
+          createdAt: quotes.createdAt,
+          updatedAt: quotes.updatedAt,
+          lineItems: sql<any[]>`COALESCE(
+            json_agg(
+              json_build_object(
+                'id', ${quoteLineItems.id},
+                'description', ${quoteLineItems.description},
+                'quantity', ${quoteLineItems.quantity},
+                'unitPrice', ${quoteLineItems.unitPrice},
+                'totalPrice', ${quoteLineItems.totalPrice},
+                'category', ${quoteLineItems.category}
+              )
+            ) FILTER (WHERE ${quoteLineItems.id} IS NOT NULL),
+            '[]'::json
+          )`.as('lineItems')
+        })
         .from(quotes)
+        .leftJoin(quoteLineItems, eq(quotes.id, quoteLineItems.quoteId))
+        .groupBy(quotes.id)
         .orderBy(desc(quotes.createdAt));
+
+      return quotesWithLineItems;
     } catch (error) {
       console.error("Error fetching quotes:", error);
       return [];
