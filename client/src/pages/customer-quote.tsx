@@ -973,15 +973,29 @@ export default function CustomerQuotePage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <Card className="max-w-md w-full">
             <CardHeader>
-              <CardTitle>Quote Response</CardTitle>
+              <CardTitle>
+                {showDeclineReason ? "Decline Proposal" : "Quote Response"}
+              </CardTitle>
               <CardDescription>
-                {quoteData?.customerName ? `Hello ${quoteData.customerName}` : 'Please respond to this quote'}
+                {showDeclineReason 
+                  ? "Please let us know why you're declining this proposal"
+                  : (quoteData?.customerName ? `Hello ${quoteData.customerName}` : 'Please respond to this quote')
+                }
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {/* Only show customer info fields if they're missing */}
-                {(!quoteData?.customerName || !quoteData?.customerEmail) && (
+                {/* Show customer info summary if available and not in decline mode */}
+                {!showDeclineReason && quoteData?.customerName && quoteData?.customerEmail && (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="text-sm font-medium text-gray-700">Quote prepared for:</div>
+                    <div className="font-semibold">{quoteData.customerName}</div>
+                    <div className="text-sm text-gray-600">{quoteData.customerEmail}</div>
+                  </div>
+                )}
+
+                {/* Only show customer info fields if they're missing AND not in decline mode */}
+                {!showDeclineReason && (!quoteData?.customerName || !quoteData?.customerEmail) && (
                   <>
                     <div>
                       <Label htmlFor="customerName">Your Name</Label>
@@ -1005,30 +1019,23 @@ export default function CustomerQuotePage() {
                   </>
                 )}
                 
-                {/* Show customer info summary if available */}
-                {quoteData?.customerName && quoteData?.customerEmail && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="text-sm font-medium text-gray-700">Quote prepared for:</div>
-                    <div className="font-semibold">{quoteData.customerName}</div>
-                    <div className="text-sm text-gray-600">{quoteData.customerEmail}</div>
+                {/* Show decline reason field only when declining */}
+                {showDeclineReason && (
+                  <div>
+                    <Label htmlFor="message">Reason for Declining (Required)</Label>
+                    <Textarea
+                      id="message"
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="Please let us know why you're declining this proposal..."
+                      required
+                      className="min-h-[100px]"
+                    />
+                    {!message.trim() && (
+                      <p className="text-red-600 text-sm mt-1">Please provide a reason for declining.</p>
+                    )}
                   </div>
                 )}
-                
-                <div>
-                  <Label htmlFor="message">
-                    {showDeclineReason ? "Reason for Declining (Required)" : "Message (Optional)"}
-                  </Label>
-                  <Textarea
-                    id="message"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder={showDeclineReason ? "Please let us know why you're declining this proposal..." : "Any additional comments or questions..."}
-                    required={showDeclineReason}
-                  />
-                  {showDeclineReason && !message.trim() && (
-                    <p className="text-red-600 text-sm mt-1">Please provide a reason for declining.</p>
-                  )}
-                </div>
               </div>
             </CardContent>
             <div className="flex justify-between p-6 pt-0">
