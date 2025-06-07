@@ -210,8 +210,8 @@ export default function CustomerQuotePage() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {/* Quote Overview Card */}
-        <div className="bg-white rounded-2xl shadow-lg border border-emerald-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-6 py-6">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+          <div className="px-6 py-6" style={{backgroundColor: '#3d452', color: 'white'}}>
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
               <div>
                 <div className="flex items-center gap-3 mb-2">
@@ -219,17 +219,18 @@ export default function CustomerQuotePage() {
                   <h2 className="text-2xl font-bold">Project Proposal</h2>
                   <Badge 
                     variant={isExpired ? "destructive" : hasResponded ? "secondary" : "default"}
-                    className="bg-white/20 text-white border-white/30"
+                    className="px-3 py-1 text-xs font-medium"
+                    style={{backgroundColor: '#db973c', color: 'white'}}
                   >
                     {isExpired ? "Expired" : hasResponded ? "Responded" : "Awaiting Response"}
                   </Badge>
                 </div>
-                <p className="text-emerald-100 text-lg">Quote #{quoteData.quoteNumber}</p>
+                <p className="text-white/80 text-lg">Quote #{quoteData.quoteNumber}</p>
               </div>
               <div className="text-center sm:text-right">
-                <div className="text-emerald-100 text-sm">Valid Until</div>
+                <div className="text-white/70 text-sm">Valid Until</div>
                 <div className="text-white font-semibold text-lg">{formatDate(quoteData.validUntil)}</div>
-                <div className="text-emerald-100 text-sm mt-1">Created {formatDate(quoteData.createdAt)}</div>
+                <div className="text-white/70 text-sm mt-1">Created {formatDate(quoteData.createdAt)}</div>
               </div>
             </div>
           </div>
@@ -237,27 +238,27 @@ export default function CustomerQuotePage() {
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center">
-                <div className="bg-emerald-50 rounded-full p-4 w-16 h-16 mx-auto mb-3 flex items-center justify-center">
-                  <DollarSign className="h-8 w-8 text-emerald-600" />
+                <div className="rounded-full p-4 w-16 h-16 mx-auto mb-3 flex items-center justify-center" style={{backgroundColor: '#f5f5f5'}}>
+                  <DollarSign className="h-8 w-8" style={{color: '#db973c'}} />
                 </div>
-                <div className="text-2xl font-bold text-slate-900">{formatCurrency(quoteData.total)}</div>
-                <div className="text-slate-600 text-sm">Total Investment</div>
+                <div className="text-2xl font-bold" style={{color: '#1a1a1a'}}>{formatCurrency(quoteData.total)}</div>
+                <div className="text-sm" style={{color: '#4a6670'}}>Total Investment</div>
               </div>
               <div className="text-center">
-                <div className="bg-emerald-50 rounded-full p-4 w-16 h-16 mx-auto mb-3 flex items-center justify-center">
-                  <Calendar className="h-8 w-8 text-emerald-600" />
+                <div className="rounded-full p-4 w-16 h-16 mx-auto mb-3 flex items-center justify-center" style={{backgroundColor: '#f5f5f5'}}>
+                  <Calendar className="h-8 w-8" style={{color: '#db973c'}} />
                 </div>
-                <div className="text-lg font-semibold text-slate-900">
+                <div className="text-lg font-semibold" style={{color: '#1a1a1a'}}>
                   {quoteData.estimatedStartDate ? formatDate(quoteData.estimatedStartDate) : "TBD"}
                 </div>
-                <div className="text-slate-600 text-sm">Estimated Start</div>
+                <div className="text-sm" style={{color: '#4a6670'}}>Estimated Start</div>
               </div>
               <div className="text-center">
-                <div className="bg-emerald-50 rounded-full p-4 w-16 h-16 mx-auto mb-3 flex items-center justify-center">
-                  <Wrench className="h-8 w-8 text-emerald-600" />
+                <div className="rounded-full p-4 w-16 h-16 mx-auto mb-3 flex items-center justify-center" style={{backgroundColor: '#f5f5f5'}}>
+                  <Wrench className="h-8 w-8" style={{color: '#db973c'}} />
                 </div>
-                <div className="text-lg font-semibold text-slate-900">{quoteData.lineItems?.length || 0}</div>
-                <div className="text-slate-600 text-sm">Project Components</div>
+                <div className="text-lg font-semibold" style={{color: '#1a1a1a'}}>{quoteData.lineItems?.length || 0}</div>
+                <div className="text-sm" style={{color: '#4a6670'}}>Project Components</div>
               </div>
             </div>
           </div>
@@ -265,11 +266,11 @@ export default function CustomerQuotePage() {
 
         {/* Response Required Section */}
         {!hasResponded && !isExpired && (
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl shadow-lg text-white p-6">
+          <div className="rounded-2xl shadow-lg text-white p-6" style={{backgroundColor: '#4a6670'}}>
             <div className="text-center">
-              <Clock className="h-12 w-12 mx-auto mb-4 text-blue-200" />
+              <Clock className="h-12 w-12 mx-auto mb-4" style={{color: '#db973c'}} />
               <h3 className="text-2xl font-bold mb-2">Ready to Transform Your Space?</h3>
-              <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
+              <p className="text-white/80 mb-6 max-w-2xl mx-auto">
                 We're excited to bring your vision to life with our expert craftsmanship. 
                 Please review the details and let us know how you'd like to proceed.
               </p>
