@@ -165,28 +165,28 @@ export default function CustomerQuotePage() {
   const hasResponded = quoteData?.responses && quoteData.responses.length > 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-slate-50">
+    <div className="min-h-screen bg-white">
       {/* Professional Header */}
-      <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white">
+      <div className="bg-white border-b border-gray-200" style={{color: '#1a1a1a'}}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2">
+              <div className="bg-gray-50 rounded-lg p-2">
                 <img src="@assets/kolmo-logo (1).png" alt="Kolmo Constructions" className="h-12 w-12" />
               </div>
               <div className="text-center sm:text-left">
-                <h1 className="text-2xl sm:text-3xl font-bold">Kolmo Constructions</h1>
-                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-emerald-100 mt-1">
+                <h1 className="text-2xl sm:text-3xl font-bold" style={{color: '#1a1a1a'}}>Kolmo Constructions</h1>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm mt-1" style={{color: '#4a6670'}}>
                   <div className="flex items-center gap-1">
-                    <Shield className="h-4 w-4" />
+                    <Shield className="h-4 w-4" style={{color: '#db973c'}} />
                     <span>Licensed & Insured</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Award className="h-4 w-4" />
+                    <Award className="h-4 w-4" style={{color: '#db973c'}} />
                     <span>EPA Certified</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Star className="h-4 w-4" />
+                    <Star className="h-4 w-4" style={{color: '#db973c'}} />
                     <span>Seattle's Premier Builder</span>
                   </div>
                 </div>
@@ -194,11 +194,11 @@ export default function CustomerQuotePage() {
             </div>
             <div className="text-center sm:text-right">
               <div className="flex flex-col sm:items-end gap-2">
-                <a href="tel:+12064105100" className="flex items-center gap-2 text-emerald-100 hover:text-white transition-colors">
+                <a href="tel:+12064105100" className="flex items-center gap-2 transition-colors" style={{color: '#4a6670'}} onMouseEnter={e => e.currentTarget.style.color = '#db973c'} onMouseLeave={e => e.currentTarget.style.color = '#4a6670'}>
                   <Phone className="h-4 w-4" />
                   <span className="font-semibold">(206) 410-5100</span>
                 </a>
-                <a href="mailto:projects@kolmo.io" className="flex items-center gap-2 text-emerald-100 hover:text-white transition-colors">
+                <a href="mailto:projects@kolmo.io" className="flex items-center gap-2 transition-colors" style={{color: '#4a6670'}} onMouseEnter={e => e.currentTarget.style.color = '#db973c'} onMouseLeave={e => e.currentTarget.style.color = '#4a6670'}>
                   <Mail className="h-4 w-4" />
                   <span>projects@kolmo.io</span>
                 </a>
