@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,9 +19,12 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Trash2, Plus, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { QuoteWithDetails } from "@shared/schema";
+import { QuoteWithDetails, QuoteLineItem } from "@shared/schema";
 
 interface SimpleEditQuoteDialogProps {
   quote: QuoteWithDetails;
@@ -32,6 +35,18 @@ interface SimpleEditQuoteDialogProps {
 export function SimpleEditQuoteDialog({ quote, open, onOpenChange }: SimpleEditQuoteDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fetch current quote data to ensure we have the latest
+  const { data: currentQuote } = useQuery<QuoteWithDetails>({
+    queryKey: [`/api/quotes/${quote.id}`],
+    enabled: open && !!quote.id,
+  });
+
+  const workingQuote = currentQuote || quote;
+
+  const [activeTab, setActiveTab] = useState("basic");
+  const [showCreateLineItem, setShowCreateLineItem] = useState(false);
+  const [editingLineItem, setEditingLineItem] = useState<QuoteLineItem | null>(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -55,8 +70,21 @@ export function SimpleEditQuoteDialog({ quote, open, onOpenChange }: SimpleEditQ
     milestoneDescription: "",
   });
 
+  const [financialData, setFinancialData] = useState({
+    taxRate: 0,
+    discountAmount: 0,
+    discountPercentage: 0,
+  });
+
+  const [newLineItem, setNewLineItem] = useState({
+    description: "",
+    quantity: 1,
+    unitPrice: 0,
+    category: "",
+  });
+
   useEffect(() => {
-    if (open && quote) {
+    if (open && workingQuote) {
       // Helper function to format dates for input fields
       const formatDateForInput = (dateValue: any) => {
         if (!dateValue) return "";
@@ -69,31 +97,37 @@ export function SimpleEditQuoteDialog({ quote, open, onOpenChange }: SimpleEditQ
       };
 
       setFormData({
-        title: quote.title || "",
-        description: quote.description || "",
-        quoteNumber: quote.quoteNumber || "",
-        status: quote.status || "draft",
-        validUntil: formatDateForInput(quote.validUntil),
-        customerName: quote.customerName || "",
-        customerEmail: quote.customerEmail || "",
-        customerPhone: quote.customerPhone || "",
-        customerAddress: quote.customerAddress || "",
-        projectType: quote.projectType || "",
-        location: quote.location || "",
-        scopeDescription: quote.scopeDescription || "",
-        projectNotes: quote.projectNotes || "",
-        estimatedStartDate: formatDateForInput(quote.estimatedStartDate),
-        estimatedCompletionDate: formatDateForInput(quote.estimatedCompletionDate),
-        downPaymentPercentage: quote.downPaymentPercentage || 0,
-        milestonePaymentPercentage: quote.milestonePaymentPercentage || 0,
-        finalPaymentPercentage: quote.finalPaymentPercentage || 0,
-        milestoneDescription: quote.milestoneDescription || "",
+        title: workingQuote.title || "",
+        description: workingQuote.description || "",
+        quoteNumber: workingQuote.quoteNumber || "",
+        status: workingQuote.status || "draft",
+        validUntil: formatDateForInput(workingQuote.validUntil),
+        customerName: workingQuote.customerName || "",
+        customerEmail: workingQuote.customerEmail || "",
+        customerPhone: workingQuote.customerPhone || "",
+        customerAddress: workingQuote.customerAddress || "",
+        projectType: workingQuote.projectType || "",
+        location: workingQuote.location || "",
+        scopeDescription: workingQuote.scopeDescription || "",
+        projectNotes: workingQuote.projectNotes || "",
+        estimatedStartDate: formatDateForInput(workingQuote.estimatedStartDate),
+        estimatedCompletionDate: formatDateForInput(workingQuote.estimatedCompletionDate),
+        downPaymentPercentage: workingQuote.downPaymentPercentage || 0,
+        milestonePaymentPercentage: workingQuote.milestonePaymentPercentage || 0,
+        finalPaymentPercentage: workingQuote.finalPaymentPercentage || 0,
+        milestoneDescription: workingQuote.milestoneDescription || "",
+      });
+
+      setFinancialData({
+        taxRate: Number(workingQuote.taxRate) || 0,
+        discountAmount: Number(workingQuote.discountAmount) || 0,
+        discountPercentage: Number(workingQuote.discountPercentage) || 0,
       });
     }
-  }, [open, quote]);
+  }, [open, workingQuote]);
 
   const updateQuoteMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
+    mutationFn: async (data: typeof formData & typeof financialData) => {
       return await apiRequest("PATCH", `/api/quotes/${quote.id}`, data);
     },
     onSuccess: (updatedQuote) => {
@@ -115,6 +149,72 @@ export function SimpleEditQuoteDialog({ quote, open, onOpenChange }: SimpleEditQ
     },
   });
 
+  const createLineItemMutation = useMutation({
+    mutationFn: async (lineItemData: typeof newLineItem) => {
+      return await apiRequest("POST", `/api/quotes/${quote.id}/line-items`, lineItemData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Line Item Added",
+        description: "Line item has been added successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/quotes/${quote.id}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      setNewLineItem({ description: "", quantity: 1, unitPrice: 0, category: "" });
+      setShowCreateLineItem(false);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to add line item",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateLineItemMutation = useMutation({
+    mutationFn: async ({ lineItemId, data }: { lineItemId: number; data: Partial<QuoteLineItem> }) => {
+      return await apiRequest("PATCH", `/api/quotes/${quote.id}/line-items/${lineItemId}`, data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Line Item Updated",
+        description: "Line item has been updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/quotes/${quote.id}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      setEditingLineItem(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update line item",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteLineItemMutation = useMutation({
+    mutationFn: async (lineItemId: number) => {
+      return await apiRequest("DELETE", `/api/quotes/${quote.id}/line-items/${lineItemId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Line Item Deleted",
+        description: "Line item has been deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/quotes/${quote.id}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete line item",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -129,7 +229,7 @@ export function SimpleEditQuoteDialog({ quote, open, onOpenChange }: SimpleEditQ
       return;
     }
     
-    updateQuoteMutation.mutate(formData);
+    updateQuoteMutation.mutate({ ...formData, ...financialData });
   };
 
   const handleInputChange = (field: string, value: any) => {
