@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Check, X, MessageSquare, Calendar, MapPin, Clock, Phone, Mail, Shield, Award, Star, FileText, DollarSign, Calculator, Wrench, Home, Hammer, Zap, Paintbrush, Users, Package, Truck, HardHat } from "lucide-react";
+import { Check, X, MessageSquare, Calendar, MapPin, Clock, Phone, Mail, Shield, Award, Star, FileText, DollarSign, Calculator, Wrench, Home, Hammer, Zap, Paintbrush, Users, Package, Truck, HardHat, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,11 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency } from "@/lib/utils";
 import kolmoLogo from "@assets/kolmo-logo (1).png";
+import {
+  ReactCompareSlider,
+  ReactCompareSliderImage,
+  ReactCompareSliderHandle
+} from 'react-compare-slider';
 
 interface QuoteResponse {
   id: number;
@@ -102,6 +107,7 @@ export default function CustomerQuotePage() {
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [message, setMessage] = useState("");
+  const [showBeforeAfter, setShowBeforeAfter] = useState(true);
   const { toast } = useToast();
 
   const { data: quote, isLoading, error } = useQuery({
@@ -446,42 +452,132 @@ export default function CustomerQuotePage() {
           </div>
         )}
 
-        {/* Before/After Images */}
+        {/* Before/After Images with Interactive Slider */}
         {(quoteData.beforeImageUrl || quoteData.afterImageUrl) && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Project Transformation</CardTitle>
-              <CardDescription>Conceptual view - not for acceptance</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {quoteData.beforeImageUrl && (
-                  <div className="text-center">
-                    <img 
-                      src={quoteData.beforeImageUrl} 
-                      alt="Before" 
-                      className="w-full h-48 object-cover rounded-lg mb-2"
-                    />
-                    <p className="text-sm text-gray-600">{quoteData.beforeImageCaption || "Before"}</p>
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Eye className="h-6 w-6" style={{color: '#db973c'}} />
+                  <div>
+                    <h3 className="text-xl font-bold" style={{color: '#1a1a1a'}}>Project Transformation</h3>
+                    <p style={{color: '#4a6670'}}>Interactive before & after comparison</p>
                   </div>
-                )}
-                {quoteData.afterImageUrl && (
-                  <div className="text-center">
-                    <img 
-                      src={quoteData.afterImageUrl} 
-                      alt="After" 
-                      className="w-full h-48 object-cover rounded-lg mb-2"
-                    />
-                    <p className="text-sm text-gray-600">{quoteData.afterImageCaption || "After"}</p>
+                </div>
+                <Button
+                  onClick={() => setShowBeforeAfter(!showBeforeAfter)}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  {showBeforeAfter ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showBeforeAfter ? "Hide" : "Show"} Images
+                </Button>
+              </div>
+            </div>
+            {showBeforeAfter && (
+              <div className="p-6">
+                {quoteData.beforeImageUrl && quoteData.afterImageUrl ? (
+                  <div className="space-y-4">
+                    <div className="relative rounded-xl overflow-hidden shadow-lg">
+                      <ReactCompareSlider
+                        itemOne={
+                          <ReactCompareSliderImage 
+                            src={quoteData.beforeImageUrl} 
+                            alt="Before" 
+                            style={{ objectFit: 'cover', width: '100%', height: '400px' }}
+                          />
+                        }
+                        itemTwo={
+                          <ReactCompareSliderImage 
+                            src={quoteData.afterImageUrl} 
+                            alt="After" 
+                            style={{ objectFit: 'cover', width: '100%', height: '400px' }}
+                          />
+                        }
+                        position={50}
+                        handle={
+                          <ReactCompareSliderHandle
+                            buttonStyle={{
+                              backdropFilter: undefined,
+                              background: '#db973c',
+                              border: '2px solid white',
+                              color: 'white',
+                              borderRadius: '50%',
+                              width: '44px',
+                              height: '44px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+                            }}
+                            linesStyle={{
+                              background: '#db973c',
+                              boxShadow: '0 0 8px rgba(219, 151, 60, 0.3)'
+                            }}
+                          />
+                        }
+                        style={{
+                          width: '100%',
+                          height: '400px',
+                          borderRadius: '12px',
+                          overflow: 'hidden'
+                        }}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-center">
+                      <div className="p-3 rounded-lg" style={{backgroundColor: '#f5f5f5'}}>
+                        <p className="font-semibold mb-1" style={{color: '#1a1a1a'}}>Before</p>
+                        <p className="text-sm" style={{color: '#4a6670'}}>
+                          {quoteData.beforeImageCaption || "Current state"}
+                        </p>
+                      </div>
+                      <div className="p-3 rounded-lg" style={{backgroundColor: '#f5f5f5'}}>
+                        <p className="font-semibold mb-1" style={{color: '#1a1a1a'}}>After</p>
+                        <p className="text-sm" style={{color: '#4a6670'}}>
+                          {quoteData.afterImageCaption || "Transformed result"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-center p-4 rounded-xl" style={{backgroundColor: '#f5f5f5'}}>
+                      <p className="text-sm" style={{color: '#4a6670'}}>
+                        <strong>Interactive Comparison:</strong> Drag the slider to see the transformation. 
+                        This represents the level of quality and craftsmanship you can expect for your project.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  // Fallback for when only one image is available
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {quoteData.beforeImageUrl && (
+                      <div className="text-center">
+                        <img 
+                          src={quoteData.beforeImageUrl} 
+                          alt="Before" 
+                          className="w-full h-64 object-cover rounded-lg mb-2"
+                        />
+                        <p className="text-sm" style={{color: '#4a6670'}}>
+                          {quoteData.beforeImageCaption || "Before"}
+                        </p>
+                      </div>
+                    )}
+                    {quoteData.afterImageUrl && (
+                      <div className="text-center">
+                        <img 
+                          src={quoteData.afterImageUrl} 
+                          alt="After" 
+                          className="w-full h-64 object-cover rounded-lg mb-2"
+                        />
+                        <p className="text-sm" style={{color: '#4a6670'}}>
+                          {quoteData.afterImageCaption || "After"}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-              <p className="text-sm text-gray-600 mt-4 text-center">
-                <strong>Professional Transformation:</strong> See the quality difference our expert craftsmanship makes. 
-                This is the level of excellence you can expect for your project.
-              </p>
-            </CardContent>
-          </Card>
+            )}
+          </div>
         )}
 
         {/* Quote Summary */}
