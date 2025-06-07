@@ -107,6 +107,7 @@ export default function CustomerQuotePage() {
   const [showResponse, setShowResponse] = useState(false);
   const [showDeclineReason, setShowDeclineReason] = useState(false);
   const [showAcceptSummary, setShowAcceptSummary] = useState(false);
+  const [showDeclineConfirm, setShowDeclineConfirm] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -153,12 +154,25 @@ export default function CustomerQuotePage() {
       }
       return await apiRequest(`/api/quotes/public/${token}/respond`, "POST", data);
     },
-    onSuccess: () => {
-      toast({
-        title: "Response Sent",
-        description: "Your response has been sent successfully",
-      });
+    onSuccess: (data, variables) => {
+      if (variables.action === 'declined') {
+        toast({
+          title: "Thank You for Your Feedback",
+          description: "We appreciate you taking the time to let us know. We'll be in touch if we can help in the future.",
+        });
+      } else {
+        toast({
+          title: "Response Sent",
+          description: "Your response has been sent successfully",
+        });
+      }
+      
+      // Close all modals
       setShowResponse(false);
+      setShowDeclineConfirm(false);
+      setShowDeclineReason(false);
+      setMessage("");
+      
       // Refresh the quote data
       window.location.reload();
     },
@@ -197,7 +211,7 @@ export default function CustomerQuotePage() {
     window.location.href = `/quote-payment/${quoteData.id}`;
   };
 
-  const handleResponse = (action: 'accepted' | 'declined') => {
+  const handleDecline = () => {
     const quoteData = quote as QuoteResponse;
     
     // Use existing customer information from the quote
@@ -213,29 +227,43 @@ export default function CustomerQuotePage() {
       return;
     }
 
-    // For decline, validate that a reason is provided
-    if (action === 'declined' && !message.trim()) {
-      toast({
-        title: "Reason Required",
-        description: "Please provide a reason for declining this proposal",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Show decline confirmation modal
+    setShowDeclineConfirm(true);
+    setShowResponse(false);
+  };
 
-    if (action === 'accepted') {
-      // For acceptance, show summary modal
-      handleAccept();
-      return;
-    }
+  const handleDeclineWithFeedback = () => {
+    const quoteData = quote as QuoteResponse;
+    const finalCustomerName = customerName || quoteData?.customerName || '';
+    const finalCustomerEmail = customerEmail || quoteData?.customerEmail || '';
 
-    // For decline, submit the response
     respondMutation.mutate({
-      action,
+      action: 'declined',
       customerName: finalCustomerName,
       customerEmail: finalCustomerEmail,
-      message,
+      message: message || 'No feedback provided',
     });
+  };
+
+  const handleDeclineWithoutFeedback = () => {
+    const quoteData = quote as QuoteResponse;
+    const finalCustomerName = customerName || quoteData?.customerName || '';
+    const finalCustomerEmail = customerEmail || quoteData?.customerEmail || '';
+
+    respondMutation.mutate({
+      action: 'declined',
+      customerName: finalCustomerName,
+      customerEmail: finalCustomerEmail,
+      message: 'No feedback provided',
+    });
+  };
+
+  const handleResponse = (action: 'accepted' | 'declined') => {
+    if (action === 'accepted') {
+      handleAccept();
+    } else if (action === 'declined') {
+      handleDecline();
+    }
   };
 
   const formatCurrency = (amount: string) => {
@@ -418,7 +446,7 @@ export default function CustomerQuotePage() {
                 </Button>
                 <Button 
                   variant="outline" 
-                  onClick={() => setShowResponse(true)}
+                  onClick={handleDecline}
                   className="px-8 py-3 text-white border-white/30"
                   style={{backgroundColor: 'rgba(255,255,255,0.1)'}}
                   onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)'}
@@ -994,6 +1022,82 @@ export default function CustomerQuotePage() {
           </div>
         </div>
       </div>
+
+      {/* Decline Confirmation Modal */}
+      {showDeclineConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="max-w-md w-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="h-6 w-6 text-blue-600" />
+                Help Us Improve
+              </CardTitle>
+              <CardDescription>
+                We understand this proposal isn't the right fit. Would you mind sharing why? Your feedback helps us serve you better in the future.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Customer Info Summary */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-sm font-medium text-gray-700 mb-2">Declining Quote For:</div>
+                  <div className="font-semibold">{quoteData?.customerName || customerName}</div>
+                  <div className="text-sm text-gray-600">{quoteData?.customerEmail || customerEmail}</div>
+                </div>
+
+                {/* Optional Feedback */}
+                <div>
+                  <Label htmlFor="feedback" className="text-sm font-medium">
+                    What made this proposal not quite right? <span className="text-gray-500">(Optional)</span>
+                  </Label>
+                  <Textarea
+                    id="feedback"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="e.g., Budget concerns, timeline doesn't work, different scope needed..."
+                    className="min-h-[80px] mt-2"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    This helps us create better proposals for you and future customers
+                  </p>
+                </div>
+
+                {/* Relationship Preservation */}
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="text-sm font-medium text-blue-800 mb-1">We'd love to work with you in the future</div>
+                  <div className="text-sm text-blue-700">
+                    Feel free to reach out if your needs change or you'd like to discuss alternative options.
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+            <div className="flex justify-between p-6 pt-0">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowDeclineConfirm(false)}
+              >
+                Back to Quote
+              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleDeclineWithoutFeedback}
+                  disabled={respondMutation.isPending}
+                >
+                  Skip Feedback
+                </Button>
+                <Button
+                  onClick={handleDeclineWithFeedback}
+                  disabled={respondMutation.isPending}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {message.trim() ? 'Send Feedback' : 'Decline Quote'}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Accept Summary Modal */}
       {showAcceptSummary && (
