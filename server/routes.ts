@@ -24,6 +24,7 @@ import dailyLogRouter from "@server/routes/dailyLog.routes"; // Assuming you hav
 import punchListRouter from "@server/routes/punchList.routes"; // Assuming you have this file
 import ragRouter from "./routes/rag-routes"; // RAG system router
 import quoteRouter from "./routes/quote.routes"; // Quote system router
+import quoteAnalyticsRouter from "./routes/quote-analytics.routes"; // Quote analytics router
 
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
 // Import other routers as needed (milestones, selections, admin, etc.)

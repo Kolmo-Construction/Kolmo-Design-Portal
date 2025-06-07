@@ -438,6 +438,72 @@ export const quoteAccessTokens = pgTable("quote_access_tokens", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Quote analytics table for tracking customer interactions
+export const quoteAnalytics = pgTable("quote_analytics", {
+  id: serial("id").primaryKey(),
+  quoteId: integer("quote_id").notNull().references(() => quotes.id, { onDelete: 'cascade' }),
+  
+  // Event tracking
+  event: text("event").notNull(), // "view", "section_view", "download", "response_click", "email_open"
+  eventData: jsonb("event_data"), // Additional data specific to the event
+  
+  // Session tracking
+  sessionId: text("session_id"), // Track user sessions
+  
+  // Device and browser info
+  userAgent: text("user_agent"),
+  deviceType: text("device_type"), // "desktop", "mobile", "tablet"
+  browser: text("browser"),
+  operatingSystem: text("operating_system"),
+  screenResolution: text("screen_resolution"),
+  
+  // Location and network
+  ipAddress: text("ip_address"),
+  country: text("country"),
+  city: text("city"),
+  timezone: text("timezone"),
+  
+  // Engagement metrics
+  timeOnPage: integer("time_on_page"), // seconds
+  scrollDepth: integer("scroll_depth"), // percentage
+  
+  // Referrer information
+  referrer: text("referrer"),
+  utmSource: text("utm_source"),
+  utmMedium: text("utm_medium"),
+  utmCampaign: text("utm_campaign"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Quote view sessions for tracking quote access patterns
+export const quoteViewSessions = pgTable("quote_view_sessions", {
+  id: serial("id").primaryKey(),
+  quoteId: integer("quote_id").notNull().references(() => quotes.id, { onDelete: 'cascade' }),
+  sessionId: text("session_id").notNull(),
+  
+  // Session details
+  startTime: timestamp("start_time").defaultNow().notNull(),
+  lastActivity: timestamp("last_activity").defaultNow().notNull(),
+  totalDuration: integer("total_duration").default(0), // seconds
+  pageViews: integer("page_views").default(1),
+  
+  // Device fingerprint
+  deviceFingerprint: text("device_fingerprint"),
+  
+  // Engagement metrics
+  maxScrollDepth: integer("max_scroll_depth").default(0),
+  sectionsViewed: jsonb("sections_viewed"), // Array of section names viewed
+  actionsPerformed: jsonb("actions_performed"), // Array of actions like clicks, downloads
+  
+  // Customer identification
+  customerEmail: text("customer_email"),
+  customerName: text("customer_name"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 
 
 
@@ -583,6 +649,41 @@ export const punchListItemRelations = relations(punchListItems, ({ one, many }) 
   assignee: one(users, { fields: [punchListItems.assigneeId], references: [users.id], relationName: 'PunchListAssignee' }),
   creator: one(users, { fields: [punchListItems.createdById], references: [users.id] }),
   media: many(updateMedia),
+}));
+
+// Quote relations
+export const quoteRelations = relations(quotes, ({ many }) => ({
+  lineItems: many(quoteLineItems),
+  media: many(quoteMedia),
+  responses: many(quoteResponses),
+  accessTokens: many(quoteAccessTokens),
+  analytics: many(quoteAnalytics),
+  viewSessions: many(quoteViewSessions),
+}));
+
+export const quoteLineItemRelations = relations(quoteLineItems, ({ one }) => ({
+  quote: one(quotes, { fields: [quoteLineItems.quoteId], references: [quotes.id] }),
+}));
+
+export const quoteMediaRelations = relations(quoteMedia, ({ one }) => ({
+  quote: one(quotes, { fields: [quoteMedia.quoteId], references: [quotes.id] }),
+  uploader: one(users, { fields: [quoteMedia.uploadedById], references: [users.id] }),
+}));
+
+export const quoteResponseRelations = relations(quoteResponses, ({ one }) => ({
+  quote: one(quotes, { fields: [quoteResponses.quoteId], references: [quotes.id] }),
+}));
+
+export const quoteAccessTokenRelations = relations(quoteAccessTokens, ({ one }) => ({
+  quote: one(quotes, { fields: [quoteAccessTokens.quoteId], references: [quotes.id] }),
+}));
+
+export const quoteAnalyticsRelations = relations(quoteAnalytics, ({ one }) => ({
+  quote: one(quotes, { fields: [quoteAnalytics.quoteId], references: [quotes.id] }),
+}));
+
+export const quoteViewSessionRelations = relations(quoteViewSessions, ({ one }) => ({
+  quote: one(quotes, { fields: [quoteViewSessions.quoteId], references: [quotes.id] }),
 }));
 
 
