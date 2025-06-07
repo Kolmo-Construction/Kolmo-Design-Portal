@@ -127,7 +127,7 @@ export function SimpleEditQuoteDialog({ quote, open, onOpenChange }: SimpleEditQ
   }, [open, workingQuote]);
 
   const updateQuoteMutation = useMutation({
-    mutationFn: async (data: typeof formData & typeof financialData) => {
+    mutationFn: async (data: any) => {
       return await apiRequest("PATCH", `/api/quotes/${quote.id}`, data);
     },
     onSuccess: (updatedQuote) => {
@@ -236,6 +236,36 @@ export function SimpleEditQuoteDialog({ quote, open, onOpenChange }: SimpleEditQ
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleFinancialChange = (field: string, value: any) => {
+    setFinancialData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const formatCurrency = (amount: string | number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(parseFloat(amount.toString()));
+  };
+
+  const calculateFinancials = () => {
+    const lineItems = workingQuote?.lineItems || [];
+    const subtotal = lineItems.reduce((sum, item) => sum + parseFloat(item.totalPrice || "0"), 0);
+    
+    let discountedSubtotal = subtotal;
+    if (financialData.discountPercentage > 0) {
+      discountedSubtotal = subtotal * (1 - financialData.discountPercentage / 100);
+    } else if (financialData.discountAmount > 0) {
+      discountedSubtotal = subtotal - financialData.discountAmount;
+    }
+    
+    const taxAmount = discountedSubtotal * (financialData.taxRate / 100);
+    const total = discountedSubtotal + taxAmount;
+    
+    return { subtotal, discountedSubtotal, taxAmount, total };
+  };
+
+  const { subtotal, discountedSubtotal, taxAmount, total } = calculateFinancials();
+
   const projectTypes = [
     "Kitchen Renovation",
     "Bathroom Renovation", 
@@ -256,17 +286,25 @@ export function SimpleEditQuoteDialog({ quote, open, onOpenChange }: SimpleEditQ
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Quote</DialogTitle>
+          <DialogTitle>Edit Quote - {workingQuote?.quoteNumber}</DialogTitle>
           <DialogDescription>
-            Update quote information, customer details, project specifications, and payment terms
+            Comprehensive quote editing with line items, financials, taxes, and discounts
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          
-          {/* Basic Quote Information */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="basic">Basic Info</TabsTrigger>
+            <TabsTrigger value="lineitems">Line Items</TabsTrigger>
+            <TabsTrigger value="financials">Financials</TabsTrigger>
+            <TabsTrigger value="payment">Payment</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="basic" className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Basic Quote Information */}
           <Card>
             <CardHeader>
               <CardTitle>Quote Information</CardTitle>
@@ -509,22 +547,255 @@ export function SimpleEditQuoteDialog({ quote, open, onOpenChange }: SimpleEditQ
             </CardContent>
           </Card>
 
-          <div className="flex justify-end space-x-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={updateQuoteMutation.isPending}
-            >
-              {updateQuoteMutation.isPending ? "Updating..." : "Update Quote"}
-            </Button>
-          </div>
-        </form>
+              <div className="flex justify-end space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={updateQuoteMutation.isPending}
+                >
+                  {updateQuoteMutation.isPending ? "Updating..." : "Update Quote"}
+                </Button>
+              </div>
+            </form>
+          </TabsContent>
+
+          <TabsContent value="lineitems" className="space-y-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>Line Items</CardTitle>
+                  <Button
+                    type="button"
+                    onClick={() => setShowCreateLineItem(true)}
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Item
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {workingQuote?.lineItems && workingQuote.lineItems.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Category</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Qty</TableHead>
+                          <TableHead>Unit Price</TableHead>
+                          <TableHead>Total</TableHead>
+                          <TableHead></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {workingQuote.lineItems.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell>{item.category}</TableCell>
+                            <TableCell>{item.description}</TableCell>
+                            <TableCell>{item.quantity}</TableCell>
+                            <TableCell>{formatCurrency(item.unitPrice)}</TableCell>
+                            <TableCell>{formatCurrency(item.totalPrice)}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setEditingLineItem(item)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => deleteLineItemMutation.mutate(item.id)}
+                                  disabled={deleteLineItemMutation.isPending}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      No line items added yet. Click "Add Item" to get started.
+                    </div>
+                  )}
+
+                  {/* Add New Line Item Form */}
+                  {showCreateLineItem && (
+                    <div className="mt-6 p-4 border rounded-lg bg-gray-50">
+                      <h4 className="font-medium mb-4">Add New Line Item</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="newItemCategory">Category</Label>
+                          <Select
+                            value={newLineItem.category}
+                            onValueChange={(value) => setNewLineItem(prev => ({ ...prev, category: value }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Labor">Labor</SelectItem>
+                              <SelectItem value="Materials">Materials</SelectItem>
+                              <SelectItem value="Equipment">Equipment</SelectItem>
+                              <SelectItem value="Permits">Permits</SelectItem>
+                              <SelectItem value="Other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="newItemQuantity">Quantity</Label>
+                          <Input
+                            id="newItemQuantity"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={newLineItem.quantity}
+                            onChange={(e) => setNewLineItem(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 0 }))}
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <Label htmlFor="newItemDescription">Description</Label>
+                          <Input
+                            id="newItemDescription"
+                            value={newLineItem.description}
+                            onChange={(e) => setNewLineItem(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="Enter item description"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="newItemUnitPrice">Unit Price</Label>
+                          <Input
+                            id="newItemUnitPrice"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={newLineItem.unitPrice}
+                            onChange={(e) => setNewLineItem(prev => ({ ...prev, unitPrice: parseFloat(e.target.value) || 0 }))}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2 mt-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setShowCreateLineItem(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => createLineItemMutation.mutate(newLineItem)}
+                          disabled={createLineItemMutation.isPending || !newLineItem.description || !newLineItem.category}
+                        >
+                          {createLineItemMutation.isPending ? "Adding..." : "Add Item"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="financials" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Financial Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="taxRate">Tax Rate (%)</Label>
+                        <Input
+                          id="taxRate"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={financialData.taxRate}
+                          onChange={(e) => handleFinancialChange("taxRate", parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="discountPercentage">Discount (%)</Label>
+                        <Input
+                          id="discountPercentage"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={financialData.discountPercentage}
+                          onChange={(e) => handleFinancialChange("discountPercentage", parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="discountAmount">Discount Amount ($)</Label>
+                        <Input
+                          id="discountAmount"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={financialData.discountAmount}
+                          onChange={(e) => handleFinancialChange("discountAmount", parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
+                      <h4 className="font-medium">Calculated Totals</h4>
+                      <div className="flex justify-between">
+                        <span>Subtotal:</span>
+                        <span>{formatCurrency(subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>After Discount:</span>
+                        <span>{formatCurrency(discountedSubtotal)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Tax ({financialData.taxRate}%):</span>
+                        <span>{formatCurrency(taxAmount)}</span>
+                      </div>
+                      <div className="flex justify-between text-lg font-bold">
+                        <span>Total:</span>
+                        <span className="text-green-600">{formatCurrency(total)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <div className="flex justify-end space-x-2 mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={updateQuoteMutation.isPending}
+              >
+                {updateQuoteMutation.isPending ? "Updating..." : "Update Quote"}
+              </Button>
+            </div>
+          </form>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

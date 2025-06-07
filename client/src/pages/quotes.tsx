@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { CreateQuoteDialog } from "@/components/quotes/CreateQuoteDialog";
 import { QuoteDetailsDialog } from "@/components/quotes/QuoteDetailsDialog";
-import { SimpleEditQuoteDialog } from "@/components/quotes/SimpleEditQuoteDialog";
+import { ComprehensiveEditQuoteDialog } from "@/components/quotes/ComprehensiveEditQuoteDialog";
 import { apiRequest } from "@/lib/queryClient";
 import { QuoteWithDetails } from "@shared/schema";
 
@@ -240,7 +240,7 @@ export default function QuotesPage() {
       )}
 
       {editingQuote && (
-        <SimpleEditQuoteDialog
+        <ComprehensiveEditQuoteDialog
           quote={editingQuote}
           open={!!editingQuote}
           onOpenChange={(open) => !open && setEditingQuote(null)}
