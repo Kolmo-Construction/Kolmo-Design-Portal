@@ -1,18 +1,22 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, FileText, Send, Edit, Trash2, Eye } from "lucide-react";
+import { Plus, FileText, Send, Edit, Trash2, Eye, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { CreateQuoteDialog } from "@/components/quotes/CreateQuoteDialog";
 import { QuoteDetailsDialog } from "@/components/quotes/QuoteDetailsDialog";
+import QuoteAnalyticsDashboard from "@/components/quotes/QuoteAnalyticsDashboard";
 import { apiRequest } from "@/lib/queryClient";
 import { QuoteWithDetails } from "@shared/schema";
 
 export default function QuotesPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<QuoteWithDetails | null>(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [analyticsQuoteId, setAnalyticsQuoteId] = useState<number | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -201,6 +205,18 @@ export default function QuotesPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => {
+                        setAnalyticsQuoteId(quote.id);
+                        setShowAnalytics(true);
+                      }}
+                      className="flex items-center gap-1"
+                    >
+                      <BarChart3 className="h-4 w-4" />
+                      Analytics
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => setSelectedQuote(quote)}
                       className="flex items-center gap-1"
                     >
@@ -237,6 +253,17 @@ export default function QuotesPage() {
           onOpenChange={(open) => !open && setSelectedQuote(null)}
         />
       )}
+
+      <Dialog open={showAnalytics} onOpenChange={setShowAnalytics}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Quote Analytics Dashboard</DialogTitle>
+          </DialogHeader>
+          {analyticsQuoteId && (
+            <QuoteAnalyticsDashboard quoteId={analyticsQuoteId} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
