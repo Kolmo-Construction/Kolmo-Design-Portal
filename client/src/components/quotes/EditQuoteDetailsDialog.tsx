@@ -112,7 +112,8 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
     mutationFn: async (updatedData: any) => {
       console.log("Sending update request with data:", updatedData);
       try {
-        const result = await apiRequest("/api/quotes/" + quote.id, "PATCH", updatedData);
+        const response = await apiRequest("PATCH", `/api/quotes/${quote.id}`, updatedData);
+        const result = await response.json();
         console.log("Update request successful:", result);
         return result;
       } catch (error) {
