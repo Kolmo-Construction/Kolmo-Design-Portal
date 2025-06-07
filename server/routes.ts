@@ -25,6 +25,7 @@ import punchListRouter from "@server/routes/punchList.routes"; // Assuming you h
 import ragRouter from "./routes/rag-routes"; // RAG system router
 import quoteRouter from "./routes/quote.routes"; // Quote system router
 import quoteAnalyticsRouter from "./routes/quote-analytics.routes"; // Quote analytics router
+import { paymentRoutes } from "./routes/payment.routes"; // Payment processing router
 
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
 // Import other routers as needed (milestones, selections, admin, etc.)
@@ -159,6 +160,9 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // Mount Quote Analytics routes (mixed auth - public tracking, admin analytics)
   app.use("/api", quoteAnalyticsRouter);
+
+  // Mount Payment routes (mixed auth - public payment processing, admin invoice management)
+  app.use("/api", paymentRoutes);
 
   // Mount Storage/R2 routes with mixed authentication
   app.use("/api/storage", storageRoutes);

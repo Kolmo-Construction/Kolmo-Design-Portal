@@ -534,3 +534,24 @@ export class QuoteRepository {
     }
   }
 }
+
+// Define interface for dependency injection
+export interface IQuoteRepository {
+  getAllQuotes(): Promise<any[]>;
+  getQuoteById(id: number): Promise<any | null>;
+  getQuoteByAccessToken(token: string): Promise<any | null>;
+  createQuote(data: InsertQuote): Promise<any>;
+  updateQuote(id: number, data: Partial<InsertQuote>): Promise<any>;
+  deleteQuote(id: number): Promise<boolean>;
+  sendQuote(quoteId: number): Promise<any>;
+  uploadQuoteImage(quoteId: number, imageData: any): Promise<any>;
+  getLineItems(quoteId: number): Promise<any[]>;
+  createLineItem(quoteId: number, data: any): Promise<any>;
+  updateLineItem(id: number, data: any): Promise<any>;
+  deleteLineItem(id: number): Promise<boolean>;
+  respondToQuote(token: string, data: InsertQuoteResponse): Promise<any>;
+  updateQuoteFinancials(quoteId: number, financials: any): Promise<any>;
+}
+
+// Export an instance for convenience
+export const quoteRepository = new QuoteRepository();

@@ -31,6 +31,7 @@ export interface StorageAggregate {
     dailyLogs: IDailyLogRepository;
     punchLists: IPunchListRepository; // Use interface
     media: IMediaRepository;
+    quotes: IQuoteRepository;
     sessionStore: session.Store;
 }
 
@@ -57,6 +58,7 @@ export const storage: StorageAggregate = {
     dailyLogs: dailyLogRepository,
     punchLists: punchListRepositoryInstance, // Use the newly created instance
     media: mediaRepository,
+    quotes: quoteRepository,
     sessionStore,
 };
 
