@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Check, X, MessageSquare, Calendar, MapPin, Clock, Phone, Mail, Shield, Award, Star, FileText, DollarSign, Calculator, Wrench, Home, Hammer, Zap, Paintbrush, Users, Package, Truck, HardHat, Eye, EyeOff } from "lucide-react";
+import QuoteAnalytics from "@/lib/quote-analytics";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -109,6 +110,7 @@ export default function CustomerQuotePage() {
   const [message, setMessage] = useState("");
   const [showBeforeAfter, setShowBeforeAfter] = useState(true);
   const { toast } = useToast();
+  const analyticsRef = useRef<QuoteAnalytics | null>(null);
 
   const { data: quote, isLoading, error } = useQuery({
     queryKey: [`/api/quotes/public/${token}`],
@@ -116,8 +118,33 @@ export default function CustomerQuotePage() {
     retry: false,
   });
 
+  // Initialize analytics when quote data is loaded
+  useEffect(() => {
+    if (quote?.id && !analyticsRef.current) {
+      analyticsRef.current = new QuoteAnalytics(quote.id);
+    }
+    
+    return () => {
+      if (analyticsRef.current) {
+        analyticsRef.current.destroy();
+        analyticsRef.current = null;
+      }
+    };
+  }, [quote?.id]);
+
+  // Track customer info when entered
+  useEffect(() => {
+    if (analyticsRef.current && (customerName || customerEmail)) {
+      analyticsRef.current.trackCustomerInfo(customerEmail, customerName);
+    }
+  }, [customerName, customerEmail]);
+
   const respondMutation = useMutation({
     mutationFn: async (data: { action: string; customerName: string; customerEmail: string; message: string }) => {
+      // Track form submission
+      if (analyticsRef.current) {
+        analyticsRef.current.trackFormSubmission('quote_response', { action: data.action });
+      }
       return await apiRequest(`/api/quotes/public/${token}/respond`, "POST", data);
     },
     onSuccess: () => {

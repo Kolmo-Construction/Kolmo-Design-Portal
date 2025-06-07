@@ -157,6 +157,9 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // Mount Quote system routes
   app.use("/api/quotes", quoteRouter);
 
+  // Mount Quote Analytics routes (mixed auth - public tracking, admin analytics)
+  app.use("/api", quoteAnalyticsRouter);
+
   // Mount Storage/R2 routes with mixed authentication
   app.use("/api/storage", storageRoutes);
 
