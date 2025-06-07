@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { QuoteRepository } from "../storage/repositories/quote.repository";
 import { createInsertSchema } from "drizzle-zod";
 import { quotes, quoteLineItems, quoteResponses } from "@shared/schema";
+import { uploadToR2, deleteFromR2 } from "../r2-upload";
 import { z } from "zod";
 import { sendEmail } from "../email";
 
@@ -307,10 +308,18 @@ export class QuoteController {
 
       const caption = req.body.caption || '';
       
+      // Upload file to R2 storage
+      const uploadResult = await uploadToR2({
+        buffer: req.file.buffer,
+        fileName: req.file.originalname,
+        mimetype: req.file.mimetype,
+        path: `quotes/${quoteId}/${imageType}`,
+      });
+      
       // Update the quote with the new image URL and caption
       const updateData = imageType === 'before' 
-        ? { beforeImageUrl: req.file.path || req.file.filename, beforeImageCaption: caption }
-        : { afterImageUrl: req.file.path || req.file.filename, afterImageCaption: caption };
+        ? { beforeImageUrl: uploadResult.url, beforeImageCaption: caption }
+        : { afterImageUrl: uploadResult.url, afterImageCaption: caption };
 
       const updatedQuote = await this.quoteRepository.updateQuote(quoteId, updateData);
       
@@ -320,7 +329,7 @@ export class QuoteController {
 
       res.status(200).json({
         message: `${imageType} image uploaded successfully`,
-        imageUrl: req.file.path || req.file.filename,
+        imageUrl: uploadResult.url,
         caption: caption
       });
     } catch (error) {
@@ -374,6 +383,26 @@ export class QuoteController {
 
       if (!['before', 'after'].includes(imageType)) {
         return res.status(400).json({ error: "Image type must be 'before' or 'after'" });
+      }
+
+      // Get the current quote to find the image URL for deletion
+      const currentQuote = await this.quoteRepository.getQuoteById(quoteId);
+      if (!currentQuote) {
+        return res.status(404).json({ error: "Quote not found" });
+      }
+
+      // Extract the R2 key from the image URL for deletion
+      const imageUrl = imageType === 'before' ? currentQuote.beforeImageUrl : currentQuote.afterImageUrl;
+      if (imageUrl) {
+        try {
+          // Extract the key from the R2 URL (assuming format: https://domain/key)
+          const urlParts = imageUrl.split('/');
+          const key = urlParts.slice(3).join('/'); // Remove protocol and domain
+          await deleteFromR2(key);
+        } catch (deleteError) {
+          console.warn(`Failed to delete image from R2: ${deleteError}`);
+          // Continue with database update even if R2 deletion fails
+        }
       }
 
       const updateData = imageType === 'before' 

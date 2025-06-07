@@ -6,9 +6,9 @@ import { QuoteController } from "../controllers/quote.controller";
 const router = Router();
 const quoteController = new QuoteController();
 
-// Configure multer for file uploads
+// Configure multer for memory storage (for R2 upload)
 const upload = multer({
-  dest: 'uploads/quotes/',
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
