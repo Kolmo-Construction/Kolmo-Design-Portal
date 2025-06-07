@@ -13,6 +13,7 @@ import { IMessageRepository, messageRepository } from './repositories/message.re
 import { IProgressUpdateRepository, progressUpdateRepository } from './repositories/progressUpdate.repository';
 import { IDailyLogRepository, dailyLogRepository } from './repositories/dailyLog.repository';
 import { IMediaRepository, mediaRepository } from './repositories/media.repository'; // Import instance for injection
+import { IQuoteRepository, quoteRepository } from './repositories/quote.repository';
 
 // *** ADDED: Import PunchListRepository CLASS and INTERFACE ***
 import { PunchListRepository, IPunchListRepository } from './repositories/punchList.repository';
