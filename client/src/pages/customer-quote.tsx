@@ -120,8 +120,9 @@ export default function CustomerQuotePage() {
 
   // Initialize analytics when quote data is loaded
   useEffect(() => {
-    if (quote?.id && !analyticsRef.current) {
-      analyticsRef.current = new QuoteAnalytics(quote.id);
+    const quoteData = quote as QuoteResponse;
+    if (quoteData?.id && !analyticsRef.current) {
+      analyticsRef.current = new QuoteAnalytics(quoteData.id);
     }
     
     return () => {
@@ -130,7 +131,7 @@ export default function CustomerQuotePage() {
         analyticsRef.current = null;
       }
     };
-  }, [quote?.id]);
+  }, [quote]);
 
   // Track customer info when entered
   useEffect(() => {
