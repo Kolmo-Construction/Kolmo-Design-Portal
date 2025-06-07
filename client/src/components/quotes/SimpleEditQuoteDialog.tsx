@@ -57,12 +57,23 @@ export function SimpleEditQuoteDialog({ quote, open, onOpenChange }: SimpleEditQ
 
   useEffect(() => {
     if (open && quote) {
+      // Helper function to format dates for input fields
+      const formatDateForInput = (dateValue: any) => {
+        if (!dateValue) return "";
+        try {
+          const date = new Date(dateValue);
+          return date.toISOString().split('T')[0];
+        } catch {
+          return "";
+        }
+      };
+
       setFormData({
         title: quote.title || "",
         description: quote.description || "",
         quoteNumber: quote.quoteNumber || "",
         status: quote.status || "draft",
-        validUntil: quote.validUntil ? new Date(quote.validUntil).toISOString().split('T')[0] : "",
+        validUntil: formatDateForInput(quote.validUntil),
         customerName: quote.customerName || "",
         customerEmail: quote.customerEmail || "",
         customerPhone: quote.customerPhone || "",
@@ -71,8 +82,8 @@ export function SimpleEditQuoteDialog({ quote, open, onOpenChange }: SimpleEditQ
         location: quote.location || "",
         scopeDescription: quote.scopeDescription || "",
         projectNotes: quote.projectNotes || "",
-        estimatedStartDate: quote.estimatedStartDate ? new Date(quote.estimatedStartDate).toISOString().split('T')[0] : "",
-        estimatedCompletionDate: quote.estimatedCompletionDate ? new Date(quote.estimatedCompletionDate).toISOString().split('T')[0] : "",
+        estimatedStartDate: formatDateForInput(quote.estimatedStartDate),
+        estimatedCompletionDate: formatDateForInput(quote.estimatedCompletionDate),
         downPaymentPercentage: quote.downPaymentPercentage || 0,
         milestonePaymentPercentage: quote.milestonePaymentPercentage || 0,
         finalPaymentPercentage: quote.finalPaymentPercentage || 0,
