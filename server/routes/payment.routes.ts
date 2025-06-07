@@ -156,10 +156,14 @@ router.post('/payment-success', async (req, res, next) => {
     // Create invoice
     const invoice = await storage.invoices.createInvoice(invoiceData);
 
+    if (!invoice) {
+      throw new HttpError(500, 'Failed to create invoice');
+    }
+
     // Record the successful payment
     const paymentData = {
       invoiceId: invoice.id,
-      amount: downPaymentAmount.toString(),
+      amount: downPaymentAmount,
       paymentDate: new Date(),
       paymentMethod: 'stripe',
       reference: paymentIntent.id,

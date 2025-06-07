@@ -21,6 +21,7 @@ import UserManagement from "@/pages/UserManagement";
 import DevTools from "@/pages/dev-tools";
 import Quotes from "@/pages/quotes";
 import CustomerQuote from "@/pages/customer-quote";
+import QuotePaymentPage from "@/pages/quote-payment";
 
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
@@ -53,8 +54,9 @@ function Router() {
       <ProtectedRoute path="/settings" component={Settings} />
       <ProtectedRoute path="/user-management" component={UserManagement} />
       
-      {/* Public customer quote route */}
+      {/* Public customer quote routes */}
       <Route path="/quote/:token" component={CustomerQuote} />
+      <Route path="/quote-payment/:id" component={QuotePaymentPage} />
 
       {/* Development-only routes */}
       {import.meta.env.DEV && (
