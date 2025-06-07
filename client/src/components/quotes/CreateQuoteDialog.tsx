@@ -74,15 +74,16 @@ const createQuoteSchema = z.object({
   milestonePaymentPercentage: z.number().min(0).max(100).default(40),
   finalPaymentPercentage: z.number().min(0).max(100).default(20),
   milestoneDescription: z.string().optional(),
-  projectNotes: z.string().optional(),
-  scopeDescription: z.string().optional(),
-  lineItems: z.array(lineItemSchema).default([]),
+  // Core financial fields that match the database schema
+  subtotal: z.number().default(0),
   discountPercentage: z.number().min(0).max(100).default(0),
   discountAmount: z.number().min(0).default(0),
-  taxPercentage: z.number().min(0).max(100).default(8.5),
+  taxRate: z.number().min(0).max(100).default(8.5),
   taxAmount: z.number().min(0).default(0),
+  total: z.number().default(0),
   isManualTax: z.boolean().default(false),
-  isManualDiscount: z.boolean().default(false),
+  // Line items for the UI only (will be created separately)
+  lineItems: z.array(lineItemSchema).default([]),
 });
 
 type CreateQuoteForm = z.infer<typeof createQuoteSchema>;
@@ -107,10 +108,9 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
       lineItems: [],
       discountPercentage: 0,
       discountAmount: 0,
-      taxPercentage: 8.5,
+      taxRate: 8.5,
       taxAmount: 0,
       isManualTax: false,
-      isManualDiscount: false,
     },
   });
 
@@ -131,7 +131,7 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
   
   const taxAmount = isManualTax 
     ? watchedValues.taxAmount || 0
-    : (afterDiscount * (watchedValues.taxPercentage || 0)) / 100;
+    : (afterDiscount * (watchedValues.taxRate || 0)) / 100;
     
   const total = afterDiscount + taxAmount;
 
@@ -203,10 +203,9 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
         lineItems: [],
         discountPercentage: 0,
         discountAmount: 0,
-        taxPercentage: 8.5,
+        taxRate: 8.5,
         taxAmount: 0,
         isManualTax: false,
-        isManualDiscount: false,
       });
     },
     onError: (error) => {
@@ -548,10 +547,10 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
                         ) : (
                           <FormField
                             control={form.control}
-                            name="taxPercentage"
+                            name="taxRate"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Tax Percentage (%)</FormLabel>
+                                <FormLabel>Tax Rate (%)</FormLabel>
                                 <FormControl>
                                   <Input 
                                     type="number" 
