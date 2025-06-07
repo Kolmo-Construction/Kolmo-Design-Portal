@@ -25,12 +25,12 @@ const createQuoteSchema = createInsertSchema(quotes).omit({
 const createLineItemSchema = z.object({
   category: z.string().min(1, "Category is required"),
   description: z.string().min(1, "Description is required"),
-  quantity: z.string(),
-  unit: z.string(),
-  unitPrice: z.string(),
-  discountPercentage: z.string().optional().default("0"),
-  discountAmount: z.string().optional().default("0"),
-  totalPrice: z.string(),
+  quantity: z.union([z.string(), z.number()]).transform(val => String(val)),
+  unit: z.string().optional().default(""),
+  unitPrice: z.union([z.string(), z.number()]).transform(val => String(val)),
+  discountPercentage: z.union([z.string(), z.number()]).optional().default("0").transform(val => String(val || "0")),
+  discountAmount: z.union([z.string(), z.number()]).optional().default("0").transform(val => String(val || "0")),
+  totalPrice: z.union([z.string(), z.number()]).optional().transform(val => val ? String(val) : "0"),
   sortOrder: z.number().optional().default(0),
 });
 

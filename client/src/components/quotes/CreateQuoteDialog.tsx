@@ -142,6 +142,11 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
       quantity: 1,
       unitPrice: 0,
       category: "",
+      unit: "",
+      discountPercentage: 0,
+      discountAmount: 0,
+      totalPrice: 0,
+      sortOrder: currentItems.length,
     }]);
   };
 
@@ -389,7 +394,7 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
                                 <TableCell>
                                   <Input
                                     placeholder="Item description"
-                                    value={item.description}
+                                    value={item.description || ''}
                                     onChange={(e) => updateLineItem(index, 'description', e.target.value)}
                                   />
                                 </TableCell>
@@ -405,7 +410,7 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
                                     type="number"
                                     min="0"
                                     step="0.01"
-                                    value={item.quantity}
+                                    value={item.quantity || 0}
                                     onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)}
                                   />
                                 </TableCell>
@@ -414,7 +419,7 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
                                     type="number"
                                     min="0"
                                     step="0.01"
-                                    value={item.unitPrice}
+                                    value={item.unitPrice || 0}
                                     onChange={(e) => updateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
                                   />
                                 </TableCell>
