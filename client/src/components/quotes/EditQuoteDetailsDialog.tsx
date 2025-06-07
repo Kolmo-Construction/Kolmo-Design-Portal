@@ -45,11 +45,7 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
   const [scopeDescription, setScopeDescription] = useState("");
   const [projectNotes, setProjectNotes] = useState("");
   
-  const [milestones, setMilestones] = useState<Milestone[]>([
-    { description: "Down Payment", percentage: 40, order: 1 },
-    { description: "Mid-project Milestone", percentage: 40, order: 2 },
-    { description: "Final Payment", percentage: 20, order: 3 }
-  ]);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -74,24 +70,33 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
       // Initialize milestones from quote data
       const quoteMilestones: Milestone[] = [];
       
-      if (quote.downPaymentPercentage && quote.downPaymentPercentage > 0) {
-        quoteMilestones.push({ description: "Down Payment", percentage: Number(quote.downPaymentPercentage), order: 1 });
-      }
+      // Always include all three payment phases, even if they are 0
+      // Check if quote has any payment structure defined
+      const hasPaymentStructure = quote.downPaymentPercentage !== undefined || 
+                                  quote.milestonePaymentPercentage !== undefined || 
+                                  quote.finalPaymentPercentage !== undefined;
       
-      if (quote.milestonePaymentPercentage && quote.milestonePaymentPercentage > 0) {
+      if (hasPaymentStructure) {
+        // Use actual values from the quote, including 0 values
+        quoteMilestones.push({ 
+          description: "Down Payment", 
+          percentage: Number(quote.downPaymentPercentage || 0), 
+          order: 1 
+        });
+        
         quoteMilestones.push({ 
           description: quote.milestoneDescription || "Mid-project Milestone", 
-          percentage: Number(quote.milestonePaymentPercentage), 
+          percentage: Number(quote.milestonePaymentPercentage || 0), 
           order: 2 
         });
-      }
-      
-      if (quote.finalPaymentPercentage && quote.finalPaymentPercentage > 0) {
-        quoteMilestones.push({ description: "Final Payment", percentage: Number(quote.finalPaymentPercentage), order: 3 });
-      }
-      
-      // If no milestones exist, set defaults
-      if (quoteMilestones.length === 0) {
+        
+        quoteMilestones.push({ 
+          description: "Final Payment", 
+          percentage: Number(quote.finalPaymentPercentage || 0), 
+          order: 3 
+        });
+      } else {
+        // If no payment structure exists, set defaults
         quoteMilestones.push(
           { description: "Down Payment", percentage: 40, order: 1 },
           { description: "Mid-project Milestone", percentage: 40, order: 2 },
