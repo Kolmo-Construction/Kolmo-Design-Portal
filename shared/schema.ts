@@ -100,6 +100,10 @@ export const users = pgTable("users", {
   magicLinkToken: text("magic_link_token").unique(),
   magicLinkExpiry: timestamp("magic_link_expiry"),
   isActivated: boolean("is_activated").default(false).notNull(),
+  
+  // Stripe customer integration for payment processing
+  stripeCustomerId: text("stripe_customer_id").unique(),
+  stripeSubscriptionId: text("stripe_subscription_id"),
 });
 
 // Projects table for storing project details
@@ -119,6 +123,15 @@ export const projects = pgTable("projects", {
   imageUrl: text("image_url"),
   progress: integer("progress").default(0), // Percentage complete (0-100)
   projectManagerId: integer("project_manager_id").references(() => users.id),
+  
+  // Quote integration - track originating quote
+  originQuoteId: integer("origin_quote_id").references(() => quotes.id),
+  
+  // Customer information for project management
+  customerName: text("customer_name"),
+  customerEmail: text("customer_email"),
+  customerPhone: text("customer_phone"),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -145,18 +158,42 @@ export const documents = pgTable("documents", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Define invoice status enum
+export const invoiceStatusEnum = pgEnum('invoice_status', ['pending', 'partially_paid', 'paid', 'overdue', 'cancelled']);
+
+// Define invoice type enum
+export const invoiceTypeEnum = pgEnum('invoice_type', ['down_payment', 'milestone', 'final', 'change_order', 'regular']);
+
 // Invoices table for financial tracking
 export const invoices = pgTable("invoices", {
   id: serial("id").primaryKey(),
-  projectId: integer("project_id").notNull().references(() => projects.id),
+  projectId: integer("project_id").references(() => projects.id),
+  quoteId: integer("quote_id").references(() => quotes.id), // Link to originating quote
   invoiceNumber: text("invoice_number").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
   issueDate: timestamp("issue_date").notNull(),
   dueDate: timestamp("due_date").notNull(),
-  status: text("status").notNull().default("pending"), // pending, paid, overdue
+  status: invoiceStatusEnum("status").notNull().default("pending"),
+  invoiceType: invoiceTypeEnum("invoice_type").notNull().default("regular"), // Track payment type
   documentId: integer("document_id").references(() => documents.id),
+  
+  // Stripe integration fields
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  stripeInvoiceId: text("stripe_invoice_id"),
+  paymentLink: text("payment_link"), // Secure payment link for customers
+  
+  // Customer information
+  customerName: text("customer_name"),
+  customerEmail: text("customer_email"),
+  billingAddress: jsonb("billing_address"), // Store billing address as JSON
+  
+  // Payment terms
+  lateFeePercentage: decimal("late_fee_percentage", { precision: 5, scale: 2 }).default("0.00"),
+  gracePeriodDays: integer("grace_period_days").default(5),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // Payments table for tracking payments against invoices
@@ -167,7 +204,21 @@ export const payments = pgTable("payments", {
   paymentDate: timestamp("payment_date").notNull(),
   paymentMethod: text("payment_method").notNull(),
   reference: text("reference"),
+  
+  // Stripe integration fields
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  stripeChargeId: text("stripe_charge_id"),
+  stripeTransactionId: text("stripe_transaction_id"),
+  
+  // Payment status tracking
+  status: text("status").notNull().default("pending"), // pending, processing, succeeded, failed, cancelled
+  failureReason: text("failure_reason"),
+  
+  // Recorded by (admin user who recorded manual payment)
+  recordedById: integer("recorded_by_id").references(() => users.id),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // Messages table for communication log
@@ -728,12 +779,34 @@ export const insertDocumentSchema = createInsertSchema(documents).omit({
 
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({
   id: true,
-  createdAt: true
+  createdAt: true,
+  updatedAt: true
+}).extend({
+  issueDate: z.union([z.string().datetime(), z.date()]),
+  dueDate: z.union([z.string().datetime(), z.date()]),
+  amount: z.union([
+    z.string().transform(val => parseFloat(val.replace(/[^0-9.]/g, ''))).refine(n => !isNaN(n) && n > 0, { message: "Amount must be a positive number" }),
+    z.number().min(0.01, "Amount must be a positive number")
+  ]),
+  billingAddress: z.object({
+    street: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    zipCode: z.string().optional(),
+    country: z.string().optional()
+  }).optional()
 });
 
 export const insertPaymentSchema = createInsertSchema(payments).omit({
   id: true,
-  createdAt: true
+  createdAt: true,
+  updatedAt: true
+}).extend({
+  paymentDate: z.union([z.string().datetime(), z.date()]),
+  amount: z.union([
+    z.string().transform(val => parseFloat(val.replace(/[^0-9.]/g, ''))).refine(n => !isNaN(n) && n > 0, { message: "Amount must be a positive number" }),
+    z.number().min(0.01, "Amount must be a positive number")
+  ])
 });
 
 export const insertMessageSchema = createInsertSchema(messages).omit({
