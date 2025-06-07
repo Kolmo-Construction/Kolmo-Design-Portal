@@ -434,19 +434,19 @@ export default function CustomerQuotePage() {
         )}
 
         {/* Quote Summary */}
-        <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-2xl shadow-lg text-white p-6">
+        <div className="rounded-2xl shadow-lg text-white p-6" style={{backgroundColor: '#4a6670'}}>
           <div className="text-center mb-6">
-            <DollarSign className="h-12 w-12 mx-auto mb-4 text-emerald-200" />
+            <DollarSign className="h-12 w-12 mx-auto mb-4" style={{color: '#db973c'}} />
             <h3 className="text-2xl font-bold mb-2">Investment Summary</h3>
-            <p className="text-emerald-100">Your complete project investment</p>
+            <p className="text-white/80">Your complete project investment</p>
           </div>
           
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 space-y-4">
-            <div className="flex justify-between items-center text-emerald-100">
+          <div className="backdrop-blur-sm rounded-xl p-6 space-y-4" style={{backgroundColor: 'rgba(255,255,255,0.1)'}}>
+            <div className="flex justify-between items-center text-white/80">
               <span className="text-lg">Project Subtotal</span>
               <span className="text-lg font-semibold">{formatCurrency(quoteData.subtotal)}</span>
             </div>
-            <div className="flex justify-between items-center text-emerald-100">
+            <div className="flex justify-between items-center text-white/80">
               <span className="text-lg">Tax ({parseFloat(quoteData.taxRate)}%)</span>
               <span className="text-lg font-semibold">{formatCurrency(quoteData.taxAmount)}</span>
             </div>
@@ -455,7 +455,7 @@ export default function CustomerQuotePage() {
               <span className="text-2xl font-bold">Total Investment</span>
               <span className="text-3xl font-bold">{formatCurrency(quoteData.total)}</span>
             </div>
-            <div className="text-center text-emerald-100 text-sm mt-4 p-3 bg-white/10 rounded-lg">
+            <div className="text-center text-white/70 text-sm mt-4 p-3 rounded-lg" style={{backgroundColor: 'rgba(255,255,255,0.1)'}}>
               <Clock className="h-4 w-4 inline mr-2" />
               This quote is valid until {formatDate(quoteData.validUntil)}
             </div>
@@ -463,62 +463,62 @@ export default function CustomerQuotePage() {
         </div>
 
         {/* Payment Schedule */}
-        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-          <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
             <div className="flex items-center gap-3">
-              <DollarSign className="h-6 w-6 text-emerald-600" />
+              <DollarSign className="h-6 w-6" style={{color: '#db973c'}} />
               <div>
-                <h3 className="text-xl font-bold text-slate-900">Payment Schedule</h3>
-                <p className="text-slate-600">Flexible payment structure to fit your budget</p>
+                <h3 className="text-xl font-bold" style={{color: '#1a1a1a'}}>Payment Schedule</h3>
+                <p style={{color: '#4a6670'}}>Flexible payment structure to fit your budget</p>
               </div>
             </div>
           </div>
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center p-6 bg-emerald-50 rounded-xl border-2 border-emerald-100">
-                <div className="bg-emerald-600 text-white rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4 font-bold text-lg">1</div>
-                <h4 className="font-bold text-slate-900 mb-2">Down Payment</h4>
-                <div className="text-3xl font-bold text-emerald-600 mb-2">{quoteData.downPaymentPercentage}%</div>
-                <div className="text-2xl font-semibold text-slate-900 mb-2">
+              <div className="text-center p-6 rounded-xl border-2 border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
+                <div className="text-white rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4 font-bold text-lg" style={{backgroundColor: '#3d4552'}}>1</div>
+                <h4 className="font-bold mb-2" style={{color: '#1a1a1a'}}>Down Payment</h4>
+                <div className="text-3xl font-bold mb-2" style={{color: '#db973c'}}>{quoteData.downPaymentPercentage}%</div>
+                <div className="text-2xl font-semibold mb-2" style={{color: '#1a1a1a'}}>
                   {formatCurrency((parseFloat(quoteData.total) * quoteData.downPaymentPercentage / 100).toString())}
                 </div>
-                <p className="text-slate-600 text-sm">To secure your project start date</p>
+                <p className="text-sm" style={{color: '#4a6670'}}>To secure your project start date</p>
               </div>
               
-              <div className="text-center p-6 bg-blue-50 rounded-xl border-2 border-blue-100">
-                <div className="bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4 font-bold text-lg">2</div>
-                <h4 className="font-bold text-slate-900 mb-2">Progress Payment</h4>
-                <div className="text-3xl font-bold text-blue-600 mb-2">{quoteData.milestonePaymentPercentage}%</div>
-                <div className="text-2xl font-semibold text-slate-900 mb-2">
+              <div className="text-center p-6 rounded-xl border-2 border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
+                <div className="text-white rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4 font-bold text-lg" style={{backgroundColor: '#4a6670'}}>2</div>
+                <h4 className="font-bold mb-2" style={{color: '#1a1a1a'}}>Progress Payment</h4>
+                <div className="text-3xl font-bold mb-2" style={{color: '#db973c'}}>{quoteData.milestonePaymentPercentage}%</div>
+                <div className="text-2xl font-semibold mb-2" style={{color: '#1a1a1a'}}>
                   {formatCurrency((parseFloat(quoteData.total) * quoteData.milestonePaymentPercentage / 100).toString())}
                 </div>
-                <p className="text-slate-600 text-sm">At project milestone completion</p>
+                <p className="text-sm" style={{color: '#4a6670'}}>At project milestone completion</p>
               </div>
               
-              <div className="text-center p-6 bg-green-50 rounded-xl border-2 border-green-100">
-                <div className="bg-green-600 text-white rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4 font-bold text-lg">3</div>
-                <h4 className="font-bold text-slate-900 mb-2">Final Payment</h4>
-                <div className="text-3xl font-bold text-green-600 mb-2">{quoteData.finalPaymentPercentage}%</div>
-                <div className="text-2xl font-semibold text-slate-900 mb-2">
+              <div className="text-center p-6 rounded-xl border-2 border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
+                <div className="text-white rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4 font-bold text-lg" style={{backgroundColor: '#db973c'}}>3</div>
+                <h4 className="font-bold mb-2" style={{color: '#1a1a1a'}}>Final Payment</h4>
+                <div className="text-3xl font-bold mb-2" style={{color: '#db973c'}}>{quoteData.finalPaymentPercentage}%</div>
+                <div className="text-2xl font-semibold mb-2" style={{color: '#1a1a1a'}}>
                   {formatCurrency((parseFloat(quoteData.total) * quoteData.finalPaymentPercentage / 100).toString())}
                 </div>
-                <p className="text-slate-600 text-sm">Upon project completion</p>
+                <p className="text-sm" style={{color: '#4a6670'}}>Upon project completion</p>
               </div>
             </div>
             
             {quoteData.milestoneDescription && (
-              <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                <h5 className="font-semibold text-slate-900 mb-2">Progress Milestone Details:</h5>
-                <p className="text-slate-700">{quoteData.milestoneDescription}</p>
+              <div className="mt-6 p-4 rounded-xl border border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
+                <h5 className="font-semibold mb-2" style={{color: '#1a1a1a'}}>Progress Milestone Details:</h5>
+                <p style={{color: '#4a6670'}}>{quoteData.milestoneDescription}</p>
               </div>
             )}
             
-            <div className="mt-6 p-4 bg-amber-50 rounded-xl border border-amber-200">
+            <div className="mt-6 p-4 rounded-xl border border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
               <div className="flex items-start gap-3">
-                <Shield className="h-5 w-5 text-amber-600 mt-0.5" />
+                <Shield className="h-5 w-5 mt-0.5" style={{color: '#db973c'}} />
                 <div>
-                  <h5 className="font-semibold text-slate-900 mb-1">Payment Options & Protection</h5>
-                  <ul className="text-slate-700 text-sm space-y-1">
+                  <h5 className="font-semibold mb-1" style={{color: '#1a1a1a'}}>Payment Options & Protection</h5>
+                  <ul className="text-sm space-y-1" style={{color: '#4a6670'}}>
                     <li>• We accept cash, check, and all major credit cards</li>
                     <li>• 3% processing fee applies to credit card payments</li>
                     <li>• All payments are secured and protected</li>
@@ -532,19 +532,19 @@ export default function CustomerQuotePage() {
 
         {/* Project Scope */}
         {quoteData.scopeDescription && (
-          <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
               <div className="flex items-center gap-3">
-                <FileText className="h-6 w-6 text-emerald-600" />
+                <FileText className="h-6 w-6" style={{color: '#db973c'}} />
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">Project Scope & Details</h3>
-                  <p className="text-slate-600">Comprehensive overview of your project</p>
+                  <h3 className="text-xl font-bold" style={{color: '#1a1a1a'}}>Project Scope & Details</h3>
+                  <p style={{color: '#4a6670'}}>Comprehensive overview of your project</p>
                 </div>
               </div>
             </div>
             <div className="p-6">
               <div className="prose prose-slate max-w-none">
-                <p className="text-slate-700 leading-relaxed">{quoteData.scopeDescription}</p>
+                <p className="leading-relaxed" style={{color: '#4a6670'}}>{quoteData.scopeDescription}</p>
               </div>
             </div>
           </div>
