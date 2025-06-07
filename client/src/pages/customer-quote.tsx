@@ -105,6 +105,7 @@ const getCategoryIcon = (category: string) => {
 export default function CustomerQuotePage() {
   const { token } = useParams<{ token: string }>();
   const [showResponse, setShowResponse] = useState(false);
+  const [showDeclineReason, setShowDeclineReason] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -185,6 +186,16 @@ export default function CustomerQuotePage() {
       return;
     }
 
+    // For decline, validate that a reason is provided
+    if (action === 'declined' && !message.trim()) {
+      toast({
+        title: "Reason Required",
+        description: "Please provide a reason for declining this proposal",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (action === 'accepted') {
       // For acceptance, redirect to payment flow
       window.location.href = `/quote-payment/${quoteData.id}`;
@@ -246,6 +257,12 @@ export default function CustomerQuotePage() {
   const quoteData = quote as QuoteResponse;
   const isExpired = quoteData && new Date() > new Date(quoteData.validUntil);
   const hasResponded = quoteData?.responses && quoteData.responses.length > 0;
+  
+  // Check for specific response types
+  const acceptedResponse = quoteData?.responses?.find(r => r.action === 'accepted');
+  const declinedResponse = quoteData?.responses?.find(r => r.action === 'declined');
+  const hasAccepted = !!acceptedResponse;
+  const hasDeclined = !!declinedResponse;
 
   return (
     <div className="min-h-screen bg-white">
@@ -301,11 +318,14 @@ export default function CustomerQuotePage() {
                   <FileText className="h-6 w-6" />
                   <h2 className="text-2xl font-bold">Project Proposal</h2>
                   <Badge 
-                    variant={isExpired ? "destructive" : hasResponded ? "secondary" : "default"}
+                    variant={isExpired ? "destructive" : hasAccepted ? "default" : hasDeclined ? "destructive" : hasResponded ? "secondary" : "default"}
                     className="px-3 py-1 text-xs font-medium"
-                    style={{backgroundColor: '#db973c', color: 'white'}}
+                    style={{
+                      backgroundColor: isExpired ? '#dc2626' : hasAccepted ? '#16a34a' : hasDeclined ? '#dc2626' : hasResponded ? '#6b7280' : '#db973c', 
+                      color: 'white'
+                    }}
                   >
-                    {isExpired ? "Expired" : hasResponded ? "Responded" : "Awaiting Response"}
+                    {isExpired ? "Expired" : hasAccepted ? "Accepted" : hasDeclined ? "Declined" : hasResponded ? "Responded" : "Awaiting Response"}
                   </Badge>
                 </div>
                 <p className="text-white/80 text-lg">Quote #{quoteData.quoteNumber}</p>
@@ -347,8 +367,8 @@ export default function CustomerQuotePage() {
           </div>
         </div>
 
-        {/* Response Required Section */}
-        {!hasResponded && !isExpired && (
+        {/* Response Required Section - Only show if not accepted and not expired */}
+        {!hasAccepted && !isExpired && (
           <div className="rounded-2xl shadow-lg text-white p-6" style={{backgroundColor: '#4a6670'}}>
             <div className="text-center">
               <Clock className="h-12 w-12 mx-auto mb-4" style={{color: '#db973c'}} />
@@ -367,7 +387,7 @@ export default function CustomerQuotePage() {
                   size="lg"
                 >
                   <Check className="h-5 w-5 mr-2" />
-                  Accept This Proposal
+                  Accept Proposal
                 </Button>
                 <Button 
                   variant="outline" 
@@ -378,12 +398,69 @@ export default function CustomerQuotePage() {
                   onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
                   size="lg"
                 >
-                  <MessageSquare className="h-5 w-5 mr-2" />
-                  Ask Questions
+                  <X className="h-5 w-5 mr-2" />
+                  Decline Proposal
                 </Button>
               </div>
               <p className="text-white/70 text-sm mt-4">
                 Valid until {formatDate(quoteData.validUntil)} • Free consultations available
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Quote Accepted Status */}
+        {hasAccepted && (
+          <div className="rounded-2xl shadow-lg text-white p-6" style={{backgroundColor: '#16a34a'}}>
+            <div className="text-center">
+              <Check className="h-12 w-12 mx-auto mb-4" />
+              <h3 className="text-2xl font-bold mb-2">Proposal Accepted!</h3>
+              <p className="text-white/80 mb-4 max-w-2xl mx-auto">
+                Thank you for accepting our proposal. We're excited to get started on your project!
+              </p>
+              <div className="bg-white/10 rounded-xl p-4 max-w-md mx-auto">
+                <p className="text-sm text-white/90">
+                  <strong>Accepted on:</strong> {formatDate(acceptedResponse?.createdAt || '')}
+                </p>
+                {acceptedResponse?.customerName && (
+                  <p className="text-sm text-white/90 mt-1">
+                    <strong>By:</strong> {acceptedResponse.customerName}
+                  </p>
+                )}
+              </div>
+              <p className="text-white/70 text-sm mt-4">
+                Our team will be in touch shortly to schedule your project kickoff.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Quote Declined Status */}
+        {hasDeclined && (
+          <div className="rounded-2xl shadow-lg text-white p-6" style={{backgroundColor: '#dc2626'}}>
+            <div className="text-center">
+              <X className="h-12 w-12 mx-auto mb-4" />
+              <h3 className="text-2xl font-bold mb-2">Proposal Declined</h3>
+              <p className="text-white/80 mb-4 max-w-2xl mx-auto">
+                We understand this proposal wasn't the right fit for you at this time.
+              </p>
+              <div className="bg-white/10 rounded-xl p-4 max-w-md mx-auto">
+                <p className="text-sm text-white/90">
+                  <strong>Declined on:</strong> {formatDate(declinedResponse?.createdAt || '')}
+                </p>
+                {declinedResponse?.message && (
+                  <div className="mt-2">
+                    <p className="text-sm text-white/90">
+                      <strong>Reason:</strong>
+                    </p>
+                    <p className="text-sm text-white/80 mt-1">
+                      "{declinedResponse.message}"
+                    </p>
+                  </div>
+                )}
+              </div>
+              <p className="text-white/70 text-sm mt-4">
+                Feel free to contact us if you'd like to discuss alternative options.
               </p>
             </div>
           </div>
@@ -938,13 +1015,19 @@ export default function CustomerQuotePage() {
                 )}
                 
                 <div>
-                  <Label htmlFor="message">Message (Optional)</Label>
+                  <Label htmlFor="message">
+                    {showDeclineReason ? "Reason for Declining (Required)" : "Message (Optional)"}
+                  </Label>
                   <Textarea
                     id="message"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Any additional comments or questions..."
+                    placeholder={showDeclineReason ? "Please let us know why you're declining this proposal..." : "Any additional comments or questions..."}
+                    required={showDeclineReason}
                   />
+                  {showDeclineReason && !message.trim() && (
+                    <p className="text-red-600 text-sm mt-1">Please provide a reason for declining.</p>
+                  )}
                 </div>
               </div>
             </CardContent>
