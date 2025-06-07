@@ -43,9 +43,13 @@ export default function QuotesPage() {
 
   const deleteQuoteMutation = useMutation({
     mutationFn: async (quoteId: number) => {
-      return await apiRequest(`/api/quotes/${quoteId}`, "DELETE");
+      console.log("Attempting to delete quote:", quoteId);
+      const response = await apiRequest("DELETE", `/api/quotes/${quoteId}`);
+      console.log("Delete response:", response);
+      return response;
     },
     onSuccess: () => {
+      console.log("Quote deleted successfully");
       toast({
         title: "Quote Deleted",
         description: "Quote has been deleted successfully",
@@ -53,6 +57,7 @@ export default function QuotesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
     },
     onError: (error) => {
+      console.error("Delete quote error:", error);
       toast({
         title: "Error",
         description: "Failed to delete quote",
