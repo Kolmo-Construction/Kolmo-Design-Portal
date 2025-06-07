@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Check, X, MessageSquare, Calendar, MapPin, Clock, Phone, Mail, Shield, Award, Star, FileText, DollarSign, Calculator, Wrench, Home, Hammer, Zap, Paintbrush, Users, Package, Truck, HardHat, Eye, EyeOff } from "lucide-react";
+import { Check, X, MessageSquare, Calendar, MapPin, Clock, Phone, Mail, Shield, Award, Star, FileText, DollarSign, Calculator, Wrench, Home, Hammer, Zap, Paintbrush, Users, Package, Truck, HardHat, Eye, EyeOff, CreditCard } from "lucide-react";
 import QuoteAnalytics from "@/lib/quote-analytics";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -106,6 +106,7 @@ export default function CustomerQuotePage() {
   const { token } = useParams<{ token: string }>();
   const [showResponse, setShowResponse] = useState(false);
   const [showDeclineReason, setShowDeclineReason] = useState(false);
+  const [showAcceptSummary, setShowAcceptSummary] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -170,6 +171,32 @@ export default function CustomerQuotePage() {
     },
   });
 
+  const handleAccept = () => {
+    const quoteData = quote as QuoteResponse;
+    
+    // Use existing customer information from the quote
+    const finalCustomerName = customerName || quoteData?.customerName || '';
+    const finalCustomerEmail = customerEmail || quoteData?.customerEmail || '';
+
+    if (!finalCustomerName || !finalCustomerEmail) {
+      toast({
+        title: "Missing Information",
+        description: "Customer information is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Show accept summary modal instead of redirecting immediately
+    setShowAcceptSummary(true);
+    setShowResponse(false);
+  };
+
+  const handleContinueToPayment = () => {
+    const quoteData = quote as QuoteResponse;
+    window.location.href = `/quote-payment/${quoteData.id}`;
+  };
+
   const handleResponse = (action: 'accepted' | 'declined') => {
     const quoteData = quote as QuoteResponse;
     
@@ -197,8 +224,8 @@ export default function CustomerQuotePage() {
     }
 
     if (action === 'accepted') {
-      // For acceptance, redirect to payment flow
-      window.location.href = `/quote-payment/${quoteData.id}`;
+      // For acceptance, show summary modal
+      handleAccept();
       return;
     }
 
@@ -379,7 +406,7 @@ export default function CustomerQuotePage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button 
-                  onClick={() => setShowResponse(true)}
+                  onClick={handleAccept}
                   className="px-8 py-3 text-lg font-semibold text-white"
                   style={{backgroundColor: '#db973c'}}
                   onMouseEnter={e => e.currentTarget.style.backgroundColor = '#c8863a'}
@@ -967,6 +994,96 @@ export default function CustomerQuotePage() {
           </div>
         </div>
       </div>
+
+      {/* Accept Summary Modal */}
+      {showAcceptSummary && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="max-w-lg w-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Check className="h-6 w-6 text-green-600" />
+                Accept Quote & Continue to Payment
+              </CardTitle>
+              <CardDescription>
+                Review your quote summary before proceeding to secure payment
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Customer Info */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-sm font-medium text-gray-700 mb-2">Quote For:</div>
+                  <div className="font-semibold">{quoteData?.customerName || customerName}</div>
+                  <div className="text-sm text-gray-600">{quoteData?.customerEmail || customerEmail}</div>
+                </div>
+
+                {/* Quote Summary */}
+                <div className="border rounded-lg p-4">
+                  <div className="text-sm font-medium text-gray-700 mb-3">Project Summary:</div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="font-semibold">{quoteData?.title}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Quote #{quoteData?.quoteNumber}</span>
+                    </div>
+                    <div className="border-t pt-2 mt-2">
+                      <div className="flex justify-between text-lg font-bold">
+                        <span>Total Investment:</span>
+                        <span className="text-green-600">{formatCurrency(quoteData?.total || '0')}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Breakdown */}
+                <div className="border rounded-lg p-4">
+                  <div className="text-sm font-medium text-gray-700 mb-3">Payment Schedule:</div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Down Payment ({quoteData?.downPaymentPercentage || 30}%):</span>
+                      <span className="font-semibold">
+                        {formatCurrency(((parseFloat(quoteData?.total || '0') * (quoteData?.downPaymentPercentage || 30)) / 100).toString())}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Progress Payment ({quoteData?.milestonePaymentPercentage || 40}%):</span>
+                      <span>{formatCurrency(((parseFloat(quoteData?.total || '0') * (quoteData?.milestonePaymentPercentage || 40)) / 100).toString())}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Final Payment ({quoteData?.finalPaymentPercentage || 30}%):</span>
+                      <span>{formatCurrency(((parseFloat(quoteData?.total || '0') * (quoteData?.finalPaymentPercentage || 30)) / 100).toString())}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Next Steps */}
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="text-sm font-medium text-blue-800 mb-1">Next Steps:</div>
+                  <div className="text-sm text-blue-700">
+                    You'll be taken to a secure payment page to process your down payment and finalize project details.
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+            <div className="flex justify-between p-6 pt-0">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowAcceptSummary(false)}
+              >
+                Back to Quote
+              </Button>
+              <Button
+                onClick={handleContinueToPayment}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Continue to Payment
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Response Dialog */}
       {showResponse && (
