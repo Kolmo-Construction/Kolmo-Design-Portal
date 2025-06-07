@@ -172,7 +172,7 @@ export default function CustomerQuotePage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="bg-gray-50 rounded-lg p-2">
-                <img src="@assets/kolmo-logo (1).png" alt="Kolmo Constructions" className="h-12 w-12" />
+                <img src="@assets/_ Logo (4).png" alt="Kolmo Constructions" className="h-12 w-12" />
               </div>
               <div className="text-center sm:text-left">
                 <h1 className="text-2xl sm:text-3xl font-bold" style={{color: '#1a1a1a'}}>Kolmo Constructions</h1>
@@ -551,13 +551,13 @@ export default function CustomerQuotePage() {
         )}
 
         {/* Customer Information */}
-        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-          <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
             <div className="flex items-center gap-3">
-              <MessageSquare className="h-6 w-6 text-emerald-600" />
+              <MessageSquare className="h-6 w-6" style={{color: '#db973c'}} />
               <div>
-                <h3 className="text-xl font-bold text-slate-900">Your Project Contact</h3>
-                <p className="text-slate-600">We'll keep you updated every step of the way</p>
+                <h3 className="text-xl font-bold" style={{color: '#1a1a1a'}}>Your Project Contact</h3>
+                <p style={{color: '#4a6670'}}>We'll keep you updated every step of the way</p>
               </div>
             </div>
           </div>
@@ -565,66 +565,66 @@ export default function CustomerQuotePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
-                  <div className="text-sm font-medium text-slate-500">Primary Contact</div>
-                  <div className="text-lg font-semibold text-slate-900">{quoteData.customerName}</div>
+                  <div className="text-sm font-medium" style={{color: '#4a6670'}}>Primary Contact</div>
+                  <div className="text-lg font-semibold" style={{color: '#1a1a1a'}}>{quoteData.customerName}</div>
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-slate-500">Email Address</div>
-                  <div className="text-slate-900">{quoteData.customerEmail}</div>
+                  <div className="text-sm font-medium" style={{color: '#4a6670'}}>Email Address</div>
+                  <div style={{color: '#1a1a1a'}}>{quoteData.customerEmail}</div>
                 </div>
               </div>
               <div className="space-y-4">
                 {quoteData.customerPhone && (
                   <div>
-                    <div className="text-sm font-medium text-slate-500">Phone Number</div>
-                    <div className="text-slate-900">{quoteData.customerPhone}</div>
+                    <div className="text-sm font-medium" style={{color: '#4a6670'}}>Phone Number</div>
+                    <div style={{color: '#1a1a1a'}}>{quoteData.customerPhone}</div>
                   </div>
                 )}
                 {quoteData.customerAddress && (
                   <div>
-                    <div className="text-sm font-medium text-slate-500">Project Address</div>
-                    <div className="text-slate-900">{quoteData.customerAddress}</div>
+                    <div className="text-sm font-medium" style={{color: '#4a6670'}}>Project Address</div>
+                    <div style={{color: '#1a1a1a'}}>{quoteData.customerAddress}</div>
                   </div>
                 )}
               </div>
             </div>
             {quoteData.projectNotes && (
-              <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                <h5 className="font-semibold text-slate-900 mb-2">Special Project Notes:</h5>
-                <p className="text-slate-700">{quoteData.projectNotes}</p>
+              <div className="mt-6 p-4 rounded-xl border border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
+                <h5 className="font-semibold mb-2" style={{color: '#1a1a1a'}}>Special Project Notes:</h5>
+                <p style={{color: '#4a6670'}}>{quoteData.projectNotes}</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Questions & Support */}
-        <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl shadow-lg text-white p-8">
+        <div className="rounded-2xl shadow-lg text-white p-8" style={{backgroundColor: '#3d4552'}}>
           <div className="text-center">
-            <MessageSquare className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+            <MessageSquare className="h-12 w-12 mx-auto mb-4" style={{color: '#db973c'}} />
             <h3 className="text-2xl font-bold mb-2">Questions About Your Project?</h3>
-            <p className="text-slate-300 mb-6 max-w-2xl mx-auto">
+            <p className="text-white/80 mb-6 max-w-2xl mx-auto">
               Our experienced team is here to help. We're committed to making your project vision a reality 
               with transparent communication and expert craftsmanship.
             </p>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-lg mx-auto">
-              <a href="tel:+12064105100" className="flex items-center justify-center gap-3 bg-emerald-600 hover:bg-emerald-700 rounded-xl p-4 transition-colors">
+              <a href="tel:+12064105100" className="flex items-center justify-center gap-3 rounded-xl p-4 transition-colors text-white" style={{backgroundColor: '#db973c'}} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#c8863a'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#db973c'}>
                 <Phone className="h-5 w-5" />
                 <div className="text-left">
                   <div className="font-semibold">Call Us</div>
-                  <div className="text-sm text-emerald-100">(206) 410-5100</div>
+                  <div className="text-sm text-white/80">(206) 410-5100</div>
                 </div>
               </a>
-              <a href="mailto:projects@kolmo.io" className="flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 rounded-xl p-4 transition-colors">
+              <a href="mailto:projects@kolmo.io" className="flex items-center justify-center gap-3 rounded-xl p-4 transition-colors text-white" style={{backgroundColor: '#4a6670'}} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#5a757f'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#4a6670'}>
                 <Mail className="h-5 w-5" />
                 <div className="text-left">
                   <div className="font-semibold">Email Us</div>
-                  <div className="text-sm text-blue-100">projects@kolmo.io</div>
+                  <div className="text-sm text-white/80">projects@kolmo.io</div>
                 </div>
               </a>
             </div>
             
-            <p className="text-slate-400 text-sm mt-6">
+            <p className="text-white/70 text-sm mt-6">
               Serving Seattle, WA & Surrounding Areas • Free Consultations Available
             </p>
           </div>
@@ -637,7 +637,7 @@ export default function CustomerQuotePage() {
           <div className="text-center">
             <div className="flex items-center justify-center gap-4 mb-6">
               <div className="rounded-lg p-3" style={{backgroundColor: '#4a6670'}}>
-                <img src="@assets/kolmo-logo (1).png" alt="Kolmo Constructions" className="h-12 w-12" />
+                <img src="@assets/_ Logo (4).png" alt="Kolmo Constructions" className="h-12 w-12" />
               </div>
               <div className="text-left">
                 <h3 className="text-2xl font-bold">Kolmo Constructions</h3>
