@@ -171,7 +171,8 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
         total: total,
       };
       
-      const quote = await apiRequest("POST", "/api/quotes", quoteData);
+      const response = await apiRequest("POST", "/api/quotes", quoteData);
+      const quote = await response.json();
       
       // Create line items if any exist
       if (data.lineItems.length > 0) {
@@ -199,12 +200,14 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
         milestonePaymentPercentage: 40,
         finalPaymentPercentage: 20,
         validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        lineItems: [],
+        subtotal: 0,
         discountPercentage: 0,
         discountAmount: 0,
         taxRate: 8.5,
         taxAmount: 0,
+        total: 0,
         isManualTax: false,
+        lineItems: [],
       });
     },
     onError: (error) => {
@@ -730,30 +733,13 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
                   <div className="space-y-4">
                     <FormField
                       control={form.control}
-                      name="projectNotes"
+                      name="description"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Project Notes</FormLabel>
+                          <FormLabel>Project Description</FormLabel>
                           <FormControl>
                             <Textarea 
-                              placeholder="Additional notes about the project..."
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="scopeDescription"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Scope Description</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="Detailed scope of work..."
+                              placeholder="Detailed project description and scope of work..."
                               {...field} 
                             />
                           </FormControl>
