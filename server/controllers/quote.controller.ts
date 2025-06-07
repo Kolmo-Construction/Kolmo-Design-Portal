@@ -12,6 +12,14 @@ const createQuoteSchema = createInsertSchema(quotes).omit({
   createdById: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  // Override date fields to accept strings and convert them to Date objects
+  validUntil: z.string().transform((str) => new Date(str)),
+  estimatedStartDate: z.string().optional().transform((str) => str ? new Date(str) : undefined),
+  estimatedCompletionDate: z.string().optional().transform((str) => str ? new Date(str) : undefined),
+  sentAt: z.string().optional().transform((str) => str ? new Date(str) : undefined),
+  viewedAt: z.string().optional().transform((str) => str ? new Date(str) : undefined),
+  respondedAt: z.string().optional().transform((str) => str ? new Date(str) : undefined),
 });
 
 const createLineItemSchema = z.object({

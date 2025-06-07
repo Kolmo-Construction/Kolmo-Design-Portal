@@ -2,8 +2,9 @@ import React from "react"; // REQUIRED for JSX
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { format, isBefore, isToday } from "date-fns";
-// Import Milestone type from shared schema
-import { ProjectStatus, UserRole, MilestoneStatus, InvoiceStatus, Milestone } from "@shared/schema";
+// Import types from shared schema
+import { milestones } from "@shared/schema";
+type Milestone = typeof milestones.$inferSelect;
 // Import icons used in getFileIcon and getMilestoneVisuals
 import { FileIcon, Image as ImageIcon, FileText, CheckCircle2, ClockIcon, AlertTriangle } from "lucide-react";
 // Import Badge component used in getMilestoneBadge
@@ -66,7 +67,7 @@ export const getFileIcon = (fileType: string | null | undefined): React.ReactEle
 /**
  * Gets a user-friendly label for a project status.
  */
-export const getProjectStatusLabel = (status: ProjectStatus | string | undefined | null): string => {
+export const getProjectStatusLabel = (status: string | undefined | null): string => {
     if (!status) return 'Unknown';
     switch (status) {
       case "planning": return "Planning";
@@ -80,7 +81,7 @@ export const getProjectStatusLabel = (status: ProjectStatus | string | undefined
 /**
  * Gets Tailwind CSS classes for styling a project status badge.
  */
-export const getProjectStatusBadgeClasses = (status: ProjectStatus | string | undefined | null): string => {
+export const getProjectStatusBadgeClasses = (status: string | undefined | null): string => {
     if (!status) return "bg-slate-100 text-slate-800 border-slate-300";
      switch (status) {
         case "planning": return "bg-blue-100 text-blue-800 border-blue-300";
@@ -94,7 +95,7 @@ export const getProjectStatusBadgeClasses = (status: ProjectStatus | string | un
 /**
  * Gets a user-friendly label for a user role.
  */
-export const getUserRoleLabel = (role: UserRole | string | undefined | null): string => {
+export const getUserRoleLabel = (role: string | undefined | null): string => {
      if (!role) return 'Unknown';
      switch (role) {
         case "admin": return "Admin";
@@ -107,7 +108,7 @@ export const getUserRoleLabel = (role: UserRole | string | undefined | null): st
 /**
  * Gets the badge variant for a user role.
  */
-export const getUserRoleBadgeVariant = (role: UserRole | string | undefined | null): "default" | "secondary" | "outline" => {
+export const getUserRoleBadgeVariant = (role: string | undefined | null): "default" | "secondary" | "outline" => {
     if (!role) return "secondary";
     switch (role) {
         case "admin": return "default";
@@ -129,7 +130,7 @@ export const getUserStatusBadgeClasses = (isActivated: boolean | undefined | nul
 /**
  * Gets a user-friendly label for an invoice status.
  */
-export const getInvoiceStatusLabel = (status: InvoiceStatus | string | undefined | null): string => {
+export const getInvoiceStatusLabel = (status: string | undefined | null): string => {
      if (!status) return 'Unknown';
      switch (status) {
         case "pending": return "Pending";
@@ -143,7 +144,7 @@ export const getInvoiceStatusLabel = (status: InvoiceStatus | string | undefined
 /**
  * Gets Tailwind CSS classes for styling an invoice status badge.
  */
-export const getInvoiceStatusBadgeClasses = (status: InvoiceStatus | string | undefined | null): string => {
+export const getInvoiceStatusBadgeClasses = (status: string | undefined | null): string => {
     if (!status) return "bg-slate-100 text-slate-800 border-slate-300";
      switch (status) {
         case "pending": return "bg-yellow-100 text-yellow-800 border-yellow-300";

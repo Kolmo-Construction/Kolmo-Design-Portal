@@ -164,7 +164,7 @@ export default function QuotesPage() {
                   </div>
                   <div>
                     <div className="text-sm font-medium text-gray-500">Created</div>
-                    <div className="text-sm">{formatDate(quote.createdAt)}</div>
+                    <div className="text-sm">{formatDate(quote.createdAt.toString())}</div>
                   </div>
                 </div>
 
