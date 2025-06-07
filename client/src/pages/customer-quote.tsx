@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency } from "@/lib/utils";
+import kolmoLogo from "@assets/kolmo-logo (1).png";
 
 interface QuoteResponse {
   id: number;
@@ -204,7 +205,7 @@ export default function CustomerQuotePage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="bg-gray-50 rounded-lg p-2">
-                <img src="Kolmo (1).png" alt="Kolmo Construction" className="h-12 w-12" />
+                <img src={kolmoLogo} alt="Kolmo Construction" className="h-12 w-12 object-contain" />
               </div>
               <div className="text-center sm:text-left">
                 <h1 className="text-2xl sm:text-3xl font-bold" style={{color: '#1a1a1a'}}>Kolmo Constructions</h1>

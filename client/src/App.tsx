@@ -54,7 +54,7 @@ function Router() {
       <ProtectedRoute path="/user-management" component={UserManagement} />
       
       {/* Public customer quote route */}
-      <Route path="/quotes/:token" component={CustomerQuote} />
+      <Route path="/quote/:token" component={CustomerQuote} />
 
       {/* Development-only routes */}
       {import.meta.env.DEV && (
