@@ -110,9 +110,18 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
 
   const updateQuoteMutation = useMutation({
     mutationFn: async (updatedData: any) => {
-      return await apiRequest("/api/quotes/" + quote.id, "PATCH", updatedData);
+      console.log("Sending update request with data:", updatedData);
+      try {
+        const result = await apiRequest("/api/quotes/" + quote.id, "PATCH", updatedData);
+        console.log("Update request successful:", result);
+        return result;
+      } catch (error) {
+        console.error("Update request failed:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
+      console.log("Quote update mutation succeeded");
       toast({
         title: "Quote Updated",
         description: "Quote details have been updated successfully",
@@ -121,10 +130,11 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
       queryClient.invalidateQueries({ queryKey: [`/api/quotes/${quote.id}`] });
       onOpenChange(false);
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("Quote update mutation failed:", error);
       toast({
         title: "Error",
-        description: "Failed to update quote details",
+        description: `Failed to update quote details: ${error?.message || 'Unknown error'}`,
         variant: "destructive",
       });
     },

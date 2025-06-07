@@ -97,24 +97,31 @@ export class QuoteController {
 
   async updateQuote(req: Request, res: Response) {
     try {
+      console.log("UPDATE QUOTE - Received request body:", JSON.stringify(req.body, null, 2));
+      
       const quoteId = parseInt(req.params.id);
       if (isNaN(quoteId)) {
         return res.status(400).json({ error: "Invalid quote ID" });
       }
 
+      console.log("UPDATE QUOTE - Parsing with schema...");
       const validatedData = createQuoteSchema.partial().parse(req.body);
+      console.log("UPDATE QUOTE - Validated data:", JSON.stringify(validatedData, null, 2));
+      
       const quote = await this.quoteRepository.updateQuote(quoteId, validatedData);
       
       if (!quote) {
         return res.status(404).json({ error: "Quote not found" });
       }
 
+      console.log("UPDATE QUOTE - Success, returning quote");
       res.json(quote);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("UPDATE QUOTE - Zod validation error:", error.errors);
         return res.status(400).json({ error: "Invalid data", details: error.errors });
       }
-      console.error("Error updating quote:", error);
+      console.error("UPDATE QUOTE - General error:", error);
       res.status(500).json({ error: "Failed to update quote" });
     }
   }
