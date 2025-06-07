@@ -204,7 +204,7 @@ export default function CustomerQuotePage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="bg-gray-50 rounded-lg p-2">
-                <img src="/assets/kolmo-logo.png" alt="Kolmo Constructions" className="h-12 w-12" />
+                <img src="Kolmo (1).png" alt="Kolmo Construction" className="h-12 w-12" />
               </div>
               <div className="text-center sm:text-left">
                 <h1 className="text-2xl sm:text-3xl font-bold" style={{color: '#1a1a1a'}}>Kolmo Constructions</h1>
@@ -708,7 +708,7 @@ export default function CustomerQuotePage() {
           <div className="text-center">
             <div className="flex items-center justify-center gap-4 mb-6">
               <div className="rounded-lg p-3" style={{backgroundColor: '#4a6670'}}>
-                <img src="/assets/kolmo-logo.png" alt="Kolmo Constructions" className="h-12 w-12" />
+                <img src="Kolmo (1).png" alt="Kolmo Construction" className="h-12 w-12" />
               </div>
               <div className="text-left">
                 <h3 className="text-2xl font-bold">Kolmo Constructions</h3>
