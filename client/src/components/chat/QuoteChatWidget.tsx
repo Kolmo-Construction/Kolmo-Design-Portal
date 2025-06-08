@@ -32,10 +32,18 @@ export const QuoteChatWidget: React.FC<QuoteChatWidgetProps> = ({
   
   console.log('Chat context state:', { client: !!client, isConnected, error, isLoading });
 
-  // Initialize or get the quote channel
+  // Initialize or get the quote channel - only after client is fully connected
   useEffect(() => {
-    if (client && isConnected && !channel) {
-      joinQuoteChannel(quoteId).then(setChannel);
+    if (client && isConnected && !channel && client.user) {
+      console.log('Attempting to join quote channel:', quoteId);
+      joinQuoteChannel(quoteId).then(channel => {
+        if (channel) {
+          console.log('Successfully joined quote channel');
+          setChannel(channel);
+        }
+      }).catch(error => {
+        console.error('Failed to join quote channel:', error);
+      });
     }
   }, [client, isConnected, quoteId, channel, joinQuoteChannel]);
 
@@ -154,11 +162,13 @@ export const AdminQuoteChatWidget: React.FC<{ quoteId: string; quoteNumber: stri
   });
 
   useEffect(() => {
-    if (client && isConnected) {
+    if (client && isConnected && client.user) {
+      console.log('Admin attempting to join quote channel:', quoteId);
       const channelId = `quote-${quoteId}`;
       const quoteChannel = client.channel('messaging', channelId);
       
       quoteChannel.watch().then(() => {
+        console.log('Admin successfully joined quote channel');
         setChannel(quoteChannel);
       }).catch(error => {
         console.error('Error watching admin channel:', error);

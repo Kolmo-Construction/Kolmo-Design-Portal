@@ -72,11 +72,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
     try {
       console.log('Creating Stream client with API key:', chatData.apiKey);
       const chatClient = StreamChat.getInstance(chatData.apiKey);
-      console.log('Connecting user:', { id: chatData.userId, name: 'Admin User' });
+      console.log('Connecting user:', { id: chatData.userId, name: 'KOLMO' });
       await chatClient.connectUser(
         { 
           id: chatData.userId,
-          name: 'Admin User',
+          name: 'KOLMO',
         },
         chatData.token
       );
