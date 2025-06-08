@@ -1,5 +1,3 @@
-const fetch = require('node-fetch');
-
 async function testQuoteEmail() {
   const baseUrl = 'http://localhost:5000';
   
