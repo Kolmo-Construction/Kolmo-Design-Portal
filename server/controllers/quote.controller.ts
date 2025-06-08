@@ -204,7 +204,7 @@ export class QuoteController {
       }
 
       // Send email to customer
-      const quoteLink = `${req.protocol}://${req.get('host')}/quote/${quoteDetails.accessToken}`;
+      const quoteLink = `${req.protocol}://${req.get('host')}/customer/quote/${quoteDetails.accessToken}`;
       console.log(`[QuoteController] Sending email to ${quoteDetails.customerEmail} with link: ${quoteLink}`);
       
       const emailSent = await this.sendQuoteEmail(quoteDetails, quoteLink);

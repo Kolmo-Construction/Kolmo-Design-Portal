@@ -105,7 +105,7 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
 
   const generateQuoteLink = () => {
     const baseUrl = window.location.origin;
-    return `${baseUrl}/quote/${quote.accessToken}`;
+    return `${baseUrl}/customer/quote/${quote.accessToken}`;
   };
 
   const copyQuoteLink = async () => {
