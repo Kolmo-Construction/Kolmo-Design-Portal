@@ -1,0 +1,73 @@
+client:495 [vite] connecting...
+client:618 [vite] connected.
+ChatContext.tsx:63 initializeAdminChat called with: Object
+ChatContext.tsx:73 Creating Stream client with API key: cux8fxg93kgc
+ChatContext.tsx:75 Connecting user: Object
+ChatContext.tsx:83 Stream client connected successfully
+QuoteChatWidget.tsx:198 🚀 AdminQuoteChatWidget RENDERING with props: Object
+QuoteChatWidget.tsx:204 📱 Admin chat context state: Object
+QuoteChatWidget.tsx:214 Admin attempting to join quote channel: 5
+QuoteChatWidget.tsx:219 Admin successfully joined quote channel
+QuoteChatWidget.tsx:198 🚀 AdminQuoteChatWidget RENDERING with props: Object
+QuoteChatWidget.tsx:204 📱 Admin chat context state: Object
+QuoteChatWidget.tsx:198 🚀 AdminQuoteChatWidget RENDERING with props: Object
+QuoteChatWidget.tsx:204 📱 Admin chat context state: Object
+QuoteChatWidget.tsx:198 🚀 AdminQuoteChatWidget RENDERING with props: Object
+QuoteChatWidget.tsx:204 📱 Admin chat context state: Object
+EditQuoteDetailsDialog.tsx:143 Save clicked - starting validation
+EditQuoteDetailsDialog.tsx:144 Current form data: Object
+EditQuoteDetailsDialog.tsx:178 Total percentage calculated: 75
+EditQuoteDetailsDialog.tsx:179 Milestones data: Array(3)
+EditQuoteDetailsDialog.tsx:182 Percentage validation failed - total: 75
+QuoteChatWidget.tsx:198 🚀 AdminQuoteChatWidget RENDERING with props: Object
+QuoteChatWidget.tsx:204 📱 Admin chat context state: Object
+QuoteChatWidget.tsx:198 🚀 AdminQuoteChatWidget RENDERING with props: Object
+QuoteChatWidget.tsx:204 📱 Admin chat context state: Object
+EditQuoteDetailsDialog.tsx:143 Save clicked - starting validation
+EditQuoteDetailsDialog.tsx:144 Current form data: Object
+EditQuoteDetailsDialog.tsx:178 Total percentage calculated: 100
+EditQuoteDetailsDialog.tsx:179 Milestones data: Array(3)
+EditQuoteDetailsDialog.tsx:191 All validations passed, proceeding with save
+EditQuoteDetailsDialog.tsx:111 Sending update request with data: Object
+api/quotes/5:1 
+            
+            
+           Failed to load resource: the server responded with a status of 400 (Bad Request)
+hook.js:608 Update request failed: Error: HTTP Error 400: {"error":"Invalid data","details":[{"code":"invalid_type","expected":"integer","received":"float","message":"Expected integer, received float","path":["downPaymentPercentage"]},{"code":"invalid_type","expected":"integer","received":"float","message":"Expected integer, received float","path":["milestonePaymentPercentage"]},{"code":"invalid_type","expected":"integer","received":"float","message":"Expected integer, received float","path":["finalPaymentPercentage"]}]}
+    at throwIfResNotOk (queryClient.ts:24:11)
+    at async apiRequest (queryClient.ts:42:3)
+    at async Object.mutationFn (EditQuoteDetailsDialog.tsx:113:26)
+overrideMethod @ hook.js:608
+hook.js:608 Quote update mutation failed: Error: HTTP Error 400: {"error":"Invalid data","details":[{"code":"invalid_type","expected":"integer","received":"float","message":"Expected integer, received float","path":["downPaymentPercentage"]},{"code":"invalid_type","expected":"integer","received":"float","message":"Expected integer, received float","path":["milestonePaymentPercentage"]},{"code":"invalid_type","expected":"integer","received":"float","message":"Expected integer, received float","path":["finalPaymentPercentage"]}]}
+    at throwIfResNotOk (queryClient.ts:24:11)
+    at async apiRequest (queryClient.ts:42:3)
+    at async Object.mutationFn (EditQuoteDetailsDialog.tsx:113:26)
+overrideMethod @ hook.js:608
+QuoteChatWidget.tsx:198 🚀 AdminQuoteChatWidget RENDERING with props: Object
+QuoteChatWidget.tsx:204 📱 Admin chat context state: Object
+QuoteChatWidget.tsx:198 🚀 AdminQuoteChatWidget RENDERING with props: Object
+QuoteChatWidget.tsx:204 📱 Admin chat context state: Object
+EditQuoteDetailsDialog.tsx:143 Save clicked - starting validation
+EditQuoteDetailsDialog.tsx:144 Current form data: Object
+EditQuoteDetailsDialog.tsx:178 Total percentage calculated: 100
+EditQuoteDetailsDialog.tsx:179 Milestones data: Array(3)
+EditQuoteDetailsDialog.tsx:191 All validations passed, proceeding with save
+EditQuoteDetailsDialog.tsx:111 Sending update request with data: Object
+api/quotes/5:1 
+            
+            
+           Failed to load resource: the server responded with a status of 400 (Bad Request)
+hook.js:608 Update request failed: Error: HTTP Error 400: {"error":"Invalid data","details":[{"code":"invalid_type","expected":"integer","received":"float","message":"Expected integer, received float","path":["downPaymentPercentage"]},{"code":"invalid_type","expected":"integer","received":"float","message":"Expected integer, received float","path":["milestonePaymentPercentage"]},{"code":"invalid_type","expected":"integer","received":"float","message":"Expected integer, received float","path":["finalPaymentPercentage"]}]}
+    at throwIfResNotOk (queryClient.ts:24:11)
+    at async apiRequest (queryClient.ts:42:3)
+    at async Object.mutationFn (EditQuoteDetailsDialog.tsx:113:26)
+overrideMethod @ hook.js:608
+hook.js:608 Quote update mutation failed: Error: HTTP Error 400: {"error":"Invalid data","details":[{"code":"invalid_type","expected":"integer","received":"float","message":"Expected integer, received float","path":["downPaymentPercentage"]},{"code":"invalid_type","expected":"integer","received":"float","message":"Expected integer, received float","path":["milestonePaymentPercentage"]},{"code":"invalid_type","expected":"integer","received":"float","message":"Expected integer, received float","path":["finalPaymentPercentage"]}]}
+    at throwIfResNotOk (queryClient.ts:24:11)
+    at async apiRequest (queryClient.ts:42:3)
+    at async Object.mutationFn (EditQuoteDetailsDialog.tsx:113:26)
+overrideMethod @ hook.js:608
+QuoteChatWidget.tsx:198 🚀 AdminQuoteChatWidget RENDERING with props: Object
+QuoteChatWidget.tsx:204 📱 Admin chat context state: Object
+QuoteChatWidget.tsx:198 🚀 AdminQuoteChatWidget RENDERING with props: Object
+QuoteChatWidget.tsx:204 📱 Admin chat context state: Object
