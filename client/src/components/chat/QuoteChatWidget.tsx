@@ -260,68 +260,30 @@ export const AdminQuoteChatWidget: React.FC<{ quoteId: string; quoteNumber: stri
   }
 
   return (
-    <>
-      {/* Mobile floating chat button */}
+    <div className="w-full">
+      {/* Admin chat toggle button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="md:hidden kolmo-floating-chat-button"
+        className="kolmo-chat-button mb-4 flex items-center gap-2 w-full justify-center"
       >
-        <MessageCircle className="h-6 w-6 text-white" />
+        <MessageCircle className="h-4 w-4" />
+        {isOpen ? 'Hide Chat' : 'Show Quote Chat'}
       </button>
-
-      {/* Desktop inline chat */}
-      <div className="hidden md:block w-full">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="kolmo-chat-button mb-4 flex items-center gap-2 w-full justify-center"
-        >
-          <MessageCircle className="h-4 w-4" />
-          {isOpen ? 'Hide Chat' : 'Show Quote Chat'}
-        </button>
-        
-        {isOpen && channel && (
-          <div className="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden h-96">
-            <div className="kolmo-chat-header">
-              Quote #{quoteNumber} Discussion
-            </div>
-            <div className="kolmo-chat-theme h-80">
-              <Chat client={client} theme="str-chat__theme-light">
-                <Channel channel={channel}>
-                  <div className="flex flex-col h-full">
-                    <div className="flex-1 overflow-hidden">
-                      <MessageList />
-                    </div>
-                    <div className="border-t">
-                      <MessageInput />
-                    </div>
-                  </div>
-                </Channel>
-              </Chat>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Mobile full-screen chat overlay */}
+      
+      {/* Admin inline chat */}
       {isOpen && channel && (
-        <div className="md:hidden kolmo-chat-widget">
-          <div className="kolmo-chat-header flex items-center justify-between">
-            <span>Quote #{quoteNumber} Discussion</span>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="text-white hover:text-gray-200 p-1"
-            >
-              <X className="h-5 w-5" />
-            </button>
+        <div className="bg-white border rounded-lg shadow-lg overflow-hidden h-96" style={{ borderColor: '#4a6670' }}>
+          <div className="kolmo-chat-header">
+            Quote #{quoteNumber} Discussion
           </div>
-          <div className="kolmo-chat-theme kolmo-chat-content">
+          <div className="kolmo-chat-theme h-80">
             <Chat client={client} theme="str-chat__theme-light">
               <Channel channel={channel}>
                 <div className="flex flex-col h-full">
                   <div className="flex-1 overflow-hidden">
                     <MessageList />
                   </div>
-                  <div className="border-t bg-white">
+                  <div className="border-t">
                     <MessageInput />
                   </div>
                 </div>
@@ -330,6 +292,6 @@ export const AdminQuoteChatWidget: React.FC<{ quoteId: string; quoteNumber: stri
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };
