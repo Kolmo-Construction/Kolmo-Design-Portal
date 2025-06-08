@@ -112,3 +112,14 @@ app.use((req, res, next) => {
   console.error("Failed to start server:", error);
   process.exit(1);
 });
+
+// Add global error handlers to prevent crashes
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Don't exit the process, just log the error
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit the process, just log the error
+});

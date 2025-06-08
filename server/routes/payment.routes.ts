@@ -177,7 +177,12 @@ router.post('/payment-success', async (req, res, next) => {
     await storage.invoices.recordPayment(paymentData);
 
     // Send confirmation email
-    await sendProjectWelcomeEmail(customerEmail, customerName, quote);
+    try {
+      await sendProjectWelcomeEmail(customerEmail, customerName, quote);
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+      // Continue processing - don't fail payment for email issues
+    }
 
     res.json({
       success: true,
@@ -293,6 +298,10 @@ async function sendProjectWelcomeEmail(
       </p>
     </div>
   `;
+
+  if (!customerEmail) {
+    throw new Error('Customer email is required for welcome email');
+  }
 
   await sendEmail({
     to: customerEmail,
