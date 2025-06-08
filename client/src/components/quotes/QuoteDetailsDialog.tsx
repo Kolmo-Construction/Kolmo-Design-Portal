@@ -456,6 +456,22 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
               </CardContent>
             </Card>
 
+            {/* Quote Chat */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Quote Discussion</CardTitle>
+                <CardDescription>
+                  Chat with customers about this quote in real-time
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AdminQuoteChatWidget 
+                  quoteId={currentQuote.id.toString()}
+                  quoteNumber={currentQuote.quoteNumber}
+                />
+              </CardContent>
+            </Card>
+
             {/* Customer Link */}
             <Card>
               <CardHeader>

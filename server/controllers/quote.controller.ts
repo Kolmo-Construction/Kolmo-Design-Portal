@@ -5,6 +5,7 @@ import { quotes, quoteLineItems, quoteResponses } from "@shared/schema";
 import { uploadToR2, deleteFromR2 } from "../r2-upload";
 import { z } from "zod";
 import { sendEmail } from "../email";
+import { initializeQuoteChat } from "../stream-chat";
 
 const createQuoteSchema = createInsertSchema(quotes).omit({
   id: true,
@@ -162,6 +163,20 @@ export class QuoteController {
       const quote = await this.quoteRepository.sendQuote(quoteId);
       if (!quote) {
         return res.status(404).json({ error: "Failed to update quote status" });
+      }
+
+      // Initialize chat channel for quote
+      try {
+        await initializeQuoteChat(
+          quoteId.toString(),
+          quoteDetails.quoteNumber,
+          quoteDetails.customerName,
+          quoteDetails.customerEmail
+        );
+        console.log(`Chat channel initialized for quote ${quoteDetails.quoteNumber}`);
+      } catch (chatError) {
+        console.warn("Failed to initialize chat channel:", chatError);
+        // Continue with quote sending even if chat fails
       }
 
       // Send email to customer

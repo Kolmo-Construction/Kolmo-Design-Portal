@@ -35,7 +35,20 @@ export const QuoteChatWidget: React.FC<QuoteChatWidgetProps> = ({
     }
   }, [client, isConnected, quoteId, channel, joinQuoteChannel]);
 
-  if (!client || !isConnected) {
+  if (error) {
+    return (
+      <div className="fixed bottom-4 right-4 z-50">
+        <Alert className="w-80">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Chat unavailable: {error}
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (isLoading || !client || !isConnected) {
     return (
       <div className="fixed bottom-4 right-4 z-50">
         <Button
@@ -45,7 +58,7 @@ export const QuoteChatWidget: React.FC<QuoteChatWidgetProps> = ({
           className="flex items-center gap-2"
         >
           <MessageCircle className="h-4 w-4" />
-          Chat Loading...
+          {isLoading ? 'Connecting...' : 'Chat Loading...'}
         </Button>
       </div>
     );
