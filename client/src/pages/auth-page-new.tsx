@@ -72,12 +72,12 @@ export default function AuthPageNew({ isMagicLink = false, isPasswordReset = fal
     },
   });
 
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (user && !isMagicLink && !isPasswordReset) {
-      navigate("/");
-    }
-  }, [user, navigate, isMagicLink, isPasswordReset]);
+  // Redirect if already authenticated (temporarily disabled for testing)
+  // useEffect(() => {
+  //   if (user && !isMagicLink && !isPasswordReset) {
+  //     navigate("/");
+  //   }
+  // }, [user, navigate, isMagicLink, isPasswordReset]);
 
   // Handle magic link verification
   useEffect(() => {

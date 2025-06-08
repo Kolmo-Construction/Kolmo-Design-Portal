@@ -16,7 +16,6 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { insertUserSchema } from "@shared/schema";
 import kolmoLogo from "@assets/kolmo-logo (1).png";
-// Force reload to clear cache
 
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -40,7 +39,7 @@ interface AuthPageProps {
 }
 
 export default function AuthPage({ isMagicLink = false, isPasswordReset = false }: AuthPageProps) {
-  console.log("NEW AUTH PAGE COMPONENT LOADED - VERSION 2.0");
+  console.log("🚀 BRAND NEW PROFESSIONAL AUTH PAGE LOADED!");
   const [activeTab, setActiveTab] = useState<string>("login");
   const [, navigate] = useLocation();
   const [magicLinkStatus, setMagicLinkStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -49,302 +48,9 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [forgotPasswordSubmitting, setForgotPasswordSubmitting] = useState(false);
   const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false);
-  const [forgotPasswordError, setForgotPasswordError] = useState('');
-  const { 
-    user, 
-    loginMutation, 
-    registerMutation, 
-    verifyMagicLinkMutation 
-  } = useAuth();
-  const [regSuccess, setRegSuccess] = useState(false);
 
-  // Get token from URL if in magic link mode
-  const params = useParams();
-  const token = isMagicLink ? params.token : null;
-
-  // Get reset token for password reset
-  const resetToken = isPasswordReset ? params.token : null;
-  const [resetPasswordStatus, setResetPasswordStatus] = useState<'loading' | 'verifying' | 'ready' | 'success' | 'error'>('verifying');
-  const [resetPasswordError, setResetPasswordError] = useState<string>('');
-
-  // Password reset form schema
-  const resetPasswordSchema = z.object({
-    password: z.string().min(8, "Password must be at least 8 characters"),
-    confirmPassword: z.string().min(1, "Please confirm your password"),
-  }).refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
-  });
-
-  type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
-
-  const resetPasswordForm = useForm<ResetPasswordFormValues>({
-    resolver: zodResolver(resetPasswordSchema),
-    defaultValues: {
-      password: "",
-      confirmPassword: "",
-    },
-  });
-
-  // Process magic link token
-  useEffect(() => {
-    if (isMagicLink && token) {
-      verifyMagicLinkMutation.mutate(token, {
-        onSuccess: (data) => {
-          setMagicLinkStatus('success');
-          // If there's a redirect, navigate there
-          if (data.redirect) {
-            navigate(data.redirect);
-          } else {
-            // Otherwise go to dashboard after short delay
-            setTimeout(() => {
-              navigate("/");
-            }, 2000);
-          }
-        },
-        onError: (error) => {
-          setMagicLinkStatus('error');
-          setMagicLinkError(error.message || "Invalid or expired magic link");
-        }
-      });
-    }
-  }, [isMagicLink, token, verifyMagicLinkMutation, navigate]);
-
-  // Handle password reset token verification
-  useEffect(() => {
-    if (isPasswordReset && resetToken) {
-      setResetPasswordStatus('verifying');
-      
-      // Verify reset token
-      fetch('/api/verify-reset-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: resetToken })
-      })
-        .then(res => {
-          if (!res.ok) throw new Error('Invalid or expired reset token');
-          return res.json();
-        })
-        .then(() => {
-          setResetPasswordStatus('ready');
-        })
-        .catch(err => {
-          console.error('Error verifying reset token:', err);
-          setResetPasswordStatus('error');
-          setResetPasswordError(err.message || 'Invalid or expired reset link');
-        });
-    }
-  }, [isPasswordReset, resetToken]);
-
-  // Handle password reset submission
-  const onResetPasswordSubmit = (values: ResetPasswordFormValues) => {
-    if (!resetToken) return;
-    
-    setResetPasswordStatus('loading');
-    
-    // Submit new password
-    fetch('/api/reset-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: resetToken, password: values.password })
-    })
-    .then(res => {
-      if (!res.ok) throw new Error('Failed to reset password');
-      return res.json();
-    })
-    .then(() => {
-      setResetPasswordStatus('success');
-      // Auto-redirect to login after delay
-      setTimeout(() => {
-        navigate('/auth');
-      }, 3000);
-    })
-    .catch(err => {
-      console.error('Error resetting password:', err);
-      setResetPasswordStatus('error');
-      setResetPasswordError(err.message || 'Failed to reset password. Please try again.');
-    });
-  };
-
-  // Render password reset UI
-  if (isPasswordReset) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1">
-            <div className="flex items-center gap-2 mb-2">
-              <svg className="h-8 w-8 text-primary" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="currentColor"/>
-                <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span className="text-2xl font-bold">BuildPortal</span>
-            </div>
-            <CardTitle className="text-2xl">Reset Your Password</CardTitle>
-            <CardDescription>
-              {resetPasswordStatus === 'loading' || resetPasswordStatus === 'verifying'
-                ? 'Verifying your reset link...'
-                : resetPasswordStatus === 'ready'
-                  ? 'Please enter a new password for your account.'
-                  : resetPasswordStatus === 'success'
-                    ? 'Your password has been reset successfully!'
-                    : 'Reset link verification failed'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {(resetPasswordStatus === 'loading' || resetPasswordStatus === 'verifying') && (
-              <div className="flex flex-col items-center py-8">
-                <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
-                <p className="text-center text-muted-foreground">
-                  Please wait while we verify your reset link...
-                </p>
-              </div>
-            )}
-            
-            {resetPasswordStatus === 'ready' && (
-              <Form {...resetPasswordForm}>
-                <form onSubmit={resetPasswordForm.handleSubmit(onResetPasswordSubmit)} className="space-y-4">
-                  <FormField
-                    control={resetPasswordForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>New Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Enter your new password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={resetPasswordForm.control}
-                    name="confirmPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Confirm New Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Confirm your new password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" className="w-full">Reset Password</Button>
-                </form>
-              </Form>
-            )}
-            
-            {resetPasswordStatus === 'success' && (
-              <Alert className="bg-green-50 text-green-800 border-green-200">
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
-                <div className="ml-3">
-                  <AlertDescription className="text-green-700 font-medium">
-                    Your password has been successfully reset.
-                  </AlertDescription>
-                  <p className="text-sm mt-1">Redirecting you to login...</p>
-                </div>
-              </Alert>
-            )}
-            
-            {resetPasswordStatus === 'error' && (
-              <>
-                <Alert variant="destructive">
-                  <AlertCircle className="h-5 w-5" />
-                  <AlertDescription className="ml-2">
-                    {resetPasswordError || "There was an error resetting your password"}
-                  </AlertDescription>
-                </Alert>
-                <div className="text-center mt-4">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => navigate("/auth")}
-                    className="mx-auto"
-                  >
-                    Return to Login
-                  </Button>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Render magic link UI
-  if (isMagicLink) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1">
-            <div className="flex items-center gap-2 mb-2">
-              <svg className="h-8 w-8 text-primary" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="currentColor"/>
-                <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span className="text-2xl font-bold">BuildPortal</span>
-            </div>
-            <CardTitle className="text-2xl">Magic Link Authentication</CardTitle>
-            <CardDescription>
-              {magicLinkStatus === 'loading' 
-                ? 'Verifying your secure access link...' 
-                : magicLinkStatus === 'success' 
-                  ? 'Authentication successful!' 
-                  : 'Authentication failed'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {magicLinkStatus === 'loading' && (
-              <div className="flex flex-col items-center py-8">
-                <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
-                <p className="text-center text-muted-foreground">
-                  Please wait while we verify your access link...
-                </p>
-              </div>
-            )}
-            
-            {magicLinkStatus === 'success' && (
-              <Alert className="bg-green-50 text-green-800 border-green-200">
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
-                <div className="ml-3">
-                  <AlertDescription className="text-green-700 font-medium">
-                    You have been successfully authenticated.
-                  </AlertDescription>
-                  <p className="text-sm mt-1">Redirecting you to your dashboard...</p>
-                </div>
-              </Alert>
-            )}
-            
-            {magicLinkStatus === 'error' && (
-              <>
-                <Alert variant="destructive">
-                  <AlertCircle className="h-5 w-5" />
-                  <AlertDescription className="ml-2">
-                    {magicLinkError || "There was an error verifying your magic link"}
-                  </AlertDescription>
-                </Alert>
-                <div className="text-center mt-4">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => navigate("/auth")}
-                    className="mx-auto"
-                  >
-                    Return to Login
-                  </Button>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // If user is already logged in, redirect to home page
-  if (user && !isMagicLink) {
-    navigate("/");
-    return null;
-  }
+  const { token } = useParams<{ token: string }>();
+  const { user, isLoading: authLoading, loginMutation, registerMutation } = useAuth();
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -359,178 +65,317 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
     defaultValues: {
       username: "",
       email: "",
-      password: "",
-      confirmPassword: "",
       firstName: "",
       lastName: "",
-      phone: "",
-      role: "client",
+      password: "",
+      confirmPassword: "",
     },
   });
 
-  const onLoginSubmit = (values: LoginFormValues) => {
-    loginMutation.mutate(values, {
-      onSuccess: () => {
-        navigate("/");
-      }
-    });
-  };
+  // Handle magic link verification
+  useEffect(() => {
+    if (isMagicLink && token) {
+      verifyMagicLink(token);
+    }
+  }, [isMagicLink, token]);
 
-  const onRegisterSubmit = (values: RegisterFormValues) => {
-    registerMutation.mutate(values, {
-      onSuccess: () => {
-        setRegSuccess(true);
-        setTimeout(() => {
-          setActiveTab("login");
-          setRegSuccess(false);
-        }, 3000);
-      }
-    });
-  };
-
-  // Handle forgot password dialog close
-  const handleForgotPasswordDialogClose = () => {
-    setForgotPasswordDialogOpen(false);
-    setForgotPasswordEmail('');
-    setForgotPasswordSuccess(false);
-    setForgotPasswordError('');
-    setForgotPasswordSubmitting(false);
-  };
-
-  // Handle forgot password submission  
-  const handleForgotPassword = () => {
-    setForgotPasswordSubmitting(true);
-    setForgotPasswordError('');
-    
-    // Simulate API call with timeout
-    setTimeout(() => {
-      // For demo purposes, always show success
-      // In a real app, you'd make an actual API call here
-      fetch('/api/forgot-password', {
+  const verifyMagicLink = async (token: string) => {
+    try {
+      const response = await fetch(`/api/auth/verify-magic-link/${token}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: forgotPasswordEmail }),
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Failed to send reset email');
-        }
-        return response.json();
-      })
-      .then(() => {
-        setForgotPasswordSuccess(true);
-      })
-      .catch(err => {
-        console.error('Forgot password error:', err);
-        setForgotPasswordError('Failed to send reset email. Please try again.');
-      })
-      .finally(() => {
-        setForgotPasswordSubmitting(false);
       });
-    }, 1000);
+
+      if (response.ok) {
+        setMagicLinkStatus('success');
+        await queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+        setTimeout(() => navigate('/'), 2000);
+      } else {
+        const error = await response.text();
+        setMagicLinkError(error || 'Invalid or expired magic link');
+        setMagicLinkStatus('error');
+      }
+    } catch (error) {
+      setMagicLinkError('Failed to verify magic link');
+      setMagicLinkStatus('error');
+    }
   };
 
-  // Regular auth form for non-magic link access
+  const onLogin = async (data: LoginFormValues) => {
+    try {
+      await loginMutation.mutateAsync(data);
+      navigate("/");
+    } catch (error: any) {
+      console.error("Login failed:", error);
+      loginForm.setError("root", {
+        type: "manual",
+        message: error.message || "Login failed",
+      });
+    }
+  };
+
+  const onRegister = async (data: RegisterFormValues) => {
+    try {
+      await registerMutation.mutateAsync(data);
+      navigate("/");
+    } catch (error: any) {
+      console.error("Registration failed:", error);
+      registerForm.setError("root", {
+        type: "manual",
+        message: error.message || "Registration failed",
+      });
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!forgotPasswordEmail) return;
+    
+    setForgotPasswordSubmitting(true);
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotPasswordEmail }),
+      });
+
+      if (response.ok) {
+        setForgotPasswordSuccess(true);
+      } else {
+        const error = await response.text();
+        console.error('Forgot password failed:', error);
+      }
+    } catch (error) {
+      console.error('Forgot password error:', error);
+    } finally {
+      setForgotPasswordSubmitting(false);
+    }
+  };
+
+  // Magic link loading/success/error states
+  if (isMagicLink) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+          <CardHeader className="text-center pb-4">
+            <div className="mx-auto mb-4 h-16 w-16 flex items-center justify-center bg-blue-100 rounded-full">
+              {magicLinkStatus === 'loading' && <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />}
+              {magicLinkStatus === 'success' && <CheckCircle2 className="h-8 w-8 text-green-600" />}
+              {magicLinkStatus === 'error' && <AlertCircle className="h-8 w-8 text-red-600" />}
+            </div>
+            <CardTitle className="text-xl font-semibold text-slate-900">
+              {magicLinkStatus === 'loading' && 'Verifying Access...'}
+              {magicLinkStatus === 'success' && 'Access Granted!'}
+              {magicLinkStatus === 'error' && 'Access Denied'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-center">
+            {magicLinkStatus === 'loading' && (
+              <p className="text-slate-600">Please wait while we verify your access link...</p>
+            )}
+            {magicLinkStatus === 'success' && (
+              <div className="space-y-2">
+                <p className="text-green-700 font-medium">You have been successfully logged in!</p>
+                <p className="text-slate-600 text-sm">Redirecting you to the portal...</p>
+              </div>
+            )}
+            {magicLinkStatus === 'error' && (
+              <div className="space-y-4">
+                <p className="text-red-700">{magicLinkError}</p>
+                <Button onClick={() => navigate('/auth')} className="w-full">
+                  <Home className="w-4 h-4 mr-2" />
+                  Return to Login
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Professional Header */}
-      <div className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <div className="grid lg:grid-cols-2 min-h-screen">
+        {/* Left Column - Branding & Features */}
+        <div className="hidden lg:flex flex-col justify-center p-12 bg-gradient-to-br from-blue-600 to-indigo-700 text-white relative overflow-hidden">
+          {/* Background Pattern */}
+          <div className="absolute inset-0 bg-black/10">
+            <div className="absolute inset-0" style={{
+              backgroundImage: `radial-gradient(circle at 20% 30%, rgba(255,255,255,0.1) 0%, transparent 50%),
+                               radial-gradient(circle at 80% 70%, rgba(255,255,255,0.08) 0%, transparent 50%)`
+            }} />
+          </div>
+          
+          <div className="relative z-10 max-w-lg">
+            {/* Logo */}
+            <div className="mb-8">
               <img 
                 src={kolmoLogo} 
-                alt="Kolmo Construction" 
-                className="h-10 w-10 object-contain"
+                alt="Kolmo Logo" 
+                className="h-12 w-auto filter brightness-0 invert"
               />
-              <div>
-                <h1 className="text-xl font-bold text-slate-900">Kolmo Construction</h1>
-                <p className="text-sm text-slate-600">Professional Construction Services</p>
+            </div>
+
+            {/* Main Heading */}
+            <h1 className="text-4xl font-bold mb-6 leading-tight">
+              Professional Construction
+              <span className="text-blue-200 block">Project Management</span>
+            </h1>
+
+            <p className="text-xl mb-12 text-blue-100 leading-relaxed">
+              Streamline your construction projects with intelligent tools, 
+              real-time collaboration, and comprehensive project oversight.
+            </p>
+
+            {/* Feature Grid */}
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                    <Shield className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Secure Portal</h3>
+                    <p className="text-sm text-blue-200">Enterprise-grade security</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Smart Quotes</h3>
+                    <p className="text-sm text-blue-200">AI-powered estimates</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Team Collaboration</h3>
+                    <p className="text-sm text-blue-200">Real-time updates</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                    <Award className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Quality Assurance</h3>
+                    <p className="text-sm text-blue-200">Professional standards</p>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="hidden sm:flex items-center gap-6 text-sm text-slate-600">
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-emerald-500" />
-                <span>Licensed & Insured</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Award className="h-4 w-4 text-blue-500" />
-                <span>EPA Certified</span>
+
+            {/* Trust Indicators */}
+            <div className="mt-12 pt-8 border-t border-white/20">
+              <div className="flex items-center space-x-6">
+                <div className="flex items-center space-x-2">
+                  <Star className="w-4 h-4 text-yellow-300 fill-current" />
+                  <span className="text-sm font-medium">Trusted by 500+ contractors</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-300" />
+                  <span className="text-sm font-medium">99.9% uptime</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="flex flex-col items-center justify-center px-4 py-12">
-        <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          {/* Auth Form */}
-          <div className="order-2 lg:order-1">
-            <Card className="w-full max-w-md mx-auto shadow-xl border-0 bg-white/95 backdrop-blur">
-              <CardHeader className="space-y-6 pb-8">
-                <div className="text-center space-y-2">
-                  <CardTitle className="text-2xl font-bold text-slate-900">Welcome to Kolmo Portal</CardTitle>
-                  <CardDescription className="text-slate-600">
-                    Sign in to access your construction project portal
-                  </CardDescription>
-                </div>
+        {/* Right Column - Authentication Forms */}
+        <div className="flex items-center justify-center p-6 lg:p-12">
+          <div className="w-full max-w-md space-y-8">
+            {/* Mobile Logo */}
+            <div className="lg:hidden text-center">
+              <img 
+                src={kolmoLogo} 
+                alt="Kolmo Logo" 
+                className="h-10 w-auto mx-auto mb-4"
+              />
+            </div>
+
+            <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
+              <CardHeader className="text-center pb-4">
+                <CardTitle className="text-2xl font-bold text-slate-900">Welcome to Kolmo Portal</CardTitle>
+                <CardDescription className="text-slate-600">
+                  Access your construction project dashboard
+                </CardDescription>
               </CardHeader>
+
               <CardContent>
-                <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <TabsList className="hidden">
-                    <TabsTrigger value="login">Login</TabsTrigger>
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+                  <TabsList className="grid w-full grid-cols-2 bg-slate-100">
+                    <TabsTrigger value="login" className="data-[state=active]:bg-white">Sign In</TabsTrigger>
+                    <TabsTrigger value="register" className="data-[state=active]:bg-white">Sign Up</TabsTrigger>
                   </TabsList>
-                  
-                  <TabsContent value="login">
+
+                  <TabsContent value="login" className="space-y-4 mt-6">
                     <Form {...loginForm}>
-                      <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+                      <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
                         <FormField
                           control={loginForm.control}
                           name="username"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Username</FormLabel>
+                              <FormLabel className="text-slate-700">Username</FormLabel>
                               <FormControl>
-                                <Input placeholder="Enter your username" {...field} />
+                                <Input
+                                  {...field}
+                                  type="text"
+                                  placeholder="Enter your username"
+                                  className="bg-white border-slate-200 focus:border-blue-500"
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
+
                         <FormField
                           control={loginForm.control}
                           name="password"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Password</FormLabel>
+                              <FormLabel className="text-slate-700">Password</FormLabel>
                               <FormControl>
-                                <Input type="password" placeholder="Enter your password" {...field} />
+                                <Input
+                                  {...field}
+                                  type="password"
+                                  placeholder="Enter your password"
+                                  className="bg-white border-slate-200 focus:border-blue-500"
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
-                        
-                        {(loginMutation.isError || loginForm.formState.errors.root) && (
+
+                        {loginForm.formState.errors.root && (
                           <Alert variant="destructive">
                             <AlertCircle className="h-4 w-4" />
                             <AlertDescription>
-                              {loginForm.formState.errors.root?.message || 
-                               loginMutation.error?.message || 
-                               "Invalid username or password"}
+                              {loginForm.formState.errors.root.message}
                             </AlertDescription>
                           </Alert>
                         )}
 
-                        <Button 
-                          type="submit" 
-                          className="w-full" 
-                          disabled={loginMutation.isPending}
-                          style={{ backgroundColor: '#db973c' }}
+                        <Button
+                          type="submit"
+                          disabled={loginForm.formState.isSubmitting || loginMutation.isPending}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5"
                         >
-                          {loginMutation.isPending ? (
+                          {loginForm.formState.isSubmitting || loginMutation.isPending ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                               Signing in...
@@ -539,13 +384,13 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
                             "Sign In"
                           )}
                         </Button>
-                        
+
                         <div className="text-center">
                           <Button
-                            variant="link"
                             type="button"
+                            variant="link"
                             onClick={() => setForgotPasswordDialogOpen(true)}
-                            className="text-sm text-slate-600 hover:text-slate-900"
+                            className="text-blue-600 hover:text-blue-700 text-sm"
                           >
                             Forgot your password?
                           </Button>
@@ -553,72 +398,170 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
                       </form>
                     </Form>
                   </TabsContent>
+
+                  <TabsContent value="register" className="space-y-4 mt-6">
+                    <Form {...registerForm}>
+                      <form onSubmit={registerForm.handleSubmit(onRegister)} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <FormField
+                            control={registerForm.control}
+                            name="firstName"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-slate-700">First Name</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    placeholder="First name"
+                                    className="bg-white border-slate-200 focus:border-blue-500"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={registerForm.control}
+                            name="lastName"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-slate-700">Last Name</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    placeholder="Last name"
+                                    className="bg-white border-slate-200 focus:border-blue-500"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <FormField
+                          control={registerForm.control}
+                          name="username"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-slate-700">Username</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  placeholder="Choose a username"
+                                  className="bg-white border-slate-200 focus:border-blue-500"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={registerForm.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-slate-700">Email</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  type="email"
+                                  placeholder="your@email.com"
+                                  className="bg-white border-slate-200 focus:border-blue-500"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={registerForm.control}
+                          name="password"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-slate-700">Password</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  type="password"
+                                  placeholder="Create a strong password"
+                                  className="bg-white border-slate-200 focus:border-blue-500"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={registerForm.control}
+                          name="confirmPassword"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-slate-700">Confirm Password</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  type="password"
+                                  placeholder="Confirm your password"
+                                  className="bg-white border-slate-200 focus:border-blue-500"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        {registerForm.formState.errors.root && (
+                          <Alert variant="destructive">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription>
+                              {registerForm.formState.errors.root.message}
+                            </AlertDescription>
+                          </Alert>
+                        )}
+
+                        <Button
+                          type="submit"
+                          disabled={registerForm.formState.isSubmitting || registerMutation.isPending}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5"
+                        >
+                          {registerForm.formState.isSubmitting || registerMutation.isPending ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Creating account...
+                            </>
+                          ) : (
+                            "Create Account"
+                          )}
+                        </Button>
+                      </form>
+                    </Form>
+                  </TabsContent>
                 </Tabs>
               </CardContent>
+
+              <CardFooter className="text-center pt-4">
+                <p className="text-sm text-slate-500">
+                  Secure access powered by Kolmo Construction Solutions
+                </p>
+              </CardFooter>
             </Card>
-          </div>
 
-          {/* Professional Info Section */}
-          <div className="order-1 lg:order-2 space-y-8">
-            <div className="text-center lg:text-left space-y-4">
-              <h2 className="text-3xl lg:text-4xl font-bold text-slate-900">
-                Your Construction Projects at Your Fingertips
-              </h2>
-              <p className="text-lg text-slate-600">
-                Access your project portal for real-time updates, document management, and seamless communication with your construction team.
+            {/* Footer Links */}
+            <div className="text-center space-y-2">
+              <p className="text-sm text-slate-600">
+                Need help accessing your account?
               </p>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-white/50 backdrop-blur">
-                <div className="p-2 rounded-full bg-emerald-100">
-                  <Users className="h-5 w-5 text-emerald-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-slate-900">Project Updates</h3>
-                  <p className="text-sm text-slate-600">Real-time progress tracking and photo updates</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-white/50 backdrop-blur">
-                <div className="p-2 rounded-full bg-blue-100">
-                  <FileText className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-slate-900">Document Access</h3>
-                  <p className="text-sm text-slate-600">Contracts, permits, and project documents</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-white/50 backdrop-blur">
-                <div className="p-2 rounded-full bg-purple-100">
-                  <MessageSquare className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-slate-900">Team Communication</h3>
-                  <p className="text-sm text-slate-600">Direct messaging with project managers</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-white/50 backdrop-blur">
-                <div className="p-2 rounded-full bg-orange-100">
-                  <CreditCard className="h-5 w-5 text-orange-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-slate-900">Financial Tracking</h3>
-                  <p className="text-sm text-slate-600">Invoices, payments, and project costs</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-center lg:justify-start gap-6 text-sm text-slate-600">
-              <div className="flex items-center gap-2">
-                <Star className="h-4 w-4 text-yellow-500" />
-                <span>Seattle's Premier Builder</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-green-500" />
-                <span>10+ Years Experience</span>
+              <div className="flex justify-center space-x-4 text-xs text-slate-500">
+                <span>Contact Support</span>
+                <span>•</span>
+                <span>Privacy Policy</span>
+                <span>•</span>
+                <span>Terms of Service</span>
               </div>
             </div>
           </div>
@@ -629,75 +572,49 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
       <Dialog open={forgotPasswordDialogOpen} onOpenChange={setForgotPasswordDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Reset Your Password</DialogTitle>
+            <DialogTitle>Reset Password</DialogTitle>
             <DialogDescription>
-              {!forgotPasswordSuccess 
-                ? "Enter your email address and we'll send you a link to reset your password." 
-                : "Password reset link sent!"}
+              Enter your email address and we'll send you a link to reset your password.
             </DialogDescription>
           </DialogHeader>
-          
-          {!forgotPasswordSuccess ? (
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              handleForgotPassword();
-            }}>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email address"
-                    value={forgotPasswordEmail}
-                    onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-              <DialogFooter className="sm:justify-between">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleForgotPasswordDialogClose}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={forgotPasswordSubmitting || !forgotPasswordEmail}>
-                  {forgotPasswordSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    "Send Reset Link"
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          ) : (
-            <div className="space-y-4 py-4">
-              <Alert className="bg-green-50 text-green-800 border-green-200">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <AlertDescription className="text-green-700">
-                  We've sent a password reset link to your email if an account exists with that address.
-                  {import.meta.env.DEV && (
-                    <p className="mt-1 text-sm italic">
-                      (In development mode: Check the server console for the reset link)
-                    </p>
-                  )}
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="email">Email address</Label>
+              <Input
+                id="email"
+                type="email"
+                value={forgotPasswordEmail}
+                onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                placeholder="your@email.com"
+              />
+            </div>
+            {forgotPasswordSuccess && (
+              <Alert>
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertDescription>
+                  If an account with that email exists, we've sent a password reset link.
                 </AlertDescription>
               </Alert>
-              <DialogFooter>
-                <Button 
-                  type="button" 
-                  onClick={handleForgotPasswordDialogClose}
-                >
-                  Close
-                </Button>
-              </DialogFooter>
-            </div>
-          )}
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setForgotPasswordDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleForgotPassword}
+              disabled={forgotPasswordSubmitting || !forgotPasswordEmail}
+            >
+              {forgotPasswordSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                "Send Reset Link"
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
