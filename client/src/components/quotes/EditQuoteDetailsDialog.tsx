@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { QuoteWithDetails } from "@shared/schema";
 import { QuoteImageManager } from "./QuoteImageManager";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 
 interface EditQuoteDetailsDialogProps {
   quote: QuoteWithDetails;
@@ -400,24 +401,24 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
               </div>
               
               <div>
-                <Label htmlFor="description">Project Description</Label>
-                <Textarea
-                  id="description"
+                <RichTextEditor
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onChange={setDescription}
+                  label="Project Description"
                   placeholder="Brief description of the project"
-                  rows={3}
+                  height={200}
+                  preview="live"
                 />
               </div>
               
               <div>
-                <Label htmlFor="scopeDescription">Project Scope</Label>
-                <Textarea
-                  id="scopeDescription"
+                <RichTextEditor
                   value={scopeDescription}
-                  onChange={(e) => setScopeDescription(e.target.value)}
+                  onChange={setScopeDescription}
+                  label="Project Scope"
                   placeholder="Detailed scope of work"
-                  rows={4}
+                  height={250}
+                  preview="live"
                 />
               </div>
               

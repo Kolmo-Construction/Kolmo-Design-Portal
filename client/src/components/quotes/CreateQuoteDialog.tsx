@@ -47,6 +47,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { cn, formatCurrency } from "@/lib/utils";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 
 // Line item schema for the form
 const lineItemSchema = z.object({
@@ -750,9 +751,12 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
                         <FormItem>
                           <FormLabel>Project Description</FormLabel>
                           <FormControl>
-                            <Textarea 
+                            <RichTextEditor
+                              value={field.value || ""}
+                              onChange={field.onChange}
                               placeholder="Detailed project description and scope of work..."
-                              {...field} 
+                              height={300}
+                              preview="live"
                             />
                           </FormControl>
                           <FormMessage />
