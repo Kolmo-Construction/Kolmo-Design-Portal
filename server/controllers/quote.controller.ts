@@ -22,6 +22,18 @@ const createQuoteSchema = createInsertSchema(quotes).omit({
   sentAt: z.union([z.string(), z.null()]).optional().transform((str) => str ? new Date(str) : null),
   viewedAt: z.union([z.string(), z.null()]).optional().transform((str) => str ? new Date(str) : null),
   respondedAt: z.union([z.string(), z.null()]).optional().transform((str) => str ? new Date(str) : null),
+  // Override percentage fields to accept numbers and convert to strings
+  downPaymentPercentage: z.union([z.number(), z.string()]).optional().transform((val) => val !== undefined ? val.toString() : undefined),
+  milestonePaymentPercentage: z.union([z.number(), z.string()]).optional().transform((val) => val !== undefined ? val.toString() : undefined),
+  finalPaymentPercentage: z.union([z.number(), z.string()]).optional().transform((val) => val !== undefined ? val.toString() : undefined),
+  // Override other decimal fields to accept numbers and convert to strings
+  subtotal: z.union([z.number(), z.string()]).optional().transform((val) => val !== undefined ? val.toString() : undefined),
+  discountPercentage: z.union([z.number(), z.string()]).optional().transform((val) => val !== undefined ? val.toString() : undefined),
+  discountAmount: z.union([z.number(), z.string()]).optional().transform((val) => val !== undefined ? val.toString() : undefined),
+  discountedSubtotal: z.union([z.number(), z.string()]).optional().transform((val) => val !== undefined ? val.toString() : undefined),
+  taxRate: z.union([z.number(), z.string()]).optional().transform((val) => val !== undefined ? val.toString() : undefined),
+  taxAmount: z.union([z.number(), z.string()]).optional().transform((val) => val !== undefined ? val.toString() : undefined),
+  total: z.union([z.number(), z.string()]).optional().transform((val) => val !== undefined ? val.toString() : undefined),
 });
 
 const createLineItemSchema = z.object({
