@@ -40,6 +40,7 @@ interface AuthPageProps {
 }
 
 export default function AuthPage({ isMagicLink = false, isPasswordReset = false }: AuthPageProps) {
+  console.log("NEW AUTH PAGE COMPONENT LOADED - VERSION 2.0");
   const [activeTab, setActiveTab] = useState<string>("login");
   const [, navigate] = useLocation();
   const [magicLinkStatus, setMagicLinkStatus] = useState<'loading' | 'success' | 'error'>('loading');
