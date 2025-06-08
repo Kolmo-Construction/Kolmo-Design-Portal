@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { QuoteWithDetails } from "@shared/schema";
+import { QuoteImageManager } from "./QuoteImageManager";
 
 interface EditQuoteDetailsDialogProps {
   quote: QuoteWithDetails;
@@ -506,6 +507,28 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
                   </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Before/After Images Management */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Before & After Images</CardTitle>
+              <CardDescription>
+                Upload images to showcase the project transformation with the interactive slider
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <QuoteImageManager
+                quoteId={quote.id}
+                beforeImageUrl={quote.beforeImageUrl || undefined}
+                afterImageUrl={quote.afterImageUrl || undefined}
+                beforeImageCaption={quote.beforeImageCaption || undefined}
+                afterImageCaption={quote.afterImageCaption || undefined}
+                onImagesUpdated={() => {
+                  queryClient.invalidateQueries({ queryKey: [`/api/quotes/${quote.id}`] });
+                }}
+              />
             </CardContent>
           </Card>
         </div>
