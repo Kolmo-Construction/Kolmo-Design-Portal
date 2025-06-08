@@ -1,5 +1,6 @@
 // server/storage/repositories/invoice.repository.ts
-import { NeonDatabase, PgTransaction } from 'drizzle-orm/neon-serverless';
+import { NeonDatabase } from 'drizzle-orm/neon-serverless';
+import type { PgTransaction } from 'drizzle-orm/pg-core';
 import { eq, and, or, sql, desc, asc } from 'drizzle-orm';
 import * as schema from '../../../shared/schema';
 import { db } from '../../db';

@@ -211,7 +211,7 @@ export class PaymentService {
       projectId: project.id,
       quoteId: quote.id,
       invoiceNumber,
-      amount: paymentSchedule.milestonePayment.amount,
+      amount: paymentSchedule.milestonePayment.amount.toString(),
       description: milestoneDescription || paymentSchedule.milestonePayment.description,
       issueDate: new Date(),
       dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
@@ -280,7 +280,7 @@ export class PaymentService {
       projectId: project.id,
       quoteId: quote.id,
       invoiceNumber,
-      amount: paymentSchedule.finalPayment.amount,
+      amount: paymentSchedule.finalPayment.amount.toString(),
       description: `Final payment (${paymentSchedule.finalPayment.percentage}%) for ${project.name}`,
       issueDate: new Date(),
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
