@@ -889,6 +889,8 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  completedAt: true,
+  billedAt: true,
 }).extend({
     // Allow strings for ISO dates
     startDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
@@ -908,6 +910,15 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
             message: "Actual hours must be a valid number"
         }).transform(val => val === "" || val === null ? null : parseFloat(val)).optional().nullable() // transform valid string to number
     ]),
+    // Billing fields
+    billableAmount: z.union([
+        z.string().transform(val => parseFloat(val.replace(/[^0-9.]/g, ''))).refine(n => !isNaN(n) && n >= 0, { message: "Billable amount must be a positive number" }),
+        z.number().min(0, "Billable amount must be a positive number")
+    ]).optional(),
+    billingRate: z.union([
+        z.string().transform(val => parseFloat(val.replace(/[^0-9.]/g, ''))).refine(n => !isNaN(n) && n >= 0, { message: "Billing rate must be a positive number" }),
+        z.number().min(0, "Billing rate must be a positive number")
+    ]).optional(),
     // Ensure progress is within 0-100
     progress: z.number().int().min(0).max(100).default(0).optional(), // Adding optional if you don't always provide it
 });
