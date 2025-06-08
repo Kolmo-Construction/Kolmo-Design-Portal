@@ -50,7 +50,7 @@ export default function AuthPageNew({ isMagicLink = false, isPasswordReset = fal
   const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false);
 
   const { token } = useParams<{ token: string }>();
-  const { login, register, user, loading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, loginMutation, registerMutation } = useAuth();
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -110,7 +110,7 @@ export default function AuthPageNew({ isMagicLink = false, isPasswordReset = fal
 
   const onLogin = async (data: LoginFormValues) => {
     try {
-      await login(data);
+      await loginMutation.mutateAsync(data);
       navigate("/");
     } catch (error: any) {
       console.error("Login failed:", error);
@@ -123,7 +123,7 @@ export default function AuthPageNew({ isMagicLink = false, isPasswordReset = fal
 
   const onRegister = async (data: RegisterFormValues) => {
     try {
-      await register(data);
+      await registerMutation.mutateAsync(data);
       navigate("/");
     } catch (error: any) {
       console.error("Registration failed:", error);
@@ -380,10 +380,10 @@ export default function AuthPageNew({ isMagicLink = false, isPasswordReset = fal
 
                         <Button
                           type="submit"
-                          disabled={loginForm.formState.isSubmitting || authLoading}
+                          disabled={loginForm.formState.isSubmitting || loginMutation.isPending}
                           className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5"
                         >
-                          {loginForm.formState.isSubmitting || authLoading ? (
+                          {loginForm.formState.isSubmitting || loginMutation.isPending ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                               Signing in...
@@ -534,10 +534,10 @@ export default function AuthPageNew({ isMagicLink = false, isPasswordReset = fal
 
                         <Button
                           type="submit"
-                          disabled={registerForm.formState.isSubmitting || authLoading}
+                          disabled={registerForm.formState.isSubmitting || registerMutation.isPending}
                           className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5"
                         >
-                          {registerForm.formState.isSubmitting || authLoading ? (
+                          {registerForm.formState.isSubmitting || registerMutation.isPending ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                               Creating account...
