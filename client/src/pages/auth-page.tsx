@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { insertUserSchema } from "@shared/schema";
 import kolmoLogo from "@assets/kolmo-logo (1).png";
+// Force reload to clear cache
 
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -469,7 +470,7 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
             <Card className="w-full max-w-md mx-auto shadow-xl border-0 bg-white/95 backdrop-blur">
               <CardHeader className="space-y-6 pb-8">
                 <div className="text-center space-y-2">
-                  <CardTitle className="text-2xl font-bold text-slate-900">Welcome Back</CardTitle>
+                  <CardTitle className="text-2xl font-bold text-slate-900">Welcome to Kolmo Portal</CardTitle>
                   <CardDescription className="text-slate-600">
                     Sign in to access your construction project portal
                   </CardDescription>
