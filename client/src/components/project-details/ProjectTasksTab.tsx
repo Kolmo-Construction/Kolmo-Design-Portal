@@ -660,6 +660,9 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
             <Button size="sm" onClick={() => setIsImportDialogOpen(true)} variant="outline" className="gap-1">
               <Upload className="h-4 w-4" /> Import Tasks
             </Button>
+            <Button size="sm" onClick={() => {/* TODO: Add generate tasks functionality */}} variant="outline" className="gap-1">
+              <ClipboardList className="h-4 w-4" /> Generate Tasks
+            </Button>
             <Button size="sm" onClick={handleAddTaskClick} className="gap-1" disabled={isLoading && !tasks?.length}>
               <PlusCircle className="h-4 w-4" /> Add Task
             </Button>

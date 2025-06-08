@@ -311,10 +311,16 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
             <CardDescription>Internal milestones for project tracking and billing management</CardDescription>
           </div>
           {isAdmin && (
-            <Button onClick={() => setIsCreateDialogOpen(true)} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Milestone
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={() => {/* TODO: Add generate tasks functionality */}} variant="outline" size="sm">
+                <Calendar className="h-4 w-4 mr-2" />
+                Generate Tasks
+              </Button>
+              <Button onClick={() => setIsCreateDialogOpen(true)} size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Milestone
+              </Button>
+            </div>
           )}
         </div>
       </CardHeader>
