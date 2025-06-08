@@ -27,6 +27,7 @@ import quoteRouter from "./routes/quote.routes"; // Quote system router
 import quoteAnalyticsRouter from "./routes/quote-analytics.routes"; // Quote analytics router
 import { paymentRoutes } from "./routes/payment.routes"; // Payment processing router
 import { webhookRoutes } from "./routes/webhook.routes"; // Stripe webhook router
+import { projectPaymentRoutes } from "./routes/project-payment.routes"; // Project payment summary router
 
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
 import chatRouter from "./routes/chat.routes"; // Stream Chat router
@@ -165,6 +166,9 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // Mount Payment routes (mixed auth - public payment processing, admin invoice management)
   app.use("/api", paymentRoutes);
+
+  // Mount Project Payment Summary routes (admin only)
+  app.use("/api/projects", isAuthenticated, projectPaymentRoutes);
 
   // Mount Storage/R2 routes with mixed authentication
   app.use("/api/storage", storageRoutes);

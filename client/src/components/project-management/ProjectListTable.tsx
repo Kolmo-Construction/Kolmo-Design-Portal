@@ -13,12 +13,14 @@ import { Loader2, PencilIcon } from "lucide-react";
 // REMOVED: format import from date-fns (not used here)
 // ADDED Imports from utils
 import { getProjectStatusLabel, getProjectStatusBadgeClasses } from "@/lib/utils";
+import { PaymentStatusColumn } from "./PaymentStatusColumn";
 
 interface ProjectListTableProps {
   projects: Project[];
   projectManagers: User[];
   isLoading: boolean;
   onEditProject: (project: Project) => void;
+  onTriggerMilestone?: (projectId: number, paymentType: 'milestone' | 'final') => void;
 }
 
 // REMOVED: Local getStatusLabel helper function
@@ -30,6 +32,7 @@ export function ProjectListTable({
   projectManagers,
   isLoading,
   onEditProject,
+  onTriggerMilestone,
 }: ProjectListTableProps) {
   if (isLoading) {
     return (
