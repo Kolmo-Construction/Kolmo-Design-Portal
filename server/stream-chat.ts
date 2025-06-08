@@ -118,6 +118,10 @@ export interface ChatUser {
  * Create or update a Stream Chat user
  */
 export async function createStreamUser(user: ChatUser): Promise<void> {
+  if (!streamServerClient) {
+    throw new Error('Stream Chat not available. Please configure STREAM_API_KEY and STREAM_SECRET.');
+  }
+  
   try {
     const userData: any = {
       id: user.id,
@@ -144,6 +148,9 @@ export async function createStreamUser(user: ChatUser): Promise<void> {
  * Generate a Stream Chat token for a user
  */
 export function generateStreamToken(userId: string): string {
+  if (!streamServerClient) {
+    throw new Error('Stream Chat not available. Please configure STREAM_API_KEY and STREAM_SECRET.');
+  }
   return streamServerClient.createToken(userId);
 }
 
@@ -155,6 +162,10 @@ export async function createQuoteChannel(
   quoteNumber: string,
   customerInfo?: { name: string; email: string }
 ): Promise<void> {
+  if (!streamServerClient) {
+    throw new Error('Stream Chat not available. Please configure STREAM_API_KEY and STREAM_SECRET.');
+  }
+  
   try {
     if (!connectionMonitor.canAddConnection()) {
       throw new Error('Maximum concurrent connections reached. Please try again later.');
@@ -184,6 +195,10 @@ export async function addUserToQuoteChannel(
   quoteId: string,
   userId: string
 ): Promise<void> {
+  if (!streamServerClient) {
+    throw new Error('Stream Chat not available. Please configure STREAM_API_KEY and STREAM_SECRET.');
+  }
+  
   try {
     if (!connectionMonitor.canAddConnection()) {
       throw new Error('Maximum concurrent connections reached. Please try again later.');
@@ -207,6 +222,10 @@ export async function removeUserFromQuoteChannel(
   quoteId: string,
   userId: string
 ): Promise<void> {
+  if (!streamServerClient) {
+    throw new Error('Stream Chat not available. Please configure STREAM_API_KEY and STREAM_SECRET.');
+  }
+  
   try {
     const channelId = `quote-${quoteId}`;
     const channel = streamServerClient.channel('messaging', channelId);
@@ -227,6 +246,10 @@ export async function getOrCreateCustomerUser(
   customerName: string,
   customerEmail: string
 ): Promise<string> {
+  if (!streamServerClient) {
+    throw new Error('Stream Chat not available. Please configure STREAM_API_KEY and STREAM_SECRET.');
+  }
+  
   const customerId = `customer-${quoteId}`;
   
   await createStreamUser({
@@ -249,6 +272,10 @@ export async function initializeQuoteChat(
   customerEmail: string,
   adminUserId: string = 'admin-1'
 ): Promise<{ channelId: string; customerId: string }> {
+  if (!streamServerClient) {
+    throw new Error('Stream Chat not available. Please configure STREAM_API_KEY and STREAM_SECRET.');
+  }
+  
   try {
     // Create quote channel
     await createQuoteChannel(quoteId, quoteNumber, { name: customerName, email: customerEmail });
