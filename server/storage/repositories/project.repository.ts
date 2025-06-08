@@ -15,9 +15,9 @@ export interface IProjectRepository {
     getProjectById(projectId: number): Promise<ProjectWithDetails | null>;
     getProject(projectId: number): Promise<schema.Project | null>; // Basic project without relations
     checkUserProjectAccess(userId: string, projectId: number): Promise<boolean>;
-    createProject(projectData: schema.InsertProject): Promise<schema.Project>; // Simple project creation for quote workflow
-    createProjectWithClients(projectData: schema.InsertProject, clientIds: string[]): Promise<ProjectWithDetails | null>;
-    updateProjectDetailsAndClients(projectId: number, projectData: Partial<Omit<schema.InsertProject, 'pmId' | 'id' | 'createdAt' | 'updatedAt'>>, clientIds?: string[]): Promise<ProjectWithDetails | null>;
+    createProject(projectData: Omit<schema.InsertProject, 'totalBudget'> & { totalBudget: string }): Promise<schema.Project>; // Simple project creation for quote workflow
+    createProjectWithClients(projectData: Omit<schema.InsertProject, 'totalBudget'> & { totalBudget: string }, clientIds: string[]): Promise<ProjectWithDetails | null>;
+    updateProjectDetailsAndClients(projectId: number, projectData: Partial<Omit<schema.InsertProject, 'pmId' | 'id' | 'createdAt' | 'updatedAt' | 'totalBudget'>> & { totalBudget?: string }, clientIds?: string[]): Promise<ProjectWithDetails | null>;
     deleteProject(projectId: number): Promise<boolean>;
     
     // Method for backward compatibility
@@ -141,7 +141,7 @@ class ProjectRepository implements IProjectRepository {
         }
     }
 
-    async createProject(projectData: schema.InsertProject): Promise<schema.Project> {
+    async createProject(projectData: Omit<schema.InsertProject, 'totalBudget'> & { totalBudget: string }): Promise<schema.Project> {
         try {
             const result = await this.db.insert(schema.projects)
                 .values([projectData])
@@ -158,7 +158,7 @@ class ProjectRepository implements IProjectRepository {
         }
     }
 
-    async createProjectWithClients(projectData: schema.InsertProject, clientIds: string[]): Promise<ProjectWithDetails | null> {
+    async createProjectWithClients(projectData: Omit<schema.InsertProject, 'totalBudget'> & { totalBudget: string }, clientIds: string[]): Promise<ProjectWithDetails | null> {
          if (!clientIds || clientIds.length === 0) {
             throw new Error("Cannot create project without assigning at least one client.");
          }
@@ -186,7 +186,7 @@ class ProjectRepository implements IProjectRepository {
 
     async updateProjectDetailsAndClients(
             projectId: number,
-            projectData: Partial<Omit<schema.InsertProject, 'pmId' | 'id' | 'createdAt' | 'updatedAt'>>,
+            projectData: Partial<Omit<schema.InsertProject, 'pmId' | 'id' | 'createdAt' | 'updatedAt' | 'totalBudget'>> & { totalBudget?: string },
             clientIds?: string[]
         ): Promise<ProjectWithDetails | null> {
          // Use the db instance passed to the constructor for transaction

@@ -10,7 +10,7 @@ import { InvoiceWithPayments } from '../types'; // Import shared types
 export interface IInvoiceRepository {
     getInvoicesForProject(projectId: number): Promise<schema.Invoice[]>; // Keep simple for list view?
     getInvoiceById(invoiceId: number): Promise<InvoiceWithPayments | null>; // Fetch with payments
-    createInvoice(invoiceData: schema.InsertInvoice): Promise<schema.Invoice | null>;
+    createInvoice(invoiceData: Omit<schema.InsertInvoice, 'amount'> & { amount: string }): Promise<schema.Invoice | null>;
     updateInvoice(invoiceId: number, invoiceData: Partial<Omit<schema.InsertInvoice, 'id' | 'projectId'>>): Promise<schema.Invoice | null>;
     deleteInvoice(invoiceId: number): Promise<boolean>; // Consider implications for payments
     recordPayment(paymentData: schema.InsertPayment): Promise<schema.Payment | null>;
@@ -58,7 +58,7 @@ class InvoiceRepository implements IInvoiceRepository {
         }
     }
 
-    async createInvoice(invoiceData: schema.InsertInvoice): Promise<schema.Invoice | null> {
+    async createInvoice(invoiceData: Omit<schema.InsertInvoice, 'amount'> & { amount: string }): Promise<schema.Invoice | null> {
         try {
             const result = await this.dbOrTx.insert(schema.invoices)
                 .values({
