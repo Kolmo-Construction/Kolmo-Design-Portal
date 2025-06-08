@@ -26,6 +26,7 @@ import ragRouter from "./routes/rag-routes"; // RAG system router
 import quoteRouter from "./routes/quote.routes"; // Quote system router
 import quoteAnalyticsRouter from "./routes/quote-analytics.routes"; // Quote analytics router
 import { paymentRoutes } from "./routes/payment.routes"; // Payment processing router
+import { webhookRoutes } from "./routes/webhook.routes"; // Stripe webhook router
 
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
 // Import other routers as needed (milestones, selections, admin, etc.)
@@ -166,6 +167,9 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // Mount Storage/R2 routes with mixed authentication
   app.use("/api/storage", storageRoutes);
+
+  // Mount Webhook routes (no authentication - Stripe handles verification)
+  app.use("/api/webhooks", webhookRoutes);
 
   // --- REMOVED: Old inline route definitions and local router variables ---
   // const taskRouter = Router(...) // REMOVED
