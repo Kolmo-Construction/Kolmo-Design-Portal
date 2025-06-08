@@ -94,7 +94,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
   };
 
   const initializeCustomerChat = async (token: string, name: string, email: string) => {
-    if (isLoading || client) return;
+    if (isLoading || client) {
+      console.log('Skipping customer chat init - already loading or client exists');
+      return;
+    }
     
     setIsLoading(true);
     setError(null);
@@ -107,7 +110,14 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
       });
       const response = await res.json();
 
+      // Get existing instance or create new one, but avoid multiple connections
       const chatClient = StreamChat.getInstance(response.apiKey);
+      
+      // Disconnect existing connection if any
+      if (chatClient.user) {
+        await chatClient.disconnectUser();
+      }
+      
       await chatClient.connectUser(
         { 
           id: response.userId,

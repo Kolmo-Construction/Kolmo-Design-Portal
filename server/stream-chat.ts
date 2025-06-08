@@ -24,11 +24,8 @@ export async function createStreamUser(user: ChatUser): Promise<void> {
       name: user.name,
     };
     
-    // Only include role for admin users, use default for others
+    // Only include role for admin users, omit role for others
     if (user.role === 'admin') {
-      userData.role = user.role;
-    } else if (user.role === 'user') {
-      // 'user' is a default role that should work
       userData.role = user.role;
     }
     

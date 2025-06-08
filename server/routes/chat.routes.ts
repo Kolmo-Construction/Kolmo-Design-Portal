@@ -66,12 +66,12 @@ router.post('/customer-token', async (req: Request, res: Response) => {
     
     const customerId = `customer-${quote.id}`;
     
-    // Create/update Stream user
+    // Create/update Stream user (no role specified for customers)
     await createStreamUser({
       id: customerId,
       name: customerName,
       email: customerEmail,
-      role: 'user', // Use 'user' instead of 'customer' as it's a default role
+      role: 'customer', // This will be omitted by createStreamUser for non-admin users
     });
     
     // Generate token
