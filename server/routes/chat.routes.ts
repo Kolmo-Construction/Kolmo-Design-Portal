@@ -4,7 +4,8 @@ import {
   generateStreamToken, 
   createStreamUser, 
   initializeQuoteChat,
-  addUserToQuoteChannel 
+  addUserToQuoteChannel,
+  connectionMonitor
 } from '../stream-chat';
 import { db } from '../db';
 import { quotes } from '../../shared/schema';
@@ -137,6 +138,82 @@ router.post('/initialize-quote-chat/:id', isAuthenticated, async (req: Request, 
   } catch (error) {
     console.error('Error initializing quote chat:', error);
     res.status(500).json({ error: 'Failed to initialize quote chat' });
+  }
+});
+
+/**
+ * Get Stream Chat connection statistics
+ */
+router.get('/connections/stats', isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const stats = connectionMonitor.getConnectionStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Error getting connection stats:', error);
+    res.status(500).json({ error: 'Failed to get connection stats' });
+  }
+});
+
+/**
+ * Set maximum concurrent connections limit
+ */
+router.post('/connections/limit', isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { maxConnections } = req.body;
+    if (typeof maxConnections !== 'number' || maxConnections < 1) {
+      return res.status(400).json({ error: 'Invalid max connections value' });
+    }
+    
+    connectionMonitor.setMaxConnections(maxConnections);
+    res.json({ success: true, maxConnections });
+  } catch (error) {
+    console.error('Error setting connection limit:', error);
+    res.status(500).json({ error: 'Failed to set connection limit' });
+  }
+});
+
+/**
+ * Manually cleanup stale connections
+ */
+router.post('/connections/cleanup', isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    connectionMonitor.cleanupStaleConnections();
+    const stats = connectionMonitor.getConnectionStats();
+    res.json({ success: true, stats });
+  } catch (error) {
+    console.error('Error cleaning up connections:', error);
+    res.status(500).json({ error: 'Failed to cleanup connections' });
+  }
+});
+
+/**
+ * Get Stream Chat app usage statistics
+ */
+router.get('/usage', isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { StreamChat } = await import('stream-chat');
+    const client = StreamChat.getInstance(process.env.STREAM_API_KEY!, process.env.STREAM_API_SECRET!);
+    
+    // Query channels to get active usage
+    const channels = await client.queryChannels({});
+    const stats = connectionMonitor.getConnectionStats();
+    
+    res.json({
+      totalChannels: channels.length,
+      activeConnections: stats.current,
+      maxConnections: stats.max,
+      utilizationPercent: stats.utilizationPercent,
+      nearLimit: connectionMonitor.isNearLimit(),
+      channels: channels.map(ch => ({
+        id: ch.id,
+        type: ch.type,
+        memberCount: Object.keys(ch.state.members).length,
+        lastActivity: ch.state.last_message_at
+      }))
+    });
+  } catch (error) {
+    console.error('Error getting usage stats:', error);
+    res.status(500).json({ error: 'Failed to get usage stats' });
   }
 });
 

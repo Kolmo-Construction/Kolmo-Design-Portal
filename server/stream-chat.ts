@@ -6,6 +6,91 @@ export const streamServerClient = StreamChat.getInstance(
   process.env.STREAM_API_SECRET!
 );
 
+// Connection monitoring
+class ConnectionMonitor {
+  private activeConnections = new Map<string, { userId: string; channelId: string; timestamp: Date }>();
+  private maxConnections: number = 25; // Default free tier limit
+  
+  addConnection(userId: string, channelId: string): void {
+    const connectionId = `${userId}-${channelId}`;
+    this.activeConnections.set(connectionId, {
+      userId,
+      channelId,
+      timestamp: new Date()
+    });
+    console.log(`[Stream Monitor] Connection added: ${connectionId}. Total: ${this.activeConnections.size}`);
+  }
+  
+  removeConnection(userId: string, channelId: string): void {
+    const connectionId = `${userId}-${channelId}`;
+    if (this.activeConnections.delete(connectionId)) {
+      console.log(`[Stream Monitor] Connection removed: ${connectionId}. Total: ${this.activeConnections.size}`);
+    }
+  }
+  
+  getCurrentConnectionCount(): number {
+    return this.activeConnections.size;
+  }
+  
+  getConnectionStats(): {
+    current: number;
+    max: number;
+    utilizationPercent: number;
+    connections: Array<{ userId: string; channelId: string; duration: number }>;
+  } {
+    const now = new Date();
+    const connections = Array.from(this.activeConnections.values()).map(conn => ({
+      userId: conn.userId,
+      channelId: conn.channelId,
+      duration: now.getTime() - conn.timestamp.getTime()
+    }));
+    
+    return {
+      current: this.activeConnections.size,
+      max: this.maxConnections,
+      utilizationPercent: Math.round((this.activeConnections.size / this.maxConnections) * 100),
+      connections
+    };
+  }
+  
+  isNearLimit(): boolean {
+    return this.activeConnections.size >= this.maxConnections * 0.8; // 80% threshold
+  }
+  
+  canAddConnection(): boolean {
+    return this.activeConnections.size < this.maxConnections;
+  }
+  
+  setMaxConnections(max: number): void {
+    this.maxConnections = max;
+    console.log(`[Stream Monitor] Max connections updated to: ${max}`);
+  }
+  
+  // Clean up stale connections (older than 30 minutes)
+  cleanupStaleConnections(): void {
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    let cleaned = 0;
+    
+    for (const [connectionId, connection] of this.activeConnections.entries()) {
+      if (connection.timestamp < thirtyMinutesAgo) {
+        this.activeConnections.delete(connectionId);
+        cleaned++;
+      }
+    }
+    
+    if (cleaned > 0) {
+      console.log(`[Stream Monitor] Cleaned up ${cleaned} stale connections. Total: ${this.activeConnections.size}`);
+    }
+  }
+}
+
+export const connectionMonitor = new ConnectionMonitor();
+
+// Clean up stale connections every 10 minutes
+setInterval(() => {
+  connectionMonitor.cleanupStaleConnections();
+}, 10 * 60 * 1000);
+
 export interface ChatUser {
   id: string;
   name: string;
@@ -56,6 +141,10 @@ export async function createQuoteChannel(
   customerInfo?: { name: string; email: string }
 ): Promise<void> {
   try {
+    if (!connectionMonitor.canAddConnection()) {
+      throw new Error('Maximum concurrent connections reached. Please try again later.');
+    }
+
     const channelId = `quote-${quoteId}`;
     const channel = streamServerClient.channel('messaging', channelId);
 
@@ -81,10 +170,15 @@ export async function addUserToQuoteChannel(
   userId: string
 ): Promise<void> {
   try {
+    if (!connectionMonitor.canAddConnection()) {
+      throw new Error('Maximum concurrent connections reached. Please try again later.');
+    }
+
     const channelId = `quote-${quoteId}`;
     const channel = streamServerClient.channel('messaging', channelId);
     
     await channel.addMembers([userId]);
+    connectionMonitor.addConnection(userId, channelId);
   } catch (error) {
     console.error('Error adding user to quote channel:', error);
     throw error;
@@ -103,6 +197,7 @@ export async function removeUserFromQuoteChannel(
     const channel = streamServerClient.channel('messaging', channelId);
     
     await channel.removeMembers([userId]);
+    connectionMonitor.removeConnection(userId, channelId);
   } catch (error) {
     console.error('Error removing user from quote channel:', error);
     throw error;
