@@ -36,15 +36,19 @@ export default function Dashboard() {
   });
 
   // Fetch analytics dashboard data
-  const { data: analytics, isLoading: analyticsLoading } = useQuery({
+  const { data: analytics = { summary: {} }, isLoading: analyticsLoading } = useQuery({
     queryKey: ["/api/analytics/dashboard"],
   });
 
+  // Type-safe quote and message arrays
+  const quotesArray = Array.isArray(quotes) ? quotes : [];
+  const messagesArray = Array.isArray(messages) ? messages : [];
+
   // Calculate dashboard metrics
-  const totalQuotes = quotes.length;
-  const pendingQuotes = quotes.filter((q: any) => q.status === 'draft').length;
-  const sentQuotes = quotes.filter((q: any) => q.status === 'sent').length;
-  const unreadMessages = messages.filter((m: any) => !m.isRead).length;
+  const totalQuotes = quotesArray.length;
+  const pendingQuotes = quotesArray.filter((q: any) => q.status === 'draft').length;
+  const sentQuotes = quotesArray.filter((q: any) => q.status === 'sent').length;
+  const unreadMessages = messagesArray.filter((m: any) => !m.isRead).length;
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -112,7 +116,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-[#3d4552]">
-                {analytics?.summary?.uniqueSessions || 0}
+                {(analytics as any)?.summary?.uniqueSessions || 0}
               </div>
               <p className="text-xs text-gray-500">
                 Unique sessions
@@ -174,7 +178,7 @@ export default function Dashboard() {
                     <div key={i} className="h-12 bg-gray-100 rounded animate-pulse"></div>
                   ))}
                 </div>
-              ) : quotes.length === 0 ? (
+              ) : quotesArray.length === 0 ? (
                 <div className="text-center py-6">
                   <FileText className="h-12 w-12 text-gray-300 mx-auto mb-2" />
                   <p className="text-gray-500 text-sm">No quotes yet</p>
@@ -186,7 +190,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {quotes.slice(0, 3).map((quote: any) => (
+                  {quotesArray.slice(0, 3).map((quote: any) => (
                     <div key={quote.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm text-[#3d4552] truncate">{quote.quoteNumber}</p>
@@ -234,14 +238,14 @@ export default function Dashboard() {
                     <div key={i} className="h-16 bg-gray-100 rounded animate-pulse"></div>
                   ))}
                 </div>
-              ) : messages.length === 0 ? (
+              ) : messagesArray.length === 0 ? (
                 <div className="text-center py-6">
                   <MessageSquare className="h-12 w-12 text-gray-300 mx-auto mb-2" />
                   <p className="text-gray-500 text-sm">No messages yet</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {messages.slice(0, 3).map((message: any) => (
+                  {messagesArray.slice(0, 3).map((message: any) => (
                     <div key={message.id} className="p-3 border border-gray-200 rounded-lg">
                       <div className="flex justify-between items-start mb-2">
                         <p className="font-medium text-sm text-[#3d4552]">{message.subject || 'No Subject'}</p>
@@ -283,19 +287,19 @@ export default function Dashboard() {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Average Time on Page</span>
                     <span className="font-medium text-[#3d4552]">
-                      {analytics?.summary?.avgTimeOnPage || 0}s
+                      {(analytics as any)?.summary?.avgTimeOnPage || 0}s
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Average Scroll Depth</span>
                     <span className="font-medium text-[#3d4552]">
-                      {analytics?.summary?.avgScrollDepth || 0}%
+                      {(analytics as any)?.summary?.avgScrollDepth || 0}%
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Total Views</span>
                     <span className="font-medium text-[#3d4552]">
-                      {analytics?.summary?.totalViews || 0}
+                      {(analytics as any)?.summary?.totalViews || 0}
                     </span>
                   </div>
                   <Link href="/analytics">

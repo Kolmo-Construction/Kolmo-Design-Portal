@@ -98,7 +98,7 @@ app.use((req, res, next) => {
   });
 
   // --- Start the Server ---
-  const port = 5000;
+  const port = process.env.PORT || 3000;
   httpServer.listen({ // Use the httpServer instance created earlier
     port,
     host: "0.0.0.0",
@@ -111,4 +111,15 @@ app.use((req, res, next) => {
   // Catch potential errors during async setup
   console.error("Failed to start server:", error);
   process.exit(1);
+});
+
+// Add global error handlers to prevent crashes
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Don't exit the process, just log the error
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit the process, just log the error
 });
