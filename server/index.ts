@@ -98,7 +98,7 @@ app.use((req, res, next) => {
   });
 
   // --- Start the Server ---
-  const port = 5000;
+  const port = process.env.PORT || 3000;
   httpServer.listen({ // Use the httpServer instance created earlier
     port,
     host: "0.0.0.0",
