@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Save, X } from "lucide-react";
+import { Plus, Trash2, Save, X, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -182,8 +182,8 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
     if (Math.abs(totalPercentage - 100) > 0.01) {
       console.log("Percentage validation failed - total:", totalPercentage);
       toast({
-        title: "Validation Error",
-        description: `Milestone percentages must add up to 100%. Current total: ${totalPercentage}%`,
+        title: "Milestone Percentage Error",
+        description: `Payment milestones must total exactly 100%. Current total: ${totalPercentage.toFixed(1)}%. Use the "Distribute Evenly" button or the ⚖️ auto-adjust buttons to fix this.`,
         variant: "destructive",
       });
       return;
@@ -222,6 +222,45 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
   const updateMilestone = (index: number, field: keyof Milestone, value: string | number) => {
     const updated = [...milestones];
     updated[index] = { ...updated[index], [field]: value };
+    setMilestones(updated);
+  };
+
+  const distributeEvenly = () => {
+    const evenPercentage = Math.round((100 / milestones.length) * 100) / 100; // Round to 2 decimal places
+    const remainder = 100 - (evenPercentage * milestones.length);
+    
+    const updated = milestones.map((milestone, index) => ({
+      ...milestone,
+      percentage: index === 0 ? evenPercentage + remainder : evenPercentage
+    }));
+    
+    setMilestones(updated);
+  };
+
+  const autoAdjustMilestones = (changedIndex: number, newPercentage: number) => {
+    const updated = [...milestones];
+    updated[changedIndex].percentage = newPercentage;
+    
+    // Calculate remaining percentage to distribute
+    const remainingPercentage = 100 - newPercentage;
+    const otherMilestones = updated.filter((_, index) => index !== changedIndex);
+    
+    if (otherMilestones.length > 0 && remainingPercentage >= 0) {
+      const evenDistribution = Math.round((remainingPercentage / otherMilestones.length) * 100) / 100;
+      const remainder = remainingPercentage - (evenDistribution * otherMilestones.length);
+      
+      let remainderAdded = false;
+      updated.forEach((milestone, index) => {
+        if (index !== changedIndex) {
+          milestone.percentage = evenDistribution;
+          if (!remainderAdded && remainder !== 0) {
+            milestone.percentage += remainder;
+            remainderAdded = true;
+          }
+        }
+      });
+    }
+    
     setMilestones(updated);
   };
 
@@ -405,10 +444,16 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
                     Current total: <span className={totalMilestonePercentage === 100 ? "text-green-600" : "text-red-600"}>{totalMilestonePercentage}%</span>
                   </CardDescription>
                 </div>
-                <Button onClick={addMilestone} size="sm" variant="outline">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Milestone
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={distributeEvenly} size="sm" variant="outline">
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Distribute Evenly
+                  </Button>
+                  <Button onClick={addMilestone} size="sm" variant="outline">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Milestone
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -425,15 +470,28 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
                     </div>
                     <div className="w-32">
                       <Label>Percentage</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        value={milestone.percentage}
-                        onChange={(e) => updateMilestone(index, "percentage", parseFloat(e.target.value) || 0)}
-                        placeholder="0"
-                      />
+                      <div className="flex gap-1">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={milestone.percentage}
+                          onChange={(e) => updateMilestone(index, "percentage", parseFloat(e.target.value) || 0)}
+                          placeholder="0"
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => autoAdjustMilestones(index, milestone.percentage)}
+                          title="Auto-adjust other milestones to total 100%"
+                          className="px-2"
+                        >
+                          ⚖️
+                        </Button>
+                      </div>
                     </div>
                     {milestones.length > 1 && (
                       <Button

@@ -1,0 +1,48 @@
+client:495 [vite] connecting...
+client:618 [vite] connected.
+EditQuoteDetailsDialog.tsx:145 Save clicked - starting validation
+EditQuoteDetailsDialog.tsx:146 Current form data: Object
+EditQuoteDetailsDialog.tsx:179 Total percentage calculated: 100
+EditQuoteDetailsDialog.tsx:180 Milestones data: Array(3)
+EditQuoteDetailsDialog.tsx:192 All validations passed, proceeding with save
+EditQuoteDetailsDialog.tsx:113 Sending update request with data: Object
+api/quotes/5:1 
+            
+            
+           Failed to load resource: the server responded with a status of 400 (Bad Request)
+hook.js:608 Update request failed: Error: HTTP Error 400: {"error":"Invalid data","details":[{"code":"invalid_type","expected":"string","received":"null","path":["estimatedStartDate"],"message":"Expected string, received null"},{"code":"invalid_type","expected":"string","received":"null","path":["estimatedCompletionDate"],"message":"Expected string, received null"}]}
+    at throwIfResNotOk (queryClient.ts:24:11)
+    at async apiRequest (queryClient.ts:42:3)
+    at async Object.mutationFn (EditQuoteDetailsDialog.tsx:115:26)
+overrideMethod @ hook.js:608
+hook.js:608 Quote update mutation failed: Error: HTTP Error 400: {"error":"Invalid data","details":[{"code":"invalid_type","expected":"string","received":"null","path":["estimatedStartDate"],"message":"Expected string, received null"},{"code":"invalid_type","expected":"string","received":"null","path":["estimatedCompletionDate"],"message":"Expected string, received null"}]}
+    at throwIfResNotOk (queryClient.ts:24:11)
+    at async apiRequest (queryClient.ts:42:3)
+    at async Object.mutationFn (EditQuoteDetailsDialog.tsx:115:26)
+overrideMethod @ hook.js:608
+EditQuoteDetailsDialog.tsx:145 Save clicked - starting validation
+EditQuoteDetailsDialog.tsx:146 Current form data: Object
+EditQuoteDetailsDialog.tsx:179 Total percentage calculated: 100
+EditQuoteDetailsDialog.tsx:180 Milestones data: Array(4)
+EditQuoteDetailsDialog.tsx:192 All validations passed, proceeding with save
+EditQuoteDetailsDialog.tsx:113 Sending update request with data: Object
+api/quotes/5:1 
+            
+            
+           Failed to load resource: the server responded with a status of 400 (Bad Request)
+hook.js:608 Update request failed: Error: HTTP Error 400: {"error":"Invalid data","details":[{"code":"invalid_type","expected":"string","received":"null","path":["estimatedStartDate"],"message":"Expected string, received null"},{"code":"invalid_type","expected":"string","received":"null","path":["estimatedCompletionDate"],"message":"Expected string, received null"}]}
+    at throwIfResNotOk (queryClient.ts:24:11)
+    at async apiRequest (queryClient.ts:42:3)
+    at async Object.mutationFn (EditQuoteDetailsDialog.tsx:115:26)
+overrideMethod @ hook.js:608
+hook.js:608 Quote update mutation failed: Error: HTTP Error 400: {"error":"Invalid data","details":[{"code":"invalid_type","expected":"string","received":"null","path":["estimatedStartDate"],"message":"Expected string, received null"},{"code":"invalid_type","expected":"string","received":"null","path":["estimatedCompletionDate"],"message":"Expected string, received null"}]}
+    at throwIfResNotOk (queryClient.ts:24:11)
+    at async apiRequest (queryClient.ts:42:3)
+    at async Object.mutationFn (EditQuoteDetailsDialog.tsx:115:26)
+overrideMethod @ hook.js:608
+
+                
+          
+          
+          
+         Chrome is moving towards a new experience that allows users to choose to browse without third-party cookies.
