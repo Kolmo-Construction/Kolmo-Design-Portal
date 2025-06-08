@@ -19,6 +19,8 @@ import {
   ReactCompareSliderImage,
   ReactCompareSliderHandle
 } from 'react-compare-slider';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface QuoteResponse {
   id: number;
@@ -534,7 +536,25 @@ export default function CustomerQuotePage() {
                 <span>{quoteData.projectType}</span>
               </div>
               {quoteData.description && (
-                <p className="leading-relaxed" style={{color: '#4a6670'}}>{quoteData.description}</p>
+                <div className="prose prose-slate max-w-none leading-relaxed" style={{color: '#4a6670'}}>
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      h1: ({node, ...props}) => <h1 className="text-2xl font-bold mb-4" style={{color: '#1a1a1a'}} {...props} />,
+                      h2: ({node, ...props}) => <h2 className="text-xl font-semibold mb-3" style={{color: '#1a1a1a'}} {...props} />,
+                      h3: ({node, ...props}) => <h3 className="text-lg font-medium mb-2" style={{color: '#1a1a1a'}} {...props} />,
+                      p: ({node, ...props}) => <p className="mb-3 leading-relaxed" style={{color: '#4a6670'}} {...props} />,
+                      ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-3 space-y-1" {...props} />,
+                      ol: ({node, ...props}) => <ol className="list-decimal pl-6 mb-3 space-y-1" {...props} />,
+                      li: ({node, ...props}) => <li style={{color: '#4a6670'}} {...props} />,
+                      strong: ({node, ...props}) => <strong className="font-semibold" style={{color: '#1a1a1a'}} {...props} />,
+                      hr: ({node, ...props}) => <hr className="my-6 border-gray-200" {...props} />,
+                      blockquote: ({node, ...props}) => <blockquote className="border-l-4 pl-4 italic" style={{borderColor: '#db973c', color: '#4a6670'}} {...props} />,
+                    }}
+                  >
+                    {quoteData.description}
+                  </ReactMarkdown>
+                </div>
               )}
             </div>
             
