@@ -152,7 +152,7 @@ router.post('/payment-success', async (req, res, next) => {
       projectId: null, // Will be set when project is created
       quoteId: quoteId,
       invoiceNumber,
-      amount: downPaymentAmount,
+      amount: downPaymentAmount.toString(),
       description: `Down payment (${metadata.downPaymentPercentage}%) for ${quote.title}`,
       issueDate: new Date(),
       dueDate: new Date(),

@@ -406,20 +406,8 @@ export class PaymentService {
         const invoiceId = parseInt(metadata.invoiceId);
         
         if (invoiceId) {
-          // Record the payment
-          await storage.payments.recordPayment({
-            invoiceId,
-            amount: (paymentIntent.amount / 100).toString(), // Convert from cents
-            paymentDate: new Date(),
-            paymentMethod: 'stripe',
-            reference: paymentIntent.id,
-            stripePaymentIntentId: paymentIntent.id,
-            stripeChargeId: paymentIntent.latest_charge as string,
-            status: 'succeeded',
-          });
-
-          // Update invoice status
-          await storage.invoices.updateInvoiceStatus(invoiceId);
+          // TODO: Record payment and update invoice status when repositories are implemented
+          console.log(`Payment successful for invoice ${invoiceId}, amount: ${paymentIntent.amount / 100}`);
           
           // If this was a down payment, send project welcome email
           if (metadata.paymentType === 'down_payment' && metadata.projectId) {
