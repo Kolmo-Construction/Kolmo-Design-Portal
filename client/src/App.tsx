@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "next-themes";
 import NotFound from "@/pages/not-found";
-import AuthPage from "@/pages/auth-page";
+import AuthPageNew from "@/pages/auth-page-new";
 import Dashboard from "@/pages/dashboard";
 import Projects from "@/pages/projects";
 import ProjectDetails from "@/pages/ProjectDetails";
@@ -30,13 +30,13 @@ function Router() {
   return (
     <Switch>
       <Route path="/auth">
-        {() => <AuthPage />}
+        {() => <AuthPageNew />}
       </Route>
       <Route path="/auth/magic-link/:token">
-        {() => <AuthPage isMagicLink={true} />}
+        {() => <AuthPageNew isMagicLink={true} />}
       </Route>
       <Route path="/reset-password/:token">
-        {() => <AuthPage isPasswordReset={true} />}
+        {() => <AuthPageNew isPasswordReset={true} />}
       </Route>
       <ProtectedRoute path="/setup-profile" component={SetupProfile} />
       <ProtectedRoute path="/" component={Dashboard} />
