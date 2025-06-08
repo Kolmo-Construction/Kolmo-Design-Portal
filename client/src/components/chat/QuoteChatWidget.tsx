@@ -139,13 +139,19 @@ export const AdminQuoteChatWidget: React.FC<{ quoteId: string; quoteNumber: stri
   quoteId,
   quoteNumber
 }) => {
-  console.log('AdminQuoteChatWidget rendering with props:', { quoteId, quoteNumber });
+  console.log('🚀 AdminQuoteChatWidget RENDERING with props:', { quoteId, quoteNumber });
   
   const { client, isConnected, error, isLoading } = useChatContext();
   const [channel, setChannel] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(false);
   
-  console.log('Admin chat context state:', { client: !!client, isConnected, error, isLoading });
+  console.log('📱 Admin chat context state:', { 
+    hasClient: !!client, 
+    isConnected, 
+    error, 
+    isLoading,
+    channelExists: !!channel
+  });
 
   useEffect(() => {
     if (client && isConnected) {
