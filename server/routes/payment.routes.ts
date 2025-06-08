@@ -140,6 +140,7 @@ router.post('/payment-success', async (req, res, next) => {
     const downPaymentAmount = paymentIntent.amount / 100; // Convert from cents
     
     const invoiceData = {
+      projectId: null, // Will be set when project is created
       quoteId: quoteId,
       invoiceNumber,
       amount: downPaymentAmount,
