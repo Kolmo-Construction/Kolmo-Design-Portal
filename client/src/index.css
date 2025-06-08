@@ -6,43 +6,43 @@
 @tailwind utilities;
 
 :root {
-  /* Kolmo brand colors - exact match from website */
-  /* Dark teal primary from hero background #5A6D5D */
-  --primary: 158 15% 39%;
+  /* Kolmo brand colors - exact specifications */
+  /* Primary Color: #3d4552 (dark blue/gray) */
+  --primary: 215 17% 28%;
   --primary-foreground: 0 0% 98%;
   
-  /* Kolmo orange accent #CC8B4A */
-  --accent: 33 56% 55%;
+  /* Accent Color: #db973c (golden orange) */
+  --accent: 35 67% 54%;
   --accent-foreground: 0 0% 100%;
   
-  /* Secondary teal slightly lighter */
-  --secondary: 158 15% 45%;
+  /* Secondary Color: #4a6670 (blue-gray) */
+  --secondary: 203 18% 36%;
   --secondary-foreground: 0 0% 98%;
   
-  /* Clean white background */
+  /* Background: #ffffff (white) */
   --background: 0 0% 100%;
-  --foreground: 218 11% 15%;
+  --foreground: 215 17% 28%;
   
   /* Card styling */
   --card: 0 0% 100%;
-  --card-foreground: 218 11% 15%;
+  --card-foreground: 215 17% 28%;
   
-  /* Subtle gray backgrounds */
-  --muted: 210 40% 98%;
-  --muted-foreground: 215 16% 47%;
+  /* Background Accent: #f5f5f5 (light gray) */
+  --muted: 0 0% 96%;
+  --muted-foreground: 203 18% 46%;
   
   --popover: 0 0% 100%;
-  --popover-foreground: 218 11% 15%;
+  --popover-foreground: 215 17% 28%;
   
   /* Soft borders */
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
+  --border: 0 0% 90%;
+  --input: 0 0% 90%;
   
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 98%;
   
   /* Focus ring matches primary */
-  --ring: 158 15% 39%;
+  --ring: 215 17% 28%;
   --radius: 0.75rem;
 }
 
@@ -192,5 +192,165 @@ body {
 
 .font-montserrat {
   font-family: 'Montserrat', sans-serif;
+}
+
+/* Kolmo Chat Widget Styling */
+.kolmo-chat-widget {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: white;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+}
+
+.kolmo-chat-header {
+  background: #3d4552;
+  color: white;
+  padding: 1rem;
+  font-weight: 600;
+  font-size: 1.1rem;
+  border-bottom: 2px solid #db973c;
+  flex-shrink: 0;
+}
+
+.kolmo-chat-content {
+  flex: 1;
+  overflow: hidden;
+  background: white;
+}
+
+.kolmo-chat-button {
+  background: #3d4552;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  border: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.kolmo-chat-button:hover {
+  background: #4a6670;
+  transform: translateY(-1px);
+}
+
+.kolmo-floating-chat-button {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  background: #3d4552;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 3.5rem;
+  height: 3.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(61, 69, 82, 0.3);
+  transition: all 0.2s ease;
+  z-index: 50;
+}
+
+.kolmo-floating-chat-button:hover {
+  background: #4a6670;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(61, 69, 82, 0.4);
+}
+
+.kolmo-chat-theme {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Stream Chat Customization for Kolmo Theme */
+.kolmo-chat-theme .str-chat {
+  height: 100%;
+  font-family: 'Inter', sans-serif;
+}
+
+.kolmo-chat-theme .str-chat__container {
+  height: 100%;
+}
+
+.kolmo-chat-theme .str-chat__channel {
+  height: 100%;
+}
+
+.kolmo-chat-theme .str-chat__main-panel {
+  height: 100%;
+}
+
+.kolmo-chat-theme .str-chat__message-list {
+  background: white;
+  padding: 1rem;
+}
+
+.kolmo-chat-theme .str-chat__message-input {
+  background: #f5f5f5;
+  border-top: 1px solid #e5e5e5;
+  padding: 1rem;
+}
+
+.kolmo-chat-theme .str-chat__message-input-inner {
+  background: white;
+  border: 1px solid #e5e5e5;
+  border-radius: 0.5rem;
+}
+
+.kolmo-chat-theme .str-chat__send-button {
+  background: #db973c !important;
+  border: none !important;
+  color: white !important;
+}
+
+.kolmo-chat-theme .str-chat__send-button:hover {
+  background: #c8863a !important;
+}
+
+.kolmo-chat-theme .str-chat__message--me .str-chat__message-bubble {
+  background: #3d4552 !important;
+  color: white !important;
+}
+
+.kolmo-chat-theme .str-chat__message--other .str-chat__message-bubble {
+  background: #f5f5f5 !important;
+  color: #3d4552 !important;
+  border: 1px solid #e5e5e5 !important;
+}
+
+.kolmo-chat-theme .str-chat__message-author {
+  color: #4a6670 !important;
+  font-weight: 500;
+}
+
+.kolmo-chat-theme .str-chat__message-timestamp {
+  color: #999 !important;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .kolmo-chat-widget {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .kolmo-chat-content {
+    touch-action: pan-y;
+  }
+  
+  .kolmo-chat-theme .str-chat__message-input {
+    padding: 0.75rem;
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  }
+  
+  .kolmo-chat-theme .str-chat__message-list {
+    padding: 0.75rem;
+    padding-bottom: 0;
+  }
 }
 

@@ -77,69 +77,116 @@ export const QuoteChatWidget: React.FC<QuoteChatWidgetProps> = ({
     );
   }
 
-  if (!isOpen) {
-    return (
-      <div className="fixed bottom-4 right-4 z-50">
-        <Button
-          onClick={() => setIsOpen(true)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
-        >
-          <MessageCircle className="h-4 w-4" />
-          Chat About Quote
-        </Button>
-      </div>
-    );
-  }
-
   return (
-    <div className="fixed bottom-4 right-4 z-50">
-      <Card className={`w-96 shadow-xl border-2 ${isMinimized ? 'h-16' : 'h-96'} transition-all duration-200`}>
-        <CardHeader className="p-3 bg-blue-600 text-white rounded-t-lg">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium">
-              Quote #{quoteNumber} Chat
-            </CardTitle>
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsMinimized(!isMinimized)}
-                className="h-6 w-6 p-0 text-white hover:bg-blue-700"
-              >
-                <Minimize2 className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsOpen(false)}
-                className="h-6 w-6 p-0 text-white hover:bg-blue-700"
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </div>
+    <>
+      {/* Mobile floating chat button */}
+      {!isOpen && (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="md:hidden fixed bottom-4 right-4 z-50 kolmo-chat-button rounded-full w-14 h-14 flex items-center justify-center shadow-lg"
+        >
+          <MessageCircle className="h-6 w-6 text-white" />
+        </button>
+      )}
+
+      {/* Desktop floating chat button */}
+      {!isOpen && (
+        <div className="hidden md:block fixed bottom-4 right-4 z-50">
+          <Button
+            onClick={() => setIsOpen(true)}
+            className="kolmo-chat-button flex items-center gap-2 shadow-lg border-none"
+          >
+            <MessageCircle className="h-4 w-4" />
+            Chat About Quote
+          </Button>
+        </div>
+      )}
+
+      {/* Desktop chat widget */}
+      {isOpen && (
+        <div className="hidden md:block fixed bottom-4 right-4 z-50">
+          <Card className={`w-96 shadow-xl border-2 ${isMinimized ? 'h-16' : 'h-96'} transition-all duration-200`}>
+            <CardHeader className="p-3 kolmo-chat-header rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-white">
+                  Quote #{quoteNumber} Chat
+                </CardTitle>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsMinimized(!isMinimized)}
+                    className="h-6 w-6 p-0 text-white hover:bg-opacity-20 hover:bg-white"
+                  >
+                    <Minimize2 className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsOpen(false)}
+                    className="h-6 w-6 p-0 text-white hover:bg-opacity-20 hover:bg-white"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            
+            {!isMinimized && (
+              <CardContent className="p-0 h-full">
+                {channel && (
+                  <div className="kolmo-chat-theme h-80">
+                    <Chat client={client} theme="str-chat__theme-light">
+                      <Channel channel={channel}>
+                        <div className="flex flex-col h-full">
+                          <div className="flex-1 overflow-hidden">
+                            <MessageList />
+                          </div>
+                          <div className="border-t">
+                            <MessageInput />
+                          </div>
+                        </div>
+                      </Channel>
+                    </Chat>
+                  </div>
+                )}
+              </CardContent>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* Mobile full-screen chat overlay */}
+      {isOpen && (
+        <div className="md:hidden kolmo-chat-widget">
+          <div className="kolmo-chat-header flex items-center justify-between">
+            <span>Quote #{quoteNumber} Chat</span>
+            <button
+              onClick={() => setIsOpen(false)}
+              className="text-white hover:text-gray-200 p-1 rounded"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
-        </CardHeader>
-        
-        {!isMinimized && (
-          <CardContent className="p-0 h-full">
+          <div className="kolmo-chat-theme kolmo-chat-content">
             {channel && (
               <Chat client={client} theme="str-chat__theme-light">
                 <Channel channel={channel}>
-                  <div className="flex flex-col h-80">
+                  <div className="flex flex-col h-full">
                     <div className="flex-1 overflow-hidden">
                       <MessageList />
                     </div>
-                    <div className="border-t p-2">
+                    <div className="border-t bg-white">
                       <MessageInput />
                     </div>
                   </div>
                 </Channel>
               </Chat>
             )}
-          </CardContent>
-        )}
-      </Card>
-    </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
