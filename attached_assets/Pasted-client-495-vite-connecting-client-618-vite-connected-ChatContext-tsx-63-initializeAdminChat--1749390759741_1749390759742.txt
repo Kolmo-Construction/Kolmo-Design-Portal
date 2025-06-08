@@ -1,0 +1,25 @@
+client:495 [vite] connecting...
+client:618 [vite] connected.
+ChatContext.tsx:63 initializeAdminChat called with: Object
+ChatContext.tsx:73 Creating Stream client with API key: cux8fxg93kgc
+ChatContext.tsx:75 Connecting user: Object
+ChatContext.tsx:83 Stream client connected successfully
+5:1 Unable to download payment manifest "https://pay.google.com/about/redirect/".
+5:1 Unable to download payment manifest "https://pay.google.com/about/redirect/".
+instrument.js:109 As of March 1st, 2025, google.maps.places.AutocompleteService is not available to new customers. Please use google.maps.places.AutocompleteSuggestion instead. At this time, google.maps.places.AutocompleteService is not scheduled to be discontinued, but google.maps.places.AutocompleteSuggestion is recommended over google.maps.places.AutocompleteService. While google.maps.places.AutocompleteService will continue to receive bug fixes for any major regressions, existing bugs in google.maps.places.AutocompleteService will not be addressed. At least 12 months notice will be given before support is discontinued. Please see https://developers.google.com/maps/legacy for additional details and https://developers.google.com/maps/documentation/javascript/places-migration-overview for the migration guide.
+(anonymous) @ instrument.js:109
+instrument.js:109 As of March 1st, 2025, google.maps.places.PlacesService is not available to new customers. Please use google.maps.places.Place instead. At this time, google.maps.places.PlacesService is not scheduled to be discontinued, but google.maps.places.Place is recommended over google.maps.places.PlacesService. While google.maps.places.PlacesService will continue to receive bug fixes for any major regressions, existing bugs in google.maps.places.PlacesService will not be addressed. At least 12 months notice will be given before support is discontinued. Please see https://developers.google.com/maps/legacy for additional details and https://developers.google.com/maps/documentation/javascript/places-migration-overview for the migration guide.
+(anonymous) @ instrument.js:109
+hcaptcha.html:14  
+5:1 Each dictionary in the list "icons" should contain a non-empty UTF8 string field "sizes".
+5:1 Each dictionary in the list "icons" should contain a non-empty UTF8 string field "type".
+hcaptcha.html:14  
+/api/payment-success:1 
+            
+            
+           Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+hook.js:608 Backend processing error: Error: HTTP Error 500: Database error while creating invoice.
+    at throwIfResNotOk (queryClient.ts:24:11)
+    at async apiRequest (queryClient.ts:42:3)
+    at async handleSubmit (PaymentForm.tsx:58:26)
+overrideMethod @ hook.js:608
