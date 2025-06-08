@@ -164,7 +164,7 @@ export class PaymentService {
       projectId: project.id,
       quoteId: quote.id,
       invoiceNumber,
-      amount: downPayment.amount.toString(),
+      amount: downPayment.amount,
       description: `Down payment (${downPayment.percentage}%) for ${quote.title}`,
       issueDate: new Date(),
       dueDate: downPayment.dueDate,
@@ -211,7 +211,7 @@ export class PaymentService {
       projectId: project.id,
       quoteId: quote.id,
       invoiceNumber,
-      amount: paymentSchedule.milestonePayment.amount.toString(),
+      amount: paymentSchedule.milestonePayment.amount,
       description: milestoneDescription || paymentSchedule.milestonePayment.description,
       issueDate: new Date(),
       dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
@@ -221,6 +221,9 @@ export class PaymentService {
     };
 
     const invoice = await storage.invoices.createInvoice(invoiceData);
+    if (!invoice) {
+      throw new Error('Failed to create milestone invoice');
+    }
 
     // Create payment intent for milestone payment
     const paymentIntent = await stripeService.createPaymentIntent({
@@ -277,7 +280,7 @@ export class PaymentService {
       projectId: project.id,
       quoteId: quote.id,
       invoiceNumber,
-      amount: paymentSchedule.finalPayment.amount.toString(),
+      amount: paymentSchedule.finalPayment.amount,
       description: `Final payment (${paymentSchedule.finalPayment.percentage}%) for ${project.name}`,
       issueDate: new Date(),
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
@@ -287,6 +290,9 @@ export class PaymentService {
     };
 
     const invoice = await storage.invoices.createInvoice(invoiceData);
+    if (!invoice) {
+      throw new Error('Failed to create final invoice');
+    }
 
     // Create payment intent for final payment
     const paymentIntent = await stripeService.createPaymentIntent({
