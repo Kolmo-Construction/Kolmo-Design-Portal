@@ -465,10 +465,13 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <AdminQuoteChatWidget 
-                  quoteId={currentQuote.id.toString()}
-                  quoteNumber={currentQuote.quoteNumber}
-                />
+                <div className="border p-4 rounded bg-blue-50">
+                  <p className="text-sm text-blue-600 mb-2">Chat Widget Loading Area:</p>
+                  <AdminQuoteChatWidget 
+                    quoteId={currentQuote.id.toString()}
+                    quoteNumber={currentQuote.quoteNumber}
+                  />
+                </div>
               </CardContent>
             </Card>
 
