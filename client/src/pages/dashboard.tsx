@@ -7,6 +7,7 @@ import MessageItem from "@/components/MessageItem";
 import UpdateItem from "@/components/UpdateItem";
 import ApprovalItem from "@/components/ApprovalItem";
 import QuoteAnalyticsOverview from "@/components/dashboard/QuoteAnalyticsOverview";
+import { ChatDashboard } from "@/components/dashboard/ChatDashboard";
 import { Project, Message, ProgressUpdate, Selection } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -456,6 +457,11 @@ export default function ClientDashboard() {
         {/* Quote Analytics Overview */}
         <div className="mb-8">
           <QuoteAnalyticsOverview />
+        </div>
+        
+        {/* Centralized Chat Management */}
+        <div className="mb-8">
+          <ChatDashboard />
         </div>
         
         {/* Recent Updates with Image Showcase */}
