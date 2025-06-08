@@ -545,23 +545,23 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
               </CardContent>
 
               <CardFooter className="text-center pt-4">
-                <p className="text-sm text-slate-500">
-                  Secure access powered by Kolmo Construction Solutions
+                <p className="text-sm text-[#4a6670]">
+                  Secure client portal powered by Kolmo
                 </p>
               </CardFooter>
             </Card>
 
             {/* Footer Links */}
-            <div className="text-center space-y-2">
-              <p className="text-sm text-slate-600">
-                Need help accessing your account?
+            <div className="text-center space-y-2 animate-fadeIn animation-delay-700">
+              <p className="text-sm text-[#4a6670]">
+                Need help accessing your project?
               </p>
-              <div className="flex justify-center space-x-4 text-xs text-slate-500">
-                <span>Contact Support</span>
+              <div className="flex justify-center space-x-4 text-xs text-[#4a6670]/70">
+                <span className="hover:text-[#db973c] cursor-pointer transition-colors">Contact Support</span>
                 <span>•</span>
-                <span>Privacy Policy</span>
+                <span className="hover:text-[#db973c] cursor-pointer transition-colors">Privacy Policy</span>
                 <span>•</span>
-                <span>Terms of Service</span>
+                <span className="hover:text-[#db973c] cursor-pointer transition-colors">Terms of Service</span>
               </div>
             </div>
           </div>
