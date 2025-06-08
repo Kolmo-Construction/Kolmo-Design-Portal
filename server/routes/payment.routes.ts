@@ -120,15 +120,15 @@ router.post('/payment-success', async (req, res, next) => {
       throw new HttpError(404, 'Quote not found');
     }
 
-    // Create a basic project entry (we'll handle the proper project creation in the next step)
+    // Create project from quote first
     const projectData = {
       name: quote.title,
       description: quote.description || `Project created from Quote #${quote.quoteNumber}`,
-      address: quote.customerAddress || 'Address from quote',
-      city: 'City from quote',
-      state: 'State from quote',
+      address: quote.customerAddress || 'Address TBD',
+      city: 'City TBD',
+      state: 'State TBD',
       zipCode: '00000',
-      totalBudget: parseFloat(quote.total?.toString() || '0'),
+      totalBudget: parseFloat(quote.total?.toString() || '0').toString(),
       status: 'planning',
       customerName,
       customerEmail,
@@ -136,8 +136,12 @@ router.post('/payment-success', async (req, res, next) => {
       originQuoteId: quoteId,
     };
 
-    // For now, we'll create a simplified project entry
-    // This will be enhanced in the next implementation phase
+    // Create the project
+    const project = await storage.projects.createProject(projectData);
+    
+    if (!project) {
+      throw new HttpError(500, 'Failed to create project');
+    }
 
     // Generate invoice number
     const year = new Date().getFullYear();
@@ -149,7 +153,7 @@ router.post('/payment-success', async (req, res, next) => {
     const downPaymentAmount = paymentIntent.amount / 100; // Convert from cents
     
     const invoiceData = {
-      projectId: null, // Will be set when project is created
+      projectId: project.id, // Now we have a valid project ID
       quoteId: quoteId,
       invoiceNumber,
       amount: downPaymentAmount.toString(),
@@ -196,6 +200,11 @@ router.post('/payment-success', async (req, res, next) => {
     res.json({
       success: true,
       message: 'Payment processed successfully',
+      project: {
+        id: project.id,
+        name: project.name,
+        status: project.status,
+      },
       invoice: invoice,
       quote: {
         id: quote.id,

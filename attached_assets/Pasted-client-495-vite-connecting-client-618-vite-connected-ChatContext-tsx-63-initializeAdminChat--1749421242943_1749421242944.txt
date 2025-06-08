@@ -1,0 +1,145 @@
+client:495 [vite] connecting...
+client:618 [vite] connected.
+ChatContext.tsx:63 initializeAdminChat called with: Object
+ChatContext.tsx:73 Creating Stream client with API key: cux8fxg93kgc
+ChatContext.tsx:75 Connecting user: Object
+ChatContext.tsx:83 Stream client connected successfully
+controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1 [Stripe.js] You have not registered or verified the domain, so the following payment methods are not enabled in the Payment Element: 
+
+- apple_pay
+
+Please follow https://stripe.com/docs/payments/payment-methods/pmd-registration to register and verify the domain.
+warn @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+postMessage
+c @ shared-bf82ce6722faa…176221ca6c8dbc.js:1
+o._sendControllerMessage @ shared-bf82ce6722faa…176221ca6c8dbc.js:1
+o.warn @ shared-bf82ce6722faa…176221ca6c8dbc.js:1
+(anonymous) @ js.stripe.com/v3/fin…7d566119ed4a1d.js:4
+la @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+za @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+n.unstable_runWithPriority @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+Nn @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+Va @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+Sa @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+(anonymous) @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+n.unstable_runWithPriority @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+Nn @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+Zn @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+In @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+Aa @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+(anonymous) @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+(anonymous) @ shared-bf82ce6722faa…176221ca6c8dbc.js:1
+setTimeout
+r @ shared-bf82ce6722faa…176221ca6c8dbc.js:1
+(anonymous) @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+(anonymous) @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+(anonymous) @ shared-bf82ce6722faa…176221ca6c8dbc.js:1
+r.test._emit @ shared-bf82ce6722faa…176221ca6c8dbc.js:1
+value @ shared-bf82ce6722faa…176221ca6c8dbc.js:1
+value @ shared-bf82ce6722faa…176221ca6c8dbc.js:1
+(anonymous) @ shared-bf82ce6722faa…176221ca6c8dbc.js:1
+postMessage
+c @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+value @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+(anonymous) @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+value @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+(anonymous) @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+n @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+(anonymous) @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+(anonymous) @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+a @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+i @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+Promise.then
+a @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+i @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+(anonymous) @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+(anonymous) @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+(anonymous) @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+(anonymous) @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+dispatch @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+(anonymous) @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+n @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+(anonymous) @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+(anonymous) @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+a @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+i @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+Promise.then
+a @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+i @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+Promise.then
+a @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+i @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+(anonymous) @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+(anonymous) @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+(anonymous) @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+(anonymous) @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+(anonymous) @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+(anonymous) @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+(anonymous) @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+n @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+(anonymous) @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+(anonymous) @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+a @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+i @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+Promise.then
+a @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+i @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+(anonymous) @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+(anonymous) @ shared-bf82ce6722faa798a6176221ca6c8dbc.js:1
+(anonymous) @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+(anonymous) @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+(anonymous) @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+value @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+value @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+value @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+(anonymous) @ controller-with-preconnect-d6f39e3e66c431c76c6b824a9880ad84.js:1
+postMessage
+c @ shared-bf82ce6722faa…176221ca6c8dbc.js:1
+o._sendControllerMessage @ shared-bf82ce6722faa…176221ca6c8dbc.js:1
+(anonymous) @ shared-bf82ce6722faa…176221ca6c8dbc.js:1
+o.innerAction @ shared-bf82ce6722faa…176221ca6c8dbc.js:1
+r.dispatchAction @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+(anonymous) @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+(anonymous) @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+la @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+za @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+n.unstable_runWithPriority @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+Nn @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+Va @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+(anonymous) @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+c @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+w.port1.onmessage @ js.stripe.com/v3/fin…7d566119ed4a1d.js:1
+1:1 Unable to download payment manifest "https://www.google.com/pay".
+1:1 Unable to download payment manifest "https://www.google.com/pay".
+1:1 Each dictionary in the list "icons" should contain a non-empty UTF8 string field "sizes".
+1:1 Each dictionary in the list "icons" should contain a non-empty UTF8 string field "type".
+instrument.js:109 As of March 1st, 2025, google.maps.places.AutocompleteService is not available to new customers. Please use google.maps.places.AutocompleteSuggestion instead. At this time, google.maps.places.AutocompleteService is not scheduled to be discontinued, but google.maps.places.AutocompleteSuggestion is recommended over google.maps.places.AutocompleteService. While google.maps.places.AutocompleteService will continue to receive bug fixes for any major regressions, existing bugs in google.maps.places.AutocompleteService will not be addressed. At least 12 months notice will be given before support is discontinued. Please see https://developers.google.com/maps/legacy for additional details and https://developers.google.com/maps/documentation/javascript/places-migration-overview for the migration guide.
+(anonymous) @ instrument.js:109
+instrument.js:109 As of March 1st, 2025, google.maps.places.PlacesService is not available to new customers. Please use google.maps.places.Place instead. At this time, google.maps.places.PlacesService is not scheduled to be discontinued, but google.maps.places.Place is recommended over google.maps.places.PlacesService. While google.maps.places.PlacesService will continue to receive bug fixes for any major regressions, existing bugs in google.maps.places.PlacesService will not be addressed. At least 12 months notice will be given before support is discontinued. Please see https://developers.google.com/maps/legacy for additional details and https://developers.google.com/maps/documentation/javascript/places-migration-overview for the migration guide.
+(anonymous) @ instrument.js:109
+hcaptcha.html:14  
+/api/payment-success:1 
+            
+            
+           Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+hook.js:608 Backend processing error: Error: HTTP Error 500: Database error while creating invoice.
+    at throwIfResNotOk (queryClient.ts:24:11)
+    at async apiRequest (queryClient.ts:42:3)
+    at async handleSubmit (PaymentForm.tsx:58:26)
+overrideMethod @ hook.js:608
+await in overrideMethod
+callCallback2 @ chunk-276SZO74.js?v=442f16aa:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=442f16aa:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=442f16aa:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=442f16aa:3736
+executeDispatch @ chunk-276SZO74.js?v=442f16aa:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=442f16aa:7034
+processDispatchQueue @ chunk-276SZO74.js?v=442f16aa:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=442f16aa:7051
+(anonymous) @ chunk-276SZO74.js?v=442f16aa:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=442f16aa:18913
+batchedUpdates @ chunk-276SZO74.js?v=442f16aa:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=442f16aa:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=442f16aa:5478
+dispatchEvent @ chunk-276SZO74.js?v=442f16aa:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=442f16aa:5449
