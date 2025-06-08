@@ -392,9 +392,9 @@ export const quotes = pgTable("quotes", {
   total: decimal("total", { precision: 10, scale: 2 }).notNull().default('0'),
   
   // Payment schedule
-  downPaymentPercentage: integer("down_payment_percentage").default(40),
-  milestonePaymentPercentage: integer("milestone_payment_percentage").default(40),
-  finalPaymentPercentage: integer("final_payment_percentage").default(20),
+  downPaymentPercentage: decimal("down_payment_percentage", { precision: 5, scale: 2 }).default('40.00'),
+  milestonePaymentPercentage: decimal("milestone_payment_percentage", { precision: 5, scale: 2 }).default('40.00'),
+  finalPaymentPercentage: decimal("final_payment_percentage", { precision: 5, scale: 2 }).default('20.00'),
   milestoneDescription: text("milestone_description"),
   
   // Dates
