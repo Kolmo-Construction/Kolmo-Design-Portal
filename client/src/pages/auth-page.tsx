@@ -193,10 +193,10 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
       <div className="grid lg:grid-cols-2 min-h-screen">
         {/* Left Column - Branding & Features */}
-        <div className="hidden lg:flex flex-col justify-center p-12 bg-gradient-to-br from-blue-600 to-indigo-700 text-white relative overflow-hidden">
+        <div className="hidden lg:flex flex-col justify-center p-12 bg-gradient-to-br from-[#3d4552] to-[#4a6670] text-white relative overflow-hidden animate-fadeIn">
           {/* Background Pattern */}
           <div className="absolute inset-0 bg-black/10">
             <div className="absolute inset-0" style={{
@@ -216,77 +216,77 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
             </div>
 
             {/* Main Heading */}
-            <h1 className="text-4xl font-bold mb-6 leading-tight">
-              Professional Construction
-              <span className="text-blue-200 block">Project Management</span>
+            <h1 className="text-4xl font-bold mb-6 leading-tight animate-slideInLeft">
+              Your Dream Home
+              <span className="text-[#db973c] block">Starts Here</span>
             </h1>
 
-            <p className="text-xl mb-12 text-blue-100 leading-relaxed">
-              Streamline your construction projects with intelligent tools, 
-              real-time collaboration, and comprehensive project oversight.
+            <p className="text-xl mb-12 text-gray-200 leading-relaxed animate-slideInLeft animation-delay-200">
+              Track your construction project's progress, access documents, 
+              and stay connected with your contractor every step of the way.
             </p>
 
             {/* Feature Grid */}
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-6 animate-slideInUp">
+              <div className="space-y-3 animate-fadeIn animation-delay-300">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                    <Shield className="w-5 h-5" />
+                  <div className="w-10 h-10 bg-[#db973c]/20 rounded-lg flex items-center justify-center">
+                    <Home className="w-5 h-5 text-[#db973c]" />
                   </div>
                   <div>
-                    <h3 className="font-semibold">Secure Portal</h3>
-                    <p className="text-sm text-blue-200">Enterprise-grade security</p>
+                    <h3 className="font-semibold">Track Progress</h3>
+                    <p className="text-sm text-gray-300">See your project updates</p>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3 animate-fadeIn animation-delay-400">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                    <FileText className="w-5 h-5" />
+                  <div className="w-10 h-10 bg-[#db973c]/20 rounded-lg flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-[#db973c]" />
                   </div>
                   <div>
-                    <h3 className="font-semibold">Smart Quotes</h3>
-                    <p className="text-sm text-blue-200">AI-powered estimates</p>
+                    <h3 className="font-semibold">View Documents</h3>
+                    <p className="text-sm text-gray-300">Access plans & contracts</p>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3 animate-fadeIn animation-delay-500">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                    <Users className="w-5 h-5" />
+                  <div className="w-10 h-10 bg-[#db973c]/20 rounded-lg flex items-center justify-center">
+                    <MessageSquare className="w-5 h-5 text-[#db973c]" />
                   </div>
                   <div>
-                    <h3 className="font-semibold">Team Collaboration</h3>
-                    <p className="text-sm text-blue-200">Real-time updates</p>
+                    <h3 className="font-semibold">Stay Connected</h3>
+                    <p className="text-sm text-gray-300">Message your contractor</p>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3 animate-fadeIn animation-delay-600">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                    <Award className="w-5 h-5" />
+                  <div className="w-10 h-10 bg-[#db973c]/20 rounded-lg flex items-center justify-center">
+                    <CreditCard className="w-5 h-5 text-[#db973c]" />
                   </div>
                   <div>
-                    <h3 className="font-semibold">Quality Assurance</h3>
-                    <p className="text-sm text-blue-200">Professional standards</p>
+                    <h3 className="font-semibold">Manage Payments</h3>
+                    <p className="text-sm text-gray-300">Review invoices & quotes</p>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Trust Indicators */}
-            <div className="mt-12 pt-8 border-t border-white/20">
+            <div className="mt-12 pt-8 border-t border-white/20 animate-fadeIn animation-delay-700">
               <div className="flex items-center space-x-6">
                 <div className="flex items-center space-x-2">
-                  <Star className="w-4 h-4 text-yellow-300 fill-current" />
-                  <span className="text-sm font-medium">Trusted by 500+ contractors</span>
+                  <Star className="w-4 h-4 text-[#db973c] fill-current" />
+                  <span className="text-sm font-medium">Trusted by 1000+ homeowners</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <CheckCircle2 className="w-4 h-4 text-green-300" />
-                  <span className="text-sm font-medium">99.9% uptime</span>
+                  <CheckCircle2 className="w-4 h-4 text-[#db973c]" />
+                  <span className="text-sm font-medium">Secure & reliable</span>
                 </div>
               </div>
             </div>
@@ -294,10 +294,10 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
         </div>
 
         {/* Right Column - Authentication Forms */}
-        <div className="flex items-center justify-center p-6 lg:p-12">
+        <div className="flex items-center justify-center p-6 lg:p-12 animate-slideInRight">
           <div className="w-full max-w-md space-y-8">
             {/* Mobile Logo */}
-            <div className="lg:hidden text-center">
+            <div className="lg:hidden text-center animate-fadeIn">
               <img 
                 src={kolmoLogo} 
                 alt="Kolmo Logo" 
@@ -305,19 +305,19 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
               />
             </div>
 
-            <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
+            <Card className="border-0 shadow-xl bg-white/95 backdrop-blur-sm animate-slideInUp animation-delay-200 hover:shadow-2xl transition-shadow duration-300">
               <CardHeader className="text-center pb-4">
-                <CardTitle className="text-2xl font-bold text-slate-900">Welcome to Kolmo Portal</CardTitle>
-                <CardDescription className="text-slate-600">
+                <CardTitle className="text-2xl font-bold text-[#3d4552]">Welcome to Your Project Portal</CardTitle>
+                <CardDescription className="text-[#4a6670]">
                   Access your construction project dashboard
                 </CardDescription>
               </CardHeader>
 
               <CardContent>
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-                  <TabsList className="grid w-full grid-cols-2 bg-slate-100">
-                    <TabsTrigger value="login" className="data-[state=active]:bg-white">Sign In</TabsTrigger>
-                    <TabsTrigger value="register" className="data-[state=active]:bg-white">Sign Up</TabsTrigger>
+                  <TabsList className="grid w-full grid-cols-2 bg-[#f5f5f5]">
+                    <TabsTrigger value="login" className="data-[state=active]:bg-white data-[state=active]:text-[#3d4552] transition-all duration-200">Sign In</TabsTrigger>
+                    <TabsTrigger value="register" className="data-[state=active]:bg-white data-[state=active]:text-[#3d4552] transition-all duration-200">Sign Up</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="login" className="space-y-4 mt-6">
@@ -328,13 +328,13 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
                           name="username"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-slate-700">Username</FormLabel>
+                              <FormLabel className="text-[#3d4552] font-medium">Username</FormLabel>
                               <FormControl>
                                 <Input
                                   {...field}
                                   type="text"
                                   placeholder="Enter your username"
-                                  className="bg-white border-slate-200 focus:border-blue-500"
+                                  className="bg-white border-[#4a6670]/30 focus:border-[#db973c] focus:ring-[#db973c]/20 transition-all duration-200"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -347,13 +347,13 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
                           name="password"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-slate-700">Password</FormLabel>
+                              <FormLabel className="text-[#3d4552] font-medium">Password</FormLabel>
                               <FormControl>
                                 <Input
                                   {...field}
                                   type="password"
                                   placeholder="Enter your password"
-                                  className="bg-white border-slate-200 focus:border-blue-500"
+                                  className="bg-white border-[#4a6670]/30 focus:border-[#db973c] focus:ring-[#db973c]/20 transition-all duration-200"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -373,7 +373,7 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
                         <Button
                           type="submit"
                           disabled={loginForm.formState.isSubmitting || loginMutation.isPending}
-                          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5"
+                          className="w-full bg-[#db973c] hover:bg-[#db973c]/90 text-white font-medium py-2.5 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
                         >
                           {loginForm.formState.isSubmitting || loginMutation.isPending ? (
                             <>
