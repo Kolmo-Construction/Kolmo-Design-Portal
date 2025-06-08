@@ -238,17 +238,6 @@ export default function QuotesPage() {
           onOpenChange={(open) => !open && setSelectedQuote(null)}
         />
       )}
-
-      <Dialog open={showAnalytics} onOpenChange={setShowAnalytics}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Quote Analytics Dashboard</DialogTitle>
-          </DialogHeader>
-          {analyticsQuoteId && (
-            <QuoteAnalyticsDashboard quoteId={analyticsQuoteId} />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
