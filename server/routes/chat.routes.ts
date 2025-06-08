@@ -71,7 +71,7 @@ router.post('/customer-token', async (req: Request, res: Response) => {
       id: customerId,
       name: customerName,
       email: customerEmail,
-      role: 'customer',
+      role: 'user', // Use 'user' instead of 'customer' as it's a default role
     });
     
     // Generate token

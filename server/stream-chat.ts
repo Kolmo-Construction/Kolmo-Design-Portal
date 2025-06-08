@@ -10,7 +10,7 @@ export interface ChatUser {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'customer' | 'sales_rep' | 'project_manager';
+  role: 'admin' | 'user' | 'customer' | 'sales_rep' | 'project_manager';
   image?: string;
 }
 
@@ -19,12 +19,24 @@ export interface ChatUser {
  */
 export async function createStreamUser(user: ChatUser): Promise<void> {
   try {
-    await streamServerClient.upsertUser({
+    const userData: any = {
       id: user.id,
       name: user.name,
-      role: user.role,
-      image: user.image,
-    });
+    };
+    
+    // Only include role for admin users, use default for others
+    if (user.role === 'admin') {
+      userData.role = user.role;
+    } else if (user.role === 'user') {
+      // 'user' is a default role that should work
+      userData.role = user.role;
+    }
+    
+    if (user.image) {
+      userData.image = user.image;
+    }
+    
+    await streamServerClient.upsertUser(userData);
   } catch (error) {
     console.error('Error creating Stream user:', error);
     throw error;

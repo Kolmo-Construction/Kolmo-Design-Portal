@@ -100,11 +100,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
     setError(null);
     
     try {
-      const response = await apiRequest('/api/chat/customer-token', 'POST', {
+      const res = await apiRequest('POST', '/api/chat/customer-token', {
         quoteToken: token,
         customerName: name,
         customerEmail: email,
-      }) as any;
+      });
+      const response = await res.json();
 
       const chatClient = StreamChat.getInstance(response.apiKey);
       await chatClient.connectUser(
