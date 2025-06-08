@@ -21,6 +21,8 @@ import {
 } from 'react-compare-slider';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { QuoteChatWidget } from "@/components/chat/QuoteChatWidget";
+import { ChatProvider } from "@/contexts/ChatContext";
 
 interface QuoteResponse {
   id: number;
@@ -322,7 +324,13 @@ export default function CustomerQuotePage() {
   const hasDeclined = !!declinedResponse;
 
   return (
-    <div className="min-h-screen bg-white">
+    <ChatProvider 
+      isCustomer={true}
+      quoteToken={token}
+      customerName={quoteData?.customerName}
+      customerEmail={quoteData?.customerEmail}
+    >
+      <div className="min-h-screen bg-white">
       {/* Professional Header */}
       <div className="bg-white border-b border-gray-200" style={{color: '#1a1a1a'}}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
@@ -1335,6 +1343,16 @@ export default function CustomerQuotePage() {
           </Card>
         </div>
       )}
-    </div>
+
+        {/* Chat Widget - Always show for customer quote pages */}
+        <QuoteChatWidget 
+          quoteId={quoteData?.id?.toString() || ''}
+          quoteNumber={quoteData?.quoteNumber || ''}
+          isCustomer={true}
+          customerName={quoteData?.customerName}
+          customerEmail={quoteData?.customerEmail}
+        />
+      </div>
+    </ChatProvider>
   );
 }
