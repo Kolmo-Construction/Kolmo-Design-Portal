@@ -24,7 +24,7 @@ interface EmailOptions {
 }
 
 // Default sender email - should be a verified domain in SendGrid account
-const DEFAULT_FROM_EMAIL = process.env.EMAIL_FROM || 'projects@kolmo.io';
+const DEFAULT_FROM_EMAIL = process.env.EMAIL_FROM || 'noreply@kolmo.design';
 const DEFAULT_FROM_NAME = "Kolmo Construction";
 
 /**

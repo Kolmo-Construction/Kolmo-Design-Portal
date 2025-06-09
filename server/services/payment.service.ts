@@ -482,14 +482,59 @@ export class PaymentService {
       if (paymentIntent.status === 'succeeded') {
         const metadata = paymentIntent.metadata;
         const invoiceId = parseInt(metadata.invoiceId);
+        const projectId = metadata.projectId ? parseInt(metadata.projectId) : null;
+        const quoteId = metadata.quoteId ? parseInt(metadata.quoteId) : null;
         
         if (invoiceId) {
-          // TODO: Record payment and update invoice status when repositories are implemented
-          console.log(`Payment successful for invoice ${invoiceId}, amount: ${paymentIntent.amount / 100}`);
+          // Update invoice status to paid
+          await storage.invoices.updateInvoice(invoiceId, { 
+            status: 'paid' as const 
+          });
+
+          // Record the payment
+          const paymentAmount = paymentIntent.amount / 100; // Convert from cents
+          const paymentData = {
+            invoiceId: invoiceId,
+            amount: paymentAmount,
+            paymentDate: new Date(),
+            paymentMethod: 'stripe',
+            reference: paymentIntent.id,
+            stripePaymentIntentId: paymentIntent.id,
+            stripeChargeId: paymentIntent.latest_charge as string,
+            status: 'succeeded',
+          };
+
+          await storage.invoices.recordPayment(paymentData);
           
-          // If this was a down payment, send project welcome email
-          if (metadata.paymentType === 'down_payment' && metadata.projectId) {
-            await this.sendProjectWelcomeEmail(parseInt(metadata.projectId));
+          console.log(`Payment successful for invoice ${invoiceId}, amount: $${paymentAmount}`);
+          
+          // Get invoice and project details for email
+          const invoice = await storage.invoices.getInvoiceById(invoiceId);
+          if (!invoice) {
+            console.error(`Invoice ${invoiceId} not found after payment`);
+            return;
+          }
+
+          // Send appropriate confirmation email based on payment type
+          if (metadata.paymentType === 'down_payment') {
+            // For down payments, send project welcome email
+            if (projectId) {
+              await this.sendProjectWelcomeEmail(projectId);
+              console.log(`Project welcome email sent for project ${projectId}`);
+            }
+            
+            // Also update quote status to accepted if we have quote info
+            if (quoteId) {
+              await storage.quotes.updateQuote(quoteId, {
+                status: 'accepted',
+                respondedAt: new Date(),
+              });
+              console.log(`Quote ${quoteId} marked as accepted`);
+            }
+          } else {
+            // For milestone or final payments, send payment confirmation
+            await this.sendPaymentConfirmationEmail(invoice, paymentAmount);
+            console.log(`Payment confirmation email sent for invoice ${invoice.invoiceNumber}`);
           }
         }
       }
@@ -497,6 +542,74 @@ export class PaymentService {
       console.error('Error handling payment success:', error);
       throw error;
     }
+  }
+
+  /**
+   * Send payment confirmation email for milestone/final payments
+   */
+  private async sendPaymentConfirmationEmail(invoice: Invoice, paymentAmount: number): Promise<void> {
+    if (!invoice.customerEmail || !invoice.customerName) {
+      console.error('Customer email or name missing for payment confirmation');
+      return;
+    }
+
+    const paymentTypeText = invoice.invoiceType === 'down_payment' ? 'Down Payment' :
+                            invoice.invoiceType === 'milestone' ? 'Milestone Payment' :
+                            invoice.invoiceType === 'final' ? 'Final Payment' : 'Payment';
+
+    const subject = `Payment Confirmation - ${paymentTypeText} Received`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #3d4552;">Payment Confirmation</h2>
+        
+        <p>Dear ${invoice.customerName},</p>
+        
+        <p>Thank you! We've successfully received your ${paymentTypeText.toLowerCase()} payment.</p>
+        
+        <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6;">
+          <h3 style="margin: 0 0 10px 0; color: #1e40af;">Payment Details</h3>
+          <p><strong>Invoice Number:</strong> ${invoice.invoiceNumber}</p>
+          <p><strong>Amount Paid:</strong> $${paymentAmount.toFixed(2)}</p>
+          <p><strong>Payment Date:</strong> ${new Date().toLocaleDateString()}</p>
+          <p><strong>Payment Type:</strong> ${paymentTypeText}</p>
+        </div>
+        
+        <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p><strong>Description:</strong> ${invoice.description}</p>
+        </div>
+        
+        ${invoice.invoiceType === 'milestone' ? `
+          <div style="background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
+            <h3 style="margin: 0 0 10px 0; color: #047857;">Project Progress</h3>
+            <p>Your project is progressing well! This milestone payment allows us to continue with the next phase of work.</p>
+            <p>You'll receive updates as we complete each stage of your project.</p>
+          </div>
+        ` : invoice.invoiceType === 'final' ? `
+          <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+            <h3 style="margin: 0 0 10px 0; color: #92400e;">Project Completion</h3>
+            <p>Congratulations! This final payment completes your project. We're excited to have worked with you.</p>
+            <p>Our team will be in touch regarding any final details and project handover.</p>
+          </div>
+        ` : ''}
+        
+        <p>If you have any questions about this payment or your project, please don't hesitate to contact us.</p>
+        
+        <p>Best regards,<br>The Kolmo Construction Team</p>
+        
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+        <p style="color: #666; font-size: 12px;">
+          This is an automated payment confirmation. Please keep this email for your records.
+        </p>
+      </div>
+    `;
+
+    await sendEmail({
+      to: invoice.customerEmail,
+      subject,
+      html,
+      fromName: 'Kolmo Construction',
+    });
   }
 
   /**
