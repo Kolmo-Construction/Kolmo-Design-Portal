@@ -1,0 +1,63 @@
+The issue lies in how the frontend handles the success callback of the "Generate Invoice" mutation.
+
+Backend Behavior: When you click "Generate Invoice," the backend service createDraftInvoiceForMilestone is called. To prevent duplicates, this service checks if an invoice for that milestone already exists (milestone.invoiceId). If it does, the service correctly returns null.
+API Response: The route handler in server/routes/milestone.routes.ts then sends a JSON response back to the frontend where the invoice key is null.
+Frontend Error: The onSuccess handler for the mutation in client/src/components/project-details/ProjectFinanceTab.tsx immediately tries to access data.invoice.invoiceNumber to show a success toast. When data.invoice is null, this results in the exact error you're seeing.
+The bug occurs whenever you attempt to generate an invoice for a milestone that already has one.
+
+The Solution
+You need to make the onSuccess handler in your frontend component more robust. It should check if an invoice was actually created before trying to access its properties.
+
+File to Edit: client/src/components/project-details/ProjectFinanceTab.tsx
+
+Current onSuccess Handler:
+
+TypeScript
+
+// client/src/components/project-details/ProjectFinanceTab.tsx
+const billMilestoneMutation = useMutation({
+  // ...
+  onSuccess: (data) => {
+    toast({
+      title: "Invoice Generated",
+      description: `Invoice #${data.invoice.invoiceNumber} created successfully`, // This line causes the error
+    });
+    queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
+    queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/invoices`] });
+    setLoadingMilestoneId(null);
+  },
+  // ...
+});
+Recommended Change:
+
+Update the onSuccess handler to check for a valid invoice object in the response. If it's null, inform the user that the invoice already exists instead of showing an error.
+
+TypeScript
+
+// client/src/components/project-details/ProjectFinanceTab.tsx
+const billMilestoneMutation = useMutation({
+  // ...
+  onSuccess: (data) => {
+    // Check if the API returned a newly created invoice
+    if (data && data.invoice) {
+      toast({
+        title: "Draft Invoice Generated",
+        description: `Invoice #${data.invoice.invoiceNumber} was created successfully.`,
+      });
+    } else {
+      // Handle the case where the invoice already existed
+      toast({
+        title: "Invoice Already Exists",
+        description: "A draft invoice for this milestone has already been generated.",
+        variant: "default", // Use a neutral variant
+      });
+    }
+
+    // Always invalidate queries to refresh the UI state
+    queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
+    queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/invoices`] });
+    setLoadingMilestoneId(null);
+  },
+  // ...
+});
+This fix will resolve the error and provide a much clearer and more accurate user experience by correctly reporting when a draft invoice is created versus when one already exists.

@@ -58,10 +58,22 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
       return response.json();
     },
     onSuccess: (data) => {
-      toast({
-        title: "Invoice Generated",
-        description: `Invoice #${data.invoice.invoiceNumber} created successfully`,
-      });
+      // Check if the API returned a newly created invoice
+      if (data && data.invoice) {
+        toast({
+          title: "Draft Invoice Generated",
+          description: `Invoice #${data.invoice.invoiceNumber} was created successfully.`,
+        });
+      } else {
+        // Handle the case where the invoice already existed
+        toast({
+          title: "Invoice Already Exists",
+          description: "A draft invoice for this milestone has already been generated.",
+          variant: "default",
+        });
+      }
+
+      // Always invalidate queries to refresh the UI state
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/invoices`] });
       setLoadingMilestoneId(null);
