@@ -86,4 +86,5 @@ class PaymentRepository implements IPaymentRepository {
     }
 }
 
+export { PaymentRepository };
 export default PaymentRepository;

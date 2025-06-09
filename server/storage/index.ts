@@ -15,11 +15,9 @@ import { IDailyLogRepository, dailyLogRepository } from './repositories/dailyLog
 import { IMediaRepository, mediaRepository } from './repositories/media.repository'; // Import instance for injection
 import { IQuoteRepository, quoteRepository } from './repositories/quote.repository';
 import { IMilestoneRepository, milestoneRepository } from './repositories/milestone.repository';
-import { IPaymentRepository } from './repositories/payment.repository';
-import PaymentRepository from './repositories/payment.repository';
-
 // *** ADDED: Import PunchListRepository CLASS and INTERFACE ***
 import { PunchListRepository, IPunchListRepository } from './repositories/punchList.repository';
+import { PaymentRepository, IPaymentRepository } from './repositories/payment.repository';
 // *** END ADDED ***
 
 // Define the shape of the aggregated storage object
