@@ -95,10 +95,10 @@ export function EditTaskDialog({
       estimatedHours: undefined,
       actualHours: undefined,
       isBillable: false,
-      billingPercentage: "",
-      billableAmount: "",
+      billingPercentage: undefined,
+      billableAmount: undefined,
       billingType: "fixed",
-      billingRate: "",
+      billingRate: undefined,
     },
   });
 
