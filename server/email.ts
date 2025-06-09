@@ -70,6 +70,22 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   }
 
   try {
+    // Generate plain text from HTML if no text provided
+    let textContent = options.text;
+    if (!textContent && options.html) {
+      // Simple HTML to text conversion - strip HTML tags and decode entities
+      textContent = options.html
+        .replace(/<[^>]*>/g, '') // Remove HTML tags
+        .replace(/&nbsp;/g, ' ') // Replace non-breaking spaces
+        .replace(/&amp;/g, '&')  // Replace HTML entities
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/\s+/g, ' ')    // Replace multiple whitespace with single space
+        .trim();
+    }
+
     const msg = {
       to: options.to,
       from: {
@@ -77,7 +93,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
         name: fromName
       },
       subject: options.subject,
-      text: options.text || '',
+      text: textContent || 'Please view this email in HTML format.',
       html: options.html || options.text || ''
     };
 
