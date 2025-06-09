@@ -102,16 +102,18 @@ export default function Financials() {
 
   // Prepare data for charts
   const statusCounts = {
+    draft: filteredInvoices.filter(i => i.status === "draft").length,
     pending: filteredInvoices.filter(i => i.status === "pending").length,
     paid: filteredInvoices.filter(i => i.status === "paid").length,
     overdue: filteredInvoices.filter(i => i.status === "overdue").length,
   };
 
   const pieChartData = [
+    { name: "Draft", value: statusCounts.draft, color: "#3b82f6" },
     { name: "Pending", value: statusCounts.pending, color: "#facc15" },
     { name: "Paid", value: statusCounts.paid, color: "#16a34a" },
     { name: "Overdue", value: statusCounts.overdue, color: "#dc2626" },
-  ];
+  ].filter(item => item.value > 0);
 
   return (
     <div className="flex h-screen bg-slate-50">
@@ -234,6 +236,14 @@ export default function Financials() {
                             <span className="text-slate-600">Total Amount:</span>
                             <span className="font-medium">
                               ${filteredInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-600">Draft:</span>
+                            <span className="font-medium text-blue-600">
+                              ${filteredInvoices.filter(i => i.status === "draft")
+                                .reduce((sum, inv) => sum + Number(inv.amount), 0)
+                                .toLocaleString('en-US', { minimumFractionDigits: 2 })}
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
