@@ -42,6 +42,7 @@ interface CreateTaskDialogProps {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   projectId: number;
+  project?: { totalBudget?: string | number }; // Add project data for budget calculations
   onSubmit: (values: InsertTask) => void; // Callback with validated data
   isPending: boolean; // To disable button while submitting
 }
@@ -50,6 +51,7 @@ export function CreateTaskDialog({
   isOpen,
   setIsOpen,
   projectId,
+  project,
   onSubmit,
   isPending
 }: CreateTaskDialogProps) {
@@ -69,9 +71,9 @@ export function CreateTaskDialog({
       estimatedHours: undefined,
       actualHours: undefined,
       isBillable: false,
-      billableAmount: "0",
+      billableAmount: 0,
       billingRate: undefined,
-      billingType: "fixed",
+      billingType: "percentage",
     },
   });
 
@@ -342,76 +344,46 @@ export function CreateTaskDialog({
               {/* Billing fields - only show if billable */}
               {form.watch("isBillable") && (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Billing Type */}
+                  <div className="space-y-4">
+                    {/* Billing Percentage */}
                     <FormField
                       control={form.control}
-                      name="billingType"
+                      name="billableAmount"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Billing Type</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select billing type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="fixed">Fixed Amount</SelectItem>
-                              <SelectItem value="hourly">Hourly Rate</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <FormLabel>Billing Percentage</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              max="100"
+                              placeholder="25.0"
+                              {...field}
+                              value={field.value || ''}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                field.onChange(value === '' ? 0 : parseFloat(value));
+                              }}
+                            />
+                          </FormControl>
+                          <FormDescription className="text-xs text-slate-500">
+                            Percentage of total project value to bill when completed
+                            {project?.totalBudget && (
+                              <span className="block mt-1">
+                                Project Budget: ${Number(project.totalBudget).toLocaleString()}
+                                {field.value > 0 && (
+                                  <span className="text-slate-700 font-medium">
+                                    {' '}→ ${((Number(project.totalBudget) * (field.value || 0)) / 100).toLocaleString()}
+                                  </span>
+                                )}
+                              </span>
+                            )}
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-
-                    {/* Billable Amount or Rate */}
-                    {form.watch("billingType") === "fixed" ? (
-                      <FormField
-                        control={form.control}
-                        name="billableAmount"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Fixed Amount ($)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="0.00"
-                                {...field}
-                                value={field.value || ''}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    ) : (
-                      <FormField
-                        control={form.control}
-                        name="billingRate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Hourly Rate ($/hr)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="0.00"
-                                {...field}
-                                value={field.value || ''}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  field.onChange(value === '' ? undefined : parseFloat(value));
-                                }}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
                   </div>
                 </>
               )}
