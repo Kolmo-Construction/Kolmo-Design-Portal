@@ -28,6 +28,7 @@ import quoteAnalyticsRouter from "./routes/quote-analytics.routes"; // Quote ana
 import { paymentRoutes } from "./routes/payment.routes"; // Payment processing router
 import { webhookRoutes } from "./routes/webhook.routes"; // Stripe webhook router
 import { projectPaymentRoutes } from "./routes/project-payment.routes"; // Project payment summary router
+import globalFinanceRoutes from "./routes/global-finance.routes"; // Global finance API routes
 // Task billing router removed - milestones are now auto-created for billable tasks
 import { milestoneRoutes } from "./routes/milestone.routes"; // Milestone management router
 
@@ -182,6 +183,9 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // Mount Webhook routes (no authentication - Stripe handles verification)
   app.use("/api/webhooks", webhookRoutes);
+
+  // Mount Global Finance routes (admin only)
+  app.use("/api", globalFinanceRoutes);
 
   // --- REMOVED: Old inline route definitions and local router variables ---
   // const taskRouter = Router(...) // REMOVED

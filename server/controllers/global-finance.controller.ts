@@ -1,71 +1,55 @@
 // server/controllers/global-finance.controller.ts
-import { Request, Response, NextFunction } from "express";
+import type { Request, Response } from "express";
 import { storage } from "@server/storage";
-import { HttpError } from "@server/errors";
-import type { User } from "@shared/schema";
+import { log as logger } from '@server/vite';
 
 /**
- * Get all invoices across all projects (admin only)
+ * GET /api/invoices - Get all invoices across all projects (admin only)
  */
-export const getAllInvoices = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+export async function getAllInvoices(req: Request, res: Response) {
   try {
-    const user = req.user as User;
+    logger('[GlobalFinanceController] Fetching all invoices across projects', 'GlobalFinanceController');
     
-    if (!user || user.role !== 'admin') {
-      throw new HttpError(403, 'Admin access required');
-    }
-
     const invoices = await storage.invoices.getAllInvoices();
-    res.status(200).json(invoices);
+    
+    logger(`[GlobalFinanceController] Retrieved ${invoices.length} invoices`, 'GlobalFinanceController');
+    res.json(invoices);
   } catch (error) {
-    next(error);
+    logger(`[GlobalFinanceController] Error fetching all invoices: ${error}`, 'GlobalFinanceController');
+    res.status(500).json({ error: "Failed to fetch invoices" });
   }
-};
+}
 
 /**
- * Get all payments across all invoices (admin only)
+ * GET /api/payments - Get all payments across all invoices (admin only)
  */
-export const getAllPayments = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+export async function getAllPayments(req: Request, res: Response) {
   try {
-    const user = req.user as User;
+    logger('[GlobalFinanceController] Fetching all payments across invoices', 'GlobalFinanceController');
     
-    if (!user || user.role !== 'admin') {
-      throw new HttpError(403, 'Admin access required');
-    }
-
     const payments = await storage.payments.getAllPayments();
-    res.status(200).json(payments);
+    
+    logger(`[GlobalFinanceController] Retrieved ${payments.length} payments`, 'GlobalFinanceController');
+    res.json(payments);
   } catch (error) {
-    next(error);
+    logger(`[GlobalFinanceController] Error fetching all payments: ${error}`, 'GlobalFinanceController');
+    res.status(500).json({ error: "Failed to fetch payments" });
   }
-};
+}
 
 /**
- * Get all milestones across all projects (admin only)
+ * GET /api/milestones - Get all milestones across all projects (admin only)
  */
-export const getAllMilestones = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+export async function getAllMilestones(req: Request, res: Response) {
   try {
-    const user = req.user as User;
+    logger('[GlobalFinanceController] Fetching all milestones across projects', 'GlobalFinanceController');
     
-    if (!user || user.role !== 'admin') {
-      throw new HttpError(403, 'Admin access required');
-    }
-
     const milestones = await storage.milestones.getAllMilestones();
-    res.status(200).json(milestones);
+    
+    logger(`[GlobalFinanceController] Retrieved ${milestones.length} milestones`, 'GlobalFinanceController');
+    res.json(milestones);
   } catch (error) {
-    next(error);
+    logger(`[GlobalFinanceController] Error fetching all milestones: ${error}`, 'GlobalFinanceController');
+    res.status(500).json({ error: "Failed to fetch milestones" });
   }
-};
+}

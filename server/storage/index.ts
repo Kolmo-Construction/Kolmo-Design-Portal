@@ -15,6 +15,8 @@ import { IDailyLogRepository, dailyLogRepository } from './repositories/dailyLog
 import { IMediaRepository, mediaRepository } from './repositories/media.repository'; // Import instance for injection
 import { IQuoteRepository, quoteRepository } from './repositories/quote.repository';
 import { IMilestoneRepository, milestoneRepository } from './repositories/milestone.repository';
+import { IPaymentRepository } from './repositories/payment.repository';
+import PaymentRepository from './repositories/payment.repository';
 
 // *** ADDED: Import PunchListRepository CLASS and INTERFACE ***
 import { PunchListRepository, IPunchListRepository } from './repositories/punchList.repository';
@@ -27,6 +29,7 @@ export interface StorageAggregate {
     tasks: ITaskRepository;
     documents: IDocumentRepository;
     invoices: IInvoiceRepository;
+    payments: IPaymentRepository;
     messages: IMessageRepository;
     progressUpdates: IProgressUpdateRepository;
     dailyLogs: IDailyLogRepository;
@@ -48,6 +51,10 @@ const sessionStore = new PostgresSessionStore({
 const punchListRepositoryInstance = new PunchListRepository(db, mediaRepository);
 // *** END ADDED ***
 
+// *** ADDED: Instantiate PaymentRepository ***
+const paymentRepositoryInstance = new PaymentRepository(db);
+// *** END ADDED ***
+
 // Export the aggregated object
 export const storage: StorageAggregate = {
     users: userRepository,
@@ -55,6 +62,7 @@ export const storage: StorageAggregate = {
     tasks: taskRepository,
     documents: documentRepository,
     invoices: invoiceRepository,
+    payments: paymentRepositoryInstance,
     messages: messageRepository,
     progressUpdates: progressUpdateRepository,
     dailyLogs: dailyLogRepository,
