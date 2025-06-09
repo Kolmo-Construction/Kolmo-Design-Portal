@@ -75,6 +75,16 @@ export default function Financials() {
     enabled: allInvoices.length > 0,
   });
 
+  // Filter projects based on the selected filter
+  const filteredProjects = projects.filter(project =>
+    projectFilter === "all" || project.id.toString() === projectFilter
+  );
+
+  // Calculate total budget from the *filtered* projects
+  const totalBudget = filteredProjects.reduce((sum, project) => {
+    return sum + Number(project.totalBudget);
+  }, 0);
+
   // Filter invoices based on project
   const filteredInvoices = allInvoices.filter(inv => 
     projectFilter === "all" || inv.projectId.toString() === projectFilter
@@ -84,11 +94,6 @@ export default function Financials() {
   const filteredPayments = allPayments.filter(payment =>
     filteredInvoices.some(inv => inv.id === payment.invoiceId)
   );
-
-  // Calculate total budget across all projects
-  const totalBudget = projects.reduce((sum, project) => {
-    return sum + Number(project.totalBudget);
-  }, 0);
 
   // Format date
   const formatDate = (dateString: string | Date) => {
