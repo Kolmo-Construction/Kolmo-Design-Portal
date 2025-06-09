@@ -94,6 +94,11 @@ export function EditTaskDialog({
       dueDate: undefined,
       estimatedHours: undefined,
       actualHours: undefined,
+      isBillable: false,
+      billingPercentage: "",
+      billableAmount: "",
+      billingType: "fixed",
+      billingRate: "",
     },
   });
 
@@ -111,8 +116,14 @@ export function EditTaskDialog({
         startDate: taskToEdit.startDate ? new Date(taskToEdit.startDate) : undefined,
         dueDate: taskToEdit.dueDate ? new Date(taskToEdit.dueDate) : undefined,
         // Ensure numbers are handled correctly (convert from potential string/decimal)
-        estimatedHours: taskToEdit.estimatedHours ? parseFloat(taskToEdit.estimatedHours) : undefined,
-        actualHours: taskToEdit.actualHours ? parseFloat(taskToEdit.actualHours) : undefined,
+        estimatedHours: taskToEdit.estimatedHours ? parseFloat(taskToEdit.estimatedHours.toString()) : undefined,
+        actualHours: taskToEdit.actualHours ? parseFloat(taskToEdit.actualHours.toString()) : undefined,
+        // Add billing fields
+        isBillable: taskToEdit.isBillable ?? false,
+        billingPercentage: taskToEdit.billingPercentage ? parseFloat(taskToEdit.billingPercentage.toString()) : undefined,
+        billableAmount: taskToEdit.billableAmount ? parseFloat(taskToEdit.billableAmount.toString()) : undefined,
+        billingType: taskToEdit.billingType ?? "fixed",
+        billingRate: taskToEdit.billingRate ? parseFloat(taskToEdit.billingRate.toString()) : undefined,
       });
     } else if (!isOpen) {
         // Optionally reset to empty defaults when closing

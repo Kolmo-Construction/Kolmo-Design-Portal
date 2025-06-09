@@ -920,6 +920,10 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
         z.string().transform(val => parseFloat(val.replace(/[^0-9.]/g, ''))).refine(n => !isNaN(n) && n >= 0, { message: "Billing rate must be a positive number" }),
         z.number().min(0, "Billing rate must be a positive number")
     ]).optional(),
+    billingPercentage: z.union([
+        z.string().transform(val => parseFloat(val.replace(/[^0-9.]/g, ''))).refine(n => !isNaN(n) && n >= 0 && n <= 100, { message: "Billing percentage must be between 0 and 100" }),
+        z.number().min(0).max(100, "Billing percentage must be between 0 and 100")
+    ]).optional(),
     // Ensure progress is within 0-100
     progress: z.number().int().min(0).max(100).default(0).optional(), // Adding optional if you don't always provide it
 });
