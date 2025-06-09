@@ -559,6 +559,36 @@ export function ProjectTasksTab({ projectId, user, project }: ProjectTasksTabPro
         
     return (
         <div className="space-y-4">
+            {/* Task Billing Actions Demo */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Task Billing Workflow
+                </CardTitle>
+                <CardDescription>
+                  Convert billable tasks to milestones and process billing
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {tasks.filter(task => task.isBillable).map(task => (
+                  <TaskBillingActions
+                    key={task.id}
+                    task={task}
+                    onConvertToMilestone={(taskId) => convertToMilestoneMutation.mutate({ taskId })}
+                    onCompleteAndBill={(taskId) => completeAndBillMutation.mutate({ taskId })}
+                    isConverting={convertToMilestoneMutation.isPending}
+                    isBilling={completeAndBillMutation.isPending}
+                  />
+                ))}
+                {tasks.filter(task => task.isBillable).length === 0 && (
+                  <p className="text-sm text-slate-500 text-center py-4">
+                    No billable tasks yet. Create a task with billing enabled to see the conversion workflow.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Publishing Controls */}
             <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
