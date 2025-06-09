@@ -47,11 +47,12 @@ router.post('/api/projects/:projectId/tasks/:taskId/convert-to-milestone', isAut
 
     const milestone = await storage.milestones.createMilestone(milestoneData);
 
-    // Update task to mark it as converted
-    await storage.tasks.updateTask(taskId, {
+    // Update task to mark it as converted using proper schema
+    const taskUpdateData = updateTaskSchema.parse({
       milestoneId: milestone.id,
       notes: (task.notes || '') + `\n[System] Converted to milestone ${milestone.id} for billing purposes.`
     });
+    await storage.tasks.updateTask(taskId, taskUpdateData);
 
     res.json({
       message: 'Task successfully converted to billable milestone',
@@ -83,12 +84,13 @@ router.patch('/api/projects/:projectId/tasks/:taskId/complete-and-bill', isAuthe
       throw new HttpError(400, 'Task is already completed');
     }
 
-    // Complete the task
-    const completedTask = await storage.tasks.updateTask(taskId, {
+    // Complete the task using proper schema validation
+    const taskCompletionData = updateTaskSchema.parse({
       status: 'completed',
       completedAt: new Date(),
       actualHours: req.body.actualHours || task.actualHours,
     });
+    const completedTask = await storage.tasks.updateTask(taskId, taskCompletionData);
 
     let invoice = null;
     let milestone = null;
@@ -97,13 +99,14 @@ router.patch('/api/projects/:projectId/tasks/:taskId/complete-and-bill', isAuthe
     if (task.milestoneId) {
       milestone = await storage.milestones.getMilestoneById(task.milestoneId);
       if (milestone && milestone.status !== 'completed') {
-        // Complete the milestone
-        await storage.milestones.updateMilestone(milestone.id, {
+        // Complete the milestone using proper schema validation
+        const milestoneUpdateData = updateMilestoneSchema.parse({
           status: 'completed',
           completedAt: new Date(),
           completedById: req.user!.id,
           actualDate: new Date(),
         });
+        await storage.milestones.updateMilestone(milestone.id, milestoneUpdateData);
 
         // Generate invoice if milestone is billable
         if (milestone.isBillable) {
@@ -113,11 +116,12 @@ router.patch('/api/projects/:projectId/tasks/:taskId/complete-and-bill', isAuthe
             milestone.title
           );
 
-          // Update milestone with billing information
-          await storage.milestones.updateMilestone(milestone.id, {
+          // Update milestone with billing information using proper schema validation
+          const milestoneUpdateBillingData = updateMilestoneSchema.parse({
             billedAt: new Date(),
             invoiceId: invoice.id,
           });
+          await storage.milestones.updateMilestone(milestone.id, milestoneUpdateBillingData);
         }
       }
     }

@@ -28,7 +28,7 @@ import quoteAnalyticsRouter from "./routes/quote-analytics.routes"; // Quote ana
 import { paymentRoutes } from "./routes/payment.routes"; // Payment processing router
 import { webhookRoutes } from "./routes/webhook.routes"; // Stripe webhook router
 import { projectPaymentRoutes } from "./routes/project-payment.routes"; // Project payment summary router
-import taskBillingRouter from "./routes/task-billing.routes"; // Task-to-milestone billing router
+import taskBillingRouter from "./routes/task-billing.routes"; // Task billing and milestone conversion router
 import { milestoneRoutes } from "./routes/milestone.routes"; // Milestone management router
 
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
