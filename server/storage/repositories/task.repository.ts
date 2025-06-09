@@ -93,10 +93,48 @@ class TaskRepository implements ITaskRepository {
                 .returning({ id: schema.tasks.id });
 
             if (!result || result.length === 0) throw new Error("Failed to insert task.");
-            return await this.getTaskWithDetails(result[0].id);
+            
+            const taskId = result[0].id;
+            
+            // Auto-create milestone for billable tasks
+            if (taskData.isBillable) {
+                await this.createMilestoneForBillableTask(taskId, taskData);
+            }
+            
+            return await this.getTaskWithDetails(taskId);
         } catch (error) {
             console.error('Error creating task:', error);
             throw new Error('Database error while creating task.');
+        }
+    }
+
+    private async createMilestoneForBillableTask(taskId: number, taskData: schema.InsertTask): Promise<void> {
+        try {
+            const milestoneData = {
+                projectId: taskData.projectId,
+                title: taskData.title,
+                description: taskData.description || `Milestone for billable task: ${taskData.title}`,
+                plannedDate: taskData.dueDate || new Date(),
+                category: 'billable_task' as const,
+                status: 'pending' as const,
+                isBillable: true,
+                billingPercentage: taskData.billingPercentage || 10,
+                taskId: taskId,
+            };
+
+            const milestoneResult = await this.dbOrTx.insert(schema.milestones)
+                .values(milestoneData)
+                .returning({ id: schema.milestones.id });
+
+            if (milestoneResult && milestoneResult.length > 0) {
+                // Update task with milestone ID
+                await this.dbOrTx.update(schema.tasks)
+                    .set({ milestoneId: milestoneResult[0].id })
+                    .where(eq(schema.tasks.id, taskId));
+            }
+        } catch (error) {
+            console.error('Error creating milestone for billable task:', error);
+            // Don't throw - task creation should succeed even if milestone creation fails
         }
     }
 
