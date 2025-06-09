@@ -140,6 +140,9 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // --- Mount other project-specific or admin routers ---
   // Milestones within a project
   app.use(milestoneRoutes);
+  
+  // Task billing and milestone conversion routes
+  app.use("/api", taskBillingRouter);
 
   // Example: Selections
   // app.use(
