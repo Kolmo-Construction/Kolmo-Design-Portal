@@ -1,0 +1,181 @@
+ make the Stripe webhook the single source of truth for updating the database after a payment. The client-side confirmation should be simplified, and the backend logic needs to be corrected to ensure records are created and updated in the proper sequence.
+
+Here are the step-by-step code modifications to fix the issue:
+
+1. Correct the Payment Service (payment.service.ts)
+First, we need to ensure that when a payment is initiated, the stripePaymentIntentId is immediately saved to the newly created invoice. This allows the webhook to reliably find it later.
+
+File: SecureUserPortal 3_clean/server/services/payment.service.ts
+
+TypeScript
+
+// server/services/payment.service.ts
+
+// ... imports
+
+export class PaymentService {
+  // ... other methods
+
+  async processQuoteAcceptance(quoteId: number, customerInfo: {
+    name: string;
+    email: string;
+    phone?: string;
+  }): Promise<{
+    project: Project;
+    downPaymentInvoice: Invoice;
+    paymentIntent: any;
+  }> {
+    try {
+      // ... (code to get quote, calculate schedule, create project) ...
+
+      // Create down payment invoice
+      const downPaymentInvoice = await this.createDownPaymentInvoice(
+        quote,
+        project,
+        paymentSchedule.downPayment,
+        customerInfo
+      );
+
+      // Create Stripe payment intent for down payment
+      const paymentIntent = await stripeService.createPaymentIntent({
+        amount: Math.round(paymentSchedule.downPayment.amount * 100), // Convert to cents
+        customerEmail: customerInfo.email,
+        customerName: customerInfo.name,
+        description: `Down payment for ${quote.title} - Quote #${quote.quoteNumber}`,
+        metadata: {
+          quoteId: quote.id.toString(),
+          invoiceId: downPaymentInvoice.id.toString(),
+          projectId: project.id.toString(),
+          paymentType: 'down_payment',
+        },
+      });
+
+      // *** FIX: Immediately update the invoice with the Stripe Payment Intent ID ***
+      await storage.invoices.updateInvoice(downPaymentInvoice.id, {
+        stripePaymentIntentId: paymentIntent.id,
+        paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
+      });
+
+      // ...
+
+      return {
+        project,
+        downPaymentInvoice,
+        paymentIntent,
+      };
+    } catch (error) {
+      console.error('Error processing quote acceptance:', error);
+      throw error;
+    }
+  }
+
+  // ... other methods
+  
+  async handlePaymentSuccess(paymentIntentId: string): Promise<void> {
+    try {
+      const paymentIntent = await stripeService.getPaymentIntent(paymentIntentId);
+      
+      if (paymentIntent.status === 'succeeded') {
+        const metadata = paymentIntent.metadata;
+        const invoiceId = metadata.invoiceId ? parseInt(metadata.invoiceId) : null;
+        
+        // *** FIX: Find the invoice using the ID from metadata, which should now reliably exist ***
+        if (invoiceId) {
+          const invoice = await storage.invoices.getInvoiceById(invoiceId);
+
+          if (invoice && invoice.status !== 'paid') {
+            // Update invoice status to paid
+            await storage.invoices.updateInvoice(invoiceId, { status: 'paid' as const });
+
+            // Record the payment
+            const paymentAmount = paymentIntent.amount / 100; // Convert from cents
+            const paymentData = {
+              invoiceId: invoiceId,
+              amount: paymentAmount,
+              paymentDate: new Date(),
+              paymentMethod: 'stripe',
+              reference: paymentIntent.id,
+              stripePaymentIntentId: paymentIntent.id,
+              stripeChargeId: paymentIntent.latest_charge as string,
+              status: 'succeeded',
+            };
+            await storage.invoices.recordPayment(paymentData);
+            
+            console.log(`Payment successful for invoice ${invoiceId}, amount: $${paymentAmount}`);
+            
+            // Send appropriate confirmation email
+            if (metadata.paymentType === 'down_payment' && invoice.projectId) {
+              await this.sendProjectWelcomeEmail(invoice.projectId);
+              console.log(`Project welcome email sent for project ${invoice.projectId}`);
+            } else {
+              await this.sendPaymentConfirmationEmail(invoice, paymentAmount);
+              console.log(`Payment confirmation email sent for invoice ${invoice.invoiceNumber}`);
+            }
+          } else {
+            console.log(`[Webhook] Invoice ${invoiceId} already marked as paid or not found. Skipping.`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error handling payment success webhook:', error);
+      throw error;
+    }
+  }
+
+  // ... (rest of the file remains the same)
+}
+2. Deprecate the Problematic Route (payment.routes.ts)
+The POST /payment-success route should be removed as it duplicates logic and is unreliable. The Stripe webhook is the correct place to handle payment confirmation. By removing this endpoint, you ensure only one system is responsible for updating the database.
+
+File: SecureUserPortal 3_clean/server/routes/payment.routes.ts
+
+TypeScript
+
+// server/routes/payment.routes.ts
+
+// ... imports
+
+// ...
+
+/**
+ * Handle successful payment confirmation
+ *
+ * *** DEPRECATION NOTICE ***
+ * This endpoint is unreliable because a user might close their browser before
+ * the client-side redirect completes. The Stripe webhook is the source of truth
+ * for payment success. This endpoint should be removed, and the frontend should
+ * simply redirect to a generic success/thank you page, trusting the backend
+ * webhook to handle all database updates and email notifications.
+ *
+ * For now, we will disable its database-modifying logic to prevent errors.
+ */
+router.post('/payment-success', async (req, res, next) => {
+  try {
+    const { paymentIntentId } = req.body;
+
+    if (!paymentIntentId) {
+      throw new HttpError(400, 'Payment intent ID is required');
+    }
+
+    if (!stripe) {
+      throw new HttpError(503, 'Payment processing temporarily unavailable');
+    }
+
+    // You can optionally verify the payment intent status here without modifying the DB
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    if (paymentIntent.status !== 'succeeded') {
+      throw new HttpError(400, 'Payment has not succeeded');
+    }
+    
+    // Respond with a generic success message and let the webhook handle the rest.
+    // DO NOT perform database writes here.
+    res.json({
+      success: true,
+      message: 'Payment received. A confirmation email will be sent shortly.',
+    });
+
+  } catch (error) {
+    next(error);
+  }
+});
