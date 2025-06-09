@@ -5,7 +5,7 @@ import { HttpError } from '../errors';
 import { isAuthenticated } from '../middleware/auth.middleware';
 import { PaymentService } from '../services/payment.service';
 
-const router = Router();
+const router = Router({ mergeParams: true });
 const paymentService = new PaymentService();
 
 // Get milestones for a project
@@ -30,7 +30,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // Create a new milestone
-router.post('/api/projects/:projectId/milestones', isAuthenticated, async (req, res, next) => {
+router.post('/', async (req, res, next) => {
   try {
     const projectId = parseInt(req.params.projectId);
     if (isNaN(projectId)) {
@@ -63,7 +63,7 @@ router.post('/api/projects/:projectId/milestones', isAuthenticated, async (req, 
 });
 
 // Update milestone
-router.patch('/api/projects/:projectId/milestones/:milestoneId', isAuthenticated, async (req, res, next) => {
+router.patch('/:milestoneId', async (req, res, next) => {
   try {
     const projectId = parseInt(req.params.projectId);
     const milestoneId = parseInt(req.params.milestoneId);
@@ -88,7 +88,7 @@ router.patch('/api/projects/:projectId/milestones/:milestoneId', isAuthenticated
 });
 
 // Complete milestone
-router.patch('/api/projects/:projectId/milestones/:milestoneId/complete', isAuthenticated, async (req, res, next) => {
+router.patch('/:milestoneId/complete', async (req, res, next) => {
   try {
     const projectId = parseInt(req.params.projectId);
     const milestoneId = parseInt(req.params.milestoneId);
@@ -123,7 +123,7 @@ router.patch('/api/projects/:projectId/milestones/:milestoneId/complete', isAuth
 });
 
 // Trigger billing for a completed milestone
-router.post('/api/projects/:projectId/milestones/:milestoneId/bill', isAuthenticated, async (req, res, next) => {
+router.post('/:milestoneId/bill', async (req, res, next) => {
   try {
     const projectId = parseInt(req.params.projectId);
     const milestoneId = parseInt(req.params.milestoneId);
