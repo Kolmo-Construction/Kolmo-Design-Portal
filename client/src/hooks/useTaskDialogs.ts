@@ -43,18 +43,32 @@ export function useTaskDialogs(tasks: Task[]): UseTaskDialogsResult {
     // Handler to open the Edit Task dialog when a Gantt task is clicked
     const handleTaskClick = useCallback((ganttTask: GanttTask) => {
         console.log("Gantt Task Clicked (hook):", ganttTask);
-        // Find the original task data based on the Gantt task ID
-        const originalTask = tasks.find(t => t.id.toString() === ganttTask.id);
+        console.log("Available tasks for matching:", tasks.map(t => ({ id: t.id, title: t.title })));
+        console.log("Looking for gantt task ID:", ganttTask.id, "type:", typeof ganttTask.id);
+        
+        // Try multiple ID matching strategies
+        let originalTask = tasks.find(t => String(t.id) === String(ganttTask.id));
+        
+        if (!originalTask) {
+            // Try parsing the gantt task ID as number
+            const ganttIdAsNumber = parseInt(String(ganttTask.id), 10);
+            if (!isNaN(ganttIdAsNumber)) {
+                originalTask = tasks.find(t => t.id === ganttIdAsNumber);
+            }
+        }
+        
         if (originalTask) {
+            console.log("Found matching task:", originalTask);
             setTaskToEdit(originalTask);
             setIsEditDialogOpen(true);
         } else {
-            // Handle case where the original task isn't found (should ideally not happen)
+            console.error("Could not find task with ID:", ganttTask.id);
+            console.error("Available task IDs:", tasks.map(t => ({ id: t.id, type: typeof t.id })));
             toast({ title: "Error", description: "Could not find task details.", variant: "destructive" });
-            setTaskToEdit(null); // Ensure state is cleared
+            setTaskToEdit(null);
             setIsEditDialogOpen(false);
         }
-    }, [tasks, toast]); // Depends on the tasks array and toast
+    }, [tasks, toast]);
 
     // Handler to set the task to delete and open the confirmation dialog
     const handleDeleteTrigger = useCallback((task: Task) => {
