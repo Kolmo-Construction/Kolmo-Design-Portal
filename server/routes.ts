@@ -29,7 +29,7 @@ import { paymentRoutes } from "./routes/payment.routes"; // Payment processing r
 import { webhookRoutes } from "./routes/webhook.routes"; // Stripe webhook router
 import { projectPaymentRoutes } from "./routes/project-payment.routes"; // Project payment summary router
 import globalFinanceRoutes from "./routes/global-finance.routes"; // Global finance API routes
-// Task billing router removed - milestones are now auto-created for billable tasks
+import taskBillingRouter from "./routes/task-billing.routes"; // Task billing router for complete-and-bill functionality
 import { milestoneRoutes } from "./routes/milestone.routes"; // Milestone management router
 
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
@@ -147,7 +147,8 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
     milestoneRoutes
   );
   
-  // Task billing routes removed - milestones are now auto-created for billable tasks
+  // Task billing routes for complete-and-bill functionality
+  app.use(taskBillingRouter);
 
   // Example: Selections
   // app.use(

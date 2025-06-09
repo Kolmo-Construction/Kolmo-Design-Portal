@@ -573,6 +573,7 @@ export function ProjectTasksTab({ projectId, user, project }: ProjectTasksTabPro
                   <TaskBillingActions
                     key={task.id}
                     task={task}
+                    projectId={projectId}
                   />
                 ))}
                 {tasks.filter(task => task.isBillable).length === 0 && (
