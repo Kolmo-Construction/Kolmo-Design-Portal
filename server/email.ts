@@ -24,7 +24,7 @@ interface EmailOptions {
 }
 
 // Default sender email - should be a verified domain in SendGrid account
-const DEFAULT_FROM_EMAIL = process.env.EMAIL_FROM || 'noreply@kolmo.design';
+const DEFAULT_FROM_EMAIL = process.env.EMAIL_FROM || 'projects@kolmo.io';
 const DEFAULT_FROM_NAME = "Kolmo Construction";
 
 /**
@@ -69,13 +69,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     return isDev; // Return true in dev mode so app doesn't break, false in production
   }
 
-  // In development, always log the email content and return success
-  // This prevents the payment flow from breaking due to email configuration issues
-  if (isDev) {
-    console.log('\n🔧 DEVELOPMENT MODE: Email would be sent but skipping actual delivery');
-    console.log('✅ Returning success to continue payment flow');
-    return true;
-  }
+
 
   try {
     // Generate plain text from HTML if no text provided
