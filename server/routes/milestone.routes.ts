@@ -116,7 +116,19 @@ router.patch('/:milestoneId/complete', async (req, res, next) => {
     });
     const updatedMilestone = await storage.milestones.updateMilestone(milestoneId, completionData);
 
-    res.json(updatedMilestone);
+    // --- MODIFICATION: Auto-create draft invoice ---
+    let draftInvoice = null;
+    if (updatedMilestone.isBillable) {
+        console.log(`Milestone ${milestoneId} is billable, creating draft invoice.`);
+        draftInvoice = await paymentService.createDraftInvoiceForMilestone(projectId, milestoneId);
+    }
+    // --- END MODIFICATION ---
+
+    res.json({
+        message: "Milestone completed successfully.",
+        milestone: updatedMilestone,
+        draftInvoice: draftInvoice, // The newly created draft invoice is returned in the response
+    });
   } catch (error) {
     next(error);
   }

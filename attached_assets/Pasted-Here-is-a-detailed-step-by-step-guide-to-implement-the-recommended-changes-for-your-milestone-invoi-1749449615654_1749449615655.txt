@@ -1,0 +1,289 @@
+Here is a detailed, step-by-step guide to implement the recommended changes for your milestone invoicing workflow.
+
+This implementation will achieve the following:
+
+When a billable milestone is marked as 'complete', a draft invoice will be automatically created in the database.
+No email will be sent at this stage.
+A new API endpoint will be created for an admin to "send" the draft invoice, which will finalize it, generate a payment link, and email it to the customer.
+Step 1: Update Database Schema
+First, we need to allow invoices to have a 'draft' status and link them directly to the milestone that generated them.
+
+File: SecureUserPortal 3_clean/shared/schema.ts
+
+Modify invoiceStatusEnum: Add 'draft' as the first option.
+Modify invoices table: Add a nullable milestoneId field to create a clear link between the invoice and the milestone.
+TypeScript
+
+// ... near the top of the file
+export const invoiceStatusEnum = pgEnum('invoice_status', ['draft', 'pending', 'partially_paid', 'paid', 'overdue', 'cancelled']);
+
+// ... later in the file, inside the invoices table definition
+
+export const invoices = pgTable("invoices", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").references(() => projects.id),
+  quoteId: integer("quote_id").references(() => quotes.id),
+  milestoneId: integer("milestone_id").references(() => milestones.id, { onDelete: 'set null' }), // <-- ADD THIS LINE
+  invoiceNumber: text("invoice_number").notNull(),
+  // ... rest of the fields
+  status: invoiceStatusEnum("status").notNull().default("draft"), // <-- UPDATE DEFAULT TO 'draft'
+  // ... rest of the fields
+});
+After changing the schema, remember to run your migration script to apply these changes to your database.
+
+Step 2: Create the Draft Invoice Service Logic
+Create a new function in your PaymentService that is responsible only for creating the draft invoice record in the database.
+
+File: SecureUserPortal 3_clean/server/services/payment.service.ts
+
+TypeScript
+
+// server/services/payment.service.ts
+// ... (imports)
+
+export class PaymentService {
+  // ... (keep existing methods like calculatePaymentSchedule)
+
+  /**
+   * NEW FUNCTION
+   * Creates a draft invoice for a completed billable milestone.
+   * This does NOT trigger payment intents or emails.
+   */
+  async createDraftInvoiceForMilestone(projectId: number, milestoneId: number): Promise<Invoice | null> {
+    const project = await storage.projects.getProjectById(projectId);
+    if (!project || !project.originQuoteId) {
+      throw new HttpError(404, 'Project or its originating quote not found for billing.');
+    }
+
+    const milestone = await storage.milestones.getMilestoneById(milestoneId);
+    if (!milestone || !milestone.isBillable || !milestone.billingPercentage) {
+      throw new HttpError(400, 'Milestone is not billable or is missing billing details.');
+    }
+
+    // Check if an invoice has already been created for this milestone
+    if (milestone.invoiceId) {
+      console.log(`Invoice already exists for milestone ${milestoneId}. Skipping creation.`);
+      return null;
+    }
+
+    const quote = await storage.quotes.getQuoteById(project.originQuoteId);
+    if (!quote) {
+      throw new HttpError(404, 'Originating quote not found.');
+    }
+
+    const totalAmount = parseFloat(quote.total?.toString() || '0');
+    const milestoneAmount = (totalAmount * parseFloat(milestone.billingPercentage)) / 100;
+    const invoiceNumber = await this.generateInvoiceNumber();
+
+    const invoiceData = {
+      projectId: project.id,
+      quoteId: quote.id,
+      milestoneId: milestone.id, // Link the invoice to the milestone
+      invoiceNumber,
+      amount: milestoneAmount.toString(),
+      description: `Payment for completed milestone: ${milestone.title}`,
+      issueDate: new Date(),
+      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // Due 14 days from now
+      status: 'draft' as const, // Set status to DRAFT
+      invoiceType: 'milestone' as const,
+      customerName: project.customerName || '',
+      customerEmail: project.customerEmail || '',
+    };
+
+    const invoice = await storage.invoices.createInvoice(invoiceData);
+    if (!invoice) {
+      throw new Error('Failed to create draft milestone invoice in database.');
+    }
+
+    // Update the milestone to link it to the newly created invoice ID
+    await storage.milestones.updateMilestone(milestoneId, {
+        invoiceId: invoice.id,
+    });
+
+    return invoice;
+  }
+
+  // ... (rest of the file)
+}
+Step 3: Update Milestone Completion Route
+Modify the route that handles completing a milestone to call the new service function.
+
+File: SecureUserPortal 3_clean/server/routes/milestone.routes.ts
+
+TypeScript
+
+// server/routes/milestone.routes.ts
+// ... (imports)
+
+// Complete milestone
+router.patch('/:milestoneId/complete', async (req, res, next) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const milestoneId = parseInt(req.params.milestoneId);
+    
+    // ... (keep existing validation for IDs and milestone existence)
+
+    const completionData = updateMilestoneSchema.parse({
+      status: 'completed',
+      completedAt: new Date(),
+      completedById: req.user!.id,
+      actualDate: new Date(),
+    });
+    const updatedMilestone = await storage.milestones.updateMilestone(milestoneId, completionData);
+
+    // --- MODIFICATION: Auto-create draft invoice ---
+    let draftInvoice = null;
+    if (updatedMilestone.isBillable) {
+        console.log(`Milestone ${milestoneId} is billable, creating draft invoice.`);
+        draftInvoice = await paymentService.createDraftInvoiceForMilestone(projectId, milestoneId);
+    }
+    // --- END MODIFICATION ---
+
+    res.json({
+        message: "Milestone completed successfully.",
+        milestone: updatedMilestone,
+        draftInvoice: draftInvoice, // The newly created draft invoice is returned in the response
+    });
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ... (rest of the file)
+At this point, your backend logic is complete for the first part of the workflow. The next step is to create the functionality for an admin to send the invoice.
+
+Step 4: Implement the "Send Invoice" Functionality
+This requires a new API endpoint, a new controller function, and a new service function.
+
+A. Create the "Send Invoice" Controller Function
+File: SecureUserPortal 3_clean/server/controllers/invoice.controller.ts
+
+TypeScript
+
+// server/controllers/invoice.controller.ts
+// ... (imports and existing functions)
+
+/**
+ * NEW FUNCTION
+ * Sends a draft invoice to the customer.
+ */
+export const sendInvoice = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { invoiceId } = req.params;
+    const invoiceIdNum = parseInt(invoiceId, 10);
+
+    if (isNaN(invoiceIdNum)) {
+      throw new HttpError(400, 'Invalid invoice ID parameter.');
+    }
+
+    // We will create the service function for this next
+    const sentInvoice = await paymentService.sendDraftInvoice(invoiceIdNum);
+
+    if (!sentInvoice) {
+      throw new HttpError(404, 'Invoice not found or could not be sent.');
+    }
+
+    res.status(200).json({
+      message: 'Invoice sent successfully.',
+      invoice: sentInvoice,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+B. Create the "Send Invoice" Service Logic
+File: SecureUserPortal 3_clean/server/services/payment.service.ts
+
+TypeScript
+
+// server/services/payment.service.ts
+// ... (imports and existing functions)
+
+export class PaymentService {
+  // ... (other functions)
+
+  /**
+   * *** NEW FUNCTION ***
+   * Finalizes a draft invoice, generates a payment link, and sends it.
+   */
+  async sendDraftInvoice(invoiceId: number): Promise<Invoice | null> {
+    const invoice = await storage.invoices.getInvoiceById(invoiceId);
+
+    if (!invoice) {
+      throw new HttpError(404, 'Invoice not found.');
+    }
+    if (invoice.status !== 'draft') {
+      throw new HttpError(400, 'Invoice is not in draft status and cannot be sent.');
+    }
+
+    const paymentIntent = await stripeService.createPaymentIntent({
+      amount: Math.round(parseFloat(invoice.amount) * 100),
+      customerEmail: invoice.customerEmail || undefined,
+      customerName: invoice.customerName || undefined,
+      description: invoice.description || `Payment for Invoice #${invoice.invoiceNumber}`,
+      metadata: {
+        invoiceId: invoice.id.toString(),
+        projectId: invoice.projectId?.toString() || '',
+        paymentType: 'milestone',
+      },
+    });
+
+    const paymentLink = `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`;
+
+    // Update the invoice to 'pending' and add the Stripe details
+    const updatedInvoice = await storage.invoices.updateInvoice(invoice.id, {
+      status: 'pending',
+      stripePaymentIntentId: paymentIntent.id,
+      paymentLink: paymentLink,
+      issueDate: new Date(), // Update issue date to when it was sent
+    });
+
+    if (!updatedInvoice) {
+      throw new HttpError(500, 'Failed to update invoice before sending.');
+    }
+
+    // Send the payment instruction email
+    if (updatedInvoice.customerEmail) {
+      await this.sendPaymentInstructions(updatedInvoice.customerEmail, {
+        customerName: updatedInvoice.customerName || 'Customer',
+        projectName: updatedInvoice.description || 'Your Project',
+        amount: parseFloat(updatedInvoice.amount),
+        paymentLink: paymentLink,
+        dueDate: new Date(updatedInvoice.dueDate),
+        paymentType: 'milestone',
+      });
+    }
+
+    return updatedInvoice;
+  }
+
+  // ...
+}
+C. Add the New API Route
+File: SecureUserPortal 3_clean/server/routes/invoice.routes.ts
+
+TypeScript
+
+// server/routes/invoice.routes.ts
+import { Router } from "express";
+import * as invoiceController from "@server/controllers/invoice.controller"; // Ensure this is imported
+import { isAuthenticated, isAdmin } from "@server/middleware/auth.middleware";
+
+const router = Router({ mergeParams: true });
+
+// ... (existing GET and POST routes)
+
+// *** ADD THIS NEW ROUTE ***
+router.post(
+  "/:invoiceId/send", // This will be mounted under /api/projects/:projectId/invoices
+  isAdmin, // Or another appropriate permission middleware
+  invoiceController.sendInvoice
+);
+
+export default router;
+With these changes, your application now supports the desired workflow. An admin can complete a milestone, which creates a draft invoice. They can then review this draft in either the project-specific or global financials tab and click a "Send" button to trigger the final invoicing and customer notification.

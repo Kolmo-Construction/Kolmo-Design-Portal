@@ -176,6 +176,118 @@ export class PaymentService {
   }
 
   /**
+   * Creates a draft invoice for a completed billable milestone.
+   * This does NOT trigger payment intents or emails.
+   */
+  async createDraftInvoiceForMilestone(projectId: number, milestoneId: number): Promise<Invoice | null> {
+    const project = await storage.projects.getProjectById(projectId);
+    if (!project || !project.originQuoteId) {
+      throw new HttpError(404, 'Project or its originating quote not found for billing.');
+    }
+
+    const milestone = await storage.milestones.getMilestoneById(milestoneId);
+    if (!milestone || !milestone.isBillable || !milestone.billingPercentage) {
+      throw new HttpError(400, 'Milestone is not billable or is missing billing details.');
+    }
+
+    // Check if an invoice has already been created for this milestone
+    if (milestone.invoiceId) {
+      console.log(`Invoice already exists for milestone ${milestoneId}. Skipping creation.`);
+      return null;
+    }
+
+    const quote = await storage.quotes.getQuoteById(project.originQuoteId);
+    if (!quote) {
+      throw new HttpError(404, 'Originating quote not found.');
+    }
+
+    const totalAmount = parseFloat(quote.total?.toString() || '0');
+    const milestoneAmount = (totalAmount * parseFloat(milestone.billingPercentage)) / 100;
+    const invoiceNumber = await this.generateInvoiceNumber();
+
+    const invoiceData = {
+      projectId: project.id,
+      quoteId: quote.id,
+      milestoneId: milestone.id, // Link the invoice to the milestone
+      invoiceNumber,
+      amount: milestoneAmount.toString(),
+      description: `Payment for completed milestone: ${milestone.title}`,
+      issueDate: new Date(),
+      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // Due 14 days from now
+      status: 'draft' as const, // Set status to DRAFT
+      invoiceType: 'milestone' as const,
+      customerName: project.customerName || '',
+      customerEmail: project.customerEmail || '',
+    };
+
+    const invoice = await storage.invoices.createInvoice(invoiceData);
+    if (!invoice) {
+      throw new Error('Failed to create draft milestone invoice in database.');
+    }
+
+    // Update the milestone to link it to the newly created invoice ID
+    await storage.milestones.updateMilestone(milestoneId, {
+        invoiceId: invoice.id,
+    });
+
+    return invoice;
+  }
+
+  /**
+   * Finalizes a draft invoice, generates a payment link, and sends it.
+   */
+  async sendDraftInvoice(invoiceId: number): Promise<Invoice | null> {
+    const invoice = await storage.invoices.getInvoiceById(invoiceId);
+
+    if (!invoice) {
+      throw new HttpError(404, 'Invoice not found.');
+    }
+    if (invoice.status !== 'draft') {
+      throw new HttpError(400, 'Invoice is not in draft status and cannot be sent.');
+    }
+
+    const paymentIntent = await stripeService.createPaymentIntent({
+      amount: Math.round(parseFloat(invoice.amount) * 100),
+      customerEmail: invoice.customerEmail || undefined,
+      customerName: invoice.customerName || undefined,
+      description: invoice.description || `Payment for Invoice #${invoice.invoiceNumber}`,
+      metadata: {
+        invoiceId: invoice.id.toString(),
+        projectId: invoice.projectId?.toString() || '',
+        paymentType: 'milestone',
+      },
+    });
+
+    const paymentLink = `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`;
+
+    // Update the invoice to 'pending' and add the Stripe details
+    const updatedInvoice = await storage.invoices.updateInvoice(invoice.id, {
+      status: 'pending',
+      stripePaymentIntentId: paymentIntent.id,
+      paymentLink: paymentLink,
+      issueDate: new Date(), // Update issue date to when it was sent
+    });
+
+    if (!updatedInvoice) {
+      throw new HttpError(500, 'Failed to update invoice before sending.');
+    }
+
+    // Send the payment instruction email
+    if (updatedInvoice.customerEmail) {
+      await this.sendPaymentInstructions(updatedInvoice.customerEmail, {
+        customerName: updatedInvoice.customerName || 'Customer',
+        projectName: updatedInvoice.description || 'Your Project',
+        amount: parseFloat(updatedInvoice.amount),
+        paymentLink: paymentLink,
+        dueDate: new Date(updatedInvoice.dueDate),
+        paymentType: 'milestone',
+      });
+    }
+
+    return updatedInvoice;
+  }
+
+  /**
    * Generate unique invoice number
    */
   private async generateInvoiceNumber(): Promise<string> {

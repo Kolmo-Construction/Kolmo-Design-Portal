@@ -13,7 +13,7 @@ export const projectStatusEnum = pgEnum('project_status', ['draft', 'finalized',
 export const feedbackTypeEnum = pgEnum('feedback_type', ['edit', 'approve', 'reject']);
 
 // Define invoice status enum
-export const invoiceStatusEnum = pgEnum('invoice_status', ['pending', 'partially_paid', 'paid', 'overdue', 'cancelled']);
+export const invoiceStatusEnum = pgEnum('invoice_status', ['draft', 'pending', 'partially_paid', 'paid', 'overdue', 'cancelled']);
 
 // Define invoice type enum
 export const invoiceTypeEnum = pgEnum('invoice_type', ['down_payment', 'milestone', 'final', 'change_order', 'regular']);
@@ -173,12 +173,13 @@ export const invoices = pgTable("invoices", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id").references(() => projects.id),
   quoteId: integer("quote_id").references(() => quotes.id), // Link to originating quote
+  milestoneId: integer("milestone_id").references(() => milestones.id, { onDelete: 'set null' }), // Link to milestone that generated this invoice
   invoiceNumber: text("invoice_number").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull().$type<string>(),
   description: text("description"),
   issueDate: timestamp("issue_date").notNull(),
   dueDate: timestamp("due_date").notNull(),
-  status: invoiceStatusEnum("status").notNull().default("pending"),
+  status: invoiceStatusEnum("status").notNull().default("draft"),
   invoiceType: invoiceTypeEnum("invoice_type").notNull().default("regular"), // Track payment type
   documentId: integer("document_id").references(() => documents.id),
   
