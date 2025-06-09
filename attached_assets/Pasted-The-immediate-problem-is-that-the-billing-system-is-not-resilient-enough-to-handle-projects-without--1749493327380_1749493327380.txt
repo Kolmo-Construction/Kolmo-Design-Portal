@@ -1,0 +1,59 @@
+The immediate problem is that the billing system is not resilient enough to handle projects without a direct link to a quote, even though the projects table has its own totalBudget field.
+
+Here is the most direct solution to make the system robust:
+
+Modify paymentService.createDraftInvoiceForMilestone to be more flexible. Instead of throwing an error if originQuoteId is missing, it should use the project's own totalBudget as a fallback. This makes the billing feature work for all projects.
+Proposed Code Change in server/services/payment.service.ts:
+
+TypeScript
+
+// server/services/payment.service.ts
+
+async createDraftInvoiceForMilestone(projectId: number, milestoneId: number): Promise<Invoice | null> {
+    const project = await storage.projects.getProjectById(projectId);
+    if (!project) {
+        throw new HttpError(404, 'Project not found for billing.');
+    }
+
+    const milestone = await storage.milestones.getMilestoneById(milestoneId);
+    if (!milestone || !milestone.isBillable || !milestone.billingPercentage) {
+        throw new HttpError(400, 'Milestone is not billable or is missing billing details.');
+    }
+
+    // --- PROPOSED CHANGE START ---
+    let totalAmount = 0;
+    if (project.originQuoteId) {
+        const quote = await storage.quotes.getQuoteById(project.originQuoteId);
+        if (quote) {
+            totalAmount = parseFloat(quote.total?.toString() || '0');
+        }
+    }
+    
+    // If totalAmount is still 0 (e.g., quote not found or no originQuoteId),
+    // fall back to the project's own budget.
+    if (totalAmount === 0) {
+        totalAmount = parseFloat(project.totalBudget?.toString() || '0');
+    }
+
+    if (totalAmount <= 0) {
+        throw new HttpError(400, 'Project total budget must be greater than zero to create a billable invoice.');
+    }
+    // --- PROPOSED CHANGE END ---
+
+    const milestoneAmount = (totalAmount * parseFloat(milestone.billingPercentage)) / 100;
+    
+    // ... rest of the function remains the same ...
+    
+    const invoiceNumber = await this.generateInvoiceNumber();
+    const invoiceData = {
+      projectId: project.id,
+      quoteId: project.originQuoteId || null, // Pass it if it exists
+      milestoneId: milestone.id,
+      invoiceNumber,
+      amount: milestoneAmount.toString(),
+      // ...
+    };
+    
+    // ...
+}
+By implementing this change, you remove the hard dependency on the originQuoteId and make the billing system more resilient and universally applicable across all projects in your portal.

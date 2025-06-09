@@ -2,6 +2,7 @@ import { stripeService } from './stripe.service';
 import { storage } from '../storage';
 import { HttpError } from '../errors';
 import { sendEmail } from '../email';
+import { insertInvoiceSchema } from '@shared/schema';
 import type { Quote, Invoice, Project } from '@shared/schema';
 
 export interface PaymentSchedule {
@@ -181,8 +182,8 @@ export class PaymentService {
    */
   async createDraftInvoiceForMilestone(projectId: number, milestoneId: number): Promise<Invoice | null> {
     const project = await storage.projects.getProjectById(projectId);
-    if (!project || !project.originQuoteId) {
-      throw new HttpError(404, 'Project or its originating quote not found for billing.');
+    if (!project) {
+      throw new HttpError(404, 'Project not found for billing.');
     }
 
     const milestone = await storage.milestones.getMilestoneById(milestoneId);
@@ -196,18 +197,31 @@ export class PaymentService {
       return null;
     }
 
-    const quote = await storage.quotes.getQuoteById(project.originQuoteId);
-    if (!quote) {
-      throw new HttpError(404, 'Originating quote not found.');
+    // Try to get total amount from quote first, then fall back to project budget
+    let totalAmount = 0;
+    if (project.originQuoteId) {
+      const quote = await storage.quotes.getQuoteById(project.originQuoteId);
+      if (quote) {
+        totalAmount = parseFloat(quote.total?.toString() || '0');
+      }
+    }
+    
+    // If totalAmount is still 0 (e.g., quote not found or no originQuoteId),
+    // fall back to the project's own budget.
+    if (totalAmount === 0) {
+      totalAmount = parseFloat(project.totalBudget?.toString() || '0');
     }
 
-    const totalAmount = parseFloat(quote.total?.toString() || '0');
+    if (totalAmount <= 0) {
+      throw new HttpError(400, 'Project total budget must be greater than zero to create a billable invoice.');
+    }
+
     const milestoneAmount = (totalAmount * parseFloat(milestone.billingPercentage)) / 100;
     const invoiceNumber = await this.generateInvoiceNumber();
 
     const invoiceData = {
       projectId: project.id,
-      quoteId: quote.id,
+      quoteId: project.originQuoteId || null, // Pass it if it exists
       milestoneId: milestone.id, // Link the invoice to the milestone
       invoiceNumber,
       amount: milestoneAmount.toString(),
