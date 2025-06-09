@@ -216,8 +216,12 @@ export class PaymentService {
       throw new HttpError(400, 'Project total budget must be greater than zero to create a billable invoice.');
     }
 
-    const milestoneAmount = (totalAmount * parseFloat(milestone.billingPercentage)) / 100;
+    // Corrected logic in payment.service (1).ts
+    const unroundedAmount = (totalAmount * parseFloat(milestone.billingPercentage)) / 100;
+    const milestoneAmount = parseFloat(unroundedAmount.toFixed(2));
     const invoiceNumber = await this.generateInvoiceNumber();
+    
+  
 
     const invoiceData = {
       projectId: project.id,
@@ -402,7 +406,6 @@ export class PaymentService {
     // Calculate milestone amount based on percentage
     const totalAmount = parseFloat(quote.total?.toString() || '0');
     const milestoneAmount = (totalAmount * parseFloat(milestone.billingPercentage)) / 100;
-
     const invoiceNumber = await this.generateInvoiceNumber();
 
     const invoiceData = {
