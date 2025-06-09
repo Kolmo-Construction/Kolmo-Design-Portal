@@ -1,0 +1,72 @@
+Issue 1: Incorrect Form Field Name on Task Creation
+The primary issue stems from the dialog used to create a new task. The form field for capturing the billing percentage is incorrectly named, leading to the value not being saved correctly upon creation.
+
+File: client/src/components/project-details/CreateTaskDialog.tsx
+Problem: The form field intended for "Billing Percentage" is mistakenly bound to the billableAmount form value instead of billingPercentage .
+Result: When you create a task and set a billing percentage, the backend receives billingPercentage as undefined. The createMilestoneForBillableTask function in the task.repository.ts then uses a default value of 10 for the milestone's percentage, but the task itself retains a billingPercentage of 0.
+Solution:
+
+To fix this, you need to change the name of the FormField in CreateTaskDialog.tsx from billableAmount to billingPercentage.
+
+Incorrect Code in CreateTaskDialog.tsx:
+
+TypeScript
+
+<FormField
+  control={form.control}
+  name="billableAmount" // This is incorrect
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Billing Percentage</FormLabel>
+      {/* ... rest of the component */}
+    </FormItem>
+  )}
+/>
+Corrected Code:
+
+TypeScript
+
+<FormField
+  control={form.control}
+  name="billingPercentage" // Corrected field name
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Billing Percentage</FormLabel>
+      {/* ... rest of the component */}
+    </FormItem>
+  )}
+/>
+Issue 2: Milestone Not Updated When Task Is Edited
+The second issue occurs when you edit a task. The system is not designed to propagate changes from a task to its associated milestone.
+
+File: server/storage/repositories/task.repository.ts
+Problem: The updateTask function only updates the record in the tasks table. If a task has a linked milestone, and you change the billingPercentage on the task, the corresponding milestone's billingPercentage is not updated.
+Result: This creates a data inconsistency. The task might show one percentage in the UI (like in the EditTaskDialog), while the milestone used for actual billing calculations retains the old value. When you reopen the edit dialog, it correctly reads the (updated) value from the task, but this value is not what will be used for invoicing if the milestone is what drives that process.
+Solution:
+
+You should enhance the updateTask function in task.repository.ts to check if the billingPercentage has changed and if there's a linked milestone. If both are true, it should also update the billingPercentage on the milestone record.
+
+Suggested Enhancement in task.repository.ts:
+
+TypeScript
+
+async updateTask(taskId: number, taskData: Partial<Omit<schema.InsertTask, 'id' | 'projectId' | 'createdBy'>>): Promise<TaskWithAssignee | null> {
+    // ... (existing code for empty check and try/catch block) ...
+
+    const result = await this.dbOrTx.update(schema.tasks)
+        .set({ ...taskData, updatedAt: new Date() })
+        .where(eq(schema.tasks.id, taskId))
+        .returning({ id: schema.tasks.id, milestoneId: schema.tasks.milestoneId });
+
+    if (!result || result.length === 0) return null;
+
+    // If billing percentage was updated and a milestone is linked, update the milestone too.
+    if (taskData.billingPercentage !== undefined && result[0].milestoneId) {
+        await this.dbOrTx.update(schema.milestones)
+            .set({ billingPercentage: taskData.billingPercentage.toString() })
+            .where(eq(schema.milestones.id, result[0].milestoneId));
+    }
+
+    return await this.getTaskWithDetails(taskId);
+}
+By implementing these two fixes, you will ensure that the billing percentage is correctly saved when a task is created and that it stays synchronized with its associated billing milestone when edited.
