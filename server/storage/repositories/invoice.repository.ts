@@ -10,6 +10,7 @@ import { InvoiceWithPayments } from '../types'; // Import shared types
 // Interface for Invoice Repository
 export interface IInvoiceRepository {
     getInvoicesForProject(projectId: number): Promise<schema.Invoice[]>; // Keep simple for list view?
+    getAllInvoices(): Promise<schema.Invoice[]>; // Get all invoices across all projects
     getInvoiceById(invoiceId: number): Promise<InvoiceWithPayments | null>; // Fetch with payments
     createInvoice(invoiceData: Omit<schema.InsertInvoice, 'amount'> & { amount: string }): Promise<schema.Invoice | null>;
     updateInvoice(invoiceId: number, invoiceData: Partial<Omit<schema.InsertInvoice, 'id' | 'projectId'>>): Promise<schema.Invoice | null>;
@@ -37,6 +38,17 @@ class InvoiceRepository implements IInvoiceRepository {
         } catch (error) {
             console.error(`Error fetching invoices for project ${projectId}:`, error);
             throw new Error('Database error while fetching invoices.');
+        }
+    }
+
+    async getAllInvoices(): Promise<schema.Invoice[]> {
+        try {
+            return await this.dbOrTx.query.invoices.findMany({
+                orderBy: [desc(schema.invoices.issueDate)],
+            });
+        } catch (error) {
+            console.error('Error fetching all invoices:', error);
+            throw new Error('Database error while fetching all invoices.');
         }
     }
 

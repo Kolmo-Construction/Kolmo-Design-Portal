@@ -8,6 +8,7 @@ import { HttpError } from '../../errors';
 export interface IMilestoneRepository {
   getMilestoneById(id: number): Promise<schema.Milestone | null>;
   getMilestonesByProjectId(projectId: number): Promise<schema.Milestone[]>;
+  getAllMilestones(): Promise<schema.Milestone[]>;
   createMilestone(data: schema.InsertMilestone): Promise<schema.Milestone>;
   updateMilestone(id: number, data: Partial<schema.InsertMilestone>): Promise<schema.Milestone>;
   deleteMilestone(id: number): Promise<void>;
@@ -43,6 +44,20 @@ export class MilestoneRepository implements IMilestoneRepository {
     } catch (error) {
       console.error('Error fetching milestones for project:', error);
       throw new HttpError(500, 'Failed to fetch project milestones');
+    }
+  }
+
+  async getAllMilestones(): Promise<schema.Milestone[]> {
+    try {
+      const result = await this.db
+        .select()
+        .from(schema.milestones)
+        .orderBy(desc(schema.milestones.createdAt));
+
+      return result;
+    } catch (error) {
+      console.error('Error fetching all milestones:', error);
+      throw new HttpError(500, 'Failed to fetch all milestones');
     }
   }
 
