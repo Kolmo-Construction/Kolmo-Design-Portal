@@ -168,23 +168,18 @@ router.post('/:milestoneId/bill', async (req, res, next) => {
       throw new HttpError(404, 'Project not found');
     }
 
-    // Create milestone-based invoice
-    const invoice = await paymentService.createMilestoneBasedPayment(
-      projectId, 
-      milestoneId, 
-      milestone.title
-    );
+    // --- MODIFICATION: Auto-create draft invoice ---
+    let draftInvoice = null;
+    if (milestone.isBillable) {
+        console.log(`Milestone ${milestoneId} is billable, creating draft invoice.`);
+        draftInvoice = await paymentService.createDraftInvoiceForMilestone(projectId, milestoneId);
+    }
+    // --- END MODIFICATION ---
 
-    // Update milestone as billed using proper schema
-    const billingData = updateMilestoneSchema.parse({
-      billedAt: new Date(),
-      invoiceId: invoice.id,
-    });
-    await storage.milestones.updateMilestone(milestoneId, billingData);
-
+    // Update the response to return the draft invoice
     res.json({
-      message: 'Milestone billing triggered successfully',
-      invoice,
+      message: 'Draft invoice created successfully',
+      invoice: draftInvoice,
       milestone: await storage.milestones.getMilestoneById(milestoneId),
     });
   } catch (error) {
