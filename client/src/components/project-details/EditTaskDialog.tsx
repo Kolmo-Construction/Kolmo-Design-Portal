@@ -516,7 +516,7 @@ export function EditTaskDialog({
                         render={({ field }) => (
                         <FormItem>
                             <FormLabel>Billing Type</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value || "fixed"}>
                             <FormControl>
                                 <SelectTrigger>
                                 <SelectValue placeholder="Select billing type" />
@@ -557,9 +557,9 @@ export function EditTaskDialog({
                                 />
                                 </FormControl>
                                 <FormMessage />
-                                {field.value && project?.budget && (
+                                {field.value && project && 'budget' in project && project.budget && (
                                 <FormDescription>
-                                    Dollar amount: ${((field.value / 100) * project.budget).toLocaleString('en-US', { 
+                                    Dollar amount: ${((field.value / 100) * (project.budget as number)).toLocaleString('en-US', { 
                                     minimumFractionDigits: 2, 
                                     maximumFractionDigits: 2 
                                     })}

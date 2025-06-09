@@ -603,7 +603,7 @@ export function ProjectTasksTab({ projectId, user, project }: ProjectTasksTabPro
                 {/* Render Gantt directly only if there are formatted tasks */}
                 {formattedGanttTasks.length > 0 ? (
                   <div className="gantt-container relative">
-                    {console.log('[ProjectTasksTab] Rendering gantt-task-react with tasks:', JSON.parse(JSON.stringify(formattedGanttTasks)))}
+
 
                     {/* --- Use gantt-task-react Component with Interaction Handlers --- */}
                     <Gantt
