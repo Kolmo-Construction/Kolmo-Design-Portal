@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { 
   Loader2, PlusCircle, ClipboardList, AlertTriangle, Trash2, Eye, EyeOff,
-  Clock, Calendar, CheckCircle2, ArrowRight, CheckCheck, CircleDot, Upload
+  Clock, Calendar, CheckCircle2, ArrowRight, CheckCheck, CircleDot, Upload, DollarSign
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { CreateTaskDialog } from "./CreateTaskDialog";
@@ -493,7 +493,15 @@ export function ProjectTasksTab({ projectId, user, project }: ProjectTasksTabPro
                         
                         <div className="flex flex-col gap-3">
                           <div className="flex justify-between items-start">
-                            <h4 className="text-lg font-medium text-slate-800">{task.title}</h4>
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-lg font-medium text-slate-800">{task.title}</h4>
+                              {task.isBillable && (
+                                <div className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full flex items-center gap-1">
+                                  <DollarSign className="h-3 w-3" />
+                                  Billable
+                                </div>
+                              )}
+                            </div>
                             
                             <div className={`flex items-center px-3 py-1 rounded-full text-xs font-medium ${statusBg} ${statusColor.replace('bg-', 'text-')}`}>
                               {statusIcon}
