@@ -1,7 +1,10 @@
 // client/src/lib/gantt-utils.ts (Adapted for gantt-task-react)
-import { Task as GanttTaskReact, TaskType } from 'gantt-task-react'; // Import from the new library
-import type { Task as ApiTask } from '../../server/storage/types'; // Your API Task type
+import { Task as GanttTaskReact } from 'gantt-task-react'; // Import from the new library
+import type { Task as ApiTask } from '@shared/schema'; // Your API Task type
 import { parseISO, isValid, differenceInDays, endOfDay } from 'date-fns';
+
+// Define TaskType locally since it might not be exported
+type TaskType = 'task' | 'milestone' | 'project';
 
 // Define the structure expected by gantt-task-react Task type
 // (Based on common usage - verify with library's actual types if needed)
@@ -152,16 +155,48 @@ export function formatTasksForGanttReact(
     // Add logic here if dependencies are stored differently (e.g., an array field on apiTask)
 
 
+    // Determine styling based on task properties
+    let taskStyles: FormattedTask['styles'] = undefined;
+    
+    if (apiTask.status === 'CANCELLED') {
+      // Cancelled task styling (grayed out)
+      taskStyles = { 
+        progressColor: '#aaaaaa', 
+        progressSelectedColor: '#888888', 
+        backgroundColor: '#e0e0e0', 
+        backgroundSelectedColor: '#d0d0d0' 
+      };
+    } else if (apiTask.isBillable) {
+      // Billable task styling (green tones for money/billing)
+      taskStyles = {
+        backgroundColor: '#10b981', // Green-500
+        backgroundSelectedColor: '#059669', // Green-600
+        progressColor: '#34d399', // Green-400
+        progressSelectedColor: '#10b981' // Green-500
+      };
+    } else {
+      // Non-billable task styling (blue tones - default professional look)
+      taskStyles = {
+        backgroundColor: '#3b82f6', // Blue-500
+        backgroundSelectedColor: '#2563eb', // Blue-600
+        progressColor: '#60a5fa', // Blue-400
+        progressSelectedColor: '#3b82f6' // Blue-500
+      };
+    }
+
+    // Add billable indicator to task name for extra clarity
+    const displayName = apiTask.isBillable ? `💰 ${apiTask.title}` : apiTask.title;
+
     // Construct the GanttTask Object for gantt-task-react
     const ganttTask: FormattedTask = {
       id: taskIdStr,
-      name: apiTask.title,
+      name: displayName,
       start: startDate,
       end: endDate,
       progress: progress,
       type: taskType,
       isDisabled: apiTask.status === 'CANCELLED',
-      styles: apiTask.status === 'CANCELLED' ? { progressColor: '#aaaaaa', progressSelectedColor: '#888888', backgroundColor: '#e0e0e0', backgroundSelectedColor: '#d0d0d0' } : undefined,
+      styles: taskStyles,
       dependencies: dependencies, // Add dependencies array
       // project: String(apiTask.projectId), // Optional: Assign project ID if needed for grouping
       // displayOrder: apiTask.displayOrder ?? undefined // Optional: Assign display order

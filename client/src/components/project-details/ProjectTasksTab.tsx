@@ -603,6 +603,25 @@ export function ProjectTasksTab({ projectId, user, project }: ProjectTasksTabPro
                 {/* Render Gantt directly only if there are formatted tasks */}
                 {formattedGanttTasks.length > 0 ? (
                   <div className="gantt-container relative">
+                    {/* Visual Legend for Task Types */}
+                    <div className="gantt-legend">
+                      <span className="font-medium text-sm">Task Types:</span>
+                      <div className="gantt-legend-item">
+                        <div className="gantt-legend-color gantt-legend-billable"></div>
+                        <span>💰 Billable Tasks</span>
+                      </div>
+                      <div className="gantt-legend-item">
+                        <div className="gantt-legend-color gantt-legend-non-billable"></div>
+                        <span>📋 Non-Billable Tasks</span>
+                      </div>
+                      <div className="gantt-legend-item">
+                        <div className="gantt-legend-color gantt-legend-cancelled"></div>
+                        <span>Cancelled Tasks</span>
+                      </div>
+                      <div className="ml-4 text-xs text-muted-foreground">
+                        💡 Double-click any task to edit details
+                      </div>
+                    </div>
 
 
                     {/* --- Use gantt-task-react Component with Interaction Handlers --- */}
@@ -644,8 +663,9 @@ export function ProjectTasksTab({ projectId, user, project }: ProjectTasksTabPro
                          </div>
                     )
                 )}
-                 <div className="p-2 text-xs text-muted-foreground border-t">
-                     Note: Using gantt-task-react library. Drag tasks to adjust dates and progress.
+                 <div className="p-2 text-xs text-muted-foreground border-t space-y-1">
+                     <div>💡 <strong>Double-click</strong> any task to edit details, assign users, or change billing settings</div>
+                     <div>🖱️ <strong>Drag</strong> task bars to adjust dates • <strong>Drag</strong> progress handles to update completion</div>
                  </div>
             </div>
         </div>

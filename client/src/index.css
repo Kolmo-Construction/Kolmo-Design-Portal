@@ -46,6 +46,81 @@
   --radius: 0.75rem;
 }
 
+/* Gantt Chart Custom Styling */
+.gantt-container {
+  --billable-color: #10b981; /* Green-500 */
+  --billable-progress: #34d399; /* Green-400 */
+  --non-billable-color: #3b82f6; /* Blue-500 */
+  --non-billable-progress: #60a5fa; /* Blue-400 */
+  --cancelled-color: #e0e0e0; /* Gray */
+}
+
+/* Enhanced task bar styling with better contrast */
+.gantt-container .task-item-billable {
+  border-left: 4px solid var(--billable-color) !important;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+}
+
+.gantt-container .task-item-non-billable {
+  border-left: 4px solid var(--non-billable-color) !important;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+}
+
+/* Tooltip enhancement for billable indication */
+.gantt-container .task-tooltip-billable::before {
+  content: "💰 Billable Task";
+  display: block;
+  font-weight: 600;
+  color: var(--billable-color);
+  margin-bottom: 4px;
+}
+
+.gantt-container .task-tooltip-non-billable::before {
+  content: "📋 Non-Billable Task";
+  display: block;
+  font-weight: 600;
+  color: var(--non-billable-color);
+  margin-bottom: 4px;
+}
+
+/* Legend styling */
+.gantt-legend {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.gantt-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.gantt-legend-color {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 0.25rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.gantt-legend-billable {
+  background-color: var(--billable-color);
+}
+
+.gantt-legend-non-billable {
+  background-color: var(--non-billable-color);
+}
+
+.gantt-legend-cancelled {
+  background-color: var(--cancelled-color);
+}
+
 /* Custom animations for auth page */
 @keyframes fadeIn {
   from { opacity: 0; }
