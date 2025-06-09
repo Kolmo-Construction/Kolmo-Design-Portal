@@ -109,34 +109,46 @@ export function EditTaskDialog({
     },
   });
 
-  // Effect to reset form and populate with task data when dialog opens or task changes
+  // Fetch the latest task data when dialog opens
+  const { data: currentTaskData } = useQuery({
+    queryKey: [`/api/projects/${projectId}/tasks`, taskToEdit?.id],
+    queryFn: () => getQueryFn({ on401: "throw" })(`/api/projects/${projectId}/tasks/${taskToEdit?.id}`),
+    enabled: isOpen && !!taskToEdit?.id,
+  });
+
+  // Effect to reset form and populate with current task data when dialog opens or task changes
   useEffect(() => {
     if (isOpen && taskToEdit) {
-      // Reset form with values from the taskToEdit prop
+      // Use current task data from server if available, otherwise fall back to prop
+      const taskData = currentTaskData || taskToEdit;
+      
+      console.log("Resetting form with task data:", taskData);
+      
+      // Reset form with values from the current task data
       form.reset({
-        title: taskToEdit.title ?? "",
-        description: taskToEdit.description ?? "",
-        status: taskToEdit.status ?? "todo",
-        priority: taskToEdit.priority ?? "medium",
-        assigneeId: taskToEdit.assigneeId ?? null,
+        title: taskData.title ?? "",
+        description: taskData.description ?? "",
+        status: taskData.status ?? "todo",
+        priority: taskData.priority ?? "medium",
+        assigneeId: taskData.assigneeId ?? null,
         // Ensure dates are Date objects for the form state if they exist
-        startDate: taskToEdit.startDate ? new Date(taskToEdit.startDate) : undefined,
-        dueDate: taskToEdit.dueDate ? new Date(taskToEdit.dueDate) : undefined,
+        startDate: taskData.startDate ? new Date(taskData.startDate) : undefined,
+        dueDate: taskData.dueDate ? new Date(taskData.dueDate) : undefined,
         // Ensure numbers are handled correctly (convert from potential string/decimal)
-        estimatedHours: taskToEdit.estimatedHours ? parseFloat(taskToEdit.estimatedHours.toString()) : undefined,
-        actualHours: taskToEdit.actualHours ? parseFloat(taskToEdit.actualHours.toString()) : undefined,
+        estimatedHours: taskData.estimatedHours ? parseFloat(taskData.estimatedHours.toString()) : undefined,
+        actualHours: taskData.actualHours ? parseFloat(taskData.actualHours.toString()) : undefined,
         // Add billing fields
-        isBillable: taskToEdit.isBillable ?? false,
-        billingPercentage: taskToEdit.billingPercentage ? parseFloat(taskToEdit.billingPercentage.toString()) : undefined,
-        billableAmount: taskToEdit.billableAmount ? parseFloat(taskToEdit.billableAmount.toString()) : undefined,
-        billingType: taskToEdit.billingType ?? "fixed",
-        billingRate: taskToEdit.billingRate ? parseFloat(taskToEdit.billingRate.toString()) : undefined,
+        isBillable: taskData.isBillable ?? false,
+        billingPercentage: taskData.billingPercentage ? parseFloat(taskData.billingPercentage.toString()) : undefined,
+        billableAmount: taskData.billableAmount ? parseFloat(taskData.billableAmount.toString()) : undefined,
+        billingType: taskData.billingType ?? "fixed",
+        billingRate: taskData.billingRate ? parseFloat(taskData.billingRate.toString()) : undefined,
       });
     } else if (!isOpen) {
         // Optionally reset to empty defaults when closing
         // form.reset({ title: "", ... });
     }
-  }, [isOpen, taskToEdit, form]);
+  }, [isOpen, taskToEdit, currentTaskData, form]);
 
 
   // Helper function to safely format dates (same as Create dialog)
