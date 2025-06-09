@@ -467,74 +467,55 @@ export class PaymentService {
   }
 
   /**
-   * Handle successful payment webhook
+   * Handle successful payment webhook - This is the single source of truth for payment processing
    */
   async handlePaymentSuccess(paymentIntentId: string): Promise<void> {
     try {
-      // Get payment intent from Stripe
       const paymentIntent = await stripeService.getPaymentIntent(paymentIntentId);
       
       if (paymentIntent.status === 'succeeded') {
         const metadata = paymentIntent.metadata;
-        const invoiceId = parseInt(metadata.invoiceId);
-        const projectId = metadata.projectId ? parseInt(metadata.projectId) : null;
-        const quoteId = metadata.quoteId ? parseInt(metadata.quoteId) : null;
+        const invoiceId = metadata.invoiceId ? parseInt(metadata.invoiceId) : null;
         
+        // Find the invoice using the ID from metadata, which should now reliably exist
         if (invoiceId) {
-          // Update invoice status to paid
-          await storage.invoices.updateInvoice(invoiceId, { 
-            status: 'paid' as const 
-          });
-
-          // Record the payment
-          const paymentAmount = paymentIntent.amount / 100; // Convert from cents
-          const paymentData = {
-            invoiceId: invoiceId,
-            amount: paymentAmount,
-            paymentDate: new Date(),
-            paymentMethod: 'stripe',
-            reference: paymentIntent.id,
-            stripePaymentIntentId: paymentIntent.id,
-            stripeChargeId: paymentIntent.latest_charge as string,
-            status: 'succeeded',
-          };
-
-          await storage.invoices.recordPayment(paymentData);
-          
-          console.log(`Payment successful for invoice ${invoiceId}, amount: $${paymentAmount}`);
-          
-          // Get invoice and project details for email
           const invoice = await storage.invoices.getInvoiceById(invoiceId);
-          if (!invoice) {
-            console.error(`Invoice ${invoiceId} not found after payment`);
-            return;
-          }
 
-          // Send appropriate confirmation email based on payment type
-          if (metadata.paymentType === 'down_payment') {
-            // For down payments, send project welcome email
-            if (projectId) {
-              await this.sendProjectWelcomeEmail(projectId);
-              console.log(`Project welcome email sent for project ${projectId}`);
-            }
+          if (invoice && invoice.status !== 'paid') {
+            // Update invoice status to paid
+            await storage.invoices.updateInvoice(invoiceId, { status: 'paid' as const });
+
+            // Record the payment
+            const paymentAmount = paymentIntent.amount / 100; // Convert from cents
+            const paymentData = {
+              invoiceId: invoiceId,
+              amount: paymentAmount,
+              paymentDate: new Date(),
+              paymentMethod: 'stripe',
+              reference: paymentIntent.id,
+              stripePaymentIntentId: paymentIntent.id,
+              stripeChargeId: paymentIntent.latest_charge as string,
+              status: 'succeeded',
+            };
+            await storage.invoices.recordPayment(paymentData);
             
-            // Also update quote status to accepted if we have quote info
-            if (quoteId) {
-              await storage.quotes.updateQuote(quoteId, {
-                status: 'accepted',
-                respondedAt: new Date(),
-              });
-              console.log(`Quote ${quoteId} marked as accepted`);
+            console.log(`Payment successful for invoice ${invoiceId}, amount: $${paymentAmount}`);
+            
+            // Send appropriate confirmation email
+            if (metadata.paymentType === 'down_payment' && invoice.projectId) {
+              await this.sendProjectWelcomeEmail(invoice.projectId);
+              console.log(`Project welcome email sent for project ${invoice.projectId}`);
+            } else {
+              await this.sendPaymentConfirmationEmail(invoice, paymentAmount);
+              console.log(`Payment confirmation email sent for invoice ${invoice.invoiceNumber}`);
             }
           } else {
-            // For milestone or final payments, send payment confirmation
-            await this.sendPaymentConfirmationEmail(invoice, paymentAmount);
-            console.log(`Payment confirmation email sent for invoice ${invoice.invoiceNumber}`);
+            console.log(`[Webhook] Invoice ${invoiceId} already marked as paid or not found. Skipping.`);
           }
         }
       }
     } catch (error) {
-      console.error('Error handling payment success:', error);
+      console.error('Error handling payment success webhook:', error);
       throw error;
     }
   }

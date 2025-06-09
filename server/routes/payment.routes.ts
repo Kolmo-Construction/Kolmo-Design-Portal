@@ -81,6 +81,15 @@ router.post('/quotes/:id/accept-payment', async (req, res, next) => {
 
 /**
  * Handle successful payment confirmation
+ *
+ * *** DEPRECATION NOTICE ***
+ * This endpoint is unreliable because a user might close their browser before
+ * the client-side redirect completes. The Stripe webhook is the source of truth
+ * for payment success. This endpoint should be removed, and the frontend should
+ * simply redirect to a generic success/thank you page, trusting the backend
+ * webhook to handle all database updates and email notifications.
+ *
+ * For now, we will disable its database-modifying logic to prevent errors.
  */
 router.post('/payment-success', async (req, res, next) => {
   try {
@@ -94,151 +103,20 @@ router.post('/payment-success', async (req, res, next) => {
       throw new HttpError(503, 'Payment processing temporarily unavailable');
     }
 
-    // Retrieve payment intent from Stripe
+    // You can optionally verify the payment intent status here without modifying the DB
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
     if (paymentIntent.status !== 'succeeded') {
       throw new HttpError(400, 'Payment has not succeeded');
     }
-
-    const metadata = paymentIntent.metadata;
-    const quoteId = parseInt(metadata.quoteId);
-    const customerName = metadata.customerName;
-    const customerEmail = metadata.customerEmail;
-
-    // Update quote status to accepted
-    await storage.quotes.updateQuote(quoteId, {
-      status: 'accepted',
-      customerName,
-      customerEmail,
-      respondedAt: new Date(),
-    });
-
-    // Get quote details
-    const quote = await storage.quotes.getQuoteById(quoteId);
-    if (!quote) {
-      throw new HttpError(404, 'Quote not found');
-    }
-
-    // Check for existing invoice with this payment intent ID to prevent duplicates
-    const allInvoices = await storage.invoices.getAllInvoices();
-    const existingInvoice = allInvoices.find(inv => inv.stripePaymentIntentId === paymentIntent.id);
     
-    if (existingInvoice) {
-      // Payment already processed - update invoice status to paid if needed and send email
-      if (existingInvoice.status !== 'paid' && existingInvoice.id) {
-        await storage.invoices.updateInvoice(existingInvoice.id, { status: 'paid' });
-      }
-      
-      const existingProject = existingInvoice.projectId ? await storage.projects.getProject(existingInvoice.projectId) : null;
-      
-      // Send confirmation email for successful payment
-      try {
-        await sendProjectWelcomeEmail(customerEmail, customerName, quote);
-        console.log(`Welcome email sent to ${customerEmail} for payment ${paymentIntent.id}`);
-      } catch (emailError) {
-        console.error('Failed to send welcome email:', emailError);
-      }
-      
-      res.json({
-        success: true,
-        message: 'Payment processed successfully',
-        project: {
-          id: existingInvoice.projectId,
-          name: existingProject?.name || quote.title,
-          status: existingProject?.status || 'planning',
-        },
-        invoice: { ...existingInvoice, status: 'paid' },
-        quote: {
-          id: quote.id,
-          status: 'accepted',
-          title: quote.title,
-          quoteNumber: quote.quoteNumber,
-        },
-      });
-      return;
-    }
-
-    // Find existing project using the project ID from payment intent metadata
-    let project;
-    if (metadata.projectId) {
-      project = await storage.projects.getProject(parseInt(metadata.projectId));
-    }
-    
-    if (!project) {
-      throw new HttpError(404, 'Project not found for this payment. The project should have been created during the initial payment flow.');
-    }
-
-    // Generate invoice number
-    const year = new Date().getFullYear();
-    const month = String(new Date().getMonth() + 1).padStart(2, '0');
-    const randomSuffix = Math.random().toString(36).substr(2, 6).toUpperCase();
-    const invoiceNumber = `INV-${year}${month}-${randomSuffix}`;
-
-    // Create down payment invoice record
-    const downPaymentAmount = paymentIntent.amount / 100; // Convert from cents
-    
-    const invoiceData = {
-      projectId: project.id, // Now we have a valid project ID
-      quoteId: quoteId,
-      invoiceNumber,
-      amount: downPaymentAmount.toString(),
-      description: `Down payment (${metadata.downPaymentPercentage}%) for ${quote.title}`,
-      issueDate: new Date(),
-      dueDate: new Date(),
-      invoiceType: 'down_payment' as const,
-      customerName,
-      customerEmail,
-      stripePaymentIntentId: paymentIntent.id,
-      status: 'paid' as const,
-    };
-
-    // Create invoice
-    const invoice = await storage.invoices.createInvoice(invoiceData);
-
-    if (!invoice) {
-      throw new HttpError(500, 'Failed to create invoice');
-    }
-
-    // Record the successful payment
-    const paymentData = {
-      invoiceId: invoice.id,
-      amount: downPaymentAmount,
-      paymentDate: new Date(),
-      paymentMethod: 'stripe',
-      reference: paymentIntent.id,
-      stripePaymentIntentId: paymentIntent.id,
-      stripeChargeId: paymentIntent.latest_charge as string,
-      status: 'succeeded',
-    };
-
-    // Create payment record
-    await storage.invoices.recordPayment(paymentData);
-
-    // Send confirmation email
-    try {
-      await sendProjectWelcomeEmail(customerEmail, customerName, quote);
-    } catch (emailError) {
-      console.error('Failed to send welcome email:', emailError);
-      // Continue processing - don't fail payment for email issues
-    }
-
+    // Respond with a generic success message and let the webhook handle the rest.
+    // DO NOT perform database writes here.
     res.json({
       success: true,
-      message: 'Payment processed successfully',
-      project: {
-        id: project.id,
-        name: project.name,
-        status: project.status,
-      },
-      invoice: invoice,
-      quote: {
-        id: quote.id,
-        status: 'accepted',
-        title: quote.title,
-        quoteNumber: quote.quoteNumber,
-      },
+      message: 'Payment received. A confirmation email will be sent shortly.',
     });
+
   } catch (error) {
     next(error);
   }
