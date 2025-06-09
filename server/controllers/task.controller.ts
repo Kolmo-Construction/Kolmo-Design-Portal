@@ -210,6 +210,12 @@ export const updateTask = async (
      // delete updateData.id;
      // delete updateData.createdAt;
 
+    // Get the current task before update to check if it's billable and being completed
+    const currentTask = await storage.tasks.getTaskById(taskIdNum);
+    if (!currentTask) {
+        throw new HttpError(404, 'Task not found.');
+    }
+
     logger(`[updateTask] Calling repository to update taskId: ${taskIdNum}`, 'TaskController');
     const updatedTask = await storage.tasks.updateTask(taskIdNum, updateData);
     logger(`[updateTask] Repository returned task: ${updatedTask?.id}`, 'TaskController');
@@ -217,6 +223,88 @@ export const updateTask = async (
     if (!updatedTask) {
         // Repository returns null if task not found
         throw new HttpError(404, 'Task not found or update failed.');
+    }
+
+    // Check if this is a billable task being completed
+    const isBeingCompleted = validatedData.status === 'done' && currentTask.status !== 'done';
+    const isBillableTask = currentTask.isBillable;
+    
+    if (isBeingCompleted && isBillableTask) {
+        logger(`[updateTask] Billable task ${taskIdNum} completed, triggering billing process`, 'TaskController');
+        
+        try {
+            // Import PaymentService and trigger billing
+            const { PaymentService } = await import('@server/services/payment.service');
+            const paymentService = new PaymentService();
+            
+            // Use the complete-and-bill logic
+            let invoice = null;
+            let milestone = null;
+
+            // If task is linked to a milestone, complete and bill the milestone
+            if (currentTask.milestoneId) {
+                milestone = await storage.milestones.getMilestoneById(currentTask.milestoneId);
+                if (milestone && milestone.status !== 'completed') {
+                    // Complete the milestone
+                    await storage.milestones.updateMilestone(milestone.id, {
+                        status: 'completed',
+                        completedAt: new Date(),
+                        completedById: (req as any).user?.id,
+                        actualDate: new Date(),
+                    });
+
+                    // Generate DRAFT invoice if milestone is billable
+                    if (milestone.isBillable) {
+                        logger(`[updateTask] Milestone ${milestone.id} is billable, creating draft invoice`, 'TaskController');
+                        invoice = await paymentService.createDraftInvoiceForMilestone(
+                            currentTask.projectId,
+                            milestone.id
+                        );
+                    }
+                }
+            } else {
+                // Task doesn't have a milestone yet, create one for billing
+                logger(`[updateTask] Creating milestone for billable task ${taskIdNum}`, 'TaskController');
+                
+                const milestoneData = {
+                    projectId: currentTask.projectId,
+                    title: `Task Milestone: ${currentTask.title}`,
+                    description: currentTask.description || `Converted from billable task: ${currentTask.title}`,
+                    plannedDate: currentTask.dueDate || new Date(),
+                    category: 'task_conversion' as const,
+                    status: 'completed' as const,
+                    isBillable: true,
+                    billingPercentage: currentTask.billingPercentage || 10,
+                    taskId: currentTask.id,
+                    completedAt: new Date(),
+                    completedById: (req as any).user?.id,
+                    actualDate: new Date(),
+                };
+
+                milestone = await storage.milestones.createMilestone(milestoneData);
+                
+                // Update task to link to the new milestone
+                await storage.tasks.updateTask(taskIdNum, {
+                    milestoneId: milestone.id,
+                    notes: (currentTask.notes || '') + `\n[System] Converted to milestone ${milestone.id} for billing purposes.`
+                });
+
+                // Generate DRAFT invoice for the new milestone
+                invoice = await paymentService.createDraftInvoiceForMilestone(
+                    currentTask.projectId,
+                    milestone.id
+                );
+            }
+            
+            if (invoice) {
+                logger(`[updateTask] Invoice ${invoice.invoiceNumber} created for billable task completion`, 'TaskController');
+            }
+            
+        } catch (billingError) {
+            // Log billing error but don't fail the task update
+            logger(`[updateTask] Error in billing process: ${billingError instanceof Error ? billingError.message : String(billingError)}`, 'TaskController');
+            console.error('Billing error for completed task:', billingError);
+        }
     }
 
     // Return the updated task (repository should return TaskWithAssignee)

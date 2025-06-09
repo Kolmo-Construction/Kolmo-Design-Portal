@@ -14,6 +14,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; // Import mutation hooks
 import { getQueryFn, apiRequest } from "@/lib/queryClient"; // Import query helpers
+import { useProjectTaskMutations } from "@/hooks/useProjectTaskMutations";
 import {
   Form,
   FormControl,
@@ -109,18 +110,11 @@ export function EditTaskDialog({
     },
   });
 
-  // Fetch the latest task data when dialog opens
-  const { data: currentTaskData } = useQuery({
-    queryKey: [`/api/projects/${projectId}/tasks`, taskToEdit?.id],
-    queryFn: () => getQueryFn({ on401: "throw" })(`/api/projects/${projectId}/tasks/${taskToEdit?.id}`),
-    enabled: isOpen && !!taskToEdit?.id,
-  });
-
   // Effect to reset form and populate with current task data when dialog opens or task changes
   useEffect(() => {
     if (isOpen && taskToEdit) {
-      // Use current task data from server if available, otherwise fall back to prop
-      const taskData = currentTaskData || taskToEdit;
+      // Use the task data from props
+      const taskData = taskToEdit;
       
       console.log("Resetting form with task data:", taskData);
       
@@ -195,13 +189,31 @@ export function EditTaskDialog({
   });
 
 
+  // Import the billing mutations hook
+  const { completeAndBillMutation } = useProjectTaskMutations(projectId);
+
   // Handle form submission
   const handleFormSubmit = (values: EditTaskFormValues) => {
     if (!taskToEdit) return; // Should not happen if dialog is open correctly
 
     console.log("Submitting update:", values);
-    // The mutationFn now handles formatting, just pass the form values
-    updateTaskMutation.mutate({ taskId: taskToEdit.id, taskData: values });
+    
+    // Check if this is a billable task being completed
+    const isBeingCompleted = values.status === 'done' && taskToEdit.status !== 'done';
+    const isBillableTask = taskToEdit.isBillable || values.isBillable;
+    
+    if (isBeingCompleted && isBillableTask) {
+      // Use the billing endpoint for billable task completion
+      console.log("Using billing endpoint for billable task completion");
+      completeAndBillMutation.mutate({ 
+        taskId: taskToEdit.id, 
+        actualHours: values.actualHours 
+      });
+      setIsOpen(false); // Close dialog immediately for billing flow
+    } else {
+      // Use regular update for non-billable tasks or non-completion updates
+      updateTaskMutation.mutate({ taskId: taskToEdit.id, taskData: values });
+    }
   };
   
   // Handle delete request
