@@ -118,13 +118,17 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
 
   // Complete milestone mutation (triggers billing)
   const completeMilestoneMutation = useMutation({
-    mutationFn: (milestoneId: number) =>
-      apiRequest(`/api/projects/${projectId}/milestones/${milestoneId}/complete`, "PATCH"),
-    onSuccess: () => {
+    mutationFn: async (milestoneId: number) => {
+      // First complete the milestone
+      await apiRequest(`/api/projects/${projectId}/milestones/${milestoneId}/complete`, "PATCH");
+      // Then trigger billing for billable milestones
+      return await apiRequest(`/api/projects/${projectId}/milestones/${milestoneId}/bill`, "POST");
+    },
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
       toast({
         title: "Success",
-        description: "Milestone completed and billing triggered",
+        description: `Milestone completed and invoice ${data.invoice?.invoiceNumber} created`,
       });
     },
     onError: (error: any) => {

@@ -879,6 +879,12 @@ export const insertMilestoneSchema = createInsertSchema(milestones).omit({
   ]).optional(),
 });
 
+export const updateMilestoneSchema = insertMilestoneSchema.partial().extend({
+  completedAt: z.date().optional(),
+  billedAt: z.date().optional(),
+  invoiceId: z.number().optional(),
+});
+
 export const insertSelectionSchema = createInsertSchema(selections).omit({
   id: true,
   createdAt: true,
@@ -1043,6 +1049,7 @@ export type InsertUpdateMedia = z.infer<typeof insertUpdateMediaSchema>;
 export type UpdateMedia = typeof updateMedia.$inferSelect;
 
 export type InsertMilestone = z.infer<typeof insertMilestoneSchema>;
+export type UpdateMilestone = z.infer<typeof updateMilestoneSchema>;
 export type Milestone = typeof milestones.$inferSelect;
 
 export type InsertSelection = z.infer<typeof insertSelectionSchema>;

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { storage } from '../storage';
-import { insertMilestoneSchema } from '@shared/schema';
+import { insertMilestoneSchema, updateMilestoneSchema } from '@shared/schema';
 import { HttpError } from '../errors';
 import { isAuthenticated } from '../middleware/auth.middleware';
 import { PaymentService } from '../services/payment.service';

@@ -72,12 +72,15 @@ export class MilestoneRepository implements IMilestoneRepository {
     }
   }
 
-  async updateMilestone(id: number, data: Partial<schema.InsertMilestone> & { completedAt?: Date; billedAt?: Date }): Promise<schema.Milestone> {
+  async updateMilestone(id: number, data: Partial<schema.UpdateMilestone>): Promise<schema.Milestone> {
     try {
-      // Convert string dates to Date objects if needed
+      // Convert string dates to Date objects and billing percentage to string if needed
       const processedData: any = { ...data };
       if (processedData.plannedDate && typeof processedData.plannedDate === 'string') {
         processedData.plannedDate = new Date(processedData.plannedDate);
+      }
+      if (processedData.billingPercentage !== undefined) {
+        processedData.billingPercentage = processedData.billingPercentage.toString();
       }
       
       const result = await this.db
