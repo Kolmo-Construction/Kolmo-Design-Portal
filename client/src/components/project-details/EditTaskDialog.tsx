@@ -38,6 +38,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Switch } from "@/components/ui/switch";
 import { CalendarIcon, Loader2, Save } from "lucide-react"; // Import Save icon
 import { cn, formatDate } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast"; // Import toast
@@ -69,6 +70,12 @@ export function EditTaskDialog({
   onDeleteRequest
 }: EditTaskDialogProps) {
   const queryClient = useQueryClient();
+
+  // Fetch project data for billing calculations
+  const { data: project } = useQuery({
+    queryKey: ['/api/projects', projectId],
+    enabled: !!projectId,
+  });
 
   // Fetch potential assignees (same as Create dialog)
   const {
@@ -473,6 +480,160 @@ export function EditTaskDialog({
                     </FormItem>
                     )}
                 />
+
+                {/* Billing Section */}
+                <FormField
+                    control={form.control}
+                    name="isBillable"
+                    render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                        <FormLabel className="text-base">
+                            Make this task billable
+                        </FormLabel>
+                        <FormDescription>
+                            This task will be included in project billing when completed
+                        </FormDescription>
+                        </div>
+                        <FormControl>
+                        <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                        />
+                        </FormControl>
+                    </FormItem>
+                    )}
+                />
+
+                {/* Billing Fields - Only show when isBillable is true */}
+                {form.watch("isBillable") && (
+                    <div className="space-y-4 border rounded-lg p-4 bg-muted/10">
+                    <h4 className="text-sm font-medium text-muted-foreground mb-3">Billing Configuration</h4>
+                    
+                    <FormField
+                        control={form.control}
+                        name="billingType"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Billing Type</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                                <SelectTrigger>
+                                <SelectValue placeholder="Select billing type" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value="percentage">Percentage of Project Value</SelectItem>
+                                <SelectItem value="fixed">Fixed Amount</SelectItem>
+                                <SelectItem value="hourly">Hourly Rate</SelectItem>
+                            </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+
+                    {form.watch("billingType") === "percentage" && (
+                        <>
+                        <FormField
+                            control={form.control}
+                            name="billingPercentage"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Billing Percentage (%)</FormLabel>
+                                <FormControl>
+                                <Input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    max="100"
+                                    placeholder="Enter percentage (e.g., 15)"
+                                    {...field}
+                                    value={field.value ?? ''}
+                                    onChange={(e) => {
+                                    const value = e.target.value;
+                                    field.onChange(value === '' ? undefined : parseFloat(value));
+                                    }}
+                                />
+                                </FormControl>
+                                <FormMessage />
+                                {field.value && project?.budget && (
+                                <FormDescription>
+                                    Dollar amount: ${((field.value / 100) * project.budget).toLocaleString('en-US', { 
+                                    minimumFractionDigits: 2, 
+                                    maximumFractionDigits: 2 
+                                    })}
+                                </FormDescription>
+                                )}
+                            </FormItem>
+                            )}
+                        />
+                        </>
+                    )}
+
+                    {form.watch("billingType") === "fixed" && (
+                        <FormField
+                        control={form.control}
+                        name="billableAmount"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Billable Amount ($)</FormLabel>
+                            <FormControl>
+                                <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="Enter dollar amount"
+                                {...field}
+                                value={field.value ?? ''}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    field.onChange(value === '' ? undefined : parseFloat(value));
+                                }}
+                                />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                    )}
+
+                    {form.watch("billingType") === "hourly" && (
+                        <FormField
+                        control={form.control}
+                        name="billingRate"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Hourly Rate ($)</FormLabel>
+                            <FormControl>
+                                <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="Enter hourly rate"
+                                {...field}
+                                value={field.value ?? ''}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    field.onChange(value === '' ? undefined : parseFloat(value));
+                                }}
+                                />
+                            </FormControl>
+                            <FormMessage />
+                            {field.value && form.getValues("estimatedHours") && (
+                                <FormDescription>
+                                Estimated total: ${(field.value * form.getValues("estimatedHours")!).toLocaleString('en-US', { 
+                                    minimumFractionDigits: 2, 
+                                    maximumFractionDigits: 2 
+                                })}
+                                </FormDescription>
+                            )}
+                            </FormItem>
+                        )}
+                        />
+                    )}
+                    </div>
+                )}
 
                 {/* Form Buttons */}
                 <DialogFooter className="pt-4">
