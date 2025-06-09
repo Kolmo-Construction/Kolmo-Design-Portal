@@ -879,10 +879,12 @@ export const insertMilestoneSchema = createInsertSchema(milestones).omit({
   ]).optional(),
 });
 
+// Update schema for milestones with completion and billing fields
 export const updateMilestoneSchema = insertMilestoneSchema.partial().extend({
   completedAt: z.date().optional(),
   billedAt: z.date().optional(),
   invoiceId: z.number().optional(),
+  completedById: z.number().optional(),
 });
 
 export const insertSelectionSchema = createInsertSchema(selections).omit({

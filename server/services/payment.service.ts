@@ -27,9 +27,9 @@ export class PaymentService {
    */
   calculatePaymentSchedule(quote: Quote): PaymentSchedule {
     const total = parseFloat(quote.total?.toString() || '0');
-    const downPercent = quote.downPaymentPercentage || 30;
-    const milestonePercent = quote.milestonePaymentPercentage || 40;
-    const finalPercent = quote.finalPaymentPercentage || 30;
+    const downPercent = Number(quote.downPaymentPercentage) || 30;
+    const milestonePercent = Number(quote.milestonePaymentPercentage) || 40;
+    const finalPercent = Number(quote.finalPaymentPercentage) || 30;
 
     return {
       downPayment: {

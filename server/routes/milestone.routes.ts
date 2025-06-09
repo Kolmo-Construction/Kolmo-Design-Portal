@@ -78,7 +78,9 @@ router.patch('/api/projects/:projectId/milestones/:milestoneId', isAuthenticated
       throw new HttpError(404, 'Milestone not found');
     }
 
-    const updatedMilestone = await storage.milestones.updateMilestone(milestoneId, req.body);
+    // Validate the update data
+    const validatedData = updateMilestoneSchema.parse(req.body);
+    const updatedMilestone = await storage.milestones.updateMilestone(milestoneId, validatedData);
     res.json(updatedMilestone);
   } catch (error) {
     next(error);
@@ -105,13 +107,14 @@ router.patch('/api/projects/:projectId/milestones/:milestoneId/complete', isAuth
       throw new HttpError(400, 'Milestone is already completed');
     }
 
-    // Update milestone as completed
-    const updatedMilestone = await storage.milestones.updateMilestone(milestoneId, {
+    // Update milestone as completed using proper schema
+    const completionData = updateMilestoneSchema.parse({
       status: 'completed',
       completedAt: new Date(),
       completedById: req.user!.id,
       actualDate: new Date(),
     });
+    const updatedMilestone = await storage.milestones.updateMilestone(milestoneId, completionData);
 
     res.json(updatedMilestone);
   } catch (error) {
@@ -160,11 +163,12 @@ router.post('/api/projects/:projectId/milestones/:milestoneId/bill', isAuthentic
       milestone.title
     );
 
-    // Update milestone as billed
-    await storage.milestones.updateMilestone(milestoneId, {
+    // Update milestone as billed using proper schema
+    const billingData = updateMilestoneSchema.parse({
       billedAt: new Date(),
       invoiceId: invoice.id,
     });
+    await storage.milestones.updateMilestone(milestoneId, billingData);
 
     res.json({
       message: 'Milestone billing triggered successfully',
