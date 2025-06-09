@@ -102,14 +102,9 @@ export class PaymentService {
         paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
       });
 
-      // Send confirmation email with payment link
-      await this.sendPaymentInstructions(customerInfo.email, {
-        customerName: customerInfo.name,
-        projectName: quote.title,
-        amount: paymentSchedule.downPayment.amount,
-        paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
-        dueDate: paymentSchedule.downPayment.dueDate,
-      });
+      // Note: For down payments, we don't send payment instructions immediately.
+      // The customer will complete payment through the UI, and the webhook will
+      // send the project welcome email upon successful payment.
 
       return {
         project,
@@ -545,6 +540,84 @@ export class PaymentService {
   }
 
   /**
+   * Send project welcome email after successful down payment
+   */
+  private async sendProjectWelcomeEmail(projectId: number): Promise<void> {
+    try {
+      const project = await storage.projects.getProjectById(projectId);
+      if (!project) {
+        console.error(`Project ${projectId} not found for welcome email`);
+        return;
+      }
+
+      if (!project.customerEmail || !project.customerName) {
+        console.error('Customer email or name missing for project welcome email');
+        return;
+      }
+
+      const subject = `Welcome to Your Project - ${project.name}`;
+      
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #3d4552;">Welcome to Your Project!</h2>
+          
+          <p>Dear ${project.customerName},</p>
+          
+          <p>Thank you for your payment! Your project <strong>${project.name}</strong> is now officially underway.</p>
+          
+          <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6;">
+            <h3 style="margin: 0 0 10px 0; color: #1e40af;">Payment Confirmed</h3>
+            <p><strong>Project Name:</strong> ${project.name}</p>
+            <p><strong>Down Payment:</strong> Received Successfully</p>
+            <p><strong>Project Status:</strong> Planning Phase</p>
+            <p><strong>Total Budget:</strong> $${parseFloat(project.totalBudget || '0').toFixed(2)}</p>
+          </div>
+          
+          <div style="background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
+            <h3 style="margin: 0 0 10px 0; color: #047857;">Next Steps</h3>
+            <ul style="margin: 0; padding-left: 20px;">
+              <li>Project planning and scheduling will begin within 2 business days</li>
+              <li>You'll receive regular progress updates via email</li>
+              <li>Your project manager will contact you to schedule the kick-off meeting</li>
+              <li>Milestone payments will be requested as work progresses</li>
+            </ul>
+          </div>
+          
+          <div style="background: #fefce8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #facc15;">
+            <h3 style="margin: 0 0 10px 0; color: #a16207;">Project Dashboard Access</h3>
+            <p>You can monitor your project progress and communicate with our team through your project dashboard.</p>
+            <p>We'll send you login details shortly.</p>
+          </div>
+          
+          <p>We're excited to work with you and look forward to bringing your vision to life!</p>
+          
+          <p>If you have any questions, please don't hesitate to contact us.</p>
+          
+          <p>Best regards,<br>The Kolmo Construction Team</p>
+          
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+          <p style="font-size: 12px; color: #666; text-align: center;">
+            This email confirms your payment and project initiation.<br>
+            Kolmo Construction | Building Excellence Together
+          </p>
+        </div>
+      `;
+
+      await sendEmail({
+        to: project.customerEmail,
+        subject,
+        html,
+        fromName: 'Kolmo Construction',
+      });
+      
+      console.log(`Project welcome email sent to ${project.customerEmail} for project ${project.name}`);
+    } catch (error) {
+      console.error('Error sending project welcome email:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Send payment confirmation email for milestone/final payments
    */
   private async sendPaymentConfirmationEmail(invoice: Invoice, paymentAmount: number): Promise<void> {
@@ -612,53 +685,7 @@ export class PaymentService {
     });
   }
 
-  /**
-   * Send project welcome email after down payment
-   */
-  private async sendProjectWelcomeEmail(projectId: number): Promise<void> {
-    const project = await storage.projects.getProjectById(projectId);
-    if (!project || !project.customerEmail) return;
 
-    const subject = `Welcome to Your Project - ${project.name}`;
-    
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #3d4552;">Welcome to Your Project!</h2>
-        
-        <p>Dear ${project.customerName},</p>
-        
-        <p>Thank you for your payment! Your project <strong>${project.name}</strong> is now officially underway.</p>
-        
-        <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="margin: 0 0 10px 0; color: #3d4552;">Next Steps</h3>
-          <ul>
-            <li>Project planning and scheduling will begin within 2 business days</li>
-            <li>You'll receive regular progress updates via email</li>
-            <li>Access your project dashboard at any time to view progress</li>
-            <li>Your project manager will contact you to schedule the kick-off meeting</li>
-          </ul>
-        </div>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${process.env.BASE_URL || 'http://localhost:5000'}/projects/${project.id}" 
-             style="background: #db973c; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
-            View Project Dashboard
-          </a>
-        </div>
-        
-        <p>We're excited to work with you and bring your vision to life!</p>
-        
-        <p>Best regards,<br>The Kolmo Construction Team</p>
-      </div>
-    `;
-
-    await sendEmail({
-      to: project.customerEmail,
-      subject,
-      html,
-      fromName: 'Kolmo Construction',
-    });
-  }
 }
 
 export const paymentService = new PaymentService();
