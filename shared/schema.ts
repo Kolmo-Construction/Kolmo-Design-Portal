@@ -173,7 +173,7 @@ export const invoices = pgTable("invoices", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id").references(() => projects.id),
   quoteId: integer("quote_id").references(() => quotes.id), // Link to originating quote
-  milestoneId: integer("milestone_id").references(() => milestones.id, { onDelete: 'set null' }), // Link to milestone that generated this invoice
+  milestoneId: integer("milestone_id"), // Link to milestone that generated this invoice
   invoiceNumber: text("invoice_number").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
@@ -284,7 +284,7 @@ export const milestones = pgTable("milestones", {
   completedAt: timestamp("completed_at"),
   
   // Billing tracking
-  invoiceId: integer("invoice_id").references(() => invoices.id), // Link to generated invoice when billed
+  invoiceId: integer("invoice_id"), // Link to generated invoice when billed
   billedAt: timestamp("billed_at"),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -820,32 +820,12 @@ export const insertInvoiceSchema = createInsertSchema(invoices).omit({
   id: true,
   createdAt: true,
   updatedAt: true
-}).extend({
-  issueDate: z.union([z.string().datetime(), z.date()]),
-  dueDate: z.union([z.string().datetime(), z.date()]),
-  amount: z.union([
-    z.string().transform(val => parseFloat(val.replace(/[^0-9.]/g, ''))).refine(n => !isNaN(n) && n > 0, { message: "Amount must be a positive number" }),
-    z.number().min(0.01, "Amount must be a positive number")
-  ]),
-  billingAddress: z.object({
-    street: z.string().optional(),
-    city: z.string().optional(),
-    state: z.string().optional(),
-    zipCode: z.string().optional(),
-    country: z.string().optional()
-  }).optional()
 });
 
 export const insertPaymentSchema = createInsertSchema(payments).omit({
   id: true,
   createdAt: true,
   updatedAt: true
-}).extend({
-  paymentDate: z.union([z.string().datetime(), z.date()]),
-  amount: z.union([
-    z.string().transform(val => parseFloat(val.replace(/[^0-9.]/g, ''))).refine(n => !isNaN(n) && n > 0, { message: "Amount must be a positive number" }),
-    z.number().min(0.01, "Amount must be a positive number")
-  ])
 });
 
 export const insertMessageSchema = createInsertSchema(messages).omit({
