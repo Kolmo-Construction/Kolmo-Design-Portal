@@ -8,11 +8,12 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 
-// Load Stripe
-if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
+// Load Stripe - initialize once and reuse
+const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+if (!stripePublicKey) {
   throw new Error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
 }
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+const stripePromise = loadStripe(stripePublicKey);
 
 interface PaymentInfo {
   amount: number;
@@ -252,26 +253,29 @@ export default function PaymentPage() {
           </Card>
 
           {/* Stripe Payment Form */}
-          <Elements 
-            stripe={stripePromise} 
-            options={{ 
-              clientSecret: clientSecret,
-              appearance: {
-                theme: 'stripe',
-                variables: {
-                  colorPrimary: '#10b981', // Green theme to match the design
+          {clientSecret && (
+            <Elements 
+              key={clientSecret} // Use key to prevent prop change warnings
+              stripe={stripePromise} 
+              options={{ 
+                clientSecret: clientSecret,
+                appearance: {
+                  theme: 'stripe',
+                  variables: {
+                    colorPrimary: '#10b981', // Green theme to match the design
+                  },
                 },
-              },
-            }}
-          >
-            <PaymentForm
-              clientSecret={clientSecret}
-              amount={paymentInfo.amount}
-              description={paymentInfo.description}
-              onSuccess={handlePaymentSuccess}
-              onError={handlePaymentError}
-            />
-          </Elements>
+              }}
+            >
+              <PaymentForm
+                clientSecret={clientSecret}
+                amount={paymentInfo.amount}
+                description={paymentInfo.description}
+                onSuccess={handlePaymentSuccess}
+                onError={handlePaymentError}
+              />
+            </Elements>
+          )}
         </div>
       </div>
     </div>

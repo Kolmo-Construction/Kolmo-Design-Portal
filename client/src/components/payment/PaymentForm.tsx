@@ -55,16 +55,19 @@ export function PaymentForm({
       } else if (paymentIntent && paymentIntent.status === 'succeeded') {
         // Call our backend to handle the successful payment
         try {
+          console.log('Sending payment intent ID to backend:', paymentIntent.id);
           const result = await apiRequest('POST', '/api/payment-success', {
             paymentIntentId: paymentIntent.id,
           });
 
+          console.log('Backend response:', result);
+          
           toast({
             title: "Payment Successful",
             description: "Your payment has been processed successfully!",
           });
           
-          onSuccess?.(result);
+          onSuccess?.(paymentIntent);
         } catch (backendError) {
           console.error('Backend processing error:', backendError);
           toast({

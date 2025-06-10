@@ -86,9 +86,14 @@ router.post('/quotes/:id/accept-payment', async (req, res, next) => {
  */
 router.post('/payment-success', async (req, res, next) => {
   try {
+    console.log('[payment-success] Full request body:', JSON.stringify(req.body, null, 2));
+    console.log('[payment-success] Request headers:', JSON.stringify(req.headers, null, 2));
+    
     const { paymentIntentId } = req.body;
+    console.log('[payment-success] Extracted paymentIntentId:', paymentIntentId);
 
     if (!paymentIntentId) {
+      console.log('[payment-success] Missing paymentIntentId in request body');
       throw new HttpError(400, 'Payment intent ID is required');
     }
 

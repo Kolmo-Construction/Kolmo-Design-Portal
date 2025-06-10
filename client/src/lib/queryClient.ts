@@ -29,7 +29,9 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
-): Promise<Response> {
+): Promise<any> {
+  console.log(`[apiRequest] ${method} ${url}`, data ? JSON.stringify(data) : 'no body');
+  
   const res = await fetch(url, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
@@ -37,9 +39,16 @@ export async function apiRequest(
     credentials: "include",
   });
 
-  // Use the modified function here as well for consistency if needed elsewhere
-  // Or keep the original check if apiRequest errors should be handled differently
   await throwIfResNotOk(res);
+  
+  // Parse JSON response if it exists
+  const contentType = res.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    const result = await res.json();
+    console.log(`[apiRequest] Response:`, result);
+    return result;
+  }
+  
   return res;
 }
 
