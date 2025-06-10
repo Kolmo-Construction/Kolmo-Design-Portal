@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { storage } from '../storage';
 import { stripeService } from '../services/stripe.service';
-import { HttpError } from '../lib/http-error';
+import { HttpError } from '../errors';
 
 const router = Router();
 
@@ -60,8 +60,16 @@ router.get('/payment/details/:clientSecret', async (req, res, next) => {
       });
     }
 
+    const invoiceIdNum = parseInt(invoiceId, 10);
+    if (isNaN(invoiceIdNum)) {
+      return res.json({
+        isValid: false,
+        error: 'Invalid invoice ID'
+      });
+    }
+
     // Fetch invoice from database
-    const invoice = await storage.invoices.getInvoiceById(parseInt(invoiceId, 10));
+    const invoice = await storage.invoices.getInvoiceById(invoiceIdNum);
     if (!invoice) {
       return res.json({
         isValid: false,
@@ -70,7 +78,14 @@ router.get('/payment/details/:clientSecret', async (req, res, next) => {
     }
 
     // Get project details
-    const project = await storage.projects.getProjectById(invoice.projectId);
+    if (!invoice.projectId) {
+      return res.json({
+        isValid: false,
+        error: 'Project information not found for this invoice'
+      });
+    }
+    
+    const project = await storage.projects.getProjectById(invoice.projectId!);
     if (!project) {
       return res.json({
         isValid: false,

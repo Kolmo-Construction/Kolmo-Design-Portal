@@ -173,6 +173,9 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // Mount Payment routes (mixed auth - public payment processing, admin invoice management)
   app.use("/api", paymentRoutes);
+  
+  // Mount Payment Details routes (public - for customer payment links)
+  app.use("/api", paymentDetailsRouter);
 
   // Mount Project Payment Summary routes (admin only)
   app.use("/api/projects", isAuthenticated, projectPaymentRoutes);
