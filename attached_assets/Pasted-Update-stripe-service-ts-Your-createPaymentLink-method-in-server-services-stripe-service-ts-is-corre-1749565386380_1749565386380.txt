@@ -1,0 +1,127 @@
+Update stripe.service.ts
+Your createPaymentLink method in server/services/stripe.service.ts is correctly set up. Just ensure your BASE_URL environment variable is correctly configured, as it's used for the successUrl.
+
+server/services/stripe.service.ts
+
+TypeScript
+
+// ... (imports)
+
+export class StripeService {
+  // ... (other methods)
+
+  /**
+   * Create a payment link for invoice payments
+   */
+  async createPaymentLink(options: {
+    amount: number;
+    description: string;
+    invoiceId: number;
+    customerEmail?: string;
+    successUrl?: string;
+  }): Promise<Stripe.PaymentLink> {
+    try {
+      const paymentLink = await stripe.paymentLinks.create({
+        line_items: [
+          {
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: options.description,
+              },
+              unit_amount: Math.round(options.amount),
+            },
+            quantity: 1,
+          },
+        ],
+        metadata: {
+          invoiceId: options.invoiceId.toString(),
+        },
+        after_completion: {
+          type: 'redirect',
+          redirect: {
+            url: options.successUrl || `${process.env.BASE_URL || 'http://localhost:5000'}/payment-success`,
+          },
+        },
+      });
+
+      return paymentLink;
+    } catch (error: any) {
+      console.error('Error creating payment link:', error);
+      throw new HttpError(400, `Payment link creation failed: ${error.message}`);
+    }
+  }
+
+  // ... (other methods)
+}
+
+export const stripeService = new StripeService();
+2. Modify payment.service.ts
+Now, let's adjust sendDraftInvoice in server/services/payment.service.ts to use the createPaymentLink method instead of createPaymentIntent.
+
+server/services/payment.service.ts
+
+TypeScript
+
+// ... (imports)
+import { stripeService } from './stripe.service'; // Ensure this is imported
+
+// ... (inside PaymentService class)
+
+  /**
+   * Finalizes a draft invoice, generates a payment link, and sends it.
+   */
+  async sendDraftInvoice(invoiceId: number): Promise<Invoice | null> {
+    const invoice = await storage.invoices.getInvoiceById(invoiceId);
+
+    if (!invoice) {
+      throw new HttpError(404, 'Invoice not found.');
+    }
+    if (invoice.status !== 'draft') {
+      throw new HttpError(400, 'Invoice is not in draft status and cannot be sent.');
+    }
+
+    // *** MODIFICATION START ***
+    // Instead of creating a PaymentIntent, create a PaymentLink
+    const paymentLink = await stripeService.createPaymentLink({
+      amount: Math.round(parseFloat(invoice.amount) * 100), // Amount in cents
+      description: invoice.description || `Payment for Invoice #${invoice.invoiceNumber}`,
+      invoiceId: invoice.id,
+      customerEmail: invoice.customerEmail || undefined,
+      successUrl: `${process.env.BASE_URL || 'http://localhost:5000'}/payment-success?invoice_id=${invoice.id}`,
+    });
+
+    if (!paymentLink || !paymentLink.url) {
+      throw new HttpError(500, 'Failed to create Stripe Payment Link.');
+    }
+
+    // Update the invoice to 'pending' and add the PaymentLink URL
+    const updatedInvoice = await storage.invoices.updateInvoice(invoice.id, {
+      status: 'pending',
+      paymentLink: paymentLink.url, // Store the actual payment link URL
+      issueDate: new Date(), // Update issue date to when it was sent
+    });
+    // *** MODIFICATION END ***
+
+    if (!updatedInvoice) {
+      throw new HttpError(500, 'Failed to update invoice before sending.');
+    }
+
+    // Send the payment instruction email with the correct link
+    if (updatedInvoice.customerEmail) {
+      await this.sendPaymentInstructions(updatedInvoice.customerEmail, {
+        customerName: updatedInvoice.customerName || 'Customer',
+        projectName: updatedInvoice.description || 'Your Project',
+        amount: parseFloat(updatedInvoice.amount),
+        paymentLink: paymentLink.url, // Use the correct payment link
+        dueDate: new Date(updatedInvoice.dueDate),
+        paymentType: 'milestone',
+      });
+    }
+
+    return updatedInvoice;
+  }
+Summary of Changes:
+payment.service.ts: The sendDraftInvoice function is updated to call stripeService.createPaymentLink instead of stripeService.createPaymentIntent.
+Database: The invoices table now stores the full paymentLink.url from Stripe. The stripePaymentIntentId can still be useful for reconciliation but is no longer part of the link generation.
+Email: The sendPaymentInstructions method will now receive and use the correct, functioning payment link.
