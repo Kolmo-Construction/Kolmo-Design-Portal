@@ -60,7 +60,7 @@ export class PaymentService {
   }): Promise<{
     project: Project;
     downPaymentInvoice: Invoice;
-    paymentLink: any;
+    paymentIntent: any;
   }> {
     try {
       // Get quote details
@@ -83,18 +83,24 @@ export class PaymentService {
         customerInfo
       );
 
-      // Create Stripe payment link for down payment
-      const paymentLink = await stripeService.createPaymentLink({
+      // Create Stripe payment intent for down payment
+      const paymentIntent = await stripeService.createPaymentIntent({
         amount: Math.round(paymentSchedule.downPayment.amount * 100), // Convert to cents
-        description: `Down payment for ${quote.title} - Quote #${quote.quoteNumber}`,
-        invoiceId: downPaymentInvoice.id,
         customerEmail: customerInfo.email,
-        successUrl: `${process.env.BASE_URL || 'http://localhost:5000'}/payment-success`,
+        customerName: customerInfo.name,
+        description: `Down payment for ${quote.title} - Quote #${quote.quoteNumber}`,
+        metadata: {
+          quoteId: quote.id.toString(),
+          invoiceId: downPaymentInvoice.id.toString(),
+          projectId: project.id.toString(),
+          paymentType: 'down_payment',
+        },
       });
 
-      // Update invoice with the actual payment link URL
+      // Update invoice with Stripe payment intent ID
       await storage.invoices.updateInvoice(downPaymentInvoice.id, {
-        paymentLink: paymentLink.url,
+        stripePaymentIntentId: paymentIntent.id,
+        paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
       });
 
       // Note: For down payments, we don't send payment instructions immediately.
@@ -104,7 +110,7 @@ export class PaymentService {
       return {
         project,
         downPaymentInvoice,
-        paymentLink,
+        paymentIntent,
       };
     } catch (error) {
       console.error('Error processing quote acceptance:', error);
@@ -345,18 +351,23 @@ export class PaymentService {
       throw new Error('Failed to create milestone invoice');
     }
 
-    // Create Stripe payment link for milestone payment
-    const paymentLink = await stripeService.createPaymentLink({
+    // Create payment intent for milestone payment
+    const paymentIntent = await stripeService.createPaymentIntent({
       amount: Math.round(paymentSchedule.milestonePayment.amount * 100),
-      description: `Milestone payment for ${project.name}`,
-      invoiceId: invoice.id,
       customerEmail: project.customerEmail || undefined,
-      successUrl: `${process.env.BASE_URL || 'http://localhost:5000'}/payment-success`,
+      customerName: project.customerName || undefined,
+      description: `Milestone payment for ${project.name}`,
+      metadata: {
+        projectId: project.id.toString(),
+        invoiceId: invoice.id.toString(),
+        paymentType: 'milestone',
+      },
     });
 
-    // Update invoice with the actual payment link URL
+    // Update invoice with payment intent
     await storage.invoices.updateInvoice(invoice.id, {
-      paymentLink: paymentLink.url,
+      stripePaymentIntentId: paymentIntent.id,
+      paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
     });
 
     // Send milestone payment email
@@ -365,7 +376,7 @@ export class PaymentService {
         customerName: project.customerName || 'Customer',
         projectName: project.name,
         amount: paymentSchedule.milestonePayment.amount,
-        paymentLink: paymentLink.url,
+        paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
         dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         paymentType: 'milestone',
       });
@@ -486,18 +497,23 @@ export class PaymentService {
       throw new Error('Failed to create final invoice');
     }
 
-    // Create Stripe payment link for final payment
-    const paymentLink = await stripeService.createPaymentLink({
+    // Create payment intent for final payment
+    const paymentIntent = await stripeService.createPaymentIntent({
       amount: Math.round(paymentSchedule.finalPayment.amount * 100),
-      description: `Final payment for ${project.name}`,
-      invoiceId: invoice.id,
       customerEmail: project.customerEmail || undefined,
-      successUrl: `${process.env.BASE_URL || 'http://localhost:5000'}/payment-success`,
+      customerName: project.customerName || undefined,
+      description: `Final payment for ${project.name}`,
+      metadata: {
+        projectId: project.id.toString(),
+        invoiceId: invoice.id.toString(),
+        paymentType: 'final',
+      },
     });
 
-    // Update invoice with the actual payment link URL
+    // Update invoice with payment intent
     await storage.invoices.updateInvoice(invoice.id, {
-      paymentLink: paymentLink.url,
+      stripePaymentIntentId: paymentIntent.id,
+      paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
     });
 
     // Send final payment email
@@ -506,7 +522,7 @@ export class PaymentService {
         customerName: project.customerName || 'Customer',
         projectName: project.name,
         amount: paymentSchedule.finalPayment.amount,
-        paymentLink: paymentLink.url,
+        paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
         dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         paymentType: 'final',
       });

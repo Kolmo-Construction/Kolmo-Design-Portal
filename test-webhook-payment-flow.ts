@@ -34,27 +34,26 @@ async function testWebhookPaymentFlow() {
     console.log(`   Project Name: ${result.project.name}`);
     console.log(`   Invoice ID: ${result.downPaymentInvoice.id}`);
     console.log(`   Invoice Number: ${result.downPaymentInvoice.invoiceNumber}`);
-    console.log(`   Payment Link URL: ${result.paymentLink.url}`);
+    console.log(`   Payment Intent ID: ${result.paymentIntent.id}`);
     console.log(`   Amount: $${result.downPaymentInvoice.amount}`);
     
-    // 3. Verify the invoice has the payment link
+    // 3. Verify the invoice has the stripe payment intent ID
     console.log('\n3. Verifying invoice setup...');
     const invoice = await storage.invoices.getInvoiceById(result.downPaymentInvoice.id);
-    if (invoice?.paymentLink) {
-      console.log(`✅ Invoice has payment link: ${invoice.paymentLink}`);
+    if (invoice?.stripePaymentIntentId) {
+      console.log(`✅ Invoice has Stripe Payment Intent ID: ${invoice.stripePaymentIntentId}`);
     } else {
-      console.log('❌ Invoice missing payment link');
+      console.log('❌ Invoice missing Stripe Payment Intent ID');
       return;
     }
     
     // 4. Test the webhook handler directly (simulating Stripe webhook)
     console.log('\n4. Testing webhook handler directly...');
-    console.log(`   Simulating webhook for payment link: ${result.paymentLink.url}`);
+    console.log(`   Simulating webhook for payment intent: ${result.paymentIntent.id}`);
     
     try {
-      // Note: Payment link webhooks work differently - they provide invoice metadata
-      // For testing purposes, we'll simulate successful payment completion
-      console.log('✅ Payment link created successfully - webhook will handle completion');
+      await paymentService.handlePaymentSuccess(result.paymentIntent.id);
+      console.log('✅ Webhook handler executed successfully');
       
       // 5. Verify the results
       console.log('\n5. Verifying payment processing results...');

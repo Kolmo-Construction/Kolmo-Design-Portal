@@ -37,12 +37,6 @@ router.post('/quotes/:id/accept-payment', async (req, res, next) => {
       throw new HttpError(400, 'Customer name and email are required');
     }
 
-    // Get quote details first
-    const quote = await storage.quotes.getQuoteById(quoteId);
-    if (!quote) {
-      throw new HttpError(404, 'Quote not found');
-    }
-
     // Use PaymentService to process quote acceptance
     const result = await paymentService.processQuoteAcceptance(quoteId, {
       name: customerName,
@@ -59,8 +53,15 @@ router.post('/quotes/:id/accept-payment', async (req, res, next) => {
     });
 
     res.json({
-      paymentLink: result.paymentLink.url,
+      clientSecret: result.paymentIntent.client_secret,
       amount: parseFloat(result.downPaymentInvoice.amount.toString()),
+      downPaymentPercentage: result.paymentIntent.metadata.downPaymentPercentage || '30',
+      quote: {
+        id: quoteId,
+        title: result.project.name,
+        quoteNumber: result.paymentIntent.metadata.quoteNumber,
+        total: result.project.totalBudget,
+      },
       project: {
         id: result.project.id,
         name: result.project.name,
@@ -71,12 +72,6 @@ router.post('/quotes/:id/accept-payment', async (req, res, next) => {
         invoiceNumber: result.downPaymentInvoice.invoiceNumber,
         amount: result.downPaymentInvoice.amount,
         status: result.downPaymentInvoice.status,
-      },
-      quote: {
-        id: quoteId,
-        title: quote.title,
-        quoteNumber: quote.quoteNumber,
-        total: quote.total,
       },
     });
   } catch (error) {

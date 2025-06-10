@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useRoute } from 'wouter';
+import { Elements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
+import { PaymentForm } from '@/components/payment/PaymentForm';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,6 +12,13 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { Loader2, CheckCircle, FileText, DollarSign } from 'lucide-react';
 
+// Make sure to call `loadStripe` outside of a component's render to avoid
+// recreating the `Stripe` object on every render.
+if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
+  throw new Error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
+}
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+
 interface Quote {
   id: number;
   title: string;
@@ -17,31 +27,13 @@ interface Quote {
   total: number;
   downPaymentPercentage: number;
   status: string;
-  customerName?: string;
-  customerEmail?: string;
-  customerPhone?: string;
 }
 
 interface PaymentData {
-  paymentLink: string;
+  clientSecret: string;
   amount: number;
-  project: {
-    id: number;
-    name: string;
-    status: string;
-  };
-  invoice: {
-    id: number;
-    invoiceNumber: string;
-    amount: string;
-    status: string;
-  };
-  quote: {
-    id: number;
-    title: string;
-    quoteNumber: string;
-    total: number;
-  };
+  downPaymentPercentage: number;
+  quote: Quote;
 }
 
 export default function QuotePaymentPage() {
@@ -141,6 +133,22 @@ export default function QuotePaymentPage() {
     } finally {
       setIsCreatingPayment(false);
     }
+  };
+
+  const handlePaymentSuccess = (result: any) => {
+    setPaymentCompleted(true);
+    toast({
+      title: "Payment Successful!",
+      description: "Your project has been created and you will receive a confirmation email shortly.",
+    });
+  };
+
+  const handlePaymentError = (error: string) => {
+    toast({
+      title: "Payment Failed",
+      description: error,
+      variant: "destructive",
+    });
   };
 
   const formatCurrency = (amount: number) => {
@@ -365,55 +373,23 @@ export default function QuotePaymentPage() {
               </Card>
             ) : (
               paymentData && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <DollarSign className="h-5 w-5" />
-                      Ready for Payment
-                    </CardTitle>
-                    <CardDescription>
-                      Your quote has been accepted and a project has been created. Click below to complete your down payment.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-green-800">Down Payment Amount:</span>
-                        <span className="text-2xl font-bold text-green-600">
-                          ${paymentData.amount.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2 text-sm text-gray-600">
-                      <div className="flex justify-between">
-                        <span>Project:</span>
-                        <span className="font-medium">{paymentData.project.name}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Invoice:</span>
-                        <span className="font-medium">{paymentData.invoice.invoiceNumber}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Total Project Value:</span>
-                        <span className="font-medium">${paymentData.quote.total.toFixed(2)}</span>
-                      </div>
-                    </div>
-
-                    <Button 
-                      onClick={() => window.open(paymentData.paymentLink, '_blank')}
-                      className="w-full"
-                      size="lg"
-                    >
-                      <DollarSign className="mr-2 h-4 w-4" />
-                      Complete Payment
-                    </Button>
-                    
-                    <p className="text-xs text-center text-gray-500">
-                      You will be redirected to Stripe's secure payment page
-                    </p>
-                  </CardContent>
-                </Card>
+                <Elements 
+                  stripe={stripePromise} 
+                  options={{ 
+                    clientSecret: paymentData.clientSecret,
+                    appearance: {
+                      theme: 'stripe',
+                    },
+                  }}
+                >
+                  <PaymentForm
+                    clientSecret={paymentData.clientSecret}
+                    amount={paymentData.amount}
+                    description={`Down payment for ${quote.title}`}
+                    onSuccess={handlePaymentSuccess}
+                    onError={handlePaymentError}
+                  />
+                </Elements>
               )
             )}
           </div>
