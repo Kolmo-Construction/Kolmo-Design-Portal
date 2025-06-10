@@ -160,29 +160,6 @@ router.post('/payment-success', async (req, res, next) => {
 });
 
 /**
- * Get public details of a payment intent
- */
-router.get('/payment-intent/:paymentIntentId', async (req, res, next) => {
-  try {
-    if (!stripe) {
-      throw new HttpError(503, 'Payment processing temporarily unavailable');
-    }
-
-    const { paymentIntentId } = req.params;
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-
-    res.json({
-      amount: paymentIntent.amount,
-      currency: paymentIntent.currency,
-      description: paymentIntent.description,
-    });
-
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
  * Create payment intent for milestone payments
  */
 router.post('/projects/:id/milestone-payment', async (req, res, next) => {

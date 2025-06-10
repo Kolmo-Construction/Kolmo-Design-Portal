@@ -22,7 +22,6 @@ import DevTools from "@/pages/dev-tools";
 import Quotes from "@/pages/quotes";
 import CustomerQuote from "@/pages/customer-quote";
 import QuotePaymentPage from "@/pages/quote-payment";
-import PublicPaymentPage from "@/pages/PublicPaymentPage";
 import InvoiceDetailPage from "@/pages/InvoiceDetailPage";
 
 import { ProtectedRoute } from "./lib/protected-route";
@@ -62,15 +61,6 @@ function Router() {
       <Route path="/quote/:token" component={CustomerQuote} />
       <Route path="/customer/quote/:token" component={CustomerQuote} />
       <Route path="/quote-payment/:id" component={QuotePaymentPage} />
-      
-      {/* Public payment routes */}
-      <Route path="/payment/:clientSecret" component={PublicPaymentPage} />
-      <Route path="/payment-success" component={() => (
-        <div className="text-center p-10">
-          <h1 className="text-2xl font-bold">Payment Successful!</h1>
-          <p>Thank you for your payment. Your project manager has been notified.</p>
-        </div>
-      )} />
 
       {/* Development-only routes */}
       {import.meta.env.DEV && (
