@@ -217,6 +217,61 @@ router.post('/projects/:id/milestone-payment', async (req, res, next) => {
 });
 
 /**
+ * Get payment information by client secret
+ */
+router.get('/info/:clientSecret', async (req, res, next) => {
+  try {
+    if (!stripe) {
+      throw new HttpError(503, 'Payment processing temporarily unavailable');
+    }
+
+    const clientSecret = req.params.clientSecret;
+    
+    // Extract payment intent ID from client secret
+    const paymentIntentId = clientSecret.split('_secret_')[0];
+    
+    if (!paymentIntentId) {
+      throw new HttpError(400, 'Invalid client secret format');
+    }
+
+    // Retrieve payment intent from Stripe
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    
+    if (!paymentIntent) {
+      throw new HttpError(404, 'Payment intent not found');
+    }
+
+    // Get associated invoice from database using payment intent ID
+    const invoice = await storage.invoices.getInvoiceByPaymentIntentId(paymentIntentId);
+    
+    if (!invoice) {
+      throw new HttpError(404, 'Associated invoice not found');
+    }
+
+    // Get project information if available
+    let projectName = 'Your Project';
+    if (invoice.projectId) {
+      const project = await storage.projects.getProjectById(invoice.projectId);
+      if (project) {
+        projectName = project.name;
+      }
+    }
+
+    const paymentInfo = {
+      amount: paymentIntent.amount / 100, // Convert from cents to dollars
+      description: paymentIntent.description || invoice.description || 'Payment',
+      customerName: invoice.customerName || undefined,
+      projectName: projectName,
+      invoiceNumber: invoice.invoiceNumber,
+    };
+
+    res.json(paymentInfo);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * Send project welcome email after down payment
  */
 async function sendProjectWelcomeEmail(
