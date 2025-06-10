@@ -4,6 +4,7 @@ import { HttpError } from '../errors';
 import { sendEmail } from '../email';
 import { insertInvoiceSchema } from '@shared/schema';
 import type { Quote, Invoice, Project } from '@shared/schema';
+import type Stripe from 'stripe';
 
 export interface PaymentSchedule {
   downPayment: {
@@ -597,52 +598,84 @@ export class PaymentService {
   }
 
   /**
-   * Handle successful payment webhook - This is the single source of truth for payment processing
+   * Handle successful payment webhook - supports both Payment Links and Payment Intents
+   * @param sessionOrPaymentIntentId - Either a Stripe Checkout Session object or payment intent ID string
    */
-  async handlePaymentSuccess(paymentIntentId: string): Promise<void> {
+  async handlePaymentSuccess(sessionOrPaymentIntentId: Stripe.Checkout.Session | string): Promise<void> {
     try {
-      const paymentIntent = await stripeService.getPaymentIntent(paymentIntentId);
-      
-      if (paymentIntent.status === 'succeeded') {
-        const metadata = paymentIntent.metadata;
-        const invoiceId = metadata.invoiceId ? parseInt(metadata.invoiceId) : null;
+      let invoiceId: number | null = null;
+      let paymentAmount: number = 0;
+      let reference: string = '';
+      let stripePaymentIntentId: string | undefined;
+      let paymentType: string | undefined;
+
+      // Check if this is a Checkout Session (Payment Link) or Payment Intent ID (legacy)
+      if (typeof sessionOrPaymentIntentId === 'object' && sessionOrPaymentIntentId.object === 'checkout.session') {
+        // This is a Payment Link checkout session
+        const session = sessionOrPaymentIntentId;
+        invoiceId = session.metadata?.invoiceId ? parseInt(session.metadata.invoiceId, 10) : null;
+        paymentAmount = (session.amount_total ?? 0) / 100; // Amount is in cents
+        reference = session.id;
+        stripePaymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : undefined;
+        paymentType = 'milestone'; // Payment Links are primarily used for milestone payments
         
-        // Find the invoice using the ID from metadata, which should now reliably exist
-        if (invoiceId) {
-          const invoice = await storage.invoices.getInvoiceById(invoiceId);
-
-          if (invoice && invoice.status !== 'paid') {
-            // Update invoice status to paid
-            await storage.invoices.updateInvoice(invoiceId, { status: 'paid' as const });
-
-            // Record the payment
-            const paymentAmount = paymentIntent.amount / 100; // Convert from cents
-            const paymentData = {
-              invoiceId: invoiceId,
-              amount: paymentAmount.toFixed(2),
-              paymentDate: new Date(),
-              paymentMethod: 'stripe',
-              reference: paymentIntent.id,
-              stripePaymentIntentId: paymentIntent.id,
-              stripeChargeId: paymentIntent.latest_charge as string,
-              status: 'succeeded',
-            };
-            await storage.invoices.recordPayment(paymentData);
-            
-            console.log(`Payment successful for invoice ${invoiceId}, amount: $${paymentAmount}`);
-            
-            // Send appropriate confirmation email
-            if (metadata.paymentType === 'down_payment' && invoice.projectId) {
-              await this.sendProjectWelcomeEmail(invoice.projectId);
-              console.log(`Project welcome email sent for project ${invoice.projectId}`);
-            } else {
-              await this.sendPaymentConfirmationEmail(invoice, paymentAmount);
-              console.log(`Payment confirmation email sent for invoice ${invoice.invoiceNumber}`);
-            }
-          } else {
-            console.log(`[Webhook] Invoice ${invoiceId} already marked as paid or not found. Skipping.`);
-          }
+        console.log(`[Webhook] Processing Payment Link session: ${session.id}`);
+      } else if (typeof sessionOrPaymentIntentId === 'string') {
+        // This is a legacy Payment Intent ID
+        const paymentIntent = await stripeService.getPaymentIntent(sessionOrPaymentIntentId);
+        
+        if (paymentIntent.status !== 'succeeded') {
+          console.log(`[Webhook] Payment Intent ${sessionOrPaymentIntentId} not succeeded: ${paymentIntent.status}`);
+          return;
         }
+
+        const metadata = paymentIntent.metadata;
+        invoiceId = metadata.invoiceId ? parseInt(metadata.invoiceId) : null;
+        paymentAmount = paymentIntent.amount / 100; // Convert from cents
+        reference = paymentIntent.id;
+        stripePaymentIntentId = paymentIntent.id;
+        paymentType = metadata.paymentType;
+        
+        console.log(`[Webhook] Processing Payment Intent: ${paymentIntent.id}`);
+      } else {
+        console.error('[Webhook] Invalid payment data received:', sessionOrPaymentIntentId);
+        return;
+      }
+
+      if (invoiceId) {
+        const invoice = await storage.invoices.getInvoiceById(invoiceId);
+
+        if (invoice && invoice.status !== 'paid') {
+          // Update invoice status to paid
+          await storage.invoices.updateInvoice(invoiceId, { status: 'paid' as const });
+
+          // Record the payment
+          const paymentData = {
+            invoiceId: invoiceId,
+            amount: paymentAmount.toFixed(2),
+            paymentDate: new Date(),
+            paymentMethod: 'stripe',
+            reference: reference,
+            stripePaymentIntentId: stripePaymentIntentId,
+            status: 'succeeded',
+          };
+          await storage.invoices.recordPayment(paymentData);
+          
+          console.log(`Payment successful for invoice ${invoiceId}, amount: $${paymentAmount}`);
+          
+          // Send appropriate confirmation email
+          if (invoice.invoiceType === 'down_payment' && invoice.projectId) {
+            await this.sendProjectWelcomeEmail(invoice.projectId);
+            console.log(`Project welcome email sent for project ${invoice.projectId}`);
+          } else {
+            await this.sendPaymentConfirmationEmail(invoice, paymentAmount);
+            console.log(`Payment confirmation email sent for invoice ${invoice.invoiceNumber}`);
+          }
+        } else {
+          console.log(`[Webhook] Invoice ${invoiceId} already marked as paid or not found. Skipping.`);
+        }
+      } else {
+        console.error('[Webhook] Error: Payment event received without an invoiceId in metadata.');
       }
     } catch (error) {
       console.error('Error handling payment success webhook:', error);
