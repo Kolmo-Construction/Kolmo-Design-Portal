@@ -353,23 +353,23 @@ export class PaymentService {
       throw new Error('Failed to create milestone invoice');
     }
 
-    // Create payment intent for milestone payment
-    const paymentIntent = await stripeService.createPaymentIntent({
+    // Create payment link for milestone payment
+    const stripePaymentLink = await stripeService.createPaymentLink({
       amount: Math.round(paymentSchedule.milestonePayment.amount * 100),
-      customerEmail: project.customerEmail || undefined,
-      customerName: project.customerName || undefined,
       description: `Milestone payment for ${project.name}`,
-      metadata: {
-        projectId: project.id.toString(),
-        invoiceId: invoice.id.toString(),
-        paymentType: 'milestone',
-      },
+      invoiceId: invoice.id,
+      customerEmail: project.customerEmail || undefined,
+      successUrl: `${getBaseUrl()}/payment-success?invoice_id=${invoice.id}`,
     });
 
-    // Update invoice with payment intent
+    if (!stripePaymentLink || !stripePaymentLink.url) {
+      throw new HttpError(500, 'Failed to create Stripe Payment Link.');
+    }
+
+    // Update invoice with payment link
     await storage.invoices.updateInvoice(invoice.id, {
-      stripePaymentIntentId: paymentIntent.id,
-      paymentLink: `${getBaseUrl()}/payment/${paymentIntent.client_secret}`,
+      status: 'pending',
+      paymentLink: stripePaymentLink.url,
     });
 
     // Send milestone payment email
@@ -378,7 +378,7 @@ export class PaymentService {
         customerName: project.customerName || 'Customer',
         projectName: project.name,
         amount: paymentSchedule.milestonePayment.amount,
-        paymentLink: `${getBaseUrl()}/payment/${paymentIntent.client_secret}`,
+        paymentLink: stripePaymentLink.url,
         dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         paymentType: 'milestone',
       });
@@ -429,24 +429,23 @@ export class PaymentService {
       throw new Error('Failed to create milestone invoice');
     }
 
-    // Create payment intent for milestone payment
-    const paymentIntent = await stripeService.createPaymentIntent({
+    // Create payment link for milestone payment
+    const stripePaymentLink = await stripeService.createPaymentLink({
       amount: Math.round(milestoneAmount * 100),
-      customerEmail: project.customerEmail || undefined,
-      customerName: project.customerName || undefined,
       description: `Milestone payment: ${milestoneTitle} for ${project.name}`,
-      metadata: {
-        projectId: project.id.toString(),
-        invoiceId: invoice.id.toString(),
-        milestoneId: milestone.id.toString(),
-        paymentType: 'milestone',
-      },
+      invoiceId: invoice.id,
+      customerEmail: project.customerEmail || undefined,
+      successUrl: `${getBaseUrl()}/payment-success?invoice_id=${invoice.id}`,
     });
 
-    // Update invoice with payment intent
+    if (!stripePaymentLink || !stripePaymentLink.url) {
+      throw new HttpError(500, 'Failed to create Stripe Payment Link.');
+    }
+
+    // Update invoice with payment link
     await storage.invoices.updateInvoice(invoice.id, {
-      stripePaymentIntentId: paymentIntent.id,
-      paymentLink: `${getBaseUrl()}/payment/${paymentIntent.client_secret}`,
+      status: 'pending',
+      paymentLink: stripePaymentLink.url,
     });
 
     // Send milestone payment email
@@ -455,7 +454,7 @@ export class PaymentService {
         customerName: project.customerName || 'Customer',
         projectName: project.name,
         amount: milestoneAmount,
-        paymentLink: `${getBaseUrl()}/payment/${paymentIntent.client_secret}`,
+        paymentLink: stripePaymentLink.url,
         dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         paymentType: 'milestone',
       });
@@ -499,23 +498,23 @@ export class PaymentService {
       throw new Error('Failed to create final invoice');
     }
 
-    // Create payment intent for final payment
-    const paymentIntent = await stripeService.createPaymentIntent({
+    // Create payment link for final payment
+    const stripePaymentLink = await stripeService.createPaymentLink({
       amount: Math.round(paymentSchedule.finalPayment.amount * 100),
-      customerEmail: project.customerEmail || undefined,
-      customerName: project.customerName || undefined,
       description: `Final payment for ${project.name}`,
-      metadata: {
-        projectId: project.id.toString(),
-        invoiceId: invoice.id.toString(),
-        paymentType: 'final',
-      },
+      invoiceId: invoice.id,
+      customerEmail: project.customerEmail || undefined,
+      successUrl: `${getBaseUrl()}/payment-success?invoice_id=${invoice.id}`,
     });
 
-    // Update invoice with payment intent
+    if (!stripePaymentLink || !stripePaymentLink.url) {
+      throw new HttpError(500, 'Failed to create Stripe Payment Link.');
+    }
+
+    // Update invoice with payment link
     await storage.invoices.updateInvoice(invoice.id, {
-      stripePaymentIntentId: paymentIntent.id,
-      paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
+      status: 'pending',
+      paymentLink: stripePaymentLink.url,
     });
 
     // Send final payment email
@@ -524,7 +523,7 @@ export class PaymentService {
         customerName: project.customerName || 'Customer',
         projectName: project.name,
         amount: paymentSchedule.finalPayment.amount,
-        paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
+        paymentLink: stripePaymentLink.url,
         dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         paymentType: 'final',
       });
