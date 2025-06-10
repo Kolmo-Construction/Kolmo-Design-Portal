@@ -3,7 +3,7 @@ import { NeonDatabase } from 'drizzle-orm/neon-serverless';
 import { eq, and, or, sql, desc, asc } from 'drizzle-orm';
 import * as schema from '../../../shared/schema';
 import { db } from '../../db'; // Adjust path as necessary
-import { hashPassword } from '../../auth'; // Adjust path
+// Import hashPassword dynamically to avoid circular dependencies
 import { HttpError } from '../../errors'; // Adjust path
 import { UserProfile, ClientInfo } from '../types'; // Import shared types
 
@@ -105,6 +105,7 @@ class UserRepository implements IUserRepository {
         const emailLower = userData.email.toLowerCase();
         try {
             // If we have passwordHash, use it, otherwise use the password directly
+            const { hashPassword } = await import('../../auth');
             const hashedPassword = userData.password ? await hashPassword(userData.password) : null;
             
             const result = await this.db.insert(schema.users)
