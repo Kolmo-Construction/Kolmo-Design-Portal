@@ -6,6 +6,7 @@ import { uploadToR2, deleteFromR2 } from "../r2-upload";
 import { z } from "zod";
 import { sendEmail } from "../email";
 import { initializeQuoteChat } from "../stream-chat";
+import { generateUrl } from "../domain.config";
 
 const createQuoteSchema = createInsertSchema(quotes).omit({
   id: true,
@@ -215,8 +216,8 @@ export class QuoteController {
         // Continue with quote sending even if chat fails
       }
 
-      // Send email to customer
-      const quoteLink = `${req.protocol}://${req.get('host')}/customer/quote/${quoteDetails.accessToken}`;
+      // Send email to customer using proper domain configuration
+      const quoteLink = generateUrl(`/customer/quote/${quoteDetails.accessToken}`);
       console.log(`[QuoteController] Sending email to ${quoteDetails.customerEmail} with link: ${quoteLink}`);
       
       const emailSent = await this.sendQuoteEmail(quoteDetails, quoteLink);
