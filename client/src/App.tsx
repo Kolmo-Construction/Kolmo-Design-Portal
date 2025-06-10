@@ -63,7 +63,7 @@ function Router() {
       <Route path="/quote/:token" component={CustomerQuote} />
       <Route path="/customer/quote/:token" component={CustomerQuote} />
       <Route path="/quote-payment/:id" component={QuotePaymentPage} />
-      <Route path="/payment/:clientSecret" component={MilestonePaymentPage} />
+      <Route path="/payment/:clientSecret*" component={MilestonePaymentPage} />
       <Route path="/payment-success" component={PaymentSuccessPage} />
 
       {/* Development-only routes */}

@@ -30,7 +30,8 @@ interface PaymentDetails {
 }
 
 export default function MilestonePaymentPage() {
-  const [, params] = useRoute('/payment/:clientSecret');
+  const [, params] = useRoute('/payment/:clientSecret*');
+  const [location] = useLocation();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   
@@ -39,7 +40,8 @@ export default function MilestonePaymentPage() {
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const clientSecret = params?.clientSecret;
+  // Extract full client secret from URL path
+  const clientSecret = location.replace('/payment/', '');
 
   useEffect(() => {
     if (clientSecret) {
