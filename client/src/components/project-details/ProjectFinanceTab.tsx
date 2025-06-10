@@ -84,25 +84,37 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
     enabled: !!projectId,
   });
 
-  // Billing mutation for creating draft invoices
+  // Billing mutation for completed milestones
   const billMilestoneMutation = useMutation({
     mutationFn: async (milestoneId: number) => {
       const response = await apiRequest("POST", `/api/projects/${projectId}/milestones/${milestoneId}/bill`);
       return response.json();
     },
     onSuccess: (data) => {
-      toast({
-        title: "Draft Invoice Created",
-        description: `Invoice #${data.invoice.invoiceNumber} was created and is ready for review.`,
-      });
+      // Check if the API returned a newly created invoice
+      if (data && data.invoice) {
+        toast({
+          title: "Draft Invoice Generated",
+          description: `Invoice #${data.invoice.invoiceNumber} was created successfully.`,
+        });
+      } else {
+        // Handle the case where the invoice already existed
+        toast({
+          title: "Invoice Already Exists",
+          description: "A draft invoice for this milestone has already been generated.",
+          variant: "default",
+        });
+      }
+
+      // Always invalidate queries to refresh the UI state
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/invoices`] });
       setLoadingMilestoneId(null);
     },
     onError: (error: any) => {
       toast({
-        title: "Failed to Create Invoice",
-        description: error.message || "Failed to create draft invoice",
+        title: "Billing Failed",
+        description: error.message || "Failed to generate invoice",
         variant: "destructive",
       });
       setLoadingMilestoneId(null);
@@ -117,9 +129,6 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
   const getMilestoneStatusBadge = (milestone: Milestone) => {
     if (milestone.billedAt) {
       return <Badge className="bg-green-100 text-green-800">Invoiced</Badge>;
-    }
-    if (milestone.invoiceId && !milestone.billedAt) {
-      return <Badge className="bg-orange-100 text-orange-800">Draft Invoice</Badge>;
     }
     if (milestone.status === 'completed') {
       return <Badge className="bg-blue-100 text-blue-800">Ready to Bill</Badge>;
@@ -146,14 +155,14 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
   const calculateFinancialSummary = () => {
     const totalBillable = milestones
       .filter(m => m.isBillable)
-      .reduce((sum, m) => sum + (Number(m.billingPercentage) || 0), 0);
+      .reduce((sum, m) => sum + (m.billingPercentage || 0), 0);
     
     const totalInvoiced = invoices
-      .reduce((sum, inv) => sum + parseFloat(String(inv.amount)), 0);
+      .reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
     
     const totalPaid = invoices
       .filter(inv => inv.status === 'paid')
-      .reduce((sum, inv) => sum + parseFloat(String(inv.amount)), 0);
+      .reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
 
     return { totalBillable, totalInvoiced, totalPaid };
   };
@@ -247,13 +256,23 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
                           <Calendar className="h-3 w-3" />
                           {format(new Date(milestone.plannedDate), 'MMM dd, yyyy')}
                         </span>
-                        {(milestone as any).taskId && (
-                          <span>Task #{(milestone as any).taskId}</span>
+                        {milestone.taskId && (
+                          <span>Task #{milestone.taskId}</span>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {/* No milestone-level invoice buttons - all invoice management happens in the invoice view */}
+                      {milestone.status === 'completed' && !milestone.billedAt && milestone.isBillable && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleBillMilestone(milestone.id)}
+                          disabled={loadingMilestoneId === milestone.id}
+                          className="gap-1"
+                        >
+                          <Receipt className="h-4 w-4" />
+                          {loadingMilestoneId === milestone.id ? "Generating..." : "Generate Invoice"}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -263,55 +282,6 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
         </CardContent>
       </Card>
 
-      {/* Billable Milestones - Ready for Invoicing */}
-      {milestones.filter(m => m.status === 'completed' && m.isBillable && !m.invoiceId).length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Receipt className="h-5 w-5" />
-              Ready to Invoice
-            </CardTitle>
-            <CardDescription>
-              Completed milestones that can be invoiced
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {milestones
-                .filter(m => m.status === 'completed' && m.isBillable && !m.invoiceId)
-                .map((milestone) => (
-                  <div key={milestone.id} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-medium">{milestone.title}</h3>
-                          <Badge className="bg-blue-100 text-blue-800">{milestone.billingPercentage}%</Badge>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-2">{milestone.description}</p>
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            Completed: {milestone.actualDate ? format(new Date(milestone.actualDate), 'MMM dd, yyyy') : 'Recently'}
-                          </span>
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleBillMilestone(milestone.id)}
-                        disabled={loadingMilestoneId === milestone.id}
-                        className="gap-1"
-                      >
-                        <Receipt className="h-4 w-4" />
-                        {loadingMilestoneId === milestone.id ? "Creating..." : "Create Invoice"}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Invoices */}
       <Card>
         <CardHeader>
@@ -320,13 +290,13 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
             Invoices
           </CardTitle>
           <CardDescription>
-            All invoices for this project. Use the View button to send draft invoices.
+            Track all invoices generated for this project
           </CardDescription>
         </CardHeader>
         <CardContent>
           {invoices.length === 0 ? (
             <p className="text-center text-gray-500 py-8">
-              No invoices generated yet. Complete milestones and create invoices above.
+              No invoices generated yet. Complete milestones to generate invoices.
             </p>
           ) : (
             <div className="space-y-4">

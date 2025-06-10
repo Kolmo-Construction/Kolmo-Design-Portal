@@ -217,14 +217,9 @@ export class QuoteController {
 
       // Send email to customer
       const quoteLink = `${req.protocol}://${req.get('host')}/customer/quote/${quoteDetails.accessToken}`;
-      console.log(`\n[QUOTE_SEND] Step 4: Email preparation`);
-      console.log(`[QUOTE_SEND] Recipient: ${quoteDetails.customerEmail}`);
-      console.log(`[QUOTE_SEND] Quote link: ${quoteLink}`);
-      console.log(`[QUOTE_SEND] Calling sendQuoteEmail method...`);
+      console.log(`[QuoteController] Sending email to ${quoteDetails.customerEmail} with link: ${quoteLink}`);
       
       const emailSent = await this.sendQuoteEmail(quoteDetails, quoteLink);
-      
-      console.log(`[QUOTE_SEND] sendQuoteEmail returned: ${emailSent}`);
 
       if (!emailSent) {
         console.warn(`[QuoteController] Quote status updated but email failed to send for quote ${quoteDetails.quoteNumber}`);
@@ -248,12 +243,6 @@ export class QuoteController {
   }
 
   private async sendQuoteEmail(quote: any, quoteLink: string): Promise<boolean> {
-    console.log(`\n[QUOTE_EMAIL] Starting sendQuoteEmail method`);
-    console.log(`[QUOTE_EMAIL] Quote ID: ${quote.id}`);
-    console.log(`[QUOTE_EMAIL] Quote Number: ${quote.quoteNumber}`);
-    console.log(`[QUOTE_EMAIL] Customer Email: ${quote.customerEmail}`);
-    console.log(`[QUOTE_EMAIL] Quote Link: ${quoteLink}`);
-    
     try {
       const formatCurrency = (amount: string) => {
         return new Intl.NumberFormat('en-US', {
@@ -466,14 +455,7 @@ Licensed • Bonded • Insured
 www.kolmo.io | info@kolmo.io | (555) 123-4567
 `;
 
-      console.log(`[QUOTE_EMAIL] Preparing email content...`);
-      console.log(`[QUOTE_EMAIL] Email subject: Your Project Quote #${quote.quoteNumber} from Kolmo Construction`);
-      console.log(`[QUOTE_EMAIL] From: projects@kolmo.io (Kolmo Construction)`);
-      console.log(`[QUOTE_EMAIL] Text length: ${emailText.length} characters`);
-      console.log(`[QUOTE_EMAIL] HTML length: ${emailHtml.length} characters`);
-      console.log(`[QUOTE_EMAIL] About to call sendEmail function...`);
-
-      const emailResult = await sendEmail({
+      return await sendEmail({
         to: quote.customerEmail,
         subject: `Your Project Quote #${quote.quoteNumber} from Kolmo Construction`,
         text: emailText,
@@ -481,16 +463,8 @@ www.kolmo.io | info@kolmo.io | (555) 123-4567
         from: 'projects@kolmo.io',
         fromName: 'Kolmo Construction'
       });
-
-      console.log(`[QUOTE_EMAIL] sendEmail function returned: ${emailResult}`);
-      console.log(`[QUOTE_EMAIL] Completed sendQuoteEmail method\n`);
-      
-      return emailResult;
     } catch (error) {
-      console.error("[QUOTE_EMAIL] ❌ Error in sendQuoteEmail method:");
-      console.error("[QUOTE_EMAIL] Error type:", error.constructor.name);
-      console.error("[QUOTE_EMAIL] Error message:", error.message);
-      console.error("[QUOTE_EMAIL] Returning false\n");
+      console.error("Error sending quote email:", error);
       return false;
     }
   }

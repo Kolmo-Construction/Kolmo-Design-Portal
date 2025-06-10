@@ -24,14 +24,6 @@ router.post('/stripe', async (req, res, next) => {
 
     // Handle the event
     switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object as any; // Stripe.Checkout.Session
-        // Pass the entire session object to the success handler
-        await paymentService.handlePaymentSuccess(session);
-        console.log(`[Webhook] Successfully processed Checkout Session: ${session.id}`);
-        break;
-      }
-
       case 'payment_intent.succeeded':
         await paymentService.handlePaymentSuccess(event.data.object.id);
         console.log(`[Webhook] Successfully processed payment: ${event.data.object.id}`);

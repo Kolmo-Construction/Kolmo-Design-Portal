@@ -31,7 +31,6 @@ import { projectPaymentRoutes } from "./routes/project-payment.routes"; // Proje
 import globalFinanceRoutes from "./routes/global-finance.routes"; // Global finance API routes
 import taskBillingRouter from "./routes/task-billing.routes"; // Task billing router for complete-and-bill functionality
 import { milestoneRoutes } from "./routes/milestone.routes"; // Milestone management router
-import paymentDetailsRouter from "./routes/payment-details.routes"; // Payment details lookup router
 
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
 import chatRouter from "./routes/chat.routes"; // Stream Chat router
@@ -173,9 +172,6 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // Mount Payment routes (mixed auth - public payment processing, admin invoice management)
   app.use("/api", paymentRoutes);
-  
-  // Mount Payment Details routes (public - for customer payment links)
-  app.use("/api", paymentDetailsRouter);
 
   // Mount Project Payment Summary routes (admin only)
   app.use("/api/projects", isAuthenticated, projectPaymentRoutes);

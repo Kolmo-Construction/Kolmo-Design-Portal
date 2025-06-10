@@ -53,13 +53,13 @@ router.post('/quotes/:id/accept-payment', async (req, res, next) => {
     });
 
     res.json({
-      paymentLink: result.paymentLink,
+      clientSecret: result.paymentIntent.client_secret,
       amount: parseFloat(result.downPaymentInvoice.amount.toString()),
-      downPaymentPercentage: '30', // Default down payment percentage
+      downPaymentPercentage: result.paymentIntent.metadata.downPaymentPercentage || '30',
       quote: {
         id: quoteId,
         title: result.project.name,
-        quoteNumber: result.downPaymentInvoice.invoiceNumber,
+        quoteNumber: result.paymentIntent.metadata.quoteNumber,
         total: result.project.totalBudget,
       },
       project: {
@@ -80,34 +80,35 @@ router.post('/quotes/:id/accept-payment', async (req, res, next) => {
 });
 
 /**
- * Handle successful payment confirmation from Stripe webhooks
- * This endpoint processes payments that are confirmed via Stripe's webhook system.
+ * Handle successful payment confirmation from client-side
+ * This endpoint processes payments that are confirmed on the client side.
+ * It uses the same payment processing logic as the webhook to ensure consistency.
  */
 router.post('/payment-success', async (req, res, next) => {
   try {
-    const { sessionId } = req.body;
+    const { paymentIntentId } = req.body;
 
-    if (!sessionId) {
-      throw new HttpError(400, 'Session ID is required');
+    if (!paymentIntentId) {
+      throw new HttpError(400, 'Payment intent ID is required');
     }
 
     if (!stripe) {
       throw new HttpError(503, 'Payment processing temporarily unavailable');
     }
 
-    // Retrieve checkout session from Stripe to verify it was completed
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    // Retrieve payment intent from Stripe to verify it succeeded
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
-    if (session.payment_status !== 'paid') {
-      throw new HttpError(400, 'Payment has not been completed');
+    if (paymentIntent.status !== 'succeeded') {
+      throw new HttpError(400, 'Payment has not succeeded');
     }
 
     // Use the same payment processing logic as the webhook
-    await paymentService.handlePaymentSuccess(session);
+    await paymentService.handlePaymentSuccess(paymentIntentId);
 
     // Get the processed invoice and project details for response
-    const metadata = session.metadata;
-    const invoiceId = metadata?.invoiceId ? parseInt(metadata.invoiceId) : null;
+    const metadata = paymentIntent.metadata;
+    const invoiceId = metadata.invoiceId ? parseInt(metadata.invoiceId) : null;
     const projectId = metadata.projectId ? parseInt(metadata.projectId) : null;
     const quoteId = metadata.quoteId ? parseInt(metadata.quoteId) : null;
 
@@ -159,11 +160,61 @@ router.post('/payment-success', async (req, res, next) => {
 });
 
 /**
- * Legacy milestone payment route - DEPRECATED
- * Use the milestone billing system instead via POST /api/projects/:projectId/milestones/:milestoneId/bill
+ * Create payment intent for milestone payments
  */
-// This route has been removed to prevent Payment Intent conflicts.
-// All milestone payments now use the Payment Link system through the milestone billing workflow.
+router.post('/projects/:id/milestone-payment', async (req, res, next) => {
+  try {
+    if (!stripe) {
+      throw new HttpError(503, 'Payment processing temporarily unavailable');
+    }
+
+    const projectId = parseInt(req.params.id);
+    const { milestoneDescription } = req.body;
+
+    const project = await storage.projects.getProjectById(projectId);
+    if (!project || !project.originQuoteId) {
+      throw new HttpError(404, 'Project or originating quote not found');
+    }
+
+    const quote = await storage.quotes.getQuoteById(project.originQuoteId);
+    if (!quote) {
+      throw new HttpError(404, 'Originating quote not found');
+    }
+
+    // Calculate milestone payment amount
+    const total = parseFloat(quote.total?.toString() || '0');
+    const milestonePercentage = quote.milestonePaymentPercentage || 40;
+    const milestoneAmount = (total * milestonePercentage) / 100;
+
+    // Create Stripe payment intent
+    const paymentIntent = await stripe!.paymentIntents.create({
+      amount: Math.round(milestoneAmount * 100),
+      currency: 'usd',
+      description: `Milestone payment for ${project.name}`,
+      metadata: {
+        projectId: project.id.toString(),
+        quoteId: quote.id.toString(),
+        paymentType: 'milestone',
+        milestonePercentage: milestonePercentage.toString(),
+      },
+      automatic_payment_methods: {
+        enabled: true,
+      },
+    });
+
+    res.json({
+      clientSecret: paymentIntent.client_secret,
+      amount: milestoneAmount,
+      milestonePercentage,
+      project: {
+        id: project.id,
+        name: project.name,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 /**
  * Send project welcome email after down payment

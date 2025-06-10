@@ -1,6 +1,5 @@
 import Stripe from 'stripe';
 import { HttpError } from '../errors';
-import { generatePaymentSuccessUrl } from '../domain.config';
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -10,7 +9,14 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2025-05-28.basil',
 });
 
-
+export interface CreatePaymentIntentOptions {
+  amount: number; // in cents
+  currency?: string;
+  customerEmail?: string;
+  customerName?: string;
+  description?: string;
+  metadata?: Record<string, string>;
+}
 
 export interface CreateCustomerOptions {
   email: string;
@@ -27,7 +33,27 @@ export interface CreateCustomerOptions {
 }
 
 export class StripeService {
+  /**
+   * Create a payment intent for one-time payments
+   */
+  async createPaymentIntent(options: CreatePaymentIntentOptions): Promise<Stripe.PaymentIntent> {
+    try {
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(options.amount), // Ensure it's an integer
+        currency: options.currency || 'usd',
+        description: options.description,
+        metadata: options.metadata || {},
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      });
 
+      return paymentIntent;
+    } catch (error: any) {
+      console.error('Error creating payment intent:', error);
+      throw new HttpError(400, `Payment intent creation failed: ${error.message}`);
+    }
+  }
 
   /**
    * Create or retrieve a Stripe customer
@@ -72,19 +98,16 @@ export class StripeService {
     cancelUrl?: string;
   }): Promise<Stripe.PaymentLink> {
     try {
-      // First create a price object
-      const price = await stripe.prices.create({
-        currency: 'usd',
-        product_data: {
-          name: options.description,
-        },
-        unit_amount: Math.round(options.amount),
-      });
-
       const paymentLink = await stripe.paymentLinks.create({
         line_items: [
           {
-            price: price.id,
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: options.description,
+              },
+              unit_amount: Math.round(options.amount),
+            },
             quantity: 1,
           },
         ],
@@ -94,7 +117,7 @@ export class StripeService {
         after_completion: {
           type: 'redirect',
           redirect: {
-            url: options.successUrl || generatePaymentSuccessUrl(),
+            url: options.successUrl || `${process.env.BASE_URL || 'http://localhost:5000'}/payment-success`,
           },
         },
       });

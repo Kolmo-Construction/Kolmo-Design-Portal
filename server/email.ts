@@ -37,15 +37,12 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   const fromEmail = options.from || DEFAULT_FROM_EMAIL;
   const fromName = options.fromName || DEFAULT_FROM_NAME;
 
-  console.log('\n==== EMAIL SEND ATTEMPT ====');
-  console.log(`[EMAIL] Environment: ${isDev ? 'DEVELOPMENT' : 'PRODUCTION'}`);
-  console.log(`[EMAIL] TO: ${options.to}`);
-  console.log(`[EMAIL] FROM: ${fromName} <${fromEmail}>`);
-  console.log(`[EMAIL] SUBJECT: ${options.subject}`);
-  console.log(`[EMAIL] SendGrid API Key configured: ${isEmailServiceConfigured()}`);
-
   // Always print email content in development mode for easier debugging
   if (isDev) {
+    console.log('\n==== DEVELOPMENT EMAIL ====');
+    console.log(`TO: ${options.to}`);
+    console.log(`FROM: ${fromName} <${fromEmail}>`);
+    console.log(`SUBJECT: ${options.subject}`);
     console.log('\n---- TEXT CONTENT ----');
     console.log(options.text || '(No text content)');
 
@@ -65,22 +62,19 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
         console.log(`[${index + 1}] ${link}`);
       });
     }
+
+    console.log('\n==== END EMAIL ====\n');
   }
 
   if (!isEmailServiceConfigured()) {
-    console.warn("[EMAIL] ❌ SendGrid API key not configured - skipping email send");
-    console.log(`[EMAIL] Returning: ${isDev} (dev mode fallback)`);
-    console.log('==== EMAIL SEND COMPLETE ====\n');
+    console.warn("SendGrid API key not configured - skipping email send");
     return isDev; // Return true in dev mode so app doesn't break, false in production
   }
-
-  console.log('[EMAIL] ✓ SendGrid API key is configured, proceeding with send...');
 
   try {
     // Generate plain text from HTML if no text provided
     let textContent = options.text;
     if (!textContent && options.html) {
-      console.log('[EMAIL] Generating plain text from HTML content...');
       // Simple HTML to text conversion - strip HTML tags and decode entities
       textContent = options.html
         .replace(/<[^>]*>/g, '') // Remove HTML tags
@@ -105,41 +99,21 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       html: options.html || options.text || ''
     };
 
-    console.log('[EMAIL] Calling SendGrid API...');
-    const result = await sgMail.send(msg);
-    console.log('[EMAIL] ✅ SendGrid API call successful');
-    console.log('[EMAIL] SendGrid response status:', result[0]?.statusCode || 'unknown');
-    console.log(`[EMAIL] ✅ Email sent successfully to ${options.to}`);
-    console.log('==== EMAIL SEND COMPLETE ====\n');
+    await sgMail.send(msg);
+    console.log(`Email sent successfully to ${options.to}`);
     return true;
   } catch (error: any) {
-    console.error('[EMAIL] ❌ Failed to send email via SendGrid:');
-    console.error('[EMAIL] Error type:', error.constructor.name);
-    console.error('[EMAIL] Error message:', error.message);
-    console.error('[EMAIL] Error code:', error.code);
-    
+    console.error('Failed to send email via SendGrid:', error);
     if (error?.response) {
-      console.error('[EMAIL] SendGrid HTTP status:', error.response.status);
-      console.error('[EMAIL] SendGrid error response:', JSON.stringify(error.response.body, null, 2));
-    }
-    
-    if (error?.response?.body?.errors) {
-      console.error('[EMAIL] SendGrid detailed errors:');
-      error.response.body.errors.forEach((err: any, index: number) => {
-        console.error(`[EMAIL]   Error ${index + 1}: ${err.message} (${err.field})`);
-      });
+      console.error('SendGrid error response:', error.response.body);
     }
     
     // In development, consider it a success to avoid breaking the flow
     if (isDev) {
-      console.log('[EMAIL] ⚠️  Development mode: Email delivery failed, but continuing as if successful');
-      console.log('[EMAIL] This masks the real issue - check SendGrid dashboard for actual delivery status');
-      console.log('==== EMAIL SEND COMPLETE ====\n');
+      console.log('Development mode: Email delivery failed, but continuing as if successful');
       return true;
     }
     
-    console.log('[EMAIL] ❌ Production mode: Returning failure status');
-    console.log('==== EMAIL SEND COMPLETE ====\n');
     return false;
   }
 }

@@ -2,10 +2,8 @@ import { stripeService } from './stripe.service';
 import { storage } from '../storage';
 import { HttpError } from '../errors';
 import { sendEmail } from '../email';
-import { generatePaymentSuccessUrl, getBaseUrl } from '../domain.config';
 import { insertInvoiceSchema } from '@shared/schema';
 import type { Quote, Invoice, Project } from '@shared/schema';
-import type Stripe from 'stripe';
 
 export interface PaymentSchedule {
   downPayment: {
@@ -62,7 +60,7 @@ export class PaymentService {
   }): Promise<{
     project: Project;
     downPaymentInvoice: Invoice;
-    paymentLink: string;
+    paymentIntent: any;
   }> {
     try {
       // Get quote details
@@ -85,23 +83,24 @@ export class PaymentService {
         customerInfo
       );
 
-      // Create Stripe payment link for down payment
-      const stripePaymentLink = await stripeService.createPaymentLink({
+      // Create Stripe payment intent for down payment
+      const paymentIntent = await stripeService.createPaymentIntent({
         amount: Math.round(paymentSchedule.downPayment.amount * 100), // Convert to cents
-        description: `Down payment for ${quote.title} - Quote #${quote.quoteNumber}`,
-        invoiceId: downPaymentInvoice.id,
         customerEmail: customerInfo.email,
-        successUrl: `${getBaseUrl()}/payment-success?invoice_id=${downPaymentInvoice.id}`,
+        customerName: customerInfo.name,
+        description: `Down payment for ${quote.title} - Quote #${quote.quoteNumber}`,
+        metadata: {
+          quoteId: quote.id.toString(),
+          invoiceId: downPaymentInvoice.id.toString(),
+          projectId: project.id.toString(),
+          paymentType: 'down_payment',
+        },
       });
 
-      if (!stripePaymentLink || !stripePaymentLink.url) {
-        throw new HttpError(500, 'Failed to create Stripe Payment Link.');
-      }
-
-      // Update invoice with payment link
+      // Update invoice with Stripe payment intent ID
       await storage.invoices.updateInvoice(downPaymentInvoice.id, {
-        status: 'pending',
-        paymentLink: stripePaymentLink.url,
+        stripePaymentIntentId: paymentIntent.id,
+        paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
       });
 
       // Note: For down payments, we don't send payment instructions immediately.
@@ -111,7 +110,7 @@ export class PaymentService {
       return {
         project,
         downPaymentInvoice,
-        paymentLink: stripePaymentLink.url,
+        paymentIntent,
       };
     } catch (error) {
       console.error('Error processing quote acceptance:', error);
@@ -266,39 +265,39 @@ export class PaymentService {
       throw new HttpError(400, 'Invoice is not in draft status and cannot be sent.');
     }
 
-    // *** MODIFICATION START ***
-    // Instead of creating a PaymentIntent, create a PaymentLink
-    const stripePaymentLink = await stripeService.createPaymentLink({
-      amount: Math.round(parseFloat(invoice.amount) * 100), // Amount in cents
-      description: invoice.description || `Payment for Invoice #${invoice.invoiceNumber}`,
-      invoiceId: invoice.id,
+    const paymentIntent = await stripeService.createPaymentIntent({
+      amount: Math.round(parseFloat(invoice.amount) * 100),
       customerEmail: invoice.customerEmail || undefined,
-      successUrl: `${getBaseUrl()}/payment-success?invoice_id=${invoice.id}`,
+      customerName: invoice.customerName || undefined,
+      description: invoice.description || `Payment for Invoice #${invoice.invoiceNumber}`,
+      metadata: {
+        invoiceId: invoice.id.toString(),
+        projectId: invoice.projectId?.toString() || '',
+        paymentType: 'milestone',
+      },
     });
 
-    if (!stripePaymentLink || !stripePaymentLink.url) {
-      throw new HttpError(500, 'Failed to create Stripe Payment Link.');
-    }
+    const paymentLink = `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`;
 
-    // Update the invoice to 'pending' and add the PaymentLink URL
+    // Update the invoice to 'pending' and add the Stripe details
     const updatedInvoice = await storage.invoices.updateInvoice(invoice.id, {
       status: 'pending',
-      paymentLink: stripePaymentLink.url, // Store the actual payment link URL
+      stripePaymentIntentId: paymentIntent.id,
+      paymentLink: paymentLink,
       issueDate: new Date(), // Update issue date to when it was sent
     });
-    // *** MODIFICATION END ***
 
     if (!updatedInvoice) {
       throw new HttpError(500, 'Failed to update invoice before sending.');
     }
 
-    // Send the payment instruction email with the correct link
+    // Send the payment instruction email
     if (updatedInvoice.customerEmail) {
       await this.sendPaymentInstructions(updatedInvoice.customerEmail, {
         customerName: updatedInvoice.customerName || 'Customer',
         projectName: updatedInvoice.description || 'Your Project',
         amount: parseFloat(updatedInvoice.amount),
-        paymentLink: stripePaymentLink.url, // Use the correct payment link
+        paymentLink: paymentLink,
         dueDate: new Date(updatedInvoice.dueDate),
         paymentType: 'milestone',
       });
@@ -352,23 +351,23 @@ export class PaymentService {
       throw new Error('Failed to create milestone invoice');
     }
 
-    // Create payment link for milestone payment
-    const stripePaymentLink = await stripeService.createPaymentLink({
+    // Create payment intent for milestone payment
+    const paymentIntent = await stripeService.createPaymentIntent({
       amount: Math.round(paymentSchedule.milestonePayment.amount * 100),
-      description: `Milestone payment for ${project.name}`,
-      invoiceId: invoice.id,
       customerEmail: project.customerEmail || undefined,
-      successUrl: `${getBaseUrl()}/payment-success?invoice_id=${invoice.id}`,
+      customerName: project.customerName || undefined,
+      description: `Milestone payment for ${project.name}`,
+      metadata: {
+        projectId: project.id.toString(),
+        invoiceId: invoice.id.toString(),
+        paymentType: 'milestone',
+      },
     });
 
-    if (!stripePaymentLink || !stripePaymentLink.url) {
-      throw new HttpError(500, 'Failed to create Stripe Payment Link.');
-    }
-
-    // Update invoice with payment link
+    // Update invoice with payment intent
     await storage.invoices.updateInvoice(invoice.id, {
-      status: 'pending',
-      paymentLink: stripePaymentLink.url,
+      stripePaymentIntentId: paymentIntent.id,
+      paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
     });
 
     // Send milestone payment email
@@ -377,7 +376,7 @@ export class PaymentService {
         customerName: project.customerName || 'Customer',
         projectName: project.name,
         amount: paymentSchedule.milestonePayment.amount,
-        paymentLink: stripePaymentLink.url,
+        paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
         dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         paymentType: 'milestone',
       });
@@ -428,23 +427,24 @@ export class PaymentService {
       throw new Error('Failed to create milestone invoice');
     }
 
-    // Create payment link for milestone payment
-    const stripePaymentLink = await stripeService.createPaymentLink({
+    // Create payment intent for milestone payment
+    const paymentIntent = await stripeService.createPaymentIntent({
       amount: Math.round(milestoneAmount * 100),
-      description: `Milestone payment: ${milestoneTitle} for ${project.name}`,
-      invoiceId: invoice.id,
       customerEmail: project.customerEmail || undefined,
-      successUrl: `${getBaseUrl()}/payment-success?invoice_id=${invoice.id}`,
+      customerName: project.customerName || undefined,
+      description: `Milestone payment: ${milestoneTitle} for ${project.name}`,
+      metadata: {
+        projectId: project.id.toString(),
+        invoiceId: invoice.id.toString(),
+        milestoneId: milestone.id.toString(),
+        paymentType: 'milestone',
+      },
     });
 
-    if (!stripePaymentLink || !stripePaymentLink.url) {
-      throw new HttpError(500, 'Failed to create Stripe Payment Link.');
-    }
-
-    // Update invoice with payment link
+    // Update invoice with payment intent
     await storage.invoices.updateInvoice(invoice.id, {
-      status: 'pending',
-      paymentLink: stripePaymentLink.url,
+      stripePaymentIntentId: paymentIntent.id,
+      paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
     });
 
     // Send milestone payment email
@@ -453,7 +453,7 @@ export class PaymentService {
         customerName: project.customerName || 'Customer',
         projectName: project.name,
         amount: milestoneAmount,
-        paymentLink: stripePaymentLink.url,
+        paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
         dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         paymentType: 'milestone',
       });
@@ -497,23 +497,23 @@ export class PaymentService {
       throw new Error('Failed to create final invoice');
     }
 
-    // Create payment link for final payment
-    const stripePaymentLink = await stripeService.createPaymentLink({
+    // Create payment intent for final payment
+    const paymentIntent = await stripeService.createPaymentIntent({
       amount: Math.round(paymentSchedule.finalPayment.amount * 100),
-      description: `Final payment for ${project.name}`,
-      invoiceId: invoice.id,
       customerEmail: project.customerEmail || undefined,
-      successUrl: `${getBaseUrl()}/payment-success?invoice_id=${invoice.id}`,
+      customerName: project.customerName || undefined,
+      description: `Final payment for ${project.name}`,
+      metadata: {
+        projectId: project.id.toString(),
+        invoiceId: invoice.id.toString(),
+        paymentType: 'final',
+      },
     });
 
-    if (!stripePaymentLink || !stripePaymentLink.url) {
-      throw new HttpError(500, 'Failed to create Stripe Payment Link.');
-    }
-
-    // Update invoice with payment link
+    // Update invoice with payment intent
     await storage.invoices.updateInvoice(invoice.id, {
-      status: 'pending',
-      paymentLink: stripePaymentLink.url,
+      stripePaymentIntentId: paymentIntent.id,
+      paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
     });
 
     // Send final payment email
@@ -522,7 +522,7 @@ export class PaymentService {
         customerName: project.customerName || 'Customer',
         projectName: project.name,
         amount: paymentSchedule.finalPayment.amount,
-        paymentLink: stripePaymentLink.url,
+        paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
         dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         paymentType: 'final',
       });
@@ -597,84 +597,52 @@ export class PaymentService {
   }
 
   /**
-   * Handle successful payment webhook - supports both Payment Links and Payment Intents
-   * @param sessionOrPaymentIntentId - Either a Stripe Checkout Session object or payment intent ID string
+   * Handle successful payment webhook - This is the single source of truth for payment processing
    */
-  async handlePaymentSuccess(sessionOrPaymentIntentId: Stripe.Checkout.Session | string): Promise<void> {
+  async handlePaymentSuccess(paymentIntentId: string): Promise<void> {
     try {
-      let invoiceId: number | null = null;
-      let paymentAmount: number = 0;
-      let reference: string = '';
-      let stripePaymentIntentId: string | undefined;
-      let paymentType: string | undefined;
-
-      // Check if this is a Checkout Session (Payment Link) or Payment Intent ID (legacy)
-      if (typeof sessionOrPaymentIntentId === 'object' && sessionOrPaymentIntentId.object === 'checkout.session') {
-        // This is a Payment Link checkout session
-        const session = sessionOrPaymentIntentId;
-        invoiceId = session.metadata?.invoiceId ? parseInt(session.metadata.invoiceId, 10) : null;
-        paymentAmount = (session.amount_total ?? 0) / 100; // Amount is in cents
-        reference = session.id;
-        stripePaymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : undefined;
-        paymentType = 'milestone'; // Payment Links are primarily used for milestone payments
-        
-        console.log(`[Webhook] Processing Payment Link session: ${session.id}`);
-      } else if (typeof sessionOrPaymentIntentId === 'string') {
-        // This is a legacy Payment Intent ID
-        const paymentIntent = await stripeService.getPaymentIntent(sessionOrPaymentIntentId);
-        
-        if (paymentIntent.status !== 'succeeded') {
-          console.log(`[Webhook] Payment Intent ${sessionOrPaymentIntentId} not succeeded: ${paymentIntent.status}`);
-          return;
-        }
-
+      const paymentIntent = await stripeService.getPaymentIntent(paymentIntentId);
+      
+      if (paymentIntent.status === 'succeeded') {
         const metadata = paymentIntent.metadata;
-        invoiceId = metadata.invoiceId ? parseInt(metadata.invoiceId) : null;
-        paymentAmount = paymentIntent.amount / 100; // Convert from cents
-        reference = paymentIntent.id;
-        stripePaymentIntentId = paymentIntent.id;
-        paymentType = metadata.paymentType;
+        const invoiceId = metadata.invoiceId ? parseInt(metadata.invoiceId) : null;
         
-        console.log(`[Webhook] Processing Payment Intent: ${paymentIntent.id}`);
-      } else {
-        console.error('[Webhook] Invalid payment data received:', sessionOrPaymentIntentId);
-        return;
-      }
+        // Find the invoice using the ID from metadata, which should now reliably exist
+        if (invoiceId) {
+          const invoice = await storage.invoices.getInvoiceById(invoiceId);
 
-      if (invoiceId) {
-        const invoice = await storage.invoices.getInvoiceById(invoiceId);
+          if (invoice && invoice.status !== 'paid') {
+            // Update invoice status to paid
+            await storage.invoices.updateInvoice(invoiceId, { status: 'paid' as const });
 
-        if (invoice && invoice.status !== 'paid') {
-          // Update invoice status to paid
-          await storage.invoices.updateInvoice(invoiceId, { status: 'paid' as const });
-
-          // Record the payment
-          const paymentData = {
-            invoiceId: invoiceId,
-            amount: paymentAmount.toFixed(2),
-            paymentDate: new Date(),
-            paymentMethod: 'stripe',
-            reference: reference,
-            stripePaymentIntentId: stripePaymentIntentId,
-            status: 'succeeded',
-          };
-          await storage.invoices.recordPayment(paymentData);
-          
-          console.log(`Payment successful for invoice ${invoiceId}, amount: $${paymentAmount}`);
-          
-          // Send appropriate confirmation email
-          if (invoice.invoiceType === 'down_payment' && invoice.projectId) {
-            await this.sendProjectWelcomeEmail(invoice.projectId);
-            console.log(`Project welcome email sent for project ${invoice.projectId}`);
+            // Record the payment
+            const paymentAmount = paymentIntent.amount / 100; // Convert from cents
+            const paymentData = {
+              invoiceId: invoiceId,
+              amount: paymentAmount.toFixed(2),
+              paymentDate: new Date(),
+              paymentMethod: 'stripe',
+              reference: paymentIntent.id,
+              stripePaymentIntentId: paymentIntent.id,
+              stripeChargeId: paymentIntent.latest_charge as string,
+              status: 'succeeded',
+            };
+            await storage.invoices.recordPayment(paymentData);
+            
+            console.log(`Payment successful for invoice ${invoiceId}, amount: $${paymentAmount}`);
+            
+            // Send appropriate confirmation email
+            if (metadata.paymentType === 'down_payment' && invoice.projectId) {
+              await this.sendProjectWelcomeEmail(invoice.projectId);
+              console.log(`Project welcome email sent for project ${invoice.projectId}`);
+            } else {
+              await this.sendPaymentConfirmationEmail(invoice, paymentAmount);
+              console.log(`Payment confirmation email sent for invoice ${invoice.invoiceNumber}`);
+            }
           } else {
-            await this.sendPaymentConfirmationEmail(invoice, paymentAmount);
-            console.log(`Payment confirmation email sent for invoice ${invoice.invoiceNumber}`);
+            console.log(`[Webhook] Invoice ${invoiceId} already marked as paid or not found. Skipping.`);
           }
-        } else {
-          console.log(`[Webhook] Invoice ${invoiceId} already marked as paid or not found. Skipping.`);
         }
-      } else {
-        console.error('[Webhook] Error: Payment event received without an invoiceId in metadata.');
       }
     } catch (error) {
       console.error('Error handling payment success webhook:', error);
