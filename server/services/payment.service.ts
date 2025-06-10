@@ -274,7 +274,7 @@ export class PaymentService {
       description: invoice.description || `Payment for Invoice #${invoice.invoiceNumber}`,
       invoiceId: invoice.id,
       customerEmail: invoice.customerEmail || undefined,
-      successUrl: `${process.env.BASE_URL || 'http://localhost:5000'}/payment-success?invoice_id=${invoice.id}`,
+      successUrl: `${getBaseUrl()}/payment-success?invoice_id=${invoice.id}`,
     });
 
     if (!stripePaymentLink || !stripePaymentLink.url) {
@@ -369,7 +369,7 @@ export class PaymentService {
     // Update invoice with payment intent
     await storage.invoices.updateInvoice(invoice.id, {
       stripePaymentIntentId: paymentIntent.id,
-      paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
+      paymentLink: `${getBaseUrl()}/payment/${paymentIntent.client_secret}`,
     });
 
     // Send milestone payment email
@@ -378,7 +378,7 @@ export class PaymentService {
         customerName: project.customerName || 'Customer',
         projectName: project.name,
         amount: paymentSchedule.milestonePayment.amount,
-        paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
+        paymentLink: `${getBaseUrl()}/payment/${paymentIntent.client_secret}`,
         dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         paymentType: 'milestone',
       });

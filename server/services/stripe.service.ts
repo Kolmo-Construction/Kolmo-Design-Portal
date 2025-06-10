@@ -99,16 +99,19 @@ export class StripeService {
     cancelUrl?: string;
   }): Promise<Stripe.PaymentLink> {
     try {
+      // First create a price object
+      const price = await stripe.prices.create({
+        currency: 'usd',
+        product_data: {
+          name: options.description,
+        },
+        unit_amount: Math.round(options.amount),
+      });
+
       const paymentLink = await stripe.paymentLinks.create({
         line_items: [
           {
-            price_data: {
-              currency: 'usd',
-              product_data: {
-                name: options.description,
-              },
-              unit_amount: Math.round(options.amount),
-            },
+            price: price.id,
             quantity: 1,
           },
         ],
