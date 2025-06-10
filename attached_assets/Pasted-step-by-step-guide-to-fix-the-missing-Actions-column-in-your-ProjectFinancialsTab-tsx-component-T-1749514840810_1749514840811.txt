@@ -1,0 +1,140 @@
+step-by-step guide to fix the missing "Actions" column in your ProjectFinancialsTab.tsx component. This will restore the "View" and "Download" buttons.
+
+Step 1: Open the Target File
+Open the following file in your editor:
+client/src/components/project-details/ProjectFinancialsTab.tsx
+
+Step 2: Add the "Actions" Column to the Table Header
+Locate the <TableHeader> section within the renderContent function. You need to add a new <TableHead> element for the "Actions" column.
+
+Find this code block:
+
+TypeScript
+
+<TableHeader>
+  <TableRow>
+    <TableHead>Invoice #</TableHead>
+    <TableHead>Issue Date</TableHead>
+    <TableHead>Due Date</TableHead>
+    <TableHead>Amount</TableHead>
+    <TableHead>Status</TableHead>
+  </TableRow>
+</TableHeader>
+Add the new header for the Actions column like this:
+
+TypeScript
+
+<TableHeader>
+  <TableRow>
+    <TableHead>Invoice #</TableHead>
+    <TableHead>Issue Date</TableHead>
+    <TableHead>Due Date</TableHead>
+    <TableHead>Amount</TableHead>
+    <TableHead>Status</TableHead>
+    {/* ADD THIS LINE */}
+    <TableHead className="text-right">Actions</TableHead> 
+  </TableRow>
+</TableHeader>
+Step 3: Add the Actions Cell with Buttons to the Table Body
+Next, locate the <TableBody> section where it maps over the invoices array. Inside the <TableRow>, you need to add a new <TableCell> that contains the "View" and "Download" buttons.
+
+Find this mapping function:
+
+TypeScript
+
+{invoices.map((invoice) => (
+  <TableRow key={invoice.id}>
+    <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
+    <TableCell>{formatDate(invoice.issueDate)}</TableCell>
+    <TableCell>{formatDate(invoice.dueDate)}</TableCell>
+    <TableCell>${Number(invoice.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</TableCell>
+    <TableCell>
+        <Badge
+        className={getInvoiceStatusBadgeClasses(invoice.status)}
+        variant="outline"
+      >
+        {getInvoiceStatusLabel(invoice.status)}
+      </Badge>
+    </TableCell>
+    {/* The Actions cell is missing here */}
+  </TableRow>
+))}
+Add the new <TableCell> for the actions like this:
+
+TypeScript
+
+{invoices.map((invoice) => (
+  <TableRow key={invoice.id}>
+    <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
+    <TableCell>{formatDate(invoice.issueDate)}</TableCell>
+    <TableCell>{formatDate(invoice.dueDate)}</TableCell>
+    <TableCell>${Number(invoice.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</TableCell>
+    <TableCell>
+      <Badge
+        className={getInvoiceStatusBadgeClasses(invoice.status)}
+        variant="outline"
+      >
+        {getInvoiceStatusLabel(invoice.status)}
+      </Badge>
+    </TableCell>
+
+    {/* ADD THIS ENTIRE CELL */}
+    <TableCell className="text-right">
+      <div className="flex justify-end gap-2">
+        <Button 
+            variant="outline" 
+            size="sm" 
+            className="text-primary-600 gap-1" 
+            onClick={() => handleViewInvoice(invoice.id)}
+        >
+          <FileText className="h-4 w-4" /> View
+        </Button>
+        <Button 
+            variant="outline" 
+            size="sm" 
+            className="text-primary-600 gap-1" 
+            onClick={() => handleDownloadInvoice(invoice.id, invoice.invoiceNumber)}
+        >
+          <Download className="h-4 w-4" /> Download
+        </Button>
+      </div>
+    </TableCell>
+
+  </TableRow>
+))}
+Step 4: Ensure Button Handler Functions Exist
+Finally, make sure the handler functions handleViewInvoice and handleDownloadInvoice are present within your ProjectFinancialsTab component. The provided code already contains them, but for completeness, here they are:
+
+TypeScript
+
+const handleViewInvoice = (invoiceId: number) => {
+  window.open(`/invoices/${invoiceId}/view`, '_blank');
+};
+// ...
+const handleDownloadInvoice = async (invoiceId: number, invoiceNumber: string) => {
+  try {
+    const response = await fetch(`/api/projects/${project.id}/invoices/${invoiceId}/download`, {
+      credentials: 'include'
+    });
+    if (!response.ok) {
+      throw new Error('Download failed');
+    }
+    
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Invoice-${invoiceNumber}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    toast({
+      title: "Download Failed",
+      description: "Could not download the invoice PDF.",
+      variant: "destructive",
+    });
+  }
+};
+After making these changes, the "Actions" column with the "View" and "Download" buttons will appear next to each invoice, allowing you to proceed with the intended workflow.
