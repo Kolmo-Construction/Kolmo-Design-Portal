@@ -265,39 +265,39 @@ export class PaymentService {
       throw new HttpError(400, 'Invoice is not in draft status and cannot be sent.');
     }
 
-    const paymentIntent = await stripeService.createPaymentIntent({
-      amount: Math.round(parseFloat(invoice.amount) * 100),
-      customerEmail: invoice.customerEmail || undefined,
-      customerName: invoice.customerName || undefined,
+    // *** MODIFICATION START ***
+    // Instead of creating a PaymentIntent, create a PaymentLink
+    const stripePaymentLink = await stripeService.createPaymentLink({
+      amount: Math.round(parseFloat(invoice.amount) * 100), // Amount in cents
       description: invoice.description || `Payment for Invoice #${invoice.invoiceNumber}`,
-      metadata: {
-        invoiceId: invoice.id.toString(),
-        projectId: invoice.projectId?.toString() || '',
-        paymentType: 'milestone',
-      },
+      invoiceId: invoice.id,
+      customerEmail: invoice.customerEmail || undefined,
+      successUrl: `${process.env.BASE_URL || 'http://localhost:5000'}/payment-success?invoice_id=${invoice.id}`,
     });
 
-    const paymentLink = `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`;
+    if (!stripePaymentLink || !stripePaymentLink.url) {
+      throw new HttpError(500, 'Failed to create Stripe Payment Link.');
+    }
 
-    // Update the invoice to 'pending' and add the Stripe details
+    // Update the invoice to 'pending' and add the PaymentLink URL
     const updatedInvoice = await storage.invoices.updateInvoice(invoice.id, {
       status: 'pending',
-      stripePaymentIntentId: paymentIntent.id,
-      paymentLink: paymentLink,
+      paymentLink: stripePaymentLink.url, // Store the actual payment link URL
       issueDate: new Date(), // Update issue date to when it was sent
     });
+    // *** MODIFICATION END ***
 
     if (!updatedInvoice) {
       throw new HttpError(500, 'Failed to update invoice before sending.');
     }
 
-    // Send the payment instruction email
+    // Send the payment instruction email with the correct link
     if (updatedInvoice.customerEmail) {
       await this.sendPaymentInstructions(updatedInvoice.customerEmail, {
         customerName: updatedInvoice.customerName || 'Customer',
         projectName: updatedInvoice.description || 'Your Project',
         amount: parseFloat(updatedInvoice.amount),
-        paymentLink: paymentLink,
+        paymentLink: stripePaymentLink.url, // Use the correct payment link
         dueDate: new Date(updatedInvoice.dueDate),
         paymentType: 'milestone',
       });
