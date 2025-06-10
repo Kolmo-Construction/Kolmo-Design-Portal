@@ -6,7 +6,7 @@ import { uploadToR2, deleteFromR2 } from "../r2-upload";
 import { z } from "zod";
 import { sendEmail } from "../email";
 import { initializeQuoteChat } from "../stream-chat";
-import { generateUrl } from "../domain.config";
+import { getBaseUrl } from "../domain.config";
 
 const createQuoteSchema = createInsertSchema(quotes).omit({
   id: true,
@@ -217,7 +217,8 @@ export class QuoteController {
       }
 
       // Send email to customer using proper domain configuration
-      const quoteLink = generateUrl(`/customer/quote/${quoteDetails.accessToken}`);
+      const baseUrl = getBaseUrl();
+      const quoteLink = `${baseUrl}/customer/quote/${quoteDetails.accessToken}`;
       console.log(`[QuoteController] Sending email to ${quoteDetails.customerEmail} with link: ${quoteLink}`);
       
       const emailSent = await this.sendQuoteEmail(quoteDetails, quoteLink);
