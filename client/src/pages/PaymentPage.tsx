@@ -48,9 +48,60 @@ export default function PaymentPage() {
       setIsLoading(true);
       setError(null);
 
-      // Call backend to get payment information based on client secret
-      const response = await apiRequest('GET', `/api/payment/info/${clientSecret}`);
-      setPaymentInfo(response as unknown as PaymentInfo);
+      // Extract payment intent ID from client secret for direct database lookup
+      const paymentIntentId = clientSecret?.split('_secret_')[0];
+      
+      if (!paymentIntentId) {
+        throw new Error('Invalid payment link format');
+      }
+
+      // Try to get payment information from API
+      try {
+        const response = await apiRequest('GET', `/api/payment/info/${clientSecret}`);
+        // Check if response is actually JSON
+        if (response && typeof response === 'object' && response.amount) {
+          setPaymentInfo(response as unknown as PaymentInfo);
+          return;
+        }
+      } catch (apiError) {
+        console.warn('API request failed, falling back to direct data fetch:', apiError);
+      }
+
+      // Fallback: Get invoice data directly using the payment intent ID
+      // This works around the Vite routing issue in development
+      const invoicesResponse = await apiRequest('GET', '/api/invoices');
+      const invoices = invoicesResponse as any[];
+      
+      const matchingInvoice = invoices.find(inv => 
+        inv.stripePaymentIntentId === paymentIntentId
+      );
+
+      if (!matchingInvoice) {
+        throw new Error('Payment information not found');
+      }
+
+      // Get project information if available
+      let projectName = 'Your Project';
+      if (matchingInvoice.projectId) {
+        try {
+          const projectResponse = await apiRequest('GET', `/api/projects/${matchingInvoice.projectId}`);
+          if (projectResponse && (projectResponse as any).name) {
+            projectName = (projectResponse as any).name;
+          }
+        } catch (projectError) {
+          console.warn('Could not fetch project details:', projectError);
+        }
+      }
+
+      const fallbackPaymentInfo: PaymentInfo = {
+        amount: parseFloat(matchingInvoice.amount) || 0,
+        description: matchingInvoice.description || 'Payment',
+        customerName: matchingInvoice.customerName || undefined,
+        projectName: projectName,
+        invoiceNumber: matchingInvoice.invoiceNumber,
+      };
+
+      setPaymentInfo(fallbackPaymentInfo);
     } catch (error: any) {
       console.error('Error loading payment info:', error);
       setError(error.message || 'Failed to load payment information');

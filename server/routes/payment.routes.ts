@@ -217,6 +217,13 @@ router.post('/projects/:id/milestone-payment', async (req, res, next) => {
 });
 
 /**
+ * Test endpoint to debug routing
+ */
+router.get('/test', (req, res) => {
+  res.json({ status: 'working', timestamp: new Date().toISOString() });
+});
+
+/**
  * Get payment information by client secret
  */
 router.get('/info/:clientSecret', async (req, res, next) => {
