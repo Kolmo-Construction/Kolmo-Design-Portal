@@ -187,6 +187,7 @@ export const invoices = pgTable("invoices", {
   stripePaymentIntentId: text("stripe_payment_intent_id"),
   stripeInvoiceId: text("stripe_invoice_id"),
   paymentLink: text("payment_link"), // Secure payment link for customers
+  paymentToken: text("payment_token").unique(), // Secure token for payment links
   
   // Customer information
   customerName: text("customer_name"),

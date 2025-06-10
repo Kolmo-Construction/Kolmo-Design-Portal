@@ -13,6 +13,8 @@ export interface IInvoiceRepository {
     getAllInvoices(): Promise<schema.Invoice[]>; // Get all invoices across all projects
     getInvoiceById(invoiceId: number): Promise<InvoiceWithPayments | null>; // Fetch with payments
     getInvoiceByPaymentIntentId(paymentIntentId: string): Promise<schema.Invoice | null>; // Find invoice by Stripe payment intent ID
+    getInvoiceByPaymentToken(token: string): Promise<schema.Invoice | null>; // Find invoice by payment token
+    getInvoiceByNumber(invoiceNumber: string): Promise<schema.Invoice | null>; // Find invoice by invoice number
     createInvoice(invoiceData: Omit<schema.InsertInvoice, 'amount'> & { amount: string }): Promise<schema.Invoice | null>;
     updateInvoice(invoiceId: number, invoiceData: Partial<Omit<schema.InsertInvoice, 'id' | 'projectId'>>): Promise<schema.Invoice | null>;
     deleteInvoice(invoiceId: number): Promise<boolean>; // Consider implications for payments
@@ -81,6 +83,30 @@ class InvoiceRepository implements IInvoiceRepository {
         } catch (error) {
             console.error(`Error fetching invoice by payment intent ID ${paymentIntentId}:`, error);
             throw new Error('Database error while fetching invoice by payment intent ID.');
+        }
+    }
+
+    async getInvoiceByPaymentToken(token: string): Promise<schema.Invoice | null> {
+        try {
+            const invoice = await this.dbOrTx.query.invoices.findFirst({
+                where: eq(schema.invoices.paymentToken, token)
+            });
+            return invoice || null;
+        } catch (error) {
+            console.error(`Error fetching invoice by payment token ${token}:`, error);
+            throw new Error('Database error while fetching invoice by payment token.');
+        }
+    }
+
+    async getInvoiceByNumber(invoiceNumber: string): Promise<schema.Invoice | null> {
+        try {
+            const invoice = await this.dbOrTx.query.invoices.findFirst({
+                where: eq(schema.invoices.invoiceNumber, invoiceNumber)
+            });
+            return invoice || null;
+        } catch (error) {
+            console.error(`Error fetching invoice by number ${invoiceNumber}:`, error);
+            throw new Error('Database error while fetching invoice by number.');
         }
     }
 

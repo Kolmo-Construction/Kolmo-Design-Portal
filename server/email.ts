@@ -96,7 +96,22 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       },
       subject: options.subject,
       text: textContent || 'Please view this email in HTML format.',
-      html: options.html || options.text || ''
+      html: options.html || options.text || '',
+      // Disable click tracking for payment emails to prevent URL corruption
+      tracking_settings: {
+        click_tracking: {
+          enable: false
+        },
+        open_tracking: {
+          enable: false
+        }
+      },
+      // Add mail settings to ensure clean delivery
+      mail_settings: {
+        bypass_list_management: {
+          enable: false
+        }
+      }
     };
 
     await sgMail.send(msg);
