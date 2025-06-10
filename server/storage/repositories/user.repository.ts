@@ -131,6 +131,7 @@ class UserRepository implements IUserRepository {
 
    async setupUserProfile(userId: string, firstName: string, lastName: string, password: string): Promise<UserProfile | null> {
        try {
+           const { hashPassword } = await import('../../auth');
            const hashedPassword = await hashPassword(password);
            const result = await this.db.update(schema.users)
                 .set({ firstName, lastName, password: hashedPassword, isActivated: true, updatedAt: new Date() })
