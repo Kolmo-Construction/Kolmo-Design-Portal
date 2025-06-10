@@ -61,9 +61,27 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
 
   const initializeAdminChat = async (chatData: any) => {
     console.log('initializeAdminChat called with:', chatData);
-    if (isLoading || client) {
-      console.log('Skipping admin chat init - already loading or client exists');
+    
+    // Prevent multiple initializations
+    if (isLoading) {
+      console.log('Skipping admin chat init - already loading');
       return;
+    }
+    
+    if (client && isConnected) {
+      console.log('Skipping admin chat init - already connected');
+      return;
+    }
+    
+    // Disconnect existing client if any
+    if (client) {
+      try {
+        await client.disconnectUser();
+      } catch (err) {
+        console.log('Error disconnecting existing client:', err);
+      }
+      setClient(null);
+      setIsConnected(false);
     }
     
     setIsLoading(true);
@@ -87,7 +105,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
       console.error('Error initializing admin chat:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to initialize admin chat';
       setError(errorMessage);
-      console.error('Error initializing admin chat:', err);
     } finally {
       setIsLoading(false);
     }

@@ -175,7 +175,7 @@ export const invoices = pgTable("invoices", {
   quoteId: integer("quote_id").references(() => quotes.id), // Link to originating quote
   milestoneId: integer("milestone_id").references(() => milestones.id, { onDelete: 'set null' }), // Link to milestone that generated this invoice
   invoiceNumber: text("invoice_number").notNull(),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull().$type<string>(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
   issueDate: timestamp("issue_date").notNull(),
   dueDate: timestamp("due_date").notNull(),
