@@ -246,6 +246,7 @@ export class PaymentService {
     // Update the milestone to link it to the newly created invoice ID
     await storage.milestones.updateMilestone(milestoneId, {
         invoiceId: invoice.id,
+        billedAt: new Date(), // Set the billing timestamp here
     });
 
     return invoice;
