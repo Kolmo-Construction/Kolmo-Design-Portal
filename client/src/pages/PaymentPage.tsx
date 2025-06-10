@@ -50,7 +50,7 @@ export default function PaymentPage() {
 
       // Call backend to get payment information based on client secret
       const response = await apiRequest('GET', `/api/payment/info/${clientSecret}`);
-      setPaymentInfo(response as PaymentInfo);
+      setPaymentInfo(response as unknown as PaymentInfo);
     } catch (error: any) {
       console.error('Error loading payment info:', error);
       setError(error.message || 'Failed to load payment information');
@@ -217,7 +217,7 @@ export default function PaymentPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-semibold">Total Amount:</span>
                   <span className="text-2xl font-bold text-green-600">
-                    ${paymentInfo.amount.toFixed(2)}
+                    ${paymentInfo.amount?.toFixed?.(2) || '0.00'}
                   </span>
                 </div>
               </div>
