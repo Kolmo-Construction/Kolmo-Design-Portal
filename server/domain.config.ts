@@ -16,7 +16,7 @@ export function getBaseUrl(): string {
 
   // Production environment or Replit deployment
   if (process.env.NODE_ENV === 'production' || process.env.REPLIT_SLUG) {
-    return 'https://kolmo.design';
+    return 'https://portal.kolmo.design';
   }
 
   // Development environment
