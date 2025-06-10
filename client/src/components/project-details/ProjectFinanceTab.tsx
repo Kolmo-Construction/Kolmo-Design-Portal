@@ -15,7 +15,8 @@ import {
   Clock, 
   AlertTriangle,
   FileText,
-  TrendingUp
+  TrendingUp,
+  Download
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +29,38 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [loadingMilestoneId, setLoadingMilestoneId] = useState<number | null>(null);
+
+  const handleViewInvoice = (invoiceId: number) => {
+    window.open(`/invoices/${invoiceId}/view`, '_blank');
+  };
+
+  const handleDownloadInvoice = async (invoiceId: number, invoiceNumber: string) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/invoices/${invoiceId}/download`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice-${invoiceNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "Could not download the invoice PDF.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Fetch milestones for the project
   const {
@@ -287,9 +320,29 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
                         </span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-xl font-bold">${parseFloat(invoice.amount).toFixed(2)}</div>
-                      <div className="text-sm text-gray-500">{invoice.invoiceType}</div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <div className="text-xl font-bold">${parseFloat(invoice.amount).toFixed(2)}</div>
+                        <div className="text-sm text-gray-500">{invoice.invoiceType}</div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleViewInvoice(invoice.id)}
+                          className="gap-1"
+                        >
+                          <FileText className="h-4 w-4" /> View
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleDownloadInvoice(invoice.id, invoice.invoiceNumber)}
+                          className="gap-1"
+                        >
+                          <Download className="h-4 w-4" /> Download
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
