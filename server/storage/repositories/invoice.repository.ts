@@ -91,7 +91,7 @@ class InvoiceRepository implements IInvoiceRepository {
                     ...invoiceData,
                     // Ensure amount is handled correctly (string/number -> numeric)
                     // Drizzle/node-postgres usually handles string representations fine
-                    status: invoiceData.status ?? schema.invoiceStatusEnum.enumValues[0], // Default status if needed
+                    status: invoiceData.status ?? 'draft', // Explicitly default to draft status
                 })
                 .returning();
 
