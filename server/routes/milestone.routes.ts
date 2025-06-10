@@ -11,7 +11,7 @@ const paymentService = new PaymentService();
 // Get milestones for a project
 router.get('/', async (req, res, next) => {
   try {
-    const projectId = parseInt(req.params.projectId);
+    const projectId = parseInt(req.params.projectId as string);
     if (isNaN(projectId)) {
       throw new HttpError(400, 'Invalid project ID');
     }
@@ -32,7 +32,7 @@ router.get('/', async (req, res, next) => {
 // Create a new milestone
 router.post('/', async (req, res, next) => {
   try {
-    const projectId = parseInt(req.params.projectId);
+    const projectId = parseInt(req.params.projectId as string);
     if (isNaN(projectId)) {
       throw new HttpError(400, 'Invalid project ID');
     }
@@ -168,18 +168,29 @@ router.post('/:milestoneId/bill', async (req, res, next) => {
       throw new HttpError(404, 'Project not found');
     }
 
-    // --- MODIFICATION: Auto-create draft invoice ---
-    let draftInvoice = null;
+    // Create draft invoice and immediately send it with Payment Link
+    let sentInvoice = null;
     if (milestone.isBillable) {
-        console.log(`Milestone ${milestoneId} is billable, creating draft invoice.`);
-        draftInvoice = await paymentService.createDraftInvoiceForMilestone(projectId, milestoneId);
+        console.log(`Milestone ${milestoneId} is billable, creating and sending invoice.`);
+        
+        // Create draft invoice
+        const draftInvoice = await paymentService.createDraftInvoiceForMilestone(projectId, milestoneId);
+        
+        if (draftInvoice) {
+            // Immediately send the draft invoice with Payment Link
+            sentInvoice = await paymentService.sendDraftInvoice(draftInvoice.id);
+            
+            // Mark milestone as billed
+            await storage.milestones.updateMilestone(milestoneId, {
+                billedAt: new Date()
+            });
+        }
     }
-    // --- END MODIFICATION ---
 
-    // Update the response to return the draft invoice
+    // Update the response to return the sent invoice
     res.json({
-      message: 'Draft invoice created successfully',
-      invoice: draftInvoice,
+      message: 'Invoice created and sent successfully',
+      invoice: sentInvoice,
       milestone: await storage.milestones.getMilestoneById(milestoneId),
     });
   } catch (error) {

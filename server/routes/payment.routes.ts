@@ -160,61 +160,11 @@ router.post('/payment-success', async (req, res, next) => {
 });
 
 /**
- * Create payment intent for milestone payments
+ * Legacy milestone payment route - DEPRECATED
+ * Use the milestone billing system instead via POST /api/projects/:projectId/milestones/:milestoneId/bill
  */
-router.post('/projects/:id/milestone-payment', async (req, res, next) => {
-  try {
-    if (!stripe) {
-      throw new HttpError(503, 'Payment processing temporarily unavailable');
-    }
-
-    const projectId = parseInt(req.params.id);
-    const { milestoneDescription } = req.body;
-
-    const project = await storage.projects.getProjectById(projectId);
-    if (!project || !project.originQuoteId) {
-      throw new HttpError(404, 'Project or originating quote not found');
-    }
-
-    const quote = await storage.quotes.getQuoteById(project.originQuoteId);
-    if (!quote) {
-      throw new HttpError(404, 'Originating quote not found');
-    }
-
-    // Calculate milestone payment amount
-    const total = parseFloat(quote.total?.toString() || '0');
-    const milestonePercentage = quote.milestonePaymentPercentage || 40;
-    const milestoneAmount = (total * milestonePercentage) / 100;
-
-    // Create Stripe payment intent
-    const paymentIntent = await stripe!.paymentIntents.create({
-      amount: Math.round(milestoneAmount * 100),
-      currency: 'usd',
-      description: `Milestone payment for ${project.name}`,
-      metadata: {
-        projectId: project.id.toString(),
-        quoteId: quote.id.toString(),
-        paymentType: 'milestone',
-        milestonePercentage: milestonePercentage.toString(),
-      },
-      automatic_payment_methods: {
-        enabled: true,
-      },
-    });
-
-    res.json({
-      clientSecret: paymentIntent.client_secret,
-      amount: milestoneAmount,
-      milestonePercentage,
-      project: {
-        id: project.id,
-        name: project.name,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+// This route has been removed to prevent Payment Intent conflicts.
+// All milestone payments now use the Payment Link system through the milestone billing workflow.
 
 /**
  * Send project welcome email after down payment
