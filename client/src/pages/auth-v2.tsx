@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { useAuthV2 } from "@/hooks/use-auth-v2";
 import { Shield, Building2, Users, CheckCircle } from "lucide-react";
-import kolmoLogo from "@assets/kolmo-logo.png";
+
 
 export default function AuthPageV2() {
   const [, navigate] = useLocation();
@@ -34,7 +34,7 @@ export default function AuthPageV2() {
         <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 p-12 text-white relative overflow-hidden">
           {/* Background Pattern */}
           <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 left-0 w-full h-full bg-white/5 rounded-full blur-3xl"></div>
+            <div className="absolute top-0 left-0 w-full h-full bg-white opacity-5 rounded-full blur-3xl"></div>
           </div>
 
           <div className="relative z-10 flex flex-col justify-between w-full">
