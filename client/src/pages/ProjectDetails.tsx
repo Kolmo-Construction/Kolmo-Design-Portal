@@ -43,7 +43,7 @@ import { ProjectTasksTab } from "@/components/project-details/ProjectTasksTab";
 import { ProjectDailyLogsTab } from "@/components/project-details/ProjectDailyLogsTab";
 import { ProjectPunchListTab } from "@/components/project-details/ProjectPunchListTab";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-unified";
 // --- ADDED: Import the new ProjectHeader component ---
 import { ProjectHeader } from "@/components/project-details/ProjectHeader";
 // --- END ADDED ---
