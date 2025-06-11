@@ -1,21 +1,23 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
-import { Redirect, Route, useLocation } from "wouter";
+import { Redirect, Route } from "wouter";
+import React from "react"; // Import React for ComponentType
 
 export function ProtectedRoute({
   path,
   component: Component,
 }: {
   path: string;
-  component: () => React.JSX.Element | null;
+  // It's more conventional to use React.ComponentType for component props
+  component: React.ComponentType;
 }) {
   const { user, isLoading } = useAuth();
-  const [location] = useLocation();
 
   return (
     <Route path={path}>
       {() => {
-        // Show loading spinner while authentication is being checked
+        // 1. First, and most importantly, handle the loading state.
+        //    While loading, show a spinner and do nothing else.
         if (isLoading) {
           return (
             <div className="flex items-center justify-center min-h-screen">
@@ -24,22 +26,15 @@ export function ProtectedRoute({
           );
         }
 
-        // Redirect to auth if not authenticated, but avoid infinite loops
-        if (!user && location !== "/auth") {
-          return <Redirect to="/auth" replace />;
+        // 2. AFTER loading is complete, check for the user.
+        //    If there is no user, we can now safely redirect.
+        if (!user) {
+          return <Redirect to="/auth" />;
         }
 
-        // If we have a user, render the component
-        if (user) {
-          return <Component />;
-        }
-
-        // Fallback to loading state
-        return (
-          <div className="flex items-center justify-center min-h-screen">
-            <Loader2 className="h-8 w-8 animate-spin text-border" />
-          </div>
-        );
+        // 3. If we've reached this point, it means isLoading is false AND we have a user.
+        //    Render the requested component.
+        return <Component />;
       }}
     </Route>
   );

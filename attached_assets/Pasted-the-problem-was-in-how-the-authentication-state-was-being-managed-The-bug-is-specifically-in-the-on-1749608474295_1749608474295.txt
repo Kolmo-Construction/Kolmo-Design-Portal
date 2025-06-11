@@ -1,0 +1,91 @@
+the problem was in how the authentication state was being managed. The bug is specifically in the onSuccess handler of your loginMutation inside use-auth.tsx.
+
+The Problem: Conflicting Cache Operations
+Here is the problematic code in your loginMutation:
+
+TypeScript
+
+// in use-auth.tsx
+const loginMutation = useMutation({
+  mutationFn: async (credentials: LoginData) => { /* ... */ },
+  onSuccess: async (user: SelectUser) => {
+    // 1. You correctly set the user data in the cache
+    queryClient.setQueryData(["/api/user"], user);
+    
+    // 2. You wait for a moment (this is a fragile workaround)
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // 3. You immediately invalidate the cache
+    //    THIS IS THE BUG. This tells React Query to re-fetch /api/user.
+    await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+  },
+  onError: (error: Error) => { /* ... */ },
+});
+Here is what's happening:
+
+On successful login, you setQueryData, which optimistically updates your UI.
+Immediately after, you call invalidateQueries. This tells React Query, "The user data I just gave you is stale, please get a fresh copy from the server right now."
+React Query obeys and makes a new GET /api/user request. As we diagnosed, this request fails with a 401 because the browser session isn't ready.
+This failed request sets the user data back to null, undoing your successful login and preventing the redirect.
+You are giving the application the user data with one hand (setQueryData) and immediately taking it away with the other (invalidateQueries).
+
+The Definitive Solution (2 Parts)
+We need to make two small changes to fix this permanently.
+
+Part 1: Fix the use-auth.tsx file
+Remove the invalidateQueries and the setTimeout from the loginMutation. The only thing you need to do on success is set the user data.
+
+TypeScript
+
+// in use-auth.tsx
+
+const loginMutation = useMutation({
+  mutationFn: async (credentials: LoginData) => {
+    return await apiRequest("POST", "/api/login", credentials);
+  },
+  onSuccess: (user: SelectUser) => {
+    // The ONLY thing you need to do is set the data from the successful login.
+    // Trust the data you just received. Do not invalidate it.
+    queryClient.setQueryData(["/api/user"], user);
+  },
+  onError: (error: Error) => {
+    // Clear any stale user data on login failure
+    queryClient.setQueryData(["/api/user"], null);
+    
+    toast({
+      title: "Login failed",
+      description: error.message,
+      variant: "destructive",
+    });
+  },
+});
+Part 2: Clean up the AuthPage.tsx file
+Now that the mutation handles the logic correctly, you should remove the redundant setQueryData call from your onLogin function in AuthPage.tsx. This centralizes your logic in the useAuth hook where it belongs.
+
+TypeScript
+
+// in AuthPage.tsx
+
+const onLogin = async (data: LoginFormValues) => {
+  try {
+    // The mutation's own onSuccess handler now manages the state.
+    // You no longer need to do anything else here.
+    await loginMutation.mutateAsync(data);
+  } catch (error: any) {
+    console.error("Login failed:", error);
+    // The mutation's onError will show the toast, but you can still set form errors.
+    loginForm.setError("root", {
+      type: "manual",
+      message: error.message || "Login failed",
+    });
+  }
+};
+Why This Works
+By removing the conflicting invalidateQueries call, your application will now follow this stable and correct sequence:
+
+loginMutation succeeds.
+onSuccess fires and setQueryData places the user object in the cache.
+The useAuth hook receives the new user object from the cache and its isLoading state becomes false.
+Your AuthPage re-renders with the valid user and authLoading as false.
+The useEffect in AuthPage finally sees its condition (user && !authLoading) as true and successfully navigates you to the dashboard.
+Make these two changes, and the login functionality will work reliably.
