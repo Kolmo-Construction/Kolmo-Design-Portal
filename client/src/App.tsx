@@ -84,10 +84,10 @@ function App() {
     <ThemeProvider attribute="class" defaultTheme="light">
       <TooltipProvider>
         <AuthProvider>
-          <ChatProvider>
+          {/* <ChatProvider> */}
             <Toaster />
             <Router />
-          </ChatProvider>
+        {/* <ChatProvider> */}
         </AuthProvider>
       </TooltipProvider>
     </ThemeProvider>
