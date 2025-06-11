@@ -74,10 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async (credentials: LoginData) => {
       return await apiRequest("POST", "/api/login", credentials);
     },
-    onSuccess: (user: SelectUser) => {
-      // The ONLY thing you need to do is set the data from the successful login.
-      // Trust the data you just received. Do not invalidate it.
-      queryClient.setQueryData(["/api/user"], user);
+    onSuccess: () => {
+      // Invalidate the user query. This will trigger the useQuery 
+      // for the user to refetch from the server, which now has an active session.
+      // This is the source of truth and prevents race conditions.
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
     onError: (error: Error) => {
       // Clear any stale user data on login failure
