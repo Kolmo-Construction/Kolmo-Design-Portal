@@ -89,7 +89,7 @@ export function LoginForm({ onSuccess, redirectTo = "/" }: LoginFormProps) {
               type="text"
               placeholder="Enter your username"
               autoComplete="username"
-              disabled={isLoading}
+              disabled={formIsLoading}
               {...form.register("username")}
             />
             {form.formState.errors.username && (
@@ -108,7 +108,7 @@ export function LoginForm({ onSuccess, redirectTo = "/" }: LoginFormProps) {
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
                 autoComplete="current-password"
-                disabled={isLoading}
+                disabled={formIsLoading}
                 {...form.register("password")}
               />
               <Button
@@ -117,7 +117,7 @@ export function LoginForm({ onSuccess, redirectTo = "/" }: LoginFormProps) {
                 size="sm"
                 className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                 onClick={() => setShowPassword(!showPassword)}
-                disabled={isLoading}
+                disabled={formIsLoading}
               >
                 {showPassword ? (
                   <EyeOff className="h-4 w-4" />
@@ -153,9 +153,9 @@ export function LoginForm({ onSuccess, redirectTo = "/" }: LoginFormProps) {
           <Button
             type="submit"
             className="w-full"
-            disabled={isLoading}
+            disabled={formIsLoading}
           >
-            {isLoading ? (
+            {formIsLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Signing in...
