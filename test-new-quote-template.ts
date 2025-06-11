@@ -1,1 +1,1 @@
-// Test file for quote email template - can be removed after testing
+// This test file can be deleted - logo implementation is complete

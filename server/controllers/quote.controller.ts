@@ -6,6 +6,8 @@ import { uploadToR2, deleteFromR2 } from "../r2-upload";
 import { z } from "zod";
 import { sendEmail } from "../email";
 import { initializeQuoteChat } from "../stream-chat";
+import fs from 'fs';
+import path from 'path';
 
 const createQuoteSchema = createInsertSchema(quotes).omit({
   id: true,
@@ -844,9 +846,6 @@ This email was sent to ${quote.customerEmail}. All quotes are confidential and p
 `;
 
       // Read the logo file and convert to base64
-      const fs = require('fs');
-      const path = require('path');
-      
       let logoAttachment = null;
       try {
         const logoPath = path.join(process.cwd(), 'public', 'assets', 'kolmo-logo.png');
