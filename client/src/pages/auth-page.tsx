@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useLocation, useParams, Link } from "wouter";
+import { useLocation, useParams, Link, Redirect } from "wouter";
 import { queryClient } from "@/lib/queryClient";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -52,12 +52,7 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
   const { token } = useParams<{ token: string }>();
   const { user, isLoading: authLoading, loginMutation, registerMutation } = useAuth();
 
-  // Declarative navigation - handles all redirections when user state changes
-  useEffect(() => {
-    if (user && !isMagicLink && !isPasswordReset && !authLoading) {
-      navigate("/");
-    }
-  }, [user, navigate, isMagicLink, isPasswordReset, authLoading]);
+
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -158,6 +153,21 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
       setForgotPasswordSubmitting(false);
     }
   };
+
+  // While the initial authentication status is being checked, show a full-page loader.
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  // After loading, if the user object exists (meaning they are logged in),
+  // render a Redirect component to navigate them away.
+  if (user && !isMagicLink && !isPasswordReset) {
+    return <Redirect to="/" />;
+  }
 
   // Magic link loading/success/error states
   if (isMagicLink) {

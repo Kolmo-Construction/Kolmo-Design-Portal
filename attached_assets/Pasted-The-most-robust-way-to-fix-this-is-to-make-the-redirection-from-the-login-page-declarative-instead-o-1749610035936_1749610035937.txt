@@ -1,0 +1,95 @@
+The most robust way to fix this is to make the redirection from the login page declarative instead of relying on a useEffect hook. Instead of "when the user object appears, navigate away," we'll change it to "if the user object exists, render a Redirect component."
+
+Here is the required change in client/src/pages/auth-page.tsx:
+
+File to Modify
+SecureUserPortal 12_clean/client/src/pages/auth-page.tsx
+Instructions
+Replace the existing useEffect hook and the component's main return statement with the updated logic below. This new structure will check the authentication state before deciding what to render.
+
+1. Remove the existing useEffect hook:
+
+Delete this entire block from client/src/pages/auth-page.tsx:
+
+TypeScript
+
+// DELETE THIS BLOCK
+  useEffect(() => {
+    if (user && !isMagicLink && !isPasswordReset && !authLoading) {
+      navigate("/");
+    }
+  }, [user, navigate, isMagicLink, isPasswordReset, authLoading]);
+2. Add the new declarative rendering logic:
+
+Place this code right before the main return (...) statement of the AuthPage component.
+
+TypeScript
+
+// ADD THIS NEW LOGIC
+  // While the initial authentication status is being checked, show a full-page loader.
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  // After loading, if the user object exists (meaning they are logged in),
+  // render a Redirect component to navigate them away.
+  if (user && !isMagicLink && !isPasswordReset) {
+    return <Redirect to="/" />;
+  }
+
+  // If loading is complete and there is no user, render the login page.
+  // The existing return statement with all the JSX will now be the "else" case.
+The top of your AuthPage component's return logic should now look like this:
+
+TypeScript
+
+export default function AuthPage({ isMagicLink = false, isPasswordReset = false }: AuthPageProps) {
+  // ... all the existing state and form hooks ...
+
+  const { user, isLoading: authLoading, loginMutation, registerMutation } = useAuth();
+
+  // Handle magic link verification (keep this useEffect)
+  useEffect(() => {
+    if (isMagicLink && token) {
+      verifyMagicLink(token);
+    }
+  }, [isMagicLink, token]);
+
+  // ... onLogin, onRegister, and other handlers remain the same ...
+
+  // --- NEW LOGIC STARTS HERE ---
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (user && !isMagicLink && !isPasswordReset) {
+    return <Redirect to="/" />;
+  }
+  // --- NEW LOGIC ENDS HERE ---
+
+  // The rest of your component's return statement with the main JSX
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+      {/* ... the rest of the page's JSX ... */}
+    </div>
+  );
+}
+Why This Works
+Eliminates Race Conditions: By checking authLoading first, we ensure we don't try to make a decision before the initial auth state is known.
+Declarative Redirection: Instead of using a useEffect side-effect to navigate, we are now declaring what should be rendered based on the current state. If the state says "user is logged in", the component's output is the <Redirect />. This is a more stable pattern in React.
+Correct Flow:
+User logs in.
+loginMutation invalidates the user query.
+useAuth hook starts refetching (authLoading becomes true).
+The AuthPage re-renders and now displays the full-page Loader2 because authLoading is true.
+The refetch completes, and the user object is now populated.
+The AuthPage re-renders again. authLoading is now false, and the user object exists.
+The component now renders the <Redirect to="/" /> component, which reliably navigates the user to the dashboard.
