@@ -65,25 +65,41 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
 
   // Handle redirect when user is authenticated with proper dependency management
   useEffect(() => {
-    console.log('[AuthPage] Redirect effect triggered:', {
+    const redirectState = {
       user: user ? `User ID ${user.id}` : 'No user',
       isMagicLink,
       isPasswordReset,
       authLoading,
       isFetching: isFetching,
-      shouldRedirect: !!(user && !isMagicLink && !isPasswordReset && !authLoading && !loginMutation.isPending && !isFetching),
+      loginPending: loginMutation.isPending,
       timestamp: new Date().toISOString()
-    });
+    };
+    
+    console.log('[AuthPage] [Redirect Effect] Effect triggered with state:', redirectState);
+    
+    // Check each condition individually for detailed logging
+    console.log('[AuthPage] [Redirect Effect] Condition checks:');
+    console.log('  - user exists:', !!user);
+    console.log('  - NOT magic link:', !isMagicLink);
+    console.log('  - NOT password reset:', !isPasswordReset);
+    console.log('  - NOT auth loading:', !authLoading);
+    console.log('  - NOT login pending:', !loginMutation.isPending);
+    console.log('  - NOT fetching:', !isFetching);
+    
+    const shouldRedirect = !!(user && !isMagicLink && !isPasswordReset && !authLoading && !loginMutation.isPending && !isFetching);
+    console.log('[AuthPage] [Redirect Effect] Overall shouldRedirect:', shouldRedirect);
     
     // Only redirect if user exists, not in special flows, auth is complete, no mutations pending, and not fetching
     if (user && !isMagicLink && !isPasswordReset && !authLoading && !loginMutation.isPending && !isFetching) {
-      console.log('[AuthPage] EXECUTING NAVIGATION TO DASHBOARD');
+      console.log('[AuthPage] [Redirect Effect] ALL CONDITIONS MET - EXECUTING NAVIGATION TO DASHBOARD');
       try {
         navigate('/');
-        console.log('[AuthPage] Navigation called successfully');
+        console.log('[AuthPage] [Redirect Effect] Navigation called successfully');
       } catch (error) {
-        console.error('[AuthPage] Navigation failed:', error);
+        console.error('[AuthPage] [Redirect Effect] Navigation failed:', error);
       }
+    } else {
+      console.log('[AuthPage] [Redirect Effect] NOT redirecting - conditions not met');
     }
   }, [user, isMagicLink, isPasswordReset, authLoading, loginMutation.isPending, isFetching, navigate]);
 
@@ -137,15 +153,23 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
 
   const onLogin = async (data: LoginFormValues) => {
     try {
-      console.log('[AuthPage] Starting login process...');
-      await loginMutation.mutateAsync(data);
-      console.log('[AuthPage] Login mutation completed, waiting for auth state...');
+      console.log('[AuthPage] [onLogin] Step 1: Starting login process with data:', { username: data.username });
       
-      // Wait for the user query to refetch and update
-      await queryClient.refetchQueries({ queryKey: ['/api/user'] });
-      console.log('[AuthPage] Auth state refreshed after login');
+      const startTime = Date.now();
+      const result = await loginMutation.mutateAsync(data);
+      const mutationTime = Date.now() - startTime;
+      
+      console.log('[AuthPage] [onLogin] Step 2: Login mutation completed in', mutationTime, 'ms, result:', result);
+      console.log('[AuthPage] [onLogin] Step 3: About to refetch user query...');
+      
+      const refetchStart = Date.now();
+      const refetchResult = await queryClient.refetchQueries({ queryKey: ['/api/user'] });
+      const refetchTime = Date.now() - refetchStart;
+      
+      console.log('[AuthPage] [onLogin] Step 4: User query refetched in', refetchTime, 'ms, result:', refetchResult);
+      console.log('[AuthPage] [onLogin] Step 5: Login process completed successfully');
     } catch (error: any) {
-      console.error("Login failed:", error);
+      console.error("[AuthPage] [onLogin] Login failed:", error);
       loginForm.setError("root", {
         type: "manual",
         message: error.message || "Login failed",
@@ -421,6 +445,14 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
                           type="submit"
                           disabled={loginForm.formState.isSubmitting || loginMutation.isPending}
                           className="w-full h-12 bg-[#db973c] hover:bg-[#db973c]/90 text-white font-medium transition-all duration-200"
+                          onClick={() => {
+                            console.log('[AuthPage] [Login Button] Button clicked, form state:', {
+                              isSubmitting: loginForm.formState.isSubmitting,
+                              isPending: loginMutation.isPending,
+                              formValues: loginForm.getValues(),
+                              timestamp: new Date().toISOString()
+                            });
+                          }}
                         >
                           {loginForm.formState.isSubmitting || loginMutation.isPending ? (
                             <>

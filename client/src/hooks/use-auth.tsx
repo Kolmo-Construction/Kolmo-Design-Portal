@@ -95,17 +95,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      return await apiRequest("POST", "/api/login", credentials);
+      console.log('[LoginMutation] [mutationFn] Step A: Sending login request to API');
+      const result = await apiRequest("POST", "/api/login", credentials);
+      console.log('[LoginMutation] [mutationFn] Step B: API request completed, result:', result);
+      return result;
     },
-    onSuccess: async () => {
-      console.log('[LoginMutation] onSuccess: Invalidating user query to trigger refetch.');
+    onSuccess: async (userData) => {
+      console.log('[LoginMutation] [onSuccess] Step C: Login mutation succeeded with user data:', userData);
+      console.log('[LoginMutation] [onSuccess] Step D: About to invalidate user queries');
       
-      // Invalidate and wait for the refetch to complete
-      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      console.log('[LoginMutation] User query refetched successfully');
+      const startTime = Date.now();
+      const invalidateResult = await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      const invalidateTime = Date.now() - startTime;
+      
+      console.log('[LoginMutation] [onSuccess] Step E: Query invalidation completed in', invalidateTime, 'ms, result:', invalidateResult);
+      
+      // Get the current query data after invalidation
+      const currentData = queryClient.getQueryData(["/api/user"]);
+      console.log('[LoginMutation] [onSuccess] Step F: Current query data after invalidation:', currentData);
     },
     onError: (error: Error) => {
-      console.log('[LoginMutation] onError called:', error);
+      console.log('[LoginMutation] [onError] Login failed with error:', error);
       
       // Clear any stale user data on login failure
       queryClient.setQueryData(["/api/user"], null);
