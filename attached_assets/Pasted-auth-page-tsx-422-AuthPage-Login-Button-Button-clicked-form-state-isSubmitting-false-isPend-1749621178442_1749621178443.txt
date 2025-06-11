@@ -1,0 +1,24 @@
+auth-page.tsx:422 [AuthPage] [Login Button] Button clicked, form state: {isSubmitting: false, isPending: false, formValues: {…}, timestamp: '2025-06-11T05:52:44.560Z'}
+auth-page.tsx:118 [AuthPage] [onLogin] ===== STARTING LOGIN PROCESS =====
+auth-page.tsx:119 [AuthPage] [onLogin] Credentials: {username: 'admin', hasPassword: true}
+auth-page.tsx:120 [AuthPage] [onLogin] Current query cache state before login: undefined
+auth-page.tsx:161 [AuthPage] [onLogin] Mutation.mutate() called, waiting for callbacks...
+use-auth.tsx:109 [useAuth] [loginMutation] Starting API request to /api/login
+queryClient.ts:33 [apiRequest] POST /api/login {"username":"admin","password":"admin"}
+auth-page.tsx:59 [AuthPage] [MutationState] Login mutation state changed: {isPending: true, isSuccess: false, isError: false, data: undefined, error: null, …}
+queryClient.ts:48 [apiRequest] Response: {id: 1, username: 'admin', email: 'admin@example.com', firstName: 'Admin', lastName: 'User', …}
+use-auth.tsx:111 [useAuth] [loginMutation] API request successful, returning: {id: 1, username: 'admin', email: 'admin@example.com', firstName: 'Admin', lastName: 'User', …}
+auth-page.tsx:124 [AuthPage] [onLogin] [onSuccess] 🎉 LOGIN MUTATION SUCCESS CALLBACK TRIGGERED 🎉
+auth-page.tsx:125 [AuthPage] [onLogin] [onSuccess] Received user data: {id: 1, username: 'admin', email: 'admin@example.com', firstName: 'Admin', lastName: 'User', …}
+auth-page.tsx:126 [AuthPage] [onLogin] [onSuccess] Cache state before manual update: undefined
+auth-page.tsx:129 [AuthPage] [onLogin] [onSuccess] Step 1: Updating query cache with fresh user data...
+auth-page.tsx:131 [AuthPage] [onLogin] [onSuccess] Cache state after update: {id: 1, username: 'admin', email: 'admin@example.com', firstName: 'Admin', lastName: 'User', …}
+auth-page.tsx:134 [AuthPage] [onLogin] [onSuccess] Step 2: Navigating to dashboard...
+auth-page.tsx:136 [AuthPage] [onLogin] [onSuccess] ✅ Navigation called successfully
+auth-page.tsx:138 [AuthPage] [onLogin] [onSuccess] Step 3: Showing success toast...
+auth-page.tsx:144 [AuthPage] [onLogin] [onSuccess] ===== LOGIN SUCCESS FLOW COMPLETE =====
+protected-route.tsx:19 [ProtectedRoute] Auth check: {path: '/', user: 'No user', isLoading: false, isFetching: false, shouldShowLoader: false, …}
+protected-route.tsx:43 [ProtectedRoute] Redirecting to auth from path: /
+auth-page.tsx:59 [AuthPage] [MutationState] Login mutation state changed: {isPending: true, isSuccess: false, isError: false, data: undefined, error: null, …}
+auth-page.tsx:59 [AuthPage] [MutationState] Login mutation state changed: {isPending: false, isSuccess: true, isError: false, data: {…}, error: null, …}
+auth:1 [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) <input data-replit-metadata=​"client/​src/​pages/​auth-page.tsx:​391:​34" data-component-name=​"Input" type=​"password" class=​"flex w-full rounded-md border bg-background px-3 py-2 text-base ring-offset-background file:​border-0 file:​bg-transparent file:​text-sm file:​font-medium file:​text-foreground placeholder:​text-muted-foreground focus-visible:​outline-none focus-visible:​ring-2 focus-visible:​ring-ring focus-visible:​ring-offset-2 disabled:​cursor-not-allowed disabled:​opacity-50 md:​text-sm h-12 border-gray-300 focus:​border-[#db973c]​ focus:​ring-[#db973c]​ pr-12" name=​"password" placeholder=​"Enter your password" value=​"admin">​flex
