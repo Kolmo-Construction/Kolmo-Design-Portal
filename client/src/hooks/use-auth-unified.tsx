@@ -52,7 +52,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (username: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {
-      await apiRequest("/api/login", "POST", {
+      await apiRequest("POST", "/api/login", {
         username,
         password,
       });
