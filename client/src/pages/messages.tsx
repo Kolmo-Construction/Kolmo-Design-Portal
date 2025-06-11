@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; // Added useQueryClient
-import { useAuth } from "@/hooks/use-auth"; // *** ADDED: Import useAuth ***
+import { useAuth } from "@/hooks/use-auth-unified"; // *** ADDED: Import useAuth ***
 // Removed queryClient import as it's obtained via hook
 import { apiRequest, getQueryFn } from "@/lib/queryClient"; // *** UPDATED: Import getQueryFn ***
 import TopNavBar from "@/components/TopNavBar";
@@ -34,7 +34,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";

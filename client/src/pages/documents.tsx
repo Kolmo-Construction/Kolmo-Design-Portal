@@ -3,7 +3,7 @@
 
 import React, { useState } from "react"; // Import React
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth"; // [cite: 6187]
+import { useAuth } from "@/hooks/use-auth-unified";
 import TopNavBar from "@/components/TopNavBar"; // [cite: 6188]
 import Sidebar from "@/components/Sidebar"; // [cite: 6188]
 import { Document, Project } from "@shared/schema"; // [cite: 6188]
@@ -407,7 +407,7 @@ export default function Documents() {
                         <div className="min-w-0"> {/* Allow text to truncate */}
                           <p className="font-medium text-sm truncate" title={document.name}>{document.name}</p>
                           <p className="text-xs text-slate-500 truncate"> {/* [cite: 6257] */}
-                            {project?.name || 'Unknown Project'} • {document.category ? document.category.charAt(0).toUpperCase() + document.category.slice(1) : 'Uncategorized'} • {formatFileSize(document.size)}
+                            {project?.name || 'Unknown Project'} • {document.category ? document.category.charAt(0).toUpperCase() + document.category.slice(1) : 'Uncategorized'} • {formatFileSize(document.fileSize)}
                           </p>
                           {document.description && (
                             <p className="text-xs text-slate-400 mt-0.5 truncate" title={document.description}>{document.description}</p>

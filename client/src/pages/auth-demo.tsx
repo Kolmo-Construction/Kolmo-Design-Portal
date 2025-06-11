@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, AlertCircle, Code, Users, Shield, Zap } from "lucide-react";
 import { LoginForm } from "@/components/auth/LoginForm";
-import { useAuthV2 } from "@/hooks/use-auth-v2";
+import { useAuth } from "@/hooks/use-auth-unified";
 
 export default function AuthDemo() {
   const [, navigate] = useLocation();
-  const { user, authState, login, logout } = useAuthV2();
+  const { user, authState, login, logout } = useAuth();
 
   const improvements = [
     {
