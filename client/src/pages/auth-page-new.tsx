@@ -72,12 +72,12 @@ export default function AuthPageNew({ isMagicLink = false, isPasswordReset = fal
     },
   });
 
-  // Redirect if already authenticated (temporarily disabled for testing)
-  // useEffect(() => {
-  //   if (user && !isMagicLink && !isPasswordReset) {
-  //     navigate("/");
-  //   }
-  // }, [user, navigate, isMagicLink, isPasswordReset]);
+  // Declarative navigation - handles all redirections when user state changes
+  useEffect(() => {
+    if (user && !isMagicLink && !isPasswordReset && !authLoading) {
+      navigate("/");
+    }
+  }, [user, navigate, isMagicLink, isPasswordReset, authLoading]);
 
   // Handle magic link verification
   useEffect(() => {
@@ -110,8 +110,14 @@ export default function AuthPageNew({ isMagicLink = false, isPasswordReset = fal
 
   const onLogin = async (data: LoginFormValues) => {
     try {
-      await loginMutation.mutateAsync(data);
-      navigate("/");
+      const result = await loginMutation.mutateAsync(data);
+      console.log("Login successful, user data:", result);
+      
+      // Immediately set the user in query client to trigger the useEffect
+      queryClient.setQueryData(["/api/user"], result);
+      
+      // Remove imperative navigation - let useEffect handle redirection
+      
     } catch (error: any) {
       console.error("Login failed:", error);
       loginForm.setError("root", {
@@ -124,7 +130,7 @@ export default function AuthPageNew({ isMagicLink = false, isPasswordReset = fal
   const onRegister = async (data: RegisterFormValues) => {
     try {
       await registerMutation.mutateAsync(data);
-      navigate("/");
+      // Remove imperative navigation - let useEffect handle redirection
     } catch (error: any) {
       console.error("Registration failed:", error);
       registerForm.setError("root", {

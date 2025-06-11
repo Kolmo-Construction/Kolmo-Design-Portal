@@ -52,13 +52,12 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
   const { token } = useParams<{ token: string }>();
   const { user, isLoading: authLoading, loginMutation, registerMutation } = useAuth();
 
-  // Only redirect if already authenticated when page loads (not after login)
+  // Declarative navigation - handles all redirections when user state changes
   useEffect(() => {
-    if (user && !isMagicLink && !isPasswordReset && !authLoading && !loginMutation.isPending) {
-      // Only redirect if we're not in the middle of a login process
+    if (user && !isMagicLink && !isPasswordReset && !authLoading) {
       navigate("/");
     }
-  }, [user, navigate, isMagicLink, isPasswordReset, authLoading, loginMutation.isPending]);
+  }, [user, navigate, isMagicLink, isPasswordReset, authLoading]);
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -113,11 +112,10 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
       const result = await loginMutation.mutateAsync(data);
       console.log("Login successful, user data:", result);
       
-      // Immediately set the user in query client to prevent race conditions
+      // Immediately set the user in query client to trigger the useEffect
       queryClient.setQueryData(["/api/user"], result);
       
-      // Force navigation without waiting for useEffect
-      navigate("/");
+      // Remove imperative navigation - let useEffect handle redirection
       
     } catch (error: any) {
       console.error("Login failed:", error);
@@ -131,7 +129,7 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
   const onRegister = async (data: RegisterFormValues) => {
     try {
       await registerMutation.mutateAsync(data);
-      navigate("/");
+      // Remove imperative navigation - let useEffect handle redirection
     } catch (error: any) {
       console.error("Registration failed:", error);
       registerForm.setError("root", {
