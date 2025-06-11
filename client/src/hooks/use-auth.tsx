@@ -67,14 +67,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     error,
     isLoading,
     isFetching,
-  } = useQuery<SelectUser | undefined, Error>({
+  } = useQuery<SelectUser | null>({
     queryKey: ["/api/user"],
-    queryFn: (...args) => {
-      console.log('[useQuery] [queryFn] User query function called with args:', args);
-      const result = getQueryFn({ on401: "returnNull" })(...args);
-      console.log('[useQuery] [queryFn] Query function returning:', result);
-      return result;
-    },
+    queryFn: getQueryFn({ on401: "returnNull" }),
     staleTime: 0, // Always consider data stale to allow immediate updates
     refetchOnWindowFocus: false,
     refetchOnMount: true,

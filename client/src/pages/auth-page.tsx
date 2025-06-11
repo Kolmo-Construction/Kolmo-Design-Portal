@@ -128,14 +128,20 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
         // Step 1: Update the cache with the fresh user data from login
         console.log('[AuthPage] [onLogin] [onSuccess] Step 1: Updating query cache with fresh user data...');
         queryClient.setQueryData(['/api/user'], loggedInUser);
-        console.log('[AuthPage] [onLogin] [onSuccess] Cache state after update:', queryClient.getQueryData(['/api/user']));
         
-        // Step 2: Navigate immediately - no need to invalidate since we have fresh data
-        console.log('[AuthPage] [onLogin] [onSuccess] Step 2: Navigating to dashboard...');
-        navigate('/');
-        console.log('[AuthPage] [onLogin] [onSuccess] ✅ Navigation called successfully');
+        // Step 2: Invalidate to trigger a refetch and ensure cache consistency
+        console.log('[AuthPage] [onLogin] [onSuccess] Step 2: Invalidating user query to ensure consistency...');
+        queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+        
+        // Step 3: Use setTimeout to ensure cache update has propagated before navigation
+        console.log('[AuthPage] [onLogin] [onSuccess] Step 3: Scheduling navigation after cache update...');
+        setTimeout(() => {
+          console.log('[AuthPage] [onLogin] [onSuccess] Cache state before navigation:', queryClient.getQueryData(['/api/user']));
+          navigate('/');
+          console.log('[AuthPage] [onLogin] [onSuccess] ✅ Navigation called successfully');
+        }, 100);
 
-        console.log('[AuthPage] [onLogin] [onSuccess] Step 3: Showing success toast...');
+        console.log('[AuthPage] [onLogin] [onSuccess] Step 4: Showing success toast...');
         toast({
           title: "Login Successful",
           description: `Welcome back, ${loggedInUser.firstName}!`,
