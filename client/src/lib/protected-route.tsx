@@ -11,14 +11,14 @@ export function ProtectedRoute({
   // It's more conventional to use React.ComponentType for component props
   component: React.ComponentType;
 }) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isFetching } = useAuth();
 
   return (
     <Route path={path}>
       {() => {
         // 1. First, and most importantly, handle the loading state.
-        //    While loading, show a spinner and do nothing else.
-        if (isLoading) {
+        //    While loading or fetching initial auth state, show a spinner and do nothing else.
+        if (isLoading || (isFetching && user === undefined)) {
           return (
             <div className="flex items-center justify-center min-h-screen">
               <Loader2 className="h-8 w-8 animate-spin text-border" />

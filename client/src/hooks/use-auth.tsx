@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 type AuthContextType = {
   user: SelectUser | null;
   isLoading: boolean;
+  isFetching: boolean;
   error: Error | null;
   loginMutation: UseMutationResult<SelectUser, Error, LoginData>;
   logoutMutation: UseMutationResult<void, Error, void>;
@@ -65,9 +66,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     data: user,
     error,
     isLoading,
+    isFetching,
   } = useQuery<SelectUser | undefined, Error>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+    retry: (failureCount, error: any) => {
+      // Don't retry on 401 (unauthorized) - user is not logged in
+      if (error?.status === 401) {
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
 
   const loginMutation = useMutation({
@@ -212,6 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user: user ?? null,
         isLoading,
+        isFetching,
         error,
         loginMutation,
         logoutMutation,
