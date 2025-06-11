@@ -100,10 +100,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[LoginMutation] API request completed successfully');
       return result;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       console.log('[LoginMutation] Login successful - invalidating user queries');
       // This tells React Query the user data is stale and triggers automatic refetch
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      console.log('[LoginMutation] User queries invalidated and refetched');
     },
     onError: (error: Error) => {
       console.log('[LoginMutation] Login failed:', error.message);

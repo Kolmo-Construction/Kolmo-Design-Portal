@@ -1,0 +1,28 @@
+auth-page.tsx:438 [AuthPage] [Login Button] Button clicked, form state: {isSubmitting: false, isPending: false, formValues: {…}, timestamp: '2025-06-11T05:26:38.804Z'}
+auth-page.tsx:155 [AuthPage] [onLogin] Step 1: Starting login process with data: {username: 'admin'}
+use-auth.tsx:98 [LoginMutation] Sending login request to API
+queryClient.ts:33 [apiRequest] POST /api/login {"username":"admin","password":"admin"}
+auth-page.tsx:78 [AuthPage] [Redirect Effect] Effect triggered with state: {user: 'No user', isMagicLink: false, isPasswordReset: false, authLoading: false, isFetching: false, …}
+auth-page.tsx:81 [AuthPage] [Redirect Effect] Condition checks:
+auth-page.tsx:82   - user exists: false
+auth-page.tsx:83   - NOT magic link: true
+auth-page.tsx:84   - NOT password reset: true
+auth-page.tsx:85   - NOT auth loading: true
+auth-page.tsx:86   - NOT login pending: false
+auth-page.tsx:87   - NOT fetching: true
+auth-page.tsx:90 [AuthPage] [Redirect Effect] Overall shouldRedirect: false
+auth-page.tsx:102 [AuthPage] [Redirect Effect] NOT redirecting - conditions not met
+queryClient.ts:48 [apiRequest] Response: {id: 1, username: 'admin', email: 'admin@example.com', firstName: 'Admin', lastName: 'User', …}
+use-auth.tsx:100 [LoginMutation] API request completed successfully
+use-auth.tsx:104 [LoginMutation] Login successful - invalidating user queries
+auth-page.tsx:159 [AuthPage] [onLogin] Step 2: Login mutation completed successfully
+auth-page.tsx:78 [AuthPage] [Redirect Effect] Effect triggered with state: {user: 'No user', isMagicLink: false, isPasswordReset: false, authLoading: false, isFetching: false, …}
+auth-page.tsx:81 [AuthPage] [Redirect Effect] Condition checks:
+auth-page.tsx:82   - user exists: false
+auth-page.tsx:83   - NOT magic link: true
+auth-page.tsx:84   - NOT password reset: true
+auth-page.tsx:85   - NOT auth loading: true
+auth-page.tsx:86   - NOT login pending: true
+auth-page.tsx:87   - NOT fetching: true
+auth-page.tsx:90 [AuthPage] [Redirect Effect] Overall shouldRedirect: false
+auth-page.tsx:102 [AuthPage] [Redirect Effect] NOT redirecting - conditions not met
