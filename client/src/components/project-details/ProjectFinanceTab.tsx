@@ -99,7 +99,7 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
   const billMilestoneMutation = useMutation({
     mutationFn: async (milestoneId: number) => {
       const response = await apiRequest("POST", `/api/projects/${projectId}/milestones/${milestoneId}/bill`);
-      return response.json();
+      return response;
     },
     onSuccess: (data) => {
       // Check if the API returned a newly created invoice
