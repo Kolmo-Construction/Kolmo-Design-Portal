@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-unified";
 import TopNavBar from "@/components/TopNavBar";
 import Sidebar from "@/components/Sidebar";
 import UpdateItem from "@/components/UpdateItem";
