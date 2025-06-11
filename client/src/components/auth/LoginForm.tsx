@@ -139,7 +139,7 @@ export function LoginForm({ onSuccess, redirectTo = "/" }: LoginFormProps) {
               id="rememberMe"
               type="checkbox"
               className="h-4 w-4 rounded border-gray-300"
-              disabled={isLoading}
+              disabled={formIsLoading}
               {...form.register("rememberMe")}
             />
             <Label htmlFor="rememberMe" className="text-sm">
