@@ -47,7 +47,10 @@ export const ChatDashboard: React.FC = () => {
   // Query conversations
   const { data: conversations = [], isLoading: conversationsLoading, refetch } = useQuery<ConversationData[]>({
     queryKey: ['/api/chat/conversations'],
-    refetchInterval: 30000, // Refresh every 30 seconds
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: false, // Disable auto-refresh
   });
 
   const totalUnread = conversations.reduce((sum, conv) => sum + conv.unreadCount, 0);

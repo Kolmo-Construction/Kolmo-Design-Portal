@@ -51,13 +51,19 @@ export const ChatMonitoring: React.FC = () => {
   // Query connection stats
   const { data: connectionStats, isLoading: statsLoading } = useQuery<ConnectionStats>({
     queryKey: ['/api/chat/connections/stats'],
-    refetchInterval: 5000, // Refresh every 5 seconds
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: false, // Disable auto-refresh
   });
 
   // Query usage statistics
   const { data: usageStats, isLoading: usageLoading } = useQuery<UsageStats>({
     queryKey: ['/api/chat/usage'],
-    refetchInterval: 10000, // Refresh every 10 seconds
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: false, // Disable auto-refresh
   });
 
   // Set connection limit mutation

@@ -42,6 +42,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     queryKey: ["/api/user"],
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchInterval: false,
   });
 
   // Update loading state based on query state

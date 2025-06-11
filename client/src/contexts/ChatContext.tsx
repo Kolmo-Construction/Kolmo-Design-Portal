@@ -48,8 +48,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
   // Query for admin chat token
   const { data: adminChatData, error: adminError } = useQuery({
     queryKey: ['/api/chat/token'],
-    enabled: !isCustomer,
+    enabled: !isCustomer && !client,
     retry: 2,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: false,
   });
 
   // Initialize admin chat
@@ -80,14 +84,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
     }
     
     const initPromise = (async () => {
-      console.log('initializeAdminChat called with:', chatData);
-      
       // Disconnect existing client if any
       if (client) {
         try {
           await client.disconnectUser();
         } catch (err) {
-          console.log('Error disconnecting existing client:', err);
+          // Silent error handling
         }
         setClient(null);
         setIsConnected(false);
@@ -97,9 +99,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
       setError(null);
       
       try {
-        console.log('Creating Stream client with API key:', chatData.apiKey);
         const chatClient = StreamChat.getInstance(chatData.apiKey);
-        console.log('Connecting user:', { id: chatData.userId, name: 'KOLMO' });
         await chatClient.connectUser(
           { 
             id: chatData.userId,
@@ -107,11 +107,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
           },
           chatData.token
         );
-        console.log('Stream client connected successfully');
         setClient(chatClient);
         setIsConnected(true);
       } catch (err) {
-        console.error('Error initializing admin chat:', err);
         const errorMessage = err instanceof Error ? err.message : 'Failed to initialize admin chat';
         setError(errorMessage);
         throw err; // Re-throw to prevent setting success state
