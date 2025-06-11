@@ -52,6 +52,17 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
   const { token } = useParams<{ token: string }>();
   const { user, isLoading: authLoading, loginMutation, registerMutation } = useAuth();
 
+  // Debug logging to understand the state
+  useEffect(() => {
+    console.log('[AuthPage] State change:', { 
+      user: user ? 'User exists' : 'No user', 
+      authLoading, 
+      isMagicLink, 
+      isPasswordReset,
+      shouldRedirect: !!(user && !isMagicLink && !isPasswordReset)
+    });
+  }, [user, authLoading, isMagicLink, isPasswordReset]);
+
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {

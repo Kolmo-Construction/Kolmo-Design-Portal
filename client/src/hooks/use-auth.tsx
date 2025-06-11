@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   } = useQuery<SelectUser | undefined, Error>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 0, // Always consider data stale to allow immediate updates
     refetchOnWindowFocus: false,
     refetchOnMount: true,
     retry: (failureCount, error: any) => {
@@ -87,13 +87,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return await apiRequest("POST", "/api/login", credentials);
     },
     onSuccess: async (userData) => {
+      console.log('[LoginMutation] onSuccess called with userData:', userData);
+      
       // Set the user data immediately from the login response
       queryClient.setQueryData(["/api/user"], userData);
+      console.log('[LoginMutation] User data set in cache');
       
-      // Also invalidate to ensure fresh data
-      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      // Force an immediate refetch instead of just invalidating
+      await queryClient.refetchQueries({ queryKey: ["/api/user"] });
+      console.log('[LoginMutation] Queries refetched');
     },
     onError: (error: Error) => {
+      console.log('[LoginMutation] onError called:', error);
+      
       // Clear any stale user data on login failure
       queryClient.setQueryData(["/api/user"], null);
       
