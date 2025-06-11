@@ -39,30 +39,49 @@ export default function Projects() {
     queryKey: ["/api/projects"],
   });
 
-  // Filter projects based on status and search query
-  const filteredProjects = projects.filter(project => {
-    const matchesStatus = statusFilter === "all" || project.status === statusFilter;
-    
-    if (!searchQuery) return matchesStatus;
-    
-    const query = searchQuery.toLowerCase();
-    const matchesSearch = 
-      project.name.toLowerCase().includes(query) || 
-      project.address.toLowerCase().includes(query) ||
-      project.city.toLowerCase().includes(query) ||
-      project.state.toLowerCase().includes(query) ||
-      // Search by client names
-      (project.clients && project.clients.some(client => 
-        `${client.firstName} ${client.lastName}`.toLowerCase().includes(query) ||
-        client.firstName.toLowerCase().includes(query) ||
-        client.lastName.toLowerCase().includes(query)
-      )) ||
-      // Search by project manager name
-      (project.projectManager && 
-        `${project.projectManager.firstName} ${project.projectManager.lastName}`.toLowerCase().includes(query));
-    
-    return matchesStatus && matchesSearch;
-  });
+  // Filter and sort projects
+  const filteredAndSortedProjects = projects
+    .filter(project => {
+      const matchesStatus = statusFilter === "all" || project.status === statusFilter;
+      
+      if (!searchQuery) return matchesStatus;
+      
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = 
+        project.name.toLowerCase().includes(query) || 
+        project.address.toLowerCase().includes(query) ||
+        project.city.toLowerCase().includes(query) ||
+        project.state.toLowerCase().includes(query) ||
+        // Search by client names
+        (project.clients && project.clients.some(client => 
+          `${client.firstName} ${client.lastName}`.toLowerCase().includes(query) ||
+          client.firstName.toLowerCase().includes(query) ||
+          client.lastName.toLowerCase().includes(query)
+        )) ||
+        // Search by project manager name
+        (project.projectManager && 
+          `${project.projectManager.firstName} ${project.projectManager.lastName}`.toLowerCase().includes(query));
+      
+      return matchesStatus && matchesSearch;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "newest":
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        case "oldest":
+          return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+        case "name":
+          return a.name.localeCompare(b.name);
+        case "client":
+          const clientA = a.clients?.[0] ? `${a.clients[0].firstName} ${a.clients[0].lastName}` : "";
+          const clientB = b.clients?.[0] ? `${b.clients[0].firstName} ${b.clients[0].lastName}` : "";
+          return clientA.localeCompare(clientB);
+        case "status":
+          return a.status.localeCompare(b.status);
+        default:
+          return 0;
+      }
+    });
 
   return (
     <div className="flex h-screen bg-slate-50">
@@ -77,8 +96,8 @@ export default function Projects() {
 
         {/* Filters */}
         <Card className="mb-6">
-          <CardContent className="p-4 lg:p-6 flex flex-col sm:flex-row gap-4 items-end">
-            <div className="w-full sm:w-1/3">
+          <CardContent className="p-4 lg:p-6 flex flex-col lg:flex-row gap-4 items-end">
+            <div className="w-full lg:w-1/4">
               <label className="text-sm font-medium text-slate-500 mb-1 block">Status</label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger>
@@ -93,7 +112,22 @@ export default function Projects() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="w-full sm:w-2/3 relative">
+            <div className="w-full lg:w-1/4">
+              <label className="text-sm font-medium text-slate-500 mb-1 block">Sort by</label>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sort projects" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest First</SelectItem>
+                  <SelectItem value="oldest">Oldest First</SelectItem>
+                  <SelectItem value="name">Project Name</SelectItem>
+                  <SelectItem value="client">Client Name</SelectItem>
+                  <SelectItem value="status">Status</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full lg:w-1/2 relative">
               <label className="text-sm font-medium text-slate-500 mb-1 block">Search</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -125,7 +159,7 @@ export default function Projects() {
               </div>
             ))}
           </div>
-        ) : filteredProjects.length === 0 ? (
+        ) : filteredAndSortedProjects.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <div className="rounded-full bg-primary-50 p-3 mb-4">
@@ -141,7 +175,7 @@ export default function Projects() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProjects.map((project) => (
+            {filteredAndSortedProjects.map((project) => (
               <ProjectCard key={project.id} project={project} />
             ))}
           </div>
