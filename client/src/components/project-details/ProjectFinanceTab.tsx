@@ -317,9 +317,7 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
                           <Calendar className="h-3 w-3" />
                           {format(new Date(milestone.plannedDate), 'MMM dd, yyyy')}
                         </span>
-                        {milestone.taskId && (
-                          <span>Task #{milestone.taskId}</span>
-                        )}
+
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
