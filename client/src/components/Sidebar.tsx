@@ -14,7 +14,8 @@ import {
   HelpCircle,
   Phone,
   ClipboardList,
-  FileTextIcon
+  FileTextIcon,
+  Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -67,6 +68,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
     { href: "/progress-updates", icon: <ImageIcon className="h-5 w-5 mr-3" />, label: "Progress Updates" },
     { href: "/schedule", icon: <Calendar className="h-5 w-5 mr-3" />, label: "Schedule" },
     { href: "/selections", icon: <CheckSquare className="h-5 w-5 mr-3" />, label: "Selections & Approvals" },
+    { href: "/user-management", icon: <Users className="h-5 w-5 mr-3" />, label: "User Management" },
   ];
 
   // Use the appropriate navigation links based on user role
