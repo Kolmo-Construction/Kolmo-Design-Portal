@@ -26,6 +26,7 @@ export default function Projects() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
   
   // Fetch projects
   const { 
@@ -41,10 +42,25 @@ export default function Projects() {
   // Filter projects based on status and search query
   const filteredProjects = projects.filter(project => {
     const matchesStatus = statusFilter === "all" || project.status === statusFilter;
-    const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         project.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         project.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         project.state.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (!searchQuery) return matchesStatus;
+    
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = 
+      project.name.toLowerCase().includes(query) || 
+      project.address.toLowerCase().includes(query) ||
+      project.city.toLowerCase().includes(query) ||
+      project.state.toLowerCase().includes(query) ||
+      // Search by client names
+      (project.clients && project.clients.some(client => 
+        `${client.firstName} ${client.lastName}`.toLowerCase().includes(query) ||
+        client.firstName.toLowerCase().includes(query) ||
+        client.lastName.toLowerCase().includes(query)
+      )) ||
+      // Search by project manager name
+      (project.projectManager && 
+        `${project.projectManager.firstName} ${project.projectManager.lastName}`.toLowerCase().includes(query));
+    
     return matchesStatus && matchesSearch;
   });
 
@@ -83,7 +99,7 @@ export default function Projects() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
                   type="text"
-                  placeholder="Search projects by name or address"
+                  placeholder="Search by project name, address, client name, or project manager"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"

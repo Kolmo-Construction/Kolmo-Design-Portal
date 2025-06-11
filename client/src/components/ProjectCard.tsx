@@ -80,9 +80,24 @@ export default function ProjectCard({ project }: ProjectCardProps) {
         
         {/* Clients */}
         {project.clients && project.clients.length > 0 && (
-          <div className="flex items-center text-sm text-slate-500 mb-2">
-            <Users className="h-5 w-5 mr-1" />
-            <span>Client: {project.clients[0].firstName} {project.clients[0].lastName}</span>
+          <div className="flex items-center text-sm text-slate-700 mb-2 bg-slate-50 px-2 py-1 rounded">
+            <Users className="h-4 w-4 mr-1.5 text-primary-600" />
+            <div className="flex-1">
+              {project.clients.length === 1 ? (
+                <span className="font-medium">
+                  {project.clients[0].firstName} {project.clients[0].lastName}
+                </span>
+              ) : (
+                <div>
+                  <span className="font-medium">
+                    {project.clients[0].firstName} {project.clients[0].lastName}
+                  </span>
+                  <span className="text-slate-500 ml-1">
+                    +{project.clients.length - 1} more
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         )}
         
