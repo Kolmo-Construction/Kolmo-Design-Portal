@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import AuthPageV2 from "@/pages/auth-v2";
+import MagicLinkVerifyPage from "@/pages/magic-link-verify";
 import Dashboard from "@/pages/dashboard";
 import Projects from "@/pages/projects";
 import ProjectDetails from "@/pages/ProjectDetails";
@@ -40,7 +41,7 @@ function Router() {
         {() => <AuthPage />}
       </Route>
       <Route path="/auth/magic-link/:token">
-        {() => <AuthPage isMagicLink={true} />}
+        {() => <MagicLinkVerifyPage />}
       </Route>
       <Route path="/reset-password/:token">
         {() => <AuthPage isPasswordReset={true} />}
