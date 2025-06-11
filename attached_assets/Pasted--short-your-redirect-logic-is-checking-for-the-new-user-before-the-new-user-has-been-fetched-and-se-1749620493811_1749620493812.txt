@@ -1,0 +1,85 @@
+ short, your redirect logic is checking for the new user before the new user has been fetched and set in the state.
+
+The Solution: The Standard React Query Pattern
+The most direct and common way to solve this is to handle the side-effects (like navigation) in the component where the mutation is called, using the callbacks provided by the mutate function. This avoids any timing issues.
+
+Here are the two changes to fix this permanently:
+
+1. Simplify the loginMutation in Your Hook
+The mutation in your useAuth hook should only be responsible for making the API call. The component that uses it will handle the success and error side-effects.
+
+File to Edit: client/src/hooks/use-auth.txt
+
+TypeScript
+
+// client/src/hooks/use-auth.txt
+
+// ...
+const loginMutation = useMutation({
+  // The mutation's only job is to call the API.
+  // We will remove the onSuccess and onError handlers from here.
+  mutationFn: (credentials: LoginData) =>
+    apiRequest("POST", "/api/login", credentials),
+});
+// ...
+2. Update the onLogin Function in Your Component
+The AuthPage component will now tell the mutation what to do when it succeeds or fails. This is a much more direct and reliable pattern.
+
+File to Edit: client/src/pages/auth-page.txt
+
+TypeScript
+
+// client/src/pages/auth-page.txt
+
+//...
+import { queryClient } from "@/lib/queryClient"; // Make sure queryClient is imported
+import { useLocation, navigate } from "wouter"; // Import navigate directly
+//...
+
+export default function AuthPage({ isMagicLink = false, isPasswordReset = false }: AuthPageProps) {
+  //...
+  // Remove the old navigate from useLocation:
+  // const [, navigate] = useLocation();
+  const { user, isLoading: authLoading, loginMutation } = useAuth();
+
+  // This useEffect can now be safely removed, as navigation is handled by the mutation's success callback.
+  /*
+  useEffect(() => {
+    if (user && !isMagicLink && !isPasswordReset && !authLoading) {
+      navigate('/');
+    }
+  }, [user, isMagicLink, isPasswordReset, authLoading, navigate]);
+  */
+
+  const onLogin = (data: LoginFormValues) => {
+    loginMutation.mutate(data, {
+      onSuccess: (loggedInUser) => {
+        // Step 1: Manually update the cache with the data we just received from the login.
+        queryClient.setQueryData(['/api/user'], loggedInUser);
+        
+        // Step 2: Now that the local state is correct, navigate to the dashboard.
+        navigate('/');
+
+        toast({
+          title: "Login Successful",
+          description: `Welcome back, ${loggedInUser.firstName}!`,
+        });
+      },
+      onError: (error) => {
+        // Handle login errors directly here
+        loginForm.setError("root", {
+          type: "manual",
+          message: error.message || "Login failed due to an unknown error.",
+        });
+      },
+    });
+  };
+
+  // ... rest of your component
+}
+By making these changes, you are now explicitly defining the sequence of events:
+
+Mutate (log in).
+On success, first update the local user data (setQueryData).
+Then, immediately navigate away.
+This removes the race condition and ensures the redirect happens exactly when it should.

@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, CheckCircle2, Home, Loader2, Shield, Users, MessageSquare, FileText, Eye, EyeOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 import { insertUserSchema } from "@shared/schema";
 import kolmoLogo from "@assets/kolmo-logo (1).png";
 
@@ -51,65 +52,7 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
 
   const { token } = useParams<{ token: string }>();
   const { user, isLoading: authLoading, isFetching, loginMutation, registerMutation } = useAuth();
-
-  // Debug logging to understand the state
-  useEffect(() => {
-    console.log('[AuthPage] State change:', { 
-      user: user ? 'User exists' : 'No user', 
-      authLoading, 
-      isMagicLink, 
-      isPasswordReset,
-      shouldRedirect: !!(user && !isMagicLink && !isPasswordReset)
-    });
-  }, [user, authLoading, isMagicLink, isPasswordReset]);
-
-  // Handle redirect when user is authenticated with proper dependency management
-  useEffect(() => {
-    const redirectState = {
-      user: user ? `User ID ${user.id}` : 'No user',
-      isMagicLink,
-      isPasswordReset,
-      authLoading,
-      isFetching: isFetching,
-      loginPending: loginMutation.isPending,
-      timestamp: new Date().toISOString()
-    };
-    
-    console.log('[AuthPage] [Redirect Effect] ========== REDIRECT EFFECT TRIGGERED ==========');
-    console.log('[AuthPage] [Redirect Effect] Current state:', redirectState);
-    
-    // Check each condition individually for detailed logging
-    console.log('[AuthPage] [Redirect Effect] Detailed condition checks:');
-    console.log('  ✓ user exists:', !!user, user ? `(User: ${user.username})` : '(No user)');
-    console.log('  ✓ NOT magic link:', !isMagicLink, `(isMagicLink: ${isMagicLink})`);
-    console.log('  ✓ NOT password reset:', !isPasswordReset, `(isPasswordReset: ${isPasswordReset})`);
-    console.log('  ✓ NOT auth loading:', !authLoading, `(authLoading: ${authLoading})`);
-    console.log('  ✓ NOT login pending:', !loginMutation.isPending, `(loginPending: ${loginMutation.isPending})`);
-    console.log('  ✓ NOT fetching:', !isFetching, `(isFetching: ${isFetching})`);
-    
-    const shouldRedirect = !!(user && !isMagicLink && !isPasswordReset && !authLoading && !loginMutation.isPending && !isFetching);
-    console.log('[AuthPage] [Redirect Effect] FINAL DECISION - shouldRedirect:', shouldRedirect);
-    
-    // Only redirect if user exists, not in special flows, auth is complete, no mutations pending, and not fetching
-    if (user && !isMagicLink && !isPasswordReset && !authLoading && !loginMutation.isPending && !isFetching) {
-      console.log('[AuthPage] [Redirect Effect] 🚀 ALL CONDITIONS MET - EXECUTING NAVIGATION TO DASHBOARD 🚀');
-      try {
-        navigate('/');
-        console.log('[AuthPage] [Redirect Effect] ✅ Navigation executed successfully');
-      } catch (error) {
-        console.error('[AuthPage] [Redirect Effect] ❌ Navigation failed:', error);
-      }
-    } else {
-      console.log('[AuthPage] [Redirect Effect] ⏸️  NOT redirecting - conditions not met');
-      if (!user) console.log('[AuthPage] [Redirect Effect]   ❌ Missing: user');
-      if (isMagicLink) console.log('[AuthPage] [Redirect Effect]   ❌ Blocking: isMagicLink');
-      if (isPasswordReset) console.log('[AuthPage] [Redirect Effect]   ❌ Blocking: isPasswordReset');
-      if (authLoading) console.log('[AuthPage] [Redirect Effect]   ❌ Blocking: authLoading');
-      if (loginMutation.isPending) console.log('[AuthPage] [Redirect Effect]   ❌ Blocking: loginPending');
-      if (isFetching) console.log('[AuthPage] [Redirect Effect]   ❌ Blocking: isFetching');
-    }
-    console.log('[AuthPage] [Redirect Effect] ========================================');
-  }, [user, isMagicLink, isPasswordReset, authLoading, loginMutation.isPending, isFetching, navigate]);
+  const { toast } = useToast();
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -159,19 +102,34 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
     }
   };
 
-  const onLogin = async (data: LoginFormValues) => {
-    console.log('[AuthPage] [onLogin] Step 1: Starting login process with data:', { username: data.username });
-    try {
-      // Just call the mutation. React Query will handle everything else via the onSuccess handler.
-      await loginMutation.mutateAsync(data);
-      console.log('[AuthPage] [onLogin] Step 2: Login mutation completed successfully');
-    } catch (error: any) {
-      console.error("Login mutation failed:", error);
-      loginForm.setError("root", {
-        type: "manual",
-        message: error.message || "Login failed",
-      });
-    }
+  const onLogin = (data: LoginFormValues) => {
+    console.log('[AuthPage] [onLogin] Starting login with direct mutation callbacks');
+    
+    loginMutation.mutate(data, {
+      onSuccess: (loggedInUser) => {
+        console.log('[AuthPage] [onLogin] [onSuccess] Login successful, updating cache and navigating');
+        
+        // Step 1: Manually update the cache with the data we just received from the login
+        queryClient.setQueryData(['/api/user'], loggedInUser);
+        
+        // Step 2: Now that the local state is correct, navigate to the dashboard
+        navigate('/');
+
+        toast({
+          title: "Login Successful",
+          description: `Welcome back, ${loggedInUser.firstName}!`,
+        });
+      },
+      onError: (error) => {
+        console.error('[AuthPage] [onLogin] [onError] Login failed:', error.message);
+        
+        // Handle login errors directly here
+        loginForm.setError("root", {
+          type: "manual",
+          message: error.message || "Login failed due to an unknown error.",
+        });
+      },
+    });
   };
 
   const onRegister = async (data: RegisterFormValues) => {

@@ -103,49 +103,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, isLoading, isFetching, error]);
 
   const loginMutation = useMutation({
-    mutationFn: async (credentials: LoginData) => {
-      console.log('[LoginMutation] Sending login request to API');
-      const result = await apiRequest("POST", "/api/login", credentials);
-      console.log('[LoginMutation] API request completed successfully');
-      return result;
-    },
-    onSuccess: async () => {
-      console.log('[LoginMutation] [onSuccess] Step 1: Login successful - about to invalidate user queries');
-      
-      // Check current query state before invalidation
-      const beforeData = queryClient.getQueryData(["/api/user"]);
-      const beforeState = queryClient.getQueryState(["/api/user"]);
-      console.log('[LoginMutation] [onSuccess] Step 2: Query state BEFORE invalidation:', {
-        data: beforeData,
-        state: beforeState
-      });
-      
-      // This tells React Query the user data is stale and triggers automatic refetch
-      console.log('[LoginMutation] [onSuccess] Step 3: Calling invalidateQueries...');
-      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      
-      // Check query state after invalidation
-      const afterData = queryClient.getQueryData(["/api/user"]);
-      const afterState = queryClient.getQueryState(["/api/user"]);
-      console.log('[LoginMutation] [onSuccess] Step 4: Query state AFTER invalidation:', {
-        data: afterData,
-        state: afterState
-      });
-      
-      console.log('[LoginMutation] [onSuccess] Step 5: User queries invalidated and refetched - mutation complete');
-    },
-    onError: (error: Error) => {
-      console.log('[LoginMutation] Login failed:', error.message);
-      
-      // Clear any stale user data on login failure
-      queryClient.setQueryData(["/api/user"], null);
-      
-      toast({
-        title: "Login failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
+    // The mutation's only job is to call the API.
+    // Component will handle success and error side-effects.
+    mutationFn: (credentials: LoginData) =>
+      apiRequest("POST", "/api/login", credentials),
   });
 
   const registerMutation = useMutation({
