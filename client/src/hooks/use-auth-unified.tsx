@@ -1,25 +1,30 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { User } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
+
+type AuthState = "loading" | "authenticated" | "unauthenticated" | "error";
 
 interface AuthContextType {
   user: User | null;
+  authState: AuthState;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refetchUser: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | null>(null);
 
 interface AuthProviderProps {
   children: ReactNode;
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [isLoading, setIsLoading] = useState(true);
+  const [authState, setAuthState] = useState<AuthState>("loading");
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const {
     data: user,
@@ -48,53 +53,95 @@ export function AuthProvider({ children }: AuthProviderProps) {
         throw error;
       }
     },
-    retry: false,
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    retry: (failureCount, error: any) => {
+      if (error?.status === 401 || failureCount >= 2) {
+        return false;
+      }
+      return true;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 15 * 60 * 1000, // 15 minutes
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     refetchOnMount: true,
     refetchOnReconnect: false,
     refetchInterval: false,
     networkMode: 'online',
   });
 
-  // Update loading state based on query state
+  // Update auth state based on query results
   useEffect(() => {
-    setIsLoading(userQueryLoading);
-  }, [userQueryLoading]);
+    if (userQueryLoading) {
+      setAuthState("loading");
+    } else if (error && error.message !== "Authentication check failed") {
+      setAuthState("error");
+    } else if (user) {
+      setAuthState("authenticated");
+    } else {
+      setAuthState("unauthenticated");
+    }
+  }, [user, userQueryLoading, error]);
+
+  // Login mutation
+  const loginMutation = useMutation({
+    mutationFn: async ({ username, password }: { username: string; password: string }): Promise<User> => {
+      const response = await apiRequest("POST", "/api/login", { username, password });
+      return response;
+    },
+    onSuccess: (userData) => {
+      // Update cache with fresh user data
+      queryClient.setQueryData(["/api/user"], userData);
+      setAuthState("authenticated");
+      
+      toast({
+        title: "Welcome back!",
+        description: `Successfully logged in as ${userData.firstName} ${userData.lastName}`,
+      });
+    },
+    onError: (error: Error) => {
+      setAuthState("unauthenticated");
+      throw error; // Re-throw so the component can handle it
+    },
+  });
+
+  // Logout mutation
+  const logoutMutation = useMutation({
+    mutationFn: async (): Promise<void> => {
+      await apiRequest("POST", "/api/logout");
+    },
+    onSuccess: () => {
+      // Clear all cached data
+      queryClient.clear();
+      setAuthState("unauthenticated");
+      
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out",
+      });
+    },
+    onError: (error: Error) => {
+      // Even if server logout fails, clear local state
+      queryClient.clear();
+      setAuthState("unauthenticated");
+      
+      toast({
+        title: "Logout completed",
+        description: "Local session cleared",
+      });
+    },
+  });
 
   const login = async (username: string, password: string): Promise<void> => {
-    setIsLoading(true);
-    try {
-      await apiRequest("POST", "/api/login", {
-        username,
-        password,
-      });
-
-      // Invalidate and refetch user data after successful login
-      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      await refetchUser();
-    } catch (error) {
-      setIsLoading(false);
-      throw error;
-    }
+    await loginMutation.mutateAsync({ username, password });
   };
 
   const logout = async (): Promise<void> => {
-    try {
-      await apiRequest("POST", "/api/logout");
-
-      // Clear all queries and reset auth state
-      queryClient.clear();
-      await refetchUser();
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
+    return logoutMutation.mutateAsync();
   };
 
   const contextValue: AuthContextType = {
     user: user || null,
-    isLoading,
+    authState,
+    isLoading: userQueryLoading,
     login,
     logout,
     refetchUser,
