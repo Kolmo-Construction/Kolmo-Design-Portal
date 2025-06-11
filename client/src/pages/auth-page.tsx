@@ -203,7 +203,7 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
 
   // After loading, if the user object exists (meaning they are logged in),
   // show a loading state while redirecting.
-  if (user && !isMagicLink && !isPasswordReset && !loginMutation.isPending) {
+  if (user && !isMagicLink && !isPasswordReset && !loginMutation.isPending && !isFetching) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100">
         <div className="text-center space-y-4">
