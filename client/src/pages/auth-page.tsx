@@ -63,6 +63,14 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
     });
   }, [user, authLoading, isMagicLink, isPasswordReset]);
 
+  // Handle redirect when user is authenticated
+  useEffect(() => {
+    if (user && !isMagicLink && !isPasswordReset && !authLoading) {
+      console.log('[AuthPage] Redirecting authenticated user to dashboard');
+      navigate('/');
+    }
+  }, [user, isMagicLink, isPasswordReset, authLoading, navigate]);
+
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -172,9 +180,16 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
   }
 
   // After loading, if the user object exists (meaning they are logged in),
-  // render a Redirect component to navigate them away.
+  // show a loading state while redirecting.
   if (user && !isMagicLink && !isPasswordReset) {
-    return <Redirect to="/" />;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin text-[#3d4552] mx-auto" />
+          <p className="text-gray-600 text-lg">Redirecting to dashboard...</p>
+        </div>
+      </div>
+    );
   }
 
   // Magic link loading/success/error states
