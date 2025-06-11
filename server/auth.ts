@@ -163,28 +163,50 @@ export function setupAuth(app: Express) {
   app.use(passport.session());
 
   passport.use(
-    new LocalStrategy(async (username, password, done) => {
+    new LocalStrategy({ usernameField: 'username' }, async (username, password, done) => {
       try {
+        console.log('[LocalStrategy] Login attempt for username:', username);
+        
         // Updated to use storage.users
         const user = await storage.users.getUserByUsername(username);
-        if (!user || !(await comparePasswords(password, user.password))) {
-          return done(null, false);
-        } else {
-          return done(null, user);
+        console.log('[LocalStrategy] User lookup result:', user ? `Found user ID ${user.id}` : 'No user found');
+        
+        if (!user) {
+          console.log('[LocalStrategy] Authentication failed: User not found');
+          return done(null, false, { message: 'Invalid username or password' });
         }
+        
+        const passwordMatch = await comparePasswords(password, user.password);
+        console.log('[LocalStrategy] Password comparison result:', passwordMatch);
+        
+        if (!passwordMatch) {
+          console.log('[LocalStrategy] Authentication failed: Invalid password');
+          return done(null, false, { message: 'Invalid username or password' });
+        }
+        
+        console.log('[LocalStrategy] Authentication successful for user:', user.id);
+        return done(null, user);
       } catch (err) {
+        console.error('[LocalStrategy] Error during authentication:', err);
         return done(err);
       }
     }),
   );
 
-  passport.serializeUser((user, done) => done(null, user.id));
+  passport.serializeUser((user, done) => {
+    console.log('[Passport] Serializing user to session:', user.id);
+    done(null, user.id);
+  });
+  
   passport.deserializeUser(async (id: number, done) => {
     try {
+      console.log('[Passport] Deserializing user from session ID:', id);
       // Updated to use storage.users with getUserById
       const user = await storage.users.getUserById(id.toString());
+      console.log('[Passport] Deserialization result:', user ? `Found user ${user.id}` : 'User not found');
       done(null, user);
     } catch (err) {
+      console.error('[Passport] Error during deserialization:', err);
       done(err);
     }
   });
@@ -411,19 +433,49 @@ export function setupAuth(app: Express) {
 
   // Standard login - will be used primarily by admins
   app.post("/api/login", (req, res, next) => {
+    console.log('[Login] Starting login process for:', req.body.username);
+    console.log('[Login] Session ID before auth:', req.sessionID);
+    console.log('[Login] Session data before auth:', JSON.stringify(req.session, null, 2));
+    
     passport.authenticate("local", (err: Error | null, user: SelectUser | false, info: { message: string } | undefined) => {
-      if (err) return next(err);
+      console.log('[Login] Passport authenticate callback - err:', err, 'user:', user ? `ID ${user.id}` : 'false', 'info:', info);
+      
+      if (err) {
+        console.error('[Login] Authentication error:', err);
+        return next(err);
+      }
 
       if (!user) {
+        console.log('[Login] Authentication failed - no user returned');
         return res.status(401).json({ message: "Invalid username or password" });
       }
 
-      req.login(user, (err) => {
-        if (err) return next(err);
+      console.log('[Login] Authentication successful, calling req.login for user:', user.id);
+      req.login(user, (loginErr) => {
+        if (loginErr) {
+          console.error('[Login] req.login error:', loginErr);
+          return next(loginErr);
+        }
 
-        // Remove password and magic link data from response
-        const { password, magicLinkToken, magicLinkExpiry, ...userWithoutSensitiveData } = user as SelectUser;
-        res.status(200).json(userWithoutSensitiveData);
+        console.log('[Login] req.login successful');
+        console.log('[Login] Session ID after login:', req.sessionID);
+        console.log('[Login] Session data after login:', JSON.stringify(req.session, null, 2));
+        console.log('[Login] req.isAuthenticated():', req.isAuthenticated());
+        console.log('[Login] req.user:', req.user ? `ID ${req.user.id}` : 'undefined');
+
+        // Force session save to ensure persistence
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error('[Login] Session save error:', saveErr);
+          } else {
+            console.log('[Login] Session saved successfully');
+          }
+
+          // Remove password and magic link data from response
+          const { password, magicLinkToken, magicLinkExpiry, ...userWithoutSensitiveData } = user as SelectUser;
+          console.log('[Login] Sending response for user:', userWithoutSensitiveData.id);
+          res.status(200).json(userWithoutSensitiveData);
+        });
       });
     })(req, res, next);
   });
@@ -445,10 +497,20 @@ export function setupAuth(app: Express) {
   });
 
   app.get("/api/user", (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    console.log('[/api/user] Request received');
+    console.log('[/api/user] Session ID:', req.sessionID);
+    console.log('[/api/user] Session data:', JSON.stringify(req.session, null, 2));
+    console.log('[/api/user] req.isAuthenticated():', req.isAuthenticated());
+    console.log('[/api/user] req.user:', req.user ? `ID ${req.user.id}` : 'undefined');
+    
+    if (!req.isAuthenticated()) {
+      console.log('[/api/user] User not authenticated, sending 401');
+      return res.sendStatus(401);
+    }
 
     // Remove sensitive data from response
     const { password, magicLinkToken, magicLinkExpiry, ...userWithoutSensitiveData } = req.user as SelectUser;
+    console.log('[/api/user] Sending user data for ID:', userWithoutSensitiveData.id);
     res.json(userWithoutSensitiveData);
   });
 
