@@ -20,8 +20,12 @@ export default function AuthPageV2() {
   if (authState === "loading") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="animate-pulse">
-          <img src={kolmoLogo} alt="Kolmo" className="h-16 w-auto mx-auto" />
+        <div className="animate-pulse flex items-center gap-2">
+          <Building2 className="h-12 w-12 text-blue-600" />
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Kolmo</h2>
+            <p className="text-sm text-gray-600">Loading...</p>
+          </div>
         </div>
       </div>
     );
@@ -40,7 +44,13 @@ export default function AuthPageV2() {
           <div className="relative z-10 flex flex-col justify-between w-full">
             {/* Logo & Header */}
             <div>
-              <img src={kolmoLogo} alt="Kolmo Logo" className="h-20 w-auto mb-8" />
+              <div className="flex items-center gap-3 mb-8">
+                <Building2 className="h-16 w-16 text-white" />
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Kolmo</h2>
+                  <p className="text-blue-200">Construction Management</p>
+                </div>
+              </div>
               <h1 className="text-4xl font-bold mb-4">
                 Welcome to Kolmo
               </h1>
@@ -104,7 +114,13 @@ export default function AuthPageV2() {
           <div className="w-full max-w-md">
             {/* Mobile Logo */}
             <div className="lg:hidden text-center mb-8">
-              <img src={kolmoLogo} alt="Kolmo Logo" className="h-16 w-auto mx-auto" />
+              <div className="flex items-center justify-center gap-2">
+                <Building2 className="h-12 w-12 text-blue-600" />
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Kolmo</h2>
+                  <p className="text-sm text-gray-600">Construction Management</p>
+                </div>
+              </div>
             </div>
 
             <LoginForm 

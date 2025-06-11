@@ -28,16 +28,17 @@ import InvoiceDetailPage from "@/pages/InvoiceDetailPage";
 
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
+import { AuthProvider as AuthProviderV2 } from "@/hooks/use-auth-v2";
 import { ChatProvider } from "@/contexts/ChatContext";
 
 function Router() {
   return (
     <Switch>
       <Route path="/auth">
-        {() => <AuthPage />}
-      </Route>
-      <Route path="/auth-v2">
         {() => <AuthPageV2 />}
+      </Route>
+      <Route path="/auth-legacy">
+        {() => <AuthPage />}
       </Route>
       <Route path="/auth/magic-link/:token">
         {() => <AuthPage isMagicLink={true} />}
