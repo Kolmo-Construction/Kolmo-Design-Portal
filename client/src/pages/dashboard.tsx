@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useAuthV2 } from "@/hooks/use-auth-v2";
+import { useAuth } from "@/hooks/use-auth-unified";
 import TopNavBar from "@/components/TopNavBar";
 import Sidebar from "@/components/Sidebar";
 import { ChatDashboard } from "@/components/dashboard/ChatDashboard";
@@ -23,7 +23,7 @@ import { formatDistanceToNow } from "date-fns";
 
 export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user } = useAuthV2();
+  const { user } = useAuth();
   
   // Fetch quotes data
   const { data: quotes = [], isLoading: quotesLoading } = useQuery({

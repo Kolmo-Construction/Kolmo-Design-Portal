@@ -27,8 +27,7 @@ import PaymentPage from "@/pages/PaymentPage";
 import InvoiceDetailPage from "@/pages/InvoiceDetailPage";
 
 import { ProtectedRoute } from "./lib/protected-route";
-import { AuthProvider } from "@/hooks/use-auth";
-import { AuthProvider as AuthProviderV2 } from "@/hooks/use-auth-v2";
+import { AuthProvider } from "@/hooks/use-auth-unified";
 import { ChatProvider } from "@/contexts/ChatContext";
 
 function Router() {
@@ -88,12 +87,12 @@ function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="light">
       <TooltipProvider>
-        <AuthProviderV2>
+        <AuthProvider>
           <ChatProvider>
             <Toaster />
             <Router />
           </ChatProvider>
-        </AuthProviderV2>
+        </AuthProvider>
       </TooltipProvider>
     </ThemeProvider>
   );

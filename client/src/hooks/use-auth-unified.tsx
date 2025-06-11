@@ -52,12 +52,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (username: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {
-      await apiRequest("/api/login", {
-        method: "POST",
-        body: JSON.stringify({ username, password }),
-        headers: {
-          "Content-Type": "application/json",
-        },
+      await apiRequest("/api/login", "POST", {
+        username,
+        password,
       });
 
       // Invalidate and refetch user data after successful login
@@ -71,9 +68,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = async (): Promise<void> => {
     try {
-      await apiRequest("/api/logout", {
-        method: "POST",
-      });
+      await apiRequest("/api/logout", "POST");
 
       // Clear all queries and reset auth state
       queryClient.clear();

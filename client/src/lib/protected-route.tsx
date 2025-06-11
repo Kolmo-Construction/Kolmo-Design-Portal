@@ -1,4 +1,4 @@
-import { useAuthV2 } from "@/hooks/use-auth-v2";
+import { useAuth } from "@/hooks/use-auth-unified";
 import { Loader2 } from "lucide-react";
 import { Redirect, Route } from "wouter";
 import React from "react"; // Import React for ComponentType
@@ -11,7 +11,7 @@ export function ProtectedRoute({
   // It's more conventional to use React.ComponentType for component props
   component: React.ComponentType;
 }) {
-  const { user, authState, isLoading } = useAuthV2();
+  const { user, isLoading } = useAuth();
 
   return (
     <Route path={path}>
@@ -19,15 +19,14 @@ export function ProtectedRoute({
         console.log('[ProtectedRoute] Auth check:', {
           path,
           user: user ? `User ID ${user.id}` : 'No user',
-          authState,
           isLoading,
-          shouldShowLoader: authState === "loading",
-          shouldRedirect: authState === "unauthenticated",
+          shouldShowLoader: isLoading,
+          shouldRedirect: !isLoading && !user,
           timestamp: new Date().toISOString()
         });
 
         // Show loading state while checking authentication
-        if (authState === "loading") {
+        if (isLoading) {
           console.log('[ProtectedRoute] Showing loader for path:', path);
           return (
             <div className="flex items-center justify-center min-h-screen">
@@ -37,7 +36,7 @@ export function ProtectedRoute({
         }
 
         // Check if user should be redirected to login
-        if (authState === "unauthenticated") {
+        if (!user) {
           console.log('[ProtectedRoute] Redirecting to auth from path:', path);
           return <Redirect to="/auth" />;
         }

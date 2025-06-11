@@ -1,4 +1,4 @@
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-unified";
 import { Menu, Bell, Loader2, Search, MessageSquare, Home, CheckCircle } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { queryClient } from "@/lib/queryClient";
@@ -22,7 +22,7 @@ interface TopNavBarProps {
 }
 
 export default function TopNavBar({ open, setOpen }: TopNavBarProps) {
-  const { user, logoutMutation } = useAuth();
+  const { user, logout } = useAuth();
   const [location, navigate] = useLocation();
 
   const handleLogout = () => {
