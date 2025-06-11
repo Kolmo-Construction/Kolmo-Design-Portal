@@ -68,18 +68,15 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
   const initializeAdminChat = async (chatData: any) => {
     // Prevent multiple concurrent initializations by using a shared promise
     if (initializationPromiseRef.current) {
-      console.log('Waiting for existing initialization to complete');
       return initializationPromiseRef.current;
     }
     
     // Prevent multiple initializations
     if (isLoading) {
-      console.log('Skipping admin chat init - already loading');
       return;
     }
     
     if (client && isConnected) {
-      console.log('Skipping admin chat init - already connected');
       return;
     }
     

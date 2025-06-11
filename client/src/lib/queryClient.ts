@@ -78,8 +78,11 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }), // Keep original behavior unless 401 needs special handling
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      refetchOnReconnect: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes default
+      gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
       retry: false,
+      networkMode: 'online',
     },
     mutations: {
       retry: false,
