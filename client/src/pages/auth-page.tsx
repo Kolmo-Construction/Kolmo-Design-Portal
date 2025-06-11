@@ -130,12 +130,19 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
         queryClient.setQueryData(['/api/user'], loggedInUser);
         console.log('[AuthPage] [onLogin] [onSuccess] Cache state after manual update:', queryClient.getQueryData(['/api/user']));
         
-        // Step 2: Now that the local state is correct, navigate to the dashboard
-        console.log('[AuthPage] [onLogin] [onSuccess] Step 2: Navigating to dashboard...');
-        navigate('/');
-        console.log('[AuthPage] [onLogin] [onSuccess] ✅ Navigation called successfully');
+        // Step 2: Force invalidate the user query to trigger re-fetch and ensure useAuth sees the new data
+        console.log('[AuthPage] [onLogin] [onSuccess] Step 2: Invalidating user query to force re-render...');
+        queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+        
+        // Step 3: Use a small delay to ensure cache propagation before navigation
+        console.log('[AuthPage] [onLogin] [onSuccess] Step 3: Waiting for cache propagation...');
+        setTimeout(() => {
+          console.log('[AuthPage] [onLogin] [onSuccess] Step 4: Navigating to dashboard...');
+          navigate('/');
+          console.log('[AuthPage] [onLogin] [onSuccess] ✅ Navigation called successfully');
+        }, 50); // Small delay to ensure cache propagation
 
-        console.log('[AuthPage] [onLogin] [onSuccess] Step 3: Showing success toast...');
+        console.log('[AuthPage] [onLogin] [onSuccess] Step 5: Showing success toast...');
         toast({
           title: "Login Successful",
           description: `Welcome back, ${loggedInUser.firstName}!`,
