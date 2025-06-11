@@ -316,19 +316,10 @@ export class QuoteController {
         }
         
         .logo {
-            width: 80px;
+            width: 120px;
             height: 80px;
-            background: #ffffff;
-            border-radius: 50%;
             margin: 0 auto 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 900;
-            font-size: 24px;
-            color: #3d4552;
-            letter-spacing: -1px;
-            box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2);
+            display: block;
         }
         
         .company-name { 
@@ -671,7 +662,7 @@ export class QuoteController {
         <div class="container">
             <div class="header">
                 <div class="logo-section">
-                    <div class="logo">K</div>
+                    <img src="${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/assets/kolmo-logo.png" alt="Kolmo Construction" class="logo" />
                 </div>
                 <h1 class="company-name">Kolmo Construction</h1>
                 <p class="tagline">Excellence in Every Build</p>
