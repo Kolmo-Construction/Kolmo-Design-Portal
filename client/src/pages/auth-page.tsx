@@ -152,24 +152,13 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
   };
 
   const onLogin = async (data: LoginFormValues) => {
+    console.log('[AuthPage] [onLogin] Step 1: Starting login process with data:', { username: data.username });
     try {
-      console.log('[AuthPage] [onLogin] Step 1: Starting login process with data:', { username: data.username });
-      
-      const startTime = Date.now();
-      const result = await loginMutation.mutateAsync(data);
-      const mutationTime = Date.now() - startTime;
-      
-      console.log('[AuthPage] [onLogin] Step 2: Login mutation completed in', mutationTime, 'ms, result:', result);
-      console.log('[AuthPage] [onLogin] Step 3: About to refetch user query...');
-      
-      const refetchStart = Date.now();
-      const refetchResult = await queryClient.refetchQueries({ queryKey: ['/api/user'] });
-      const refetchTime = Date.now() - refetchStart;
-      
-      console.log('[AuthPage] [onLogin] Step 4: User query refetched in', refetchTime, 'ms, result:', refetchResult);
-      console.log('[AuthPage] [onLogin] Step 5: Login process completed successfully');
+      // Just call the mutation. React Query will handle everything else via the onSuccess handler.
+      await loginMutation.mutateAsync(data);
+      console.log('[AuthPage] [onLogin] Step 2: Login mutation completed successfully');
     } catch (error: any) {
-      console.error("[AuthPage] [onLogin] Login failed:", error);
+      console.error("Login mutation failed:", error);
       loginForm.setError("root", {
         type: "manual",
         message: error.message || "Login failed",

@@ -1,0 +1,52 @@
+The solution is to simplify and remove the manual refetch from your component. The invalidateQueries call in the mutation's onSuccess handler is all you need. React Query will handle the refetching automatically and update the state at the right time.
+
+1. Fix the onLogin function in your component
+Remove the manual refetch logic. The onLogin function should only be responsible for calling the mutation.
+
+File to Edit: client/src/pages/auth-page.txt
+
+TypeScript
+
+// client/src/pages/auth-page.txt
+
+const onLogin = async (data: LoginFormValues) => {
+  // This is a simplified and corrected version of your onLogin function
+  console.log(`[AuthPage] [onLogin] Step 1: Starting login process with data:`, data);
+  try {
+    // Just call the mutation. Do not add any refetch logic here.
+    // React Query will handle everything else via the onSuccess handler in the hook.
+    await loginMutation.mutateAsync(data);
+    console.log("[AuthPage] [onLogin] Step 2: Login mutation has completed.");
+  } catch (error: any) {
+    console.error("Login mutation threw an error:", error);
+    loginForm.setError("root", {
+      type: "manual",
+      message: error.message || "Login failed",
+    });
+  }
+};
+2. Ensure the loginMutation is correct
+Your loginMutation's onSuccess handler should do one simple thing: invalidate the user query.
+
+File to Edit: client/src/hooks/use-auth.txt
+
+TypeScript
+
+// client/src/hooks/use-auth.txt
+
+const loginMutation = useMutation({
+  mutationFn: async (credentials: LoginData) => {
+    // ... (this part is fine)
+    return await apiRequest("POST", "/api/login", credentials);
+  },
+  onSuccess: () => {
+    // THIS IS THE ONLY LINE YOU NEED HERE.
+    // It tells react-query the user data is stale, and it will automatically
+    // refetch it for any active component, triggering the redirect.
+    queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+  },
+  onError: (error: Error) => {
+    // ... (your existing error handling)
+  },
+});
+By making these changes, you remove the race condition and allow React Query to manage the data flow as it was designed. The invalidateQueries call will reliably trigger the useQuery in your useAuth hook to fetch the new user data, which will in turn cause the redirect effect to fire correctly.
