@@ -83,19 +83,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Login mutation
   const loginMutation = useMutation({
-    mutationFn: async ({ username, password }: { username: string; password: string }): Promise<User> => {
-      const response = await apiRequest("POST", "/api/login", { username, password });
-      return response;
+    mutationFn: async ({ username, password }: { username: string; password: string }) => {
+      await apiRequest("POST", "/api/login", { username, password });
     },
-    onSuccess: (userData) => {
-      // Update cache with fresh user data
-      queryClient.setQueryData(["/api/user"], userData);
+    onSuccess: () => {
+      // Refetch user data after successful login
+      refetchUser();
       setAuthState("authenticated");
-      
-      toast({
-        title: "Welcome back!",
-        description: `Successfully logged in as ${userData.firstName} ${userData.lastName}`,
-      });
     },
     onError: (error: Error) => {
       setAuthState("unauthenticated");
@@ -135,7 +129,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = async (): Promise<void> => {
-    return logoutMutation.mutateAsync();
+    await logoutMutation.mutateAsync();
   };
 
   const contextValue: AuthContextType = {
@@ -159,5 +153,5 @@ export function useAuth(): AuthContextType {
   if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
-  return context as AuthContextType;
+  return context;
 }
