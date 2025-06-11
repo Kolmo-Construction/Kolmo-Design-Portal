@@ -857,7 +857,7 @@ This email was sent to ${quote.customerEmail}. All quotes are confidential and p
           filename: 'kolmo-logo.png',
           type: 'image/png',
           disposition: 'inline',
-          contentId: 'kolmo-logo'
+          content_id: 'kolmo-logo'
         };
       } catch (error) {
         console.error('Failed to read logo file:', error);

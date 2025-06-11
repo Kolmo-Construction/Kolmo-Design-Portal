@@ -22,13 +22,7 @@ interface EmailOptions {
   html?: string;
   from?: string;
   fromName?: string;
-  attachments?: Array<{
-    content: string;
-    filename: string;
-    type: string;
-    disposition: string;
-    contentId: string;
-  }>;
+  attachments?: any;
 }
 
 // Default sender email - should be a verified domain in SendGrid account
