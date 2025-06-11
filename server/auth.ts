@@ -138,7 +138,7 @@ export function setupAuth(app: Express) {
 
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "buildportal-dev-secret",
-    resave: false,
+    resave: true, // Force session to be saved back to session store
     saveUninitialized: false,
     store: storage.sessionStore, // sessionStore is a property, not a user method
     cookie: {
@@ -146,7 +146,8 @@ export function setupAuth(app: Express) {
       secure: false, // Set to false for development
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
       sameSite: 'lax'
-    }
+    },
+    rolling: true // Reset expiration on activity
   };
 
   app.set("trust proxy", 1);

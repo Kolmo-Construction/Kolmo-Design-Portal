@@ -75,11 +75,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return await apiRequest("POST", "/api/login", credentials);
     },
     onSuccess: async (user: SelectUser) => {
+      // Set user data immediately
       queryClient.setQueryData(["/api/user"], user);
+      
+      // Wait a brief moment for session to persist
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       // Invalidate and refetch to ensure consistency
       await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      
+      // Clear any cached error states
+      queryClient.removeQueries({ queryKey: ["/api/user"], type: "inactive" });
     },
     onError: (error: Error) => {
+      // Clear any stale user data on login failure
+      queryClient.setQueryData(["/api/user"], null);
+      
       toast({
         title: "Login failed",
         description: error.message,

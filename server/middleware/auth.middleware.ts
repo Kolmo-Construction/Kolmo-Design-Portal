@@ -16,11 +16,24 @@ export interface AuthenticatedRequest extends Request {
  */
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
     const requestPath = `${req.method} ${req.originalUrl}`;
-    logger(`[isAuthenticated] Checking auth for: ${requestPath}`, 'AuthMiddleware'); // Use logger
+    logger(`[isAuthenticated] Checking auth for: ${requestPath}`, 'AuthMiddleware');
 
-    logger(`[isAuthenticated] Session: ${JSON.stringify(req.session)}`, 'AuthMiddleware');
-    logger(`[isAuthenticated] User: ${JSON.stringify(req.user)}`, 'AuthMiddleware');
-    logger(`[isAuthenticated] IsAuthenticated: ${req.isAuthenticated()}`, 'AuthMiddleware');
+    // Only log session details in debug mode to reduce noise
+    if (process.env.NODE_ENV === 'development') {
+        logger(`[isAuthenticated] Session ID: ${req.sessionID}`, 'AuthMiddleware');
+        logger(`[isAuthenticated] Session exists: ${!!req.session}`, 'AuthMiddleware');
+        logger(`[isAuthenticated] User exists: ${!!req.user}`, 'AuthMiddleware');
+        logger(`[isAuthenticated] IsAuthenticated: ${req.isAuthenticated()}`, 'AuthMiddleware');
+    }
+
+    // Ensure session is saved before checking authentication
+    if (req.session && req.session.save) {
+        req.session.save((err) => {
+            if (err) {
+                logger(`[isAuthenticated] Session save error: ${err.message}`, 'AuthMiddleware');
+            }
+        });
+    }
 
     // Use req.isAuthenticated() provided by Passport
     if (req.isAuthenticated() && req.user) {

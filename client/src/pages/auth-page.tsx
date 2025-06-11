@@ -55,7 +55,12 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
   // Redirect authenticated users to dashboard (unless magic link or password reset)
   useEffect(() => {
     if (user && !isMagicLink && !isPasswordReset && !authLoading) {
-      navigate("/");
+      // Use timeout to ensure state is stable before redirecting
+      const redirectTimer = setTimeout(() => {
+        navigate("/");
+      }, 50);
+      
+      return () => clearTimeout(redirectTimer);
     }
   }, [user, navigate, isMagicLink, isPasswordReset, authLoading]);
 
@@ -111,7 +116,12 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
     try {
       const result = await loginMutation.mutateAsync(data);
       console.log("Login successful, user data:", result);
-      // Navigation will be handled by the useEffect hook above
+      
+      // Force immediate navigation after successful login
+      setTimeout(() => {
+        navigate("/");
+      }, 100);
+      
     } catch (error: any) {
       console.error("Login failed:", error);
       loginForm.setError("root", {
