@@ -125,24 +125,17 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
         console.log('[AuthPage] [onLogin] [onSuccess] Received user data:', loggedInUser);
         console.log('[AuthPage] [onLogin] [onSuccess] Cache state before manual update:', queryClient.getQueryData(['/api/user']));
         
-        // Step 1: Manually update the cache with the data we just received from the login
-        console.log('[AuthPage] [onLogin] [onSuccess] Step 1: Updating query cache manually...');
+        // Step 1: Update the cache with the fresh user data from login
+        console.log('[AuthPage] [onLogin] [onSuccess] Step 1: Updating query cache with fresh user data...');
         queryClient.setQueryData(['/api/user'], loggedInUser);
-        console.log('[AuthPage] [onLogin] [onSuccess] Cache state after manual update:', queryClient.getQueryData(['/api/user']));
+        console.log('[AuthPage] [onLogin] [onSuccess] Cache state after update:', queryClient.getQueryData(['/api/user']));
         
-        // Step 2: Force invalidate the user query to trigger re-fetch and ensure useAuth sees the new data
-        console.log('[AuthPage] [onLogin] [onSuccess] Step 2: Invalidating user query to force re-render...');
-        queryClient.invalidateQueries({ queryKey: ['/api/user'] });
-        
-        // Step 3: Use a small delay to ensure cache propagation before navigation
-        console.log('[AuthPage] [onLogin] [onSuccess] Step 3: Waiting for cache propagation...');
-        setTimeout(() => {
-          console.log('[AuthPage] [onLogin] [onSuccess] Step 4: Navigating to dashboard...');
-          navigate('/');
-          console.log('[AuthPage] [onLogin] [onSuccess] ✅ Navigation called successfully');
-        }, 50); // Small delay to ensure cache propagation
+        // Step 2: Navigate immediately - no need to invalidate since we have fresh data
+        console.log('[AuthPage] [onLogin] [onSuccess] Step 2: Navigating to dashboard...');
+        navigate('/');
+        console.log('[AuthPage] [onLogin] [onSuccess] ✅ Navigation called successfully');
 
-        console.log('[AuthPage] [onLogin] [onSuccess] Step 5: Showing success toast...');
+        console.log('[AuthPage] [onLogin] [onSuccess] Step 3: Showing success toast...');
         toast({
           title: "Login Successful",
           description: `Welcome back, ${loggedInUser.firstName}!`,
