@@ -13,7 +13,6 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refetchUser: () => void;
-  createMagicLinkMutation: any;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -125,30 +124,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     },
   });
 
-  // MagicLink creation mutation
-  const createMagicLinkMutation = useMutation({
-    mutationFn: async (userData: {
-      firstName: string;
-      lastName: string;
-      email: string;
-      role: string;
-      projectIds?: number[];
-      phoneNumber?: string;
-    }): Promise<{ magicLink: string; user: User }> => {
-      return await apiRequest("POST", "/api/create-magic-link", userData);
-    },
-    onSuccess: () => {
-      // Invalidate users list to refresh
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error creating user",
-        description: error.message || "Failed to create user and magic link",
-        variant: "destructive",
-      });
-    },
-  });
+
 
   const login = async (username: string, password: string): Promise<void> => {
     await loginMutation.mutateAsync({ username, password });
@@ -165,7 +141,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     logout,
     refetchUser,
-    createMagicLinkMutation,
   };
 
   return (

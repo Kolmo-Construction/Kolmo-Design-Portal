@@ -101,12 +101,12 @@ export function CreateUserDialog({
         // Only set magic link if it's available in the response
         if (response?.magicLink) {
           setCreatedMagicLink(response.magicLink);
-        } else if (response?.userId && emailConfigured) {
+        } else if (response?.user && emailConfigured) {
             // If no link but email configured, assume success (link sent via email)
              toast({ title: "User Created", description: "Invitation email sent successfully."});
 
              closeAndReset(); // Close dialog after successful email send
-        } else if (response?.userId && !emailConfigured) {
+        } else if (response?.user && !emailConfigured) {
              // Handle case where user created but email failed - RARE if API is robust
              toast({ title: "User Created (Manual Link Needed)", description: "User created, but email service is down. No magic link available.", variant: "destructive"});
 
