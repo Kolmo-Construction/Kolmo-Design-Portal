@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Download, FileText, MapPin, Calendar, DollarSign, Send, Loader2 } from "lucide-react";
 import { formatDate, getInvoiceStatusLabel, getInvoiceStatusBadgeClasses } from "@/lib/utils";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-unified";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 
