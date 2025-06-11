@@ -181,6 +181,8 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
       .filter(inv => inv.status === 'paid')
       .reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
 
+
+
     const remainingToInvoice = Math.max(0, totalBillableAmount - totalInvoiced);
     const remainingToPay = Math.max(0, totalInvoiced - totalPaid);
 
@@ -246,8 +248,8 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
             
             {/* Total Billable Amount */}
             <div className="text-center p-4 bg-blue-50 rounded-lg border">
-              <div className="text-2xl font-bold text-blue-700">${totalBillableAmount.toFixed(2)}</div>
-              <div className="text-sm text-blue-600">Total Billable ({totalBillablePercentage.toFixed(1)}%)</div>
+              <div className="text-2xl font-bold text-blue-700">${totalInvoiced.toFixed(2)}</div>
+              <div className="text-sm text-blue-600">Total Invoiced</div>
             </div>
             
             {/* Total Collected */}
@@ -256,10 +258,10 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
               <div className="text-sm text-green-600">Total Collected</div>
             </div>
             
-            {/* Remaining to Collect */}
+            {/* Outstanding Balance */}
             <div className="text-center p-4 bg-orange-50 rounded-lg border">
               <div className="text-2xl font-bold text-orange-700">${remainingToPay.toFixed(2)}</div>
-              <div className="text-sm text-orange-600">Remaining to Collect</div>
+              <div className="text-sm text-orange-600">Outstanding Balance</div>
             </div>
           </div>
           
