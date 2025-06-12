@@ -17,6 +17,7 @@ import {
   Phone,
   Target,
   TrendingUp,
+  User,
   Users
 } from 'lucide-react';
 import { ClientNavigation } from '@/components/ClientNavigation';
@@ -64,10 +65,10 @@ export default function ProjectDetails() {
 
   const { data: project, isLoading } = useQuery<ProjectDetails>({
     queryKey: ['/api/projects', id],
-    enabled: !!user && !!id && user.role === 'client'
+    enabled: !!user && !!id && (user.role === 'client' || user.role === 'admin')
   });
 
-  if (!user || user.role !== 'client') {
+  if (!user || (user.role !== 'client' && user.role !== 'admin')) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-muted">
         <ClientNavigation />
@@ -76,7 +77,7 @@ export default function ProjectDetails() {
             <CardContent className="pt-6 text-center">
               <Building className="h-12 w-12 text-destructive mx-auto mb-4" />
               <h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
-              <p className="text-muted-foreground">This page is for client users only.</p>
+              <p className="text-muted-foreground">This page is for client users and administrators only.</p>
             </CardContent>
           </Card>
         </div>
@@ -126,14 +127,24 @@ export default function ProjectDetails() {
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
       <ClientNavigation />
       
+      {/* Admin Banner - only show for admin users */}
+      {user?.role === 'admin' && (
+        <div className="bg-orange-500 text-white px-4 py-2 text-center text-sm font-medium mt-16">
+          <div className="flex items-center justify-center gap-2">
+            <User className="h-4 w-4" />
+            Admin View: You are viewing this project from the client perspective
+          </div>
+        </div>
+      )}
+      
       {/* Header */}
       <div className="bg-primary text-primary-foreground">
         <div className="container mx-auto px-6 pt-24 pb-12">
           <div className="flex items-center gap-4 mb-6">
-            <Link to="/client-portal">
+            <Link to={user?.role === 'admin' ? `/projects/${id}` : "/client-portal"}>
               <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/10">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
+                {user?.role === 'admin' ? 'Back to Project Details' : 'Back to Dashboard'}
               </Button>
             </Link>
           </div>

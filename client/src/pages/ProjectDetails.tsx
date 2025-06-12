@@ -27,6 +27,7 @@ import {
   // MessageSquare, // Icon moved to ProjectHeader
   ArrowLeft,     // Icon used for Back button
   Loader2,       // Icon used for loading state
+  User,          // Icon used for View Client Portal button
   // --- ADDED Icons used only for Tabs (kept): ---
   ListChecks, // For Punch List
   ClipboardList, // For Tasks
@@ -132,15 +133,27 @@ export default function ProjectDetails() {
             </Button>
           </Link>
           
-          {/* Only show task generation button for admin and project managers */}
-          {user?.role !== 'client' && (
-            <Link href={`/project-generation/${projectId}`}>
-              <Button variant="default" size="sm" className="gap-2">
-                <ClipboardList className="h-4 w-4" />
-                Generate Tasks
-              </Button>
-            </Link>
-          )}
+          <div className="flex gap-2">
+            {/* Admin-only link to view client portal */}
+            {user?.role === 'admin' && (
+              <Link href={`/project-details/${projectId}`}>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <User className="h-4 w-4" />
+                  View Client Portal
+                </Button>
+              </Link>
+            )}
+            
+            {/* Only show task generation button for admin and project managers */}
+            {user?.role !== 'client' && (
+              <Link href={`/project-generation/${projectId}`}>
+                <Button variant="default" size="sm" className="gap-2">
+                  <ClipboardList className="h-4 w-4" />
+                  Generate Tasks
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* --- MODIFIED: Render ProjectHeader component --- */}
