@@ -59,7 +59,8 @@ function Router() {
         <ProtectedRoute path="/project-management" component={ProjectManagement} adminOnly />
         <ProtectedRoute path="/documents" component={Documents} />
         <ProtectedRoute path="/financials" component={Financials} adminOnly />
-        <ProtectedRoute path="/messages" component={Messages} />
+        <ProtectedRoute path="/messages" component={ClientMessages} />
+        <ProtectedRoute path="/admin/messages" component={Messages} adminOnly />
         <ProtectedRoute path="/progress-updates" component={ProgressUpdates} />
         <ProtectedRoute path="/schedule" component={Schedule} />
         <ProtectedRoute path="/selections" component={Selections} />
