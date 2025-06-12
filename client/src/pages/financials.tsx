@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth-unified";
+import { useToast } from "@/hooks/use-toast";
 import TopNavBar from "@/components/TopNavBar";
 import Sidebar from "@/components/Sidebar";
 import FinancialSummary from "@/components/FinancialSummary";
@@ -48,6 +49,7 @@ import {
 export default function Financials() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [projectFilter, setProjectFilter] = useState<string>("all");
+  const { toast } = useToast();
 
   // Fetch projects
   const { 
@@ -98,6 +100,174 @@ export default function Financials() {
   // Format date
   const formatDate = (dateString: string | Date) => {
     return format(new Date(dateString), "MMM d, yyyy");
+  };
+
+  // Handler functions for invoice actions
+  const handleViewInvoice = async (invoice: Invoice) => {
+    console.log('[GLOBAL-FRONTEND-VIEW] Starting handleViewInvoice');
+    console.log('[GLOBAL-FRONTEND-VIEW] Invoice:', invoice);
+    console.log('[GLOBAL-FRONTEND-VIEW] API URL:', `/api/projects/${invoice.projectId}/invoices/${invoice.id}/view`);
+    
+    try {
+      console.log('[GLOBAL-FRONTEND-VIEW] Making fetch request...');
+      const response = await fetch(`/api/projects/${invoice.projectId}/invoices/${invoice.id}/view`, {
+        credentials: 'include'
+      });
+      
+      console.log('[GLOBAL-FRONTEND-VIEW] Response status:', response.status);
+      console.log('[GLOBAL-FRONTEND-VIEW] Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log('[GLOBAL-FRONTEND-VIEW] Error response:', errorText);
+        throw new Error(`Failed to fetch invoice details: ${response.status} - ${errorText}`);
+      }
+      
+      console.log('[GLOBAL-FRONTEND-VIEW] Parsing response JSON...');
+      const invoiceData = await response.json();
+      console.log('[GLOBAL-FRONTEND-VIEW] Invoice data received:', invoiceData);
+      
+      console.log('[GLOBAL-FRONTEND-VIEW] Opening new window...');
+      const invoiceWindow = window.open('', '_blank', 'width=800,height=900,scrollbars=yes');
+      if (invoiceWindow) {
+        console.log('[GLOBAL-FRONTEND-VIEW] Writing HTML to window...');
+        invoiceWindow.document.write(generateInvoiceHTML(invoiceData.invoice, invoiceData.project));
+        invoiceWindow.document.close();
+        console.log('[GLOBAL-FRONTEND-VIEW] Invoice view completed successfully');
+      } else {
+        console.log('[GLOBAL-FRONTEND-VIEW] ERROR: Could not open new window');
+        throw new Error('Could not open new window - popup blocked?');
+      }
+    } catch (error) {
+      console.error('[GLOBAL-FRONTEND-VIEW] Invoice view error:', error);
+      toast({
+        title: "View Failed",
+        description: "Could not load the invoice details.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownloadInvoice = async (invoiceId: number, invoiceNumber: string) => {
+    console.log('[GLOBAL-FRONTEND-DOWNLOAD] Starting handleDownloadInvoice');
+    console.log('[GLOBAL-FRONTEND-DOWNLOAD] InvoiceId:', invoiceId);
+    console.log('[GLOBAL-FRONTEND-DOWNLOAD] InvoiceNumber:', invoiceNumber);
+    
+    // Find the invoice to get project ID
+    const invoice = allInvoices.find(inv => inv.id === invoiceId);
+    if (!invoice) {
+      console.log('[GLOBAL-FRONTEND-DOWNLOAD] ERROR: Invoice not found in local data');
+      toast({
+        title: "Download Failed",
+        description: "Invoice not found.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    console.log('[GLOBAL-FRONTEND-DOWNLOAD] API URL:', `/api/projects/${invoice.projectId}/invoices/${invoiceId}/download`);
+    
+    try {
+      console.log('[GLOBAL-FRONTEND-DOWNLOAD] Making fetch request...');
+      const response = await fetch(`/api/projects/${invoice.projectId}/invoices/${invoiceId}/download`, {
+        credentials: 'include'
+      });
+      
+      console.log('[GLOBAL-FRONTEND-DOWNLOAD] Response status:', response.status);
+      console.log('[GLOBAL-FRONTEND-DOWNLOAD] Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log('[GLOBAL-FRONTEND-DOWNLOAD] Error response:', errorText);
+        throw new Error(`Download failed: ${response.status} - ${errorText}`);
+      }
+      
+      console.log('[GLOBAL-FRONTEND-DOWNLOAD] Converting response to blob...');
+      const blob = await response.blob();
+      console.log('[GLOBAL-FRONTEND-DOWNLOAD] Blob size:', blob.size);
+      console.log('[GLOBAL-FRONTEND-DOWNLOAD] Blob type:', blob.type);
+      
+      console.log('[GLOBAL-FRONTEND-DOWNLOAD] Creating download link...');
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice-${invoiceNumber}.pdf`;
+      document.body.appendChild(a);
+      
+      console.log('[GLOBAL-FRONTEND-DOWNLOAD] Triggering download...');
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      console.log('[GLOBAL-FRONTEND-DOWNLOAD] Download completed successfully');
+    } catch (error) {
+      console.error('[GLOBAL-FRONTEND-DOWNLOAD] Invoice download error:', error);
+      toast({
+        title: "Download Failed",
+        description: "Could not download the invoice PDF.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const generateInvoiceHTML = (invoice: Invoice, project: any) => {
+    const issueDate = new Date(invoice.issueDate).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    
+    const dueDate = new Date(invoice.dueDate).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Invoice ${invoice.invoiceNumber}</title>
+          <style>
+            body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+            .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+            .invoice-details { display: flex; justify-content: space-between; margin-bottom: 30px; }
+            .amount { font-size: 24px; font-weight: bold; color: #2563eb; }
+            .status { padding: 5px 10px; border-radius: 5px; color: white; background: #6b7280; }
+            .description { margin: 20px 0; padding: 15px; background: #f9fafb; border-radius: 5px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Invoice ${invoice.invoiceNumber}</h1>
+            <p>Project: ${project.name}</p>
+          </div>
+          
+          <div class="invoice-details">
+            <div>
+              <p><strong>Issue Date:</strong> ${issueDate}</p>
+              <p><strong>Due Date:</strong> ${dueDate}</p>
+              <p><strong>Status:</strong> <span class="status">${invoice.status}</span></p>
+            </div>
+            <div>
+              <p class="amount">$${parseFloat(invoice.amount).toFixed(2)}</p>
+            </div>
+          </div>
+
+          ${invoice.description ? `
+            <div class="description">
+              <h3>Description</h3>
+              <p>${invoice.description}</p>
+            </div>
+          ` : ''}
+
+          <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <p><strong>Project Address:</strong></p>
+            <p>${project.address || 'Not specified'}</p>
+            <p>${project.city || ''} ${project.state || ''} ${project.zipCode || ''}</p>
+          </div>
+        </body>
+      </html>
+    `;
   };
 
   // Prepare data for charts
@@ -336,11 +506,21 @@ export default function Financials() {
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                                   <div className="flex justify-end gap-2">
-                                    <Button variant="outline" size="sm" className="text-primary-600 gap-1">
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="text-primary-600 gap-1"
+                                      onClick={() => handleViewInvoice(invoice)}
+                                    >
                                       <FileText className="h-4 w-4" />
                                       View
                                     </Button>
-                                    <Button variant="outline" size="sm" className="text-primary-600 gap-1">
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="text-primary-600 gap-1"
+                                      onClick={() => handleDownloadInvoice(invoice.id, invoice.invoiceNumber)}
+                                    >
                                       <Download className="h-4 w-4" />
                                       Download
                                     </Button>
