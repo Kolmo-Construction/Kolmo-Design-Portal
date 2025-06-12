@@ -81,7 +81,7 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // --- Mount Global Admin Routes ---
   // Global invoice access for admins
-  app.get("/api/admin/invoices", isAdmin, async (req: any, res: any, next: any) => {
+  app.get("/api/admin/invoices", isAuthenticated, isAdmin, async (req: any, res: any, next: any) => {
     const { getAllInvoices } = await import("./controllers/invoice.controller");
     return getAllInvoices(req, res, next);
   });
