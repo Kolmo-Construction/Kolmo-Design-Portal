@@ -31,6 +31,7 @@ import { projectPaymentRoutes } from "./routes/project-payment.routes"; // Proje
 import globalFinanceRoutes from "./routes/global-finance.routes"; // Global finance API routes
 import taskBillingRouter from "./routes/task-billing.routes"; // Task billing router for complete-and-bill functionality
 import { milestoneRoutes } from "./routes/milestone.routes"; // Milestone management router
+import clientRouter from "./routes/client.routes"; // Client portal router
 
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
 import chatRouter from "./routes/chat.routes"; // Stream Chat router
@@ -187,6 +188,9 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // Mount Global Finance routes (admin only)
   app.use("/api", globalFinanceRoutes);
+
+  // Mount Client Portal routes
+  app.use("/api/client", isAuthenticated, clientRouter);
 
   // --- REMOVED: Old inline route definitions and local router variables ---
   // const taskRouter = Router(...) // REMOVED
