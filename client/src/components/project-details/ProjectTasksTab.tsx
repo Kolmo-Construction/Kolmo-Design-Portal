@@ -468,7 +468,7 @@ export function ProjectTasksTab({ projectId, user, project }: ProjectTasksTabPro
                     statusBg = 'bg-red-50';
                     statusBorder = 'border-red-200';
                     statusIcon = <AlertTriangle className="h-4 w-4 mr-1.5" />;
-                  } else if (task.status === 'todo') {
+                  } else if (task.status === 'todo' || task.status === 'pending') {
                     statusColor = 'bg-amber-500';
                     statusBg = 'bg-amber-50';
                     statusBorder = 'border-amber-200';

@@ -30,33 +30,43 @@ export const getClientDashboard = async (
     // Get client's assigned projects with related data
     const projects = await storage.projects.getProjectsForUser(userId.toString());
     
-    // Enhance projects with task counts and timeline data
+    // Enhance projects with real task counts and timeline data
     const enhancedProjects = await Promise.all(projects.map(async (project: any) => {
-      // Get tasks for this project - with fallback for missing storage method
+      // Get actual tasks for this project
       let tasks: any[] = [];
       let completedTasks = 0;
       let totalTasks = 0;
       
-      // Use realistic task progress data
-      completedTasks = 3; // 3 completed construction tasks  
-      totalTasks = 18; // 18 total construction tasks
+      try {
+        // Get real tasks from storage
+        tasks = await storage.tasks?.getTasksForProject(project.id) || [];
+        totalTasks = tasks.length;
+        
+        // Count completed tasks (handle both old and new status values)
+        completedTasks = tasks.filter((task: any) => 
+          task.status === 'done' || task.status === 'completed'
+        ).length;
+      } catch (error) {
+        console.log(`Tasks not available for project ${project.id}`);
+      }
       
-      // Create realistic timeline based on project phases
-      const timeline = [
-        { phase: 'Planning & Design', status: 'completed' as const, date: '2025-01-15' },
-        { phase: 'Permits & Approvals', status: 'completed' as const, date: '2025-02-10' },
-        { phase: 'Foundation Work', status: 'in-progress' as const, date: '2025-03-01' },
-        { phase: 'Framing & Structure', status: 'pending' as const, date: '2025-04-15' },
-        { phase: 'Electrical & Plumbing', status: 'pending' as const, date: '2025-05-20' },
-        { phase: 'Finishing Work', status: 'pending' as const, date: '2025-07-01' },
-        { phase: 'Final Inspection', status: 'pending' as const, date: '2025-08-15' }
-      ];
+      // Create timeline from actual project milestones if available
+      let timeline: any[] = [];
+      try {
+        const milestones = await storage.milestones?.getMilestonesForProject(project.id) || [];
+        timeline = milestones.map((milestone: any) => ({
+          phase: milestone.title,
+          status: milestone.status,
+          date: milestone.plannedDate
+        }));
+      } catch (error) {
+        console.log(`Milestones not available for project ${project.id}`);
+      }
       
       return {
         ...project,
         completedTasks,
-        totalTasks: Math.max(totalTasks, 25), // Ensure minimum realistic task count
-        estimatedCompletion: '2025-08-30',
+        totalTasks,
         timeline
       };
     }));
