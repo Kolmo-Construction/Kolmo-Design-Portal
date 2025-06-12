@@ -171,43 +171,18 @@ export default function ClientPortal() {
       </div>
 
       <div className="container mx-auto px-6 py-12">
-        {/* Overall Progress Section */}
-        <div className="mb-12">
+        {/* Simplified Progress Overview */}
+        <div className="mb-8">
           <Card className="border-accent/20 shadow-lg">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-3 text-2xl">
-                <BarChart3 className="h-7 w-7 text-accent" />
-                Project Progress Overview
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-lg font-medium">Overall Completion</span>
-                    <span className="text-2xl font-bold text-accent">{Math.round(progressPercentage)}%</span>
-                  </div>
-                  <Progress value={progressPercentage} className="h-4" />
-                  <div className="flex justify-between text-sm text-muted-foreground mt-2">
-                    <span>{stats.completedTasks} completed</span>
-                    <span>{stats.totalTasks - stats.completedTasks} remaining</span>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-primary mb-2">{stats.totalProjects}</div>
-                    <div className="text-sm text-muted-foreground">Active Projects</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-accent mb-2">{stats.completedTasks}</div>
-                    <div className="text-sm text-muted-foreground">Tasks Completed</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-secondary mb-2">{Math.round(stats.avgProgress)}%</div>
-                    <div className="text-sm text-muted-foreground">Average Progress</div>
-                  </div>
-                </div>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Your Progress</h2>
+                <span className="text-3xl font-bold text-accent">{Math.round(progressPercentage)}%</span>
+              </div>
+              <Progress value={progressPercentage} className="h-3 mb-3" />
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>{stats.completedTasks} of {stats.totalTasks} tasks completed</span>
+                <span>{stats.totalTasks - stats.completedTasks} remaining</span>
               </div>
             </CardContent>
           </Card>
@@ -253,51 +228,31 @@ export default function ClientPortal() {
                       <Progress value={project.progress} className="h-3" />
                     </div>
 
-                    {/* Task Progress */}
-                    {project.completedTasks !== undefined && project.totalTasks !== undefined && (
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm text-muted-foreground">Tasks Progress</span>
-                          <span className="text-sm font-medium">{project.completedTasks}/{project.totalTasks}</span>
-                        </div>
-                        <Progress 
-                          value={project.totalTasks > 0 ? (project.completedTasks / project.totalTasks) * 100 : 0} 
-                          className="h-2" 
-                        />
+                    {/* Key Metrics */}
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="text-center p-3 bg-green-50 rounded-lg">
+                        <div className="text-lg font-bold text-green-600">{project.completedTasks || 0}</div>
+                        <div className="text-xs text-muted-foreground">Completed</div>
                       </div>
-                    )}
+                      <div className="text-center p-3 bg-accent/10 rounded-lg">
+                        <div className="text-lg font-bold text-accent">{(project.totalTasks || 0) - (project.completedTasks || 0)}</div>
+                        <div className="text-xs text-muted-foreground">In Progress</div>
+                      </div>
+                      <div className="text-center p-3 bg-blue-50 rounded-lg">
+                        <div className="text-lg font-bold text-blue-600">{project.totalTasks || 0}</div>
+                        <div className="text-xs text-muted-foreground">Total Tasks</div>
+                      </div>
+                    </div>
 
-                    {/* Timeline Preview */}
-                    {project.timeline && (
-                      <div>
-                        <h4 className="font-medium mb-3 flex items-center gap-2">
-                          <Timer className="h-4 w-4" />
-                          Project Timeline
-                        </h4>
-                        <div className="space-y-2">
-                          {project.timeline.slice(0, 3).map((phase, index) => (
-                            <div key={index} className="flex items-center gap-3">
-                              <div className={`w-3 h-3 rounded-full ${
-                                phase.status === 'completed' ? 'bg-green-500' :
-                                phase.status === 'in-progress' ? 'bg-accent' : 'bg-muted'
-                              }`} />
-                              <span className="text-sm">{phase.phase}</span>
-                              <span className="text-xs text-muted-foreground ml-auto">{phase.date}</span>
-                            </div>
-                          ))}
-                        </div>
+                    {/* Essential Project Info */}
+                    <div className="grid grid-cols-2 gap-4 text-sm pt-2">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Active since 2025</span>
                       </div>
-                    )}
-
-                    {/* Project Info Grid */}
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Location:</span>
-                        <div className="font-medium">{project.address ? `${project.city}, ${project.state}` : 'Not specified'}</div>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Status:</span>
-                        <div className="font-medium capitalize">{project.status}</div>
+                      <div className="flex items-center gap-2">
+                        <Target className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">{project.totalTasks} total tasks</span>
                       </div>
                     </div>
 
