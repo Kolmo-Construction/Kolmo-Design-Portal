@@ -92,6 +92,8 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
     return getClientInvoices(req, res, next);
   });
 
+
+
   // --- Mount Project-Specific Routers ---
   // Apply common middleware like isAuthenticated and validateProjectId here
 

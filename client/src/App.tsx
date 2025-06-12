@@ -70,6 +70,7 @@ function Router() {
         <ProtectedRoute path="/selections" component={Selections} />
         <ProtectedRoute path="/quotes" component={Quotes} adminOnly />
         <ProtectedRoute path="/invoices" component={ClientInvoices} />
+        <ProtectedRoute path="/project-details/:projectId/invoices" component={ClientInvoices} />
         <ProtectedRoute path="/admin/invoices" component={AdminInvoices} adminOnly />
         <ProtectedRoute path="/invoices/:invoiceId/view" component={InvoiceDetailPage} />
         <ProtectedRoute path="/settings" component={Settings} adminOnly />
