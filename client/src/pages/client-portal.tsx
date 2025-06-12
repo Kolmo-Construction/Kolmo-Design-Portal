@@ -27,6 +27,113 @@ import { ClientNavigation } from '@/components/ClientNavigation';
 import { getQueryFn } from '@/lib/queryClient';
 import type { Task } from '@shared/schema';
 
+// TaskTimeline component for displaying project tasks in timeline format
+function TaskTimeline({ projectId }: { projectId: number }) {
+  const { data: tasks = [], isLoading } = useQuery<Task[]>({
+    queryKey: [`/api/projects/${projectId}/tasks`],
+    queryFn: getQueryFn({ on401: "throw" }),
+    enabled: !!projectId
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="animate-pulse flex items-start gap-4">
+            <div className="w-8 h-8 bg-gray-200 rounded-full flex-shrink-0"></div>
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (tasks.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+        <p className="text-sm text-muted-foreground">No tasks yet for this project</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      {/* Timeline Line */}
+      <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border"></div>
+      
+      {tasks.map((task, index) => {
+        const isCompleted = task.status?.toLowerCase() === 'done' || task.status?.toLowerCase() === 'completed';
+        const isInProgress = task.status?.toLowerCase() === 'in_progress' || task.status?.toLowerCase() === 'in progress';
+        const taskDate = task.startDate ? new Date(task.startDate).toLocaleDateString() : 'Not scheduled';
+        
+        return (
+          <div key={task.id} className="relative flex items-start gap-4 pb-6">
+            {/* Timeline Dot */}
+            <div className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center ${
+              isCompleted 
+                ? 'bg-green-100 border-green-500' 
+                : isInProgress 
+                  ? 'bg-accent/10 border-accent' 
+                  : 'bg-gray-100 border-gray-300'
+            }`}>
+              {isCompleted ? (
+                <CheckCircle className="h-4 w-4 text-green-600" />
+              ) : isInProgress ? (
+                <Clock className="h-4 w-4 text-accent" />
+              ) : (
+                <Circle className="h-3 w-3 text-gray-400" />
+              )}
+            </div>
+
+            {/* Task Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex-1">
+                  <h4 className={`font-medium text-sm ${
+                    isCompleted ? 'text-green-700' : 'text-foreground'
+                  }`}>
+                    {task.title}
+                  </h4>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="outline" className="text-xs">
+                      {task.category || 'General'}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {taskDate}
+                    </span>
+                  </div>
+                  {task.description && (
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                      {task.description}
+                    </p>
+                  )}
+                </div>
+                <Badge 
+                  variant={isCompleted ? 'default' : 'secondary'}
+                  className={`text-xs ${
+                    isCompleted 
+                      ? 'bg-green-100 text-green-800 border-green-200' 
+                      : isInProgress
+                        ? 'bg-accent/10 text-accent border-accent/20'
+                        : 'bg-gray-100 text-gray-600 border-gray-200'
+                  }`}
+                >
+                  {isCompleted ? 'Complete' : 
+                   isInProgress ? 'In Progress' : 'Pending'}
+                </Badge>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 interface Project {
   id: number;
   name: string;
