@@ -124,7 +124,7 @@ export const getInvoiceById = async (
     let isAuthorized = user.role === 'ADMIN';
     if (!isAuthorized) {
        // Use the nested repository: storage.projects
-       const canAccessProject = await storage.projects.checkUserProjectAccess(user.id.toString(), invoice.projectId);
+       const canAccessProject = await storage.projects.checkUserProjectAccess(user.id, invoice.projectId);
        isAuthorized = canAccessProject;
     }
 
@@ -217,87 +217,20 @@ export const downloadInvoicePdf = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  console.log('[INVOICE-DOWNLOAD] Starting downloadInvoicePdf');
-  console.log('[INVOICE-DOWNLOAD] Request params:', req.params);
-  console.log('[INVOICE-DOWNLOAD] Request user:', req.user);
-  console.log('[INVOICE-DOWNLOAD] Session ID:', req.sessionID);
-  console.log('[INVOICE-DOWNLOAD] Is authenticated:', req.isAuthenticated());
-  
   try {
-    const { invoiceId, projectId } = req.params;
+    const { invoiceId } = req.params;
     const invoiceIdNum = parseInt(invoiceId, 10);
-    const projectIdNum = parseInt(projectId, 10);
-    const user = req.user as User;
-
-    console.log('[INVOICE-DOWNLOAD] Parsed invoiceId:', invoiceIdNum);
-    console.log('[INVOICE-DOWNLOAD] Parsed projectId:', projectIdNum);
-    console.log('[INVOICE-DOWNLOAD] User object:', user);
 
     if (isNaN(invoiceIdNum)) {
-      console.log('[INVOICE-DOWNLOAD] ERROR: Invalid invoice ID');
       throw new HttpError(400, 'Invalid invoice ID.');
     }
-    if (isNaN(projectIdNum)) {
-      console.log('[INVOICE-DOWNLOAD] ERROR: Invalid project ID');
-      throw new HttpError(400, 'Invalid project ID.');
-    }
-    if (!user?.id) {
-      console.log('[INVOICE-DOWNLOAD] ERROR: No user authentication');
-      throw new HttpError(401, 'Authentication required.');
-    }
 
-    console.log('[INVOICE-DOWNLOAD] Fetching invoice from storage...');
-    // Get invoice to verify permissions
-    const invoice = await storage.invoices.getInvoiceById(invoiceIdNum);
-    console.log('[INVOICE-DOWNLOAD] Invoice found:', !!invoice);
-    
-    if (!invoice) {
-      console.log('[INVOICE-DOWNLOAD] ERROR: Invoice not found');
-      throw new HttpError(404, 'Invoice not found.');
-    }
-
-    console.log('[INVOICE-DOWNLOAD] Verifying invoice belongs to project...');
-    console.log('[INVOICE-DOWNLOAD] Invoice projectId:', invoice.projectId);
-    console.log('[INVOICE-DOWNLOAD] Request projectId:', projectIdNum);
-    
-    // Verify invoice belongs to the specified project
-    if (invoice.projectId !== projectIdNum) {
-      console.log('[INVOICE-DOWNLOAD] ERROR: Invoice does not belong to project');
-      throw new HttpError(403, 'Invoice does not belong to the specified project.');
-    }
-
-    console.log('[INVOICE-DOWNLOAD] Checking authorization...');
-    console.log('[INVOICE-DOWNLOAD] User role:', user.role);
-    
-    // Authorization check: Admin or associated with the project
-    let isAuthorized = user.role === 'ADMIN';
-    console.log('[INVOICE-DOWNLOAD] Is admin?', isAuthorized);
-    
-    if (!isAuthorized) {
-      console.log('[INVOICE-DOWNLOAD] Checking project access for user:', user.id);
-      const canAccessProject = await storage.projects.checkUserProjectAccess(user.id.toString(), invoice.projectId);
-      console.log('[INVOICE-DOWNLOAD] Can access project?', canAccessProject);
-      isAuthorized = canAccessProject;
-    }
-
-    console.log('[INVOICE-DOWNLOAD] Final authorization result:', isAuthorized);
-    
-    if (!isAuthorized) {
-      console.log('[INVOICE-DOWNLOAD] ERROR: Permission denied');
-      throw new HttpError(403, 'You do not have permission to download this invoice.');
-    }
-
-    console.log('[INVOICE-DOWNLOAD] Importing PDF service...');
     // Import PDF service
     const { generateInvoicePdf } = await import('../services/pdf.service');
-    
-    console.log('[INVOICE-DOWNLOAD] Generating PDF...');
     const pdfBuffer = await generateInvoicePdf(invoiceIdNum);
-    console.log('[INVOICE-DOWNLOAD] PDF generated, size:', pdfBuffer.length);
 
-    console.log('[INVOICE-DOWNLOAD] Sending PDF response...');
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=invoice-${invoice.invoiceNumber}.pdf`);
+    res.setHeader('Content-Disposition', `attachment; filename=invoice-${invoiceId}.pdf`);
     res.send(pdfBuffer);
   } catch (error) {
     next(error);
@@ -312,88 +245,25 @@ export const getInvoiceDetails = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  console.log('[INVOICE-VIEW] Starting getInvoiceDetails');
-  console.log('[INVOICE-VIEW] Request params:', req.params);
-  console.log('[INVOICE-VIEW] Request user:', req.user);
-  console.log('[INVOICE-VIEW] Session ID:', req.sessionID);
-  console.log('[INVOICE-VIEW] Session:', req.session);
-  console.log('[INVOICE-VIEW] Is authenticated:', req.isAuthenticated());
-  
   try {
-    const { invoiceId, projectId } = req.params;
+    const { invoiceId } = req.params;
     const invoiceIdNum = parseInt(invoiceId, 10);
-    const projectIdNum = parseInt(projectId, 10);
-    const user = req.user as User;
-
-    console.log('[INVOICE-VIEW] Parsed invoiceId:', invoiceIdNum);
-    console.log('[INVOICE-VIEW] Parsed projectId:', projectIdNum);
-    console.log('[INVOICE-VIEW] User object:', user);
 
     if (isNaN(invoiceIdNum)) {
-      console.log('[INVOICE-VIEW] ERROR: Invalid invoice ID');
       throw new HttpError(400, 'Invalid invoice ID.');
     }
-    if (isNaN(projectIdNum)) {
-      console.log('[INVOICE-VIEW] ERROR: Invalid project ID');
-      throw new HttpError(400, 'Invalid project ID.');
-    }
-    if (!user?.id) {
-      console.log('[INVOICE-VIEW] ERROR: No user authentication');
-      throw new HttpError(401, 'Authentication required.');
-    }
 
-    console.log('[INVOICE-VIEW] Fetching invoice from storage...');
     const invoice = await storage.invoices.getInvoiceById(invoiceIdNum);
-    console.log('[INVOICE-VIEW] Invoice found:', !!invoice);
-    console.log('[INVOICE-VIEW] Invoice data:', invoice);
-    
     if (!invoice) {
-      console.log('[INVOICE-VIEW] ERROR: Invoice not found');
       throw new HttpError(404, 'Invoice not found.');
     }
 
-    console.log('[INVOICE-VIEW] Verifying invoice belongs to project...');
-    console.log('[INVOICE-VIEW] Invoice projectId:', invoice.projectId);
-    console.log('[INVOICE-VIEW] Request projectId:', projectIdNum);
-    
-    // Verify invoice belongs to the specified project
-    if (invoice.projectId !== projectIdNum) {
-      console.log('[INVOICE-VIEW] ERROR: Invoice does not belong to project');
-      throw new HttpError(403, 'Invoice does not belong to the specified project.');
-    }
-
-    console.log('[INVOICE-VIEW] Checking authorization...');
-    console.log('[INVOICE-VIEW] User role:', user.role);
-    
-    // Authorization check: Admin or associated with the project
-    let isAuthorized = user.role === 'ADMIN';
-    console.log('[INVOICE-VIEW] Is admin?', isAuthorized);
-    
-    if (!isAuthorized) {
-      console.log('[INVOICE-VIEW] Checking project access for user:', user.id);
-      const canAccessProject = await storage.projects.checkUserProjectAccess(user.id.toString(), invoice.projectId);
-      console.log('[INVOICE-VIEW] Can access project?', canAccessProject);
-      isAuthorized = canAccessProject;
-    }
-
-    console.log('[INVOICE-VIEW] Final authorization result:', isAuthorized);
-    
-    if (!isAuthorized) {
-      console.log('[INVOICE-VIEW] ERROR: Permission denied');
-      throw new HttpError(403, 'You do not have permission to view this invoice.');
-    }
-
-    console.log('[INVOICE-VIEW] Fetching project details...');
     // Get project details
     const project = await storage.projects.getProjectById(invoice.projectId);
-    console.log('[INVOICE-VIEW] Project found:', !!project);
-    
     if (!project) {
-      console.log('[INVOICE-VIEW] ERROR: Project not found');
       throw new HttpError(404, 'Project not found for invoice.');
     }
 
-    console.log('[INVOICE-VIEW] Sending successful response');
     res.json({
       invoice,
       project: {

@@ -16,8 +16,7 @@ import {
   AlertTriangle,
   FileText,
   TrendingUp,
-  Download,
-  Send
+  Download
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -31,349 +30,37 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
   const queryClient = useQueryClient();
   const [loadingMilestoneId, setLoadingMilestoneId] = useState<number | null>(null);
 
-  const handleViewInvoice = async (invoice: any) => {
-    console.log('[FRONTEND-VIEW] Starting handleViewInvoice');
-    console.log('[FRONTEND-VIEW] Invoice:', invoice);
-    console.log('[FRONTEND-VIEW] ProjectId:', projectId);
-    console.log('[FRONTEND-VIEW] API URL:', `/api/projects/${projectId}/invoices/${invoice.id}/view`);
-    
-    try {
-      console.log('[FRONTEND-VIEW] Making fetch request...');
-      const response = await fetch(`/api/projects/${projectId}/invoices/${invoice.id}/view`, {
-        credentials: 'include'
-      });
-      
-      console.log('[FRONTEND-VIEW] Response status:', response.status);
-      console.log('[FRONTEND-VIEW] Response headers:', Object.fromEntries(response.headers.entries()));
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log('[FRONTEND-VIEW] Error response:', errorText);
-        throw new Error(`Failed to fetch invoice details: ${response.status} - ${errorText}`);
-      }
-      
-      console.log('[FRONTEND-VIEW] Parsing response JSON...');
-      const invoiceData = await response.json();
-      console.log('[FRONTEND-VIEW] Invoice data received:', invoiceData);
-      
-      console.log('[FRONTEND-VIEW] Opening new window...');
-      // Create a modal or new window to display invoice details
-      const invoiceWindow = window.open('', '_blank', 'width=800,height=900,scrollbars=yes');
-      if (invoiceWindow) {
-        console.log('[FRONTEND-VIEW] Writing HTML to window...');
-        invoiceWindow.document.write(generateInvoiceHTML(invoiceData.invoice, invoiceData.project));
-        invoiceWindow.document.close();
-        console.log('[FRONTEND-VIEW] Invoice view completed successfully');
-      } else {
-        console.log('[FRONTEND-VIEW] ERROR: Could not open new window');
-        throw new Error('Could not open new window - popup blocked?');
-      }
-    } catch (error) {
-      console.error('[FRONTEND-VIEW] Invoice view error:', error);
-      toast({
-        title: "View Failed",
-        description: "Could not load the invoice details.",
-        variant: "destructive",
-      });
-    }
+  const handleViewInvoice = (invoiceId: number) => {
+    window.open(`/invoices/${invoiceId}/view`, '_blank');
   };
 
   const handleDownloadInvoice = async (invoiceId: number, invoiceNumber: string) => {
-    console.log('[FRONTEND-DOWNLOAD] Starting handleDownloadInvoice');
-    console.log('[FRONTEND-DOWNLOAD] InvoiceId:', invoiceId);
-    console.log('[FRONTEND-DOWNLOAD] InvoiceNumber:', invoiceNumber);
-    console.log('[FRONTEND-DOWNLOAD] ProjectId:', projectId);
-    console.log('[FRONTEND-DOWNLOAD] API URL:', `/api/projects/${projectId}/invoices/${invoiceId}/download`);
-    
     try {
-      console.log('[FRONTEND-DOWNLOAD] Making fetch request...');
-      const response = await fetch(`/api/projects/${projectId}/invoices/${invoiceId}/download`, {
+      const response = await fetch(`/api/invoices/${invoiceId}/download`, {
         credentials: 'include'
       });
       
-      console.log('[FRONTEND-DOWNLOAD] Response status:', response.status);
-      console.log('[FRONTEND-DOWNLOAD] Response headers:', Object.fromEntries(response.headers.entries()));
-      
       if (!response.ok) {
-        const errorText = await response.text();
-        console.log('[FRONTEND-DOWNLOAD] Error response:', errorText);
-        throw new Error(`Download failed: ${response.status} - ${errorText}`);
+        throw new Error('Download failed');
       }
       
-      console.log('[FRONTEND-DOWNLOAD] Converting response to blob...');
       const blob = await response.blob();
-      console.log('[FRONTEND-DOWNLOAD] Blob size:', blob.size);
-      console.log('[FRONTEND-DOWNLOAD] Blob type:', blob.type);
-      
-      console.log('[FRONTEND-DOWNLOAD] Creating download link...');
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `Invoice-${invoiceNumber}.pdf`;
       document.body.appendChild(a);
-      
-      console.log('[FRONTEND-DOWNLOAD] Triggering download...');
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      console.log('[FRONTEND-DOWNLOAD] Download completed successfully');
     } catch (error) {
-      console.error('[FRONTEND-DOWNLOAD] Invoice download error:', error);
+      console.error('Invoice download error:', error);
       toast({
         title: "Download Failed",
         description: "Could not download the invoice PDF.",
         variant: "destructive",
       });
     }
-  };
-
-  const sendInvoiceMutation = useMutation({
-    mutationFn: (invoiceId: number) => 
-      apiRequest(`/api/invoices/${invoiceId}/send`, { method: 'POST' }),
-    onSuccess: () => {
-      toast({
-        title: "Invoice Sent",
-        description: "The invoice has been sent successfully.",
-        variant: "default",
-      });
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/invoices`] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Send Failed",
-        description: error.message || "Failed to send the invoice.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleSendInvoice = (invoiceId: number) => {
-    sendInvoiceMutation.mutate(invoiceId);
-  };
-
-  const generateInvoiceHTML = (invoice: Invoice, project: any) => {
-    const issueDate = new Date(invoice.issueDate).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-    
-    const dueDate = new Date(invoice.dueDate).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    const amount = Number(invoice.amount);
-
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Invoice ${invoice.invoiceNumber}</title>
-        <style>
-          body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: #fff;
-            margin: 20px;
-          }
-          .invoice-container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 40px;
-            border: 1px solid #ddd;
-          }
-          .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #2563eb;
-            padding-bottom: 20px;
-          }
-          .company-name {
-            font-size: 28px;
-            font-weight: bold;
-            color: #2563eb;
-            margin-bottom: 5px;
-          }
-          .invoice-title {
-            text-align: right;
-          }
-          .invoice-title h1 {
-            font-size: 36px;
-            color: #2563eb;
-            margin: 0;
-          }
-          .invoice-number {
-            font-size: 16px;
-            color: #666;
-          }
-          .invoice-meta {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
-          }
-          .section {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-          }
-          .section-title {
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            font-size: 14px;
-          }
-          .detail-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 5px;
-          }
-          .items-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-          }
-          .items-table th {
-            background: #2563eb;
-            color: white;
-            padding: 15px;
-            text-align: left;
-          }
-          .items-table td {
-            padding: 15px;
-            border-bottom: 1px solid #ddd;
-          }
-          .total-section {
-            text-align: right;
-            margin-top: 20px;
-          }
-          .total-row {
-            display: flex;
-            justify-content: flex-end;
-            margin-bottom: 10px;
-          }
-          .total-label {
-            width: 150px;
-            text-align: right;
-            padding-right: 20px;
-            font-weight: 500;
-          }
-          .total-amount {
-            width: 120px;
-            text-align: right;
-            font-weight: 600;
-          }
-          .grand-total {
-            border-top: 2px solid #2563eb;
-            padding-top: 10px;
-            margin-top: 10px;
-            font-size: 18px;
-            font-weight: bold;
-            color: #2563eb;
-          }
-          .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-          }
-          .status-pending { background: #fef3c7; color: #92400e; }
-          .status-paid { background: #d1fae5; color: #065f46; }
-          .status-overdue { background: #fee2e2; color: #991b1b; }
-        </style>
-      </head>
-      <body>
-        <div class="invoice-container">
-          <div class="header">
-            <div>
-              <div class="company-name">KOLMO</div>
-              <div style="color: #666;">Construction Excellence</div>
-            </div>
-            <div class="invoice-title">
-              <h1>INVOICE</h1>
-              <div class="invoice-number">#${invoice.invoiceNumber}</div>
-              <div class="status-badge status-${invoice.status}">${invoice.status.toUpperCase()}</div>
-            </div>
-          </div>
-          
-          <div class="invoice-meta">
-            <div class="section">
-              <div class="section-title">Bill To</div>
-              <div style="font-weight: 600; margin-bottom: 5px;">Client</div>
-              <div>Project: ${project.name}</div>
-              <div style="color: #666; font-size: 14px; margin-top: 5px;">
-                ${project.address}, ${project.city}, ${project.state} ${project.zipCode}
-              </div>
-            </div>
-            
-            <div class="section">
-              <div class="section-title">Invoice Details</div>
-              <div class="detail-row">
-                <span>Issue Date:</span>
-                <span>${issueDate}</span>
-              </div>
-              <div class="detail-row">
-                <span>Due Date:</span>
-                <span>${dueDate}</span>
-              </div>
-              <div class="detail-row">
-                <span>Project ID:</span>
-                <span>#${project.id}</span>
-              </div>
-            </div>
-          </div>
-          
-          <table class="items-table">
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th style="width: 100px;">Quantity</th>
-                <th style="width: 120px;">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>
-                  <strong>Project Services</strong><br>
-                  <span style="color: #666; font-size: 14px;">
-                    Construction services for ${project.name}
-                    ${invoice.description ? `<br>${invoice.description}` : ''}
-                  </span>
-                </td>
-                <td style="text-align: center;">1</td>
-                <td style="text-align: right;">$${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              </tr>
-            </tbody>
-          </table>
-          
-          <div class="total-section">
-            <div class="total-row grand-total">
-              <div class="total-label">Total Amount Due:</div>
-              <div class="total-amount">$${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-            </div>
-          </div>
-          
-          <div style="margin-top: 30px; padding: 20px; background: #f1f5f9; border-radius: 8px;">
-            <div style="font-weight: 600; margin-bottom: 10px;">Payment Information</div>
-            <div style="color: #666; font-size: 14px;">
-              Payment is due within 30 days of invoice date. Please include invoice number #${invoice.invoiceNumber} with your payment.
-              <br><br>
-              <strong>Questions?</strong> Contact us at contact@kolmo.io or through your project portal.
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
   };
 
   // Fetch milestones for the project
@@ -701,20 +388,10 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
                         <div className="text-sm text-gray-500">{invoice.invoiceType}</div>
                       </div>
                       <div className="flex gap-2">
-                        {invoice.status === 'draft' && (
-                          <Button 
-                            variant="default" 
-                            size="sm" 
-                            onClick={() => handleSendInvoice(invoice.id)}
-                            className="gap-1"
-                          >
-                            <Send className="h-4 w-4" /> Send
-                          </Button>
-                        )}
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          onClick={() => handleViewInvoice(invoice)}
+                          onClick={() => handleViewInvoice(invoice.id)}
                           className="gap-1"
                         >
                           <FileText className="h-4 w-4" /> View
