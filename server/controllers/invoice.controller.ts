@@ -64,6 +64,28 @@ export const getInvoicesForProject = async (
 };
 
 /**
+ * Get all invoices across all projects (Admin only).
+ */
+export const getAllInvoices = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const user = req.user as User;
+
+    if (!user?.id) { throw new HttpError(401, 'Authentication required.'); }
+    if (user.role !== 'ADMIN') { throw new HttpError(403, 'Admin access required.'); }
+
+    // Use the nested repository: storage.invoices
+    const invoices = await storage.invoices.getAllInvoices();
+    res.status(200).json(invoices);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Create a new invoice for a project.
  */
 export const createInvoice = async (
@@ -157,11 +179,14 @@ export const updateInvoice = async (
     const validatedData = validationResult.data;
     if (Object.keys(validatedData).length === 0) { throw new HttpError(400, 'No update data provided.'); }
 
-     const updateData = {
+     const updateData: any = {
         ...validatedData,
         ...(validatedData.amount && { amount: validatedData.amount }),
-        ...(validatedData.dueDate && { dueDate: new Date(validatedData.dueDate) }),
     };
+    
+    if (validatedData.dueDate) {
+      updateData.dueDate = new Date(validatedData.dueDate);
+    }
 
     // Use the nested repository: storage.invoices
     const updatedInvoice = await storage.invoices.updateInvoice(invoiceIdNum, updateData);
