@@ -267,7 +267,7 @@ export default function ProjectDetails() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {project.timeline.map((phase, index) => (
+              {project.timeline && project.timeline.length > 0 ? project.timeline.map((phase, index) => (
                 <div key={index} className="flex items-center gap-4 p-4 rounded-lg border">
                   <div className={`w-4 h-4 rounded-full ${
                     phase.status === 'completed' ? 'bg-green-500' :
@@ -295,7 +295,12 @@ export default function ProjectDetails() {
                      phase.status === 'in-progress' ? 'Active' : 'Pending'}
                   </Badge>
                 </div>
-              ))}
+              )) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No timeline data available</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
