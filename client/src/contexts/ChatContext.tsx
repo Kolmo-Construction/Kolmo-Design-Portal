@@ -86,7 +86,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
         try {
           await client.disconnectUser();
         } catch (err) {
-          // Silent error handling
+          console.warn('Error disconnecting existing client:', err);
         }
         setClient(null);
         setIsConnected(false);
@@ -96,17 +96,45 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
       setError(null);
       
       try {
+        console.log('Initializing Stream Chat with API key:', chatData.apiKey?.substring(0, 8) + '...');
+        
+        if (!chatData.apiKey || !chatData.token || !chatData.userId) {
+          throw new Error('Missing required chat configuration: apiKey, token, or userId');
+        }
+        
         const chatClient = StreamChat.getInstance(chatData.apiKey);
+        
+        // Add connection event listeners for better debugging
+        chatClient.on('connection.changed', (event) => {
+          console.log('Stream Chat connection changed:', event);
+          if (event.online) {
+            setIsConnected(true);
+            setError(null);
+          } else {
+            setIsConnected(false);
+            setError('Connection lost');
+          }
+        });
+        
+        chatClient.on('connection.error', (event) => {
+          console.error('Stream Chat connection error:', event);
+          setError('Connection error occurred');
+          setIsConnected(false);
+        });
+        
         await chatClient.connectUser(
           { 
             id: chatData.userId,
-            name: 'KOLMO',
+            name: 'KOLMO Admin',
           },
           chatData.token
         );
+        
         setClient(chatClient);
         setIsConnected(true);
+        console.log('Stream Chat connected successfully for user:', chatData.userId);
       } catch (err) {
+        console.error('Error initializing admin chat:', err);
         const errorMessage = err instanceof Error ? err.message : 'Failed to initialize admin chat';
         setError(errorMessage);
         throw err; // Re-throw to prevent setting success state
@@ -130,14 +158,44 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
     setError(null);
     
     try {
+      console.log('Requesting customer chat token for:', name, email);
+      
       const response = await apiRequest('POST', '/api/chat/customer-token', {
         quoteToken: token,
         customerName: name,
         customerEmail: email,
       });
 
+      console.log('Received customer chat response:', { 
+        userId: response.userId, 
+        channelId: response.channelId,
+        apiKey: response.apiKey?.substring(0, 8) + '...'
+      });
+
+      if (!response.apiKey || !response.token || !response.userId) {
+        throw new Error('Invalid response from chat token endpoint');
+      }
+
       // Get existing instance or create new one, but avoid multiple connections
       const chatClient = StreamChat.getInstance(response.apiKey);
+      
+      // Add connection event listeners
+      chatClient.on('connection.changed', (event) => {
+        console.log('Customer Stream Chat connection changed:', event);
+        if (event.online) {
+          setIsConnected(true);
+          setError(null);
+        } else {
+          setIsConnected(false);
+          setError('Connection lost');
+        }
+      });
+      
+      chatClient.on('connection.error', (event) => {
+        console.error('Customer Stream Chat connection error:', event);
+        setError('Connection error occurred');
+        setIsConnected(false);
+      });
       
       // Disconnect existing connection if any
       if (chatClient.user) {
@@ -154,15 +212,17 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
 
       setClient(chatClient);
       setIsConnected(true);
+      console.log('Customer chat connected successfully for user:', response.userId);
 
       // Join the quote channel
       const channel = chatClient.channel('messaging', response.channelId);
       await channel.watch();
       setCurrentChannel(channel);
+      console.log('Joined quote channel:', response.channelId);
     } catch (err) {
+      console.error('Error initializing customer chat:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to initialize customer chat';
       setError(errorMessage);
-      console.error('Error initializing customer chat:', err);
     } finally {
       setIsLoading(false);
     }
