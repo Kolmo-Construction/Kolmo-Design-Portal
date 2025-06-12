@@ -5,6 +5,8 @@ import * as schema from '../../../shared/schema';
 import { db } from '../../db';
 import { HttpError } from '../../errors';
 import { ProjectWithDetails, ClientInfo, ProjectManagerInfo } from '../types';
+import { sendEmail } from '../../email';
+import { getBaseUrl } from '../../domain.config';
 // Import user repository if needed for complex checks, though checkUserProjectAccess fetches user directly now
 // import { userRepository, IUserRepository } from './user.repository';
 
@@ -184,6 +186,41 @@ class ProjectRepository implements IProjectRepository {
             const clientLinks = clientIds.map(clientId => ({ projectId, clientId: parseInt(clientId.toString()) }));
             await tx.insert(schema.clientProjects).values(clientLinks);
 
+            // Automatically ensure all assigned clients have 'client' role and are activated
+            const clientUsers = [];
+            for (const clientId of clientIds) {
+                const clientIdNum = parseInt(clientId.toString());
+                
+                // Get client details for notification
+                const clientUser = await tx.query.users.findFirst({
+                    where: eq(schema.users.id, clientIdNum)
+                });
+                
+                if (clientUser) {
+                    clientUsers.push(clientUser);
+                    
+                    // Update client role to 'client' if not already set and activate their account
+                    await tx.update(schema.users)
+                        .set({ 
+                            role: 'client', 
+                            isActivated: true,
+                            updatedAt: new Date()
+                        })
+                        .where(eq(schema.users.id, clientIdNum));
+                }
+            }
+
+            console.log(`✓ Client portal access automatically created for project ${projectId} with ${clientIds.length} clients`);
+
+            // Send notification emails to clients about their new portal access
+            for (const client of clientUsers) {
+                try {
+                    await this.sendClientPortalNotification(client, projectData.name || 'Your Project');
+                } catch (error) {
+                    console.warn(`Failed to send portal notification to ${client.email}:`, error);
+                }
+            }
+
             // Use tx instance for query inside transaction
             const finalProject = await tx.query.projects.findFirst({
                 where: eq(schema.projects.id, projectId),
@@ -242,6 +279,89 @@ class ProjectRepository implements IProjectRepository {
         }
     }
     
+    // Send email notification to client about new portal access
+    private async sendClientPortalNotification(client: any, projectName: string): Promise<void> {
+        const baseUrl = getBaseUrl();
+        const portalUrl = `${baseUrl}/client-portal`;
+        
+        const emailHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Welcome to Your Kolmo Project Portal</title>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #3d4552 0%, #4a6670 100%); color: white; padding: 30px 20px; text-align: center; }
+                .logo { font-size: 28px; font-weight: bold; margin-bottom: 10px; }
+                .content { padding: 30px 20px; background: #ffffff; }
+                .project-info { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #db973c; }
+                .cta-button { display: inline-block; background: #db973c; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
+                .footer { text-align: center; padding: 20px; color: #666; font-size: 14px; }
+                .features { margin: 20px 0; }
+                .feature { margin: 10px 0; padding-left: 20px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <div class="logo">KOLMO</div>
+                    <p>Welcome to Your Project Portal</p>
+                </div>
+                
+                <div class="content">
+                    <h2>Hi ${client.firstName},</h2>
+                    
+                    <p>Great news! Your project portal is now ready and you have been granted access to track your construction project in real-time.</p>
+                    
+                    <div class="project-info">
+                        <h3>📋 Project: ${projectName}</h3>
+                        <p>You can now monitor progress, communicate with your team, and stay updated on all project activities through your personalized portal.</p>
+                    </div>
+                    
+                    <div class="features">
+                        <h3>What you can do in your portal:</h3>
+                        <div class="feature">✓ Track real-time project progress and milestones</div>
+                        <div class="feature">✓ View detailed task completion status</div>
+                        <div class="feature">✓ Communicate directly with your project team</div>
+                        <div class="feature">✓ Access project documents and updates</div>
+                        <div class="feature">✓ Monitor project timeline and schedule</div>
+                    </div>
+                    
+                    <p style="text-align: center;">
+                        <a href="${portalUrl}" class="cta-button">Access Your Portal</a>
+                    </p>
+                    
+                    <p><strong>Your login credentials:</strong><br>
+                    Email: ${client.email}<br>
+                    You can use the magic link authentication or contact us for password assistance.</p>
+                    
+                    <p>If you have any questions about using the portal or your project, please don't hesitate to reach out to your project manager.</p>
+                    
+                    <p>Thank you for choosing Kolmo Construction!</p>
+                </div>
+                
+                <div class="footer">
+                    <p>Kolmo Construction - Building Excellence Together</p>
+                    <p>This is an automated notification about your project portal access.</p>
+                </div>
+            </div>
+        </body>
+        </html>`;
+
+        await sendEmail({
+            to: client.email,
+            subject: `Welcome to Your ${projectName} Project Portal - Kolmo Construction`,
+            html: emailHtml,
+            from: 'projects@kolmo.io',
+            fromName: 'Kolmo Construction'
+        });
+
+        console.log(`✓ Portal notification sent to ${client.firstName} ${client.lastName} (${client.email})`);
+    }
+
     // Method for backward compatibility
     async assignClientToProject(clientId: string | number, projectId: string | number): Promise<any> {
         try {
