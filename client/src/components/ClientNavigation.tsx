@@ -1,153 +1,205 @@
+import React from 'react';
+import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth-unified';
-import { useLocation } from 'wouter';
-import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { 
-  Building2, 
+  Building, 
   MessageSquare, 
   FileText, 
   User,
   LogOut,
-  Bell
+  Home,
+  DollarSign
 } from 'lucide-react';
-import { Link } from 'wouter';
-import { cn } from '@/lib/utils';
 
-interface ClientNavigationProps {
-  className?: string;
-}
-
-export function ClientNavigation({ className }: ClientNavigationProps) {
+export function ClientNavigation() {
   const { user, logout } = useAuth();
-  const [location, navigate] = useLocation();
+  const [location] = useLocation();
 
-  // Auto-redirect client users to their portal if they're on the main dashboard
-  useEffect(() => {
-    if (user?.role === 'client' && location === '/') {
-      navigate('/client-portal');
-    }
-  }, [user, location, navigate]);
-
-  if (!user || user.role !== 'client') {
-    return null;
-  }
-
-  const navItems = [
-    {
-      href: '/client-portal',
-      label: 'My Dashboard',
-      icon: Building2,
-      description: 'Overview of all your projects'
-    },
-    {
-      href: '/projects',
-      label: 'My Projects',
-      icon: Building2,
-      description: 'View project details and progress'
-    },
-    {
-      href: '/messages',
-      label: 'Messages',
-      icon: MessageSquare,
-      description: 'Communicate with your team'
-    },
-    {
-      href: '/documents',
-      label: 'Documents',
-      icon: FileText,
-      description: 'View contracts and project files'
-    }
-  ];
+  const handleLogout = async () => {
+    await logout();
+  };
 
   return (
-    <div className={cn("bg-white border-b border-gray-200 px-4 py-3", className)}>
-      <div className="flex items-center justify-between max-w-7xl mx-auto">
-        {/* Logo and User Info */}
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Building2 className="h-5 w-5 text-white" />
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-primary shadow-lg border-b border-primary/20">
+      <div className="container mx-auto px-6">
+        <div className="flex items-center justify-between h-16">
+          {/* Kolmo Logo and Brand */}
+          <Link to="/client-portal">
+            <div className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <div className="bg-accent rounded-lg p-2">
+                <Building className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <div className="text-xl font-bold text-primary-foreground">Kolmo</div>
+                <div className="text-xs text-primary-foreground/70">Client Portal</div>
+              </div>
             </div>
-            <div>
-              <h1 className="font-semibold text-gray-900">Kolmo Client Portal</h1>
-              <p className="text-sm text-gray-600">Welcome, {user.firstName}</p>
-            </div>
+          </Link>
+
+          {/* Navigation Links */}
+          <div className="hidden md:flex items-center gap-6">
+            <Link to="/client-portal">
+              <Button 
+                variant={location === '/client-portal' ? 'secondary' : 'ghost'}
+                className={`text-primary-foreground hover:bg-primary-foreground/10 ${
+                  location === '/client-portal' ? 'bg-accent text-white' : ''
+                }`}
+              >
+                <Home className="h-4 w-4 mr-2" />
+                My Dashboard
+              </Button>
+            </Link>
+
+            <Link to="/projects">
+              <Button 
+                variant={location.startsWith('/projects') ? 'secondary' : 'ghost'}
+                className={`text-primary-foreground hover:bg-primary-foreground/10 ${
+                  location.startsWith('/projects') ? 'bg-accent text-white' : ''
+                }`}
+              >
+                <Building className="h-4 w-4 mr-2" />
+                My Projects
+              </Button>
+            </Link>
+
+            <Link to="/messages">
+              <Button 
+                variant={location === '/messages' ? 'secondary' : 'ghost'}
+                className={`text-primary-foreground hover:bg-primary-foreground/10 ${
+                  location === '/messages' ? 'bg-accent text-white' : ''
+                }`}
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Messages
+              </Button>
+            </Link>
+
+            <Link to="/documents">
+              <Button 
+                variant={location === '/documents' ? 'secondary' : 'ghost'}
+                className={`text-primary-foreground hover:bg-primary-foreground/10 ${
+                  location === '/documents' ? 'bg-accent text-white' : ''
+                }`}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Documents
+              </Button>
+            </Link>
+
+            <Link to="/invoices">
+              <Button 
+                variant={location === '/invoices' ? 'secondary' : 'ghost'}
+                className={`text-primary-foreground hover:bg-primary-foreground/10 ${
+                  location === '/invoices' ? 'bg-accent text-white' : ''
+                }`}
+              >
+                <DollarSign className="h-4 w-4 mr-2" />
+                Invoices
+              </Button>
+            </Link>
+          </div>
+
+          {/* User Menu */}
+          <div className="flex items-center gap-4">
+            {user && (
+              <div className="hidden sm:flex items-center gap-3">
+                <div className="text-right">
+                  <div className="text-sm font-medium text-primary-foreground">
+                    {user.firstName} {user.lastName}
+                  </div>
+                  <div className="text-xs text-primary-foreground/70">
+                    Client Portal
+                  </div>
+                </div>
+                <div className="bg-accent rounded-full p-2">
+                  <User className="h-4 w-4 text-white" />
+                </div>
+              </div>
+            )}
+
+            <Button 
+              onClick={handleLogout}
+              variant="ghost"
+              size="sm"
+              className="text-primary-foreground hover:bg-primary-foreground/10"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </Button>
           </div>
         </div>
 
-        {/* Navigation Items */}
-        <nav className="hidden md:flex items-center gap-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location === item.href || 
-              (item.href === '/client-portal' && location === '/');
-            
-            return (
-              <Button
-                key={item.href}
-                variant={isActive ? "default" : "ghost"}
+        {/* Mobile Navigation */}
+        <div className="md:hidden pb-4">
+          <div className="flex flex-wrap gap-2">
+            <Link to="/client-portal">
+              <Button 
+                variant={location === '/client-portal' ? 'secondary' : 'ghost'}
                 size="sm"
-                asChild
-                className={cn(
-                  "flex items-center gap-2",
-                  isActive && "bg-blue-600 text-white hover:bg-blue-700"
-                )}
+                className={`text-primary-foreground hover:bg-primary-foreground/10 ${
+                  location === '/client-portal' ? 'bg-accent text-white' : ''
+                }`}
               >
-                <Link href={item.href}>
-                  <Icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
+                <Home className="h-4 w-4 mr-1" />
+                Dashboard
               </Button>
-            );
-          })}
-        </nav>
+            </Link>
 
-        {/* User Actions */}
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" className="relative">
-            <Bell className="h-4 w-4" />
-            <span className="sr-only">Notifications</span>
-            {/* Notification badge could go here */}
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => logout()}
-            className="flex items-center gap-2"
-          >
-            <User className="h-4 w-4" />
-            <span className="hidden sm:inline">Account</span>
-          </Button>
+            <Link to="/projects">
+              <Button 
+                variant={location.startsWith('/projects') ? 'secondary' : 'ghost'}
+                size="sm"
+                className={`text-primary-foreground hover:bg-primary-foreground/10 ${
+                  location.startsWith('/projects') ? 'bg-accent text-white' : ''
+                }`}
+              >
+                <Building className="h-4 w-4 mr-1" />
+                Projects
+              </Button>
+            </Link>
+
+            <Link to="/messages">
+              <Button 
+                variant={location === '/messages' ? 'secondary' : 'ghost'}
+                size="sm"
+                className={`text-primary-foreground hover:bg-primary-foreground/10 ${
+                  location === '/messages' ? 'bg-accent text-white' : ''
+                }`}
+              >
+                <MessageSquare className="h-4 w-4 mr-1" />
+                Messages
+              </Button>
+            </Link>
+
+            <Link to="/documents">
+              <Button 
+                variant={location === '/documents' ? 'secondary' : 'ghost'}
+                size="sm"
+                className={`text-primary-foreground hover:bg-primary-foreground/10 ${
+                  location === '/documents' ? 'bg-accent text-white' : ''
+                }`}
+              >
+                <FileText className="h-4 w-4 mr-1" />
+                Documents
+              </Button>
+            </Link>
+
+            <Link to="/invoices">
+              <Button 
+                variant={location === '/invoices' ? 'secondary' : 'ghost'}
+                size="sm"
+                className={`text-primary-foreground hover:bg-primary-foreground/10 ${
+                  location === '/invoices' ? 'bg-accent text-white' : ''
+                }`}
+              >
+                <DollarSign className="h-4 w-4 mr-1" />
+                Invoices
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
-
-      {/* Mobile Navigation */}
-      <div className="md:hidden mt-3 flex overflow-x-auto gap-2 pb-2">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = location === item.href || 
-            (item.href === '/client-portal' && location === '/');
-          
-          return (
-            <Button
-              key={item.href}
-              variant={isActive ? "default" : "outline"}
-              size="sm"
-              asChild
-              className={cn(
-                "flex items-center gap-2 whitespace-nowrap",
-                isActive && "bg-blue-600 text-white"
-              )}
-            >
-              <Link href={item.href}>
-                <Icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            </Button>
-          );
-        })}
-      </div>
-    </div>
+    </nav>
   );
 }
