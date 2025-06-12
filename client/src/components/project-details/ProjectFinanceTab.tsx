@@ -16,7 +16,8 @@ import {
   AlertTriangle,
   FileText,
   TrendingUp,
-  Download
+  Download,
+  Send
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -124,6 +125,30 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
         variant: "destructive",
       });
     }
+  };
+
+  const sendInvoiceMutation = useMutation({
+    mutationFn: (invoiceId: number) => 
+      apiRequest(`/api/invoices/${invoiceId}/send`, { method: 'POST' }),
+    onSuccess: () => {
+      toast({
+        title: "Invoice Sent",
+        description: "The invoice has been sent successfully.",
+        variant: "default",
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/invoices`] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Send Failed",
+        description: error.message || "Failed to send the invoice.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSendInvoice = (invoiceId: number) => {
+    sendInvoiceMutation.mutate(invoiceId);
   };
 
   const generateInvoiceHTML = (invoice: Invoice, project: any) => {
@@ -676,6 +701,16 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
                         <div className="text-sm text-gray-500">{invoice.invoiceType}</div>
                       </div>
                       <div className="flex gap-2">
+                        {invoice.status === 'draft' && (
+                          <Button 
+                            variant="default" 
+                            size="sm" 
+                            onClick={() => handleSendInvoice(invoice.id)}
+                            className="gap-1"
+                          >
+                            <Send className="h-4 w-4" /> Send
+                          </Button>
+                        )}
                         <Button 
                           variant="outline" 
                           size="sm" 
