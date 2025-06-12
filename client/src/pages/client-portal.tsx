@@ -188,93 +188,131 @@ export default function ClientPortal() {
           </Card>
         </div>
 
-        {/* Projects Grid */}
+        {/* Project Timeline */}
         <div className="mb-12">
-          <h2 className="text-3xl font-bold mb-8 text-primary">Your Projects</h2>
+          <h2 className="text-2xl font-bold mb-6 text-primary">Project Timeline</h2>
           
           {dashboardData?.projects.length === 0 ? (
             <Card className="border-muted">
-              <CardContent className="pt-12 pb-12 text-center">
-                <Building className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">No Projects Yet</h3>
-                <p className="text-muted-foreground mb-6">
+              <CardContent className="pt-8 pb-8 text-center">
+                <Building className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                <h3 className="text-lg font-semibold mb-2">No Projects Yet</h3>
+                <p className="text-sm text-muted-foreground mb-4">
                   Your projects will appear here once they are assigned to you.
                 </p>
-                <Button variant="outline">
+                <Button variant="outline" size="sm">
                   <MessageSquare className="h-4 w-4 mr-2" />
                   Contact Support
                 </Button>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {dashboardData?.projects.map((project) => (
-                <Card key={project.id} className="border-accent/20 shadow-lg hover:shadow-xl transition-all duration-300">
-                  <CardHeader className="pb-4">
-                    <div className="flex justify-between items-start">
-                      <CardTitle className="text-xl text-primary">{project.name}</CardTitle>
-                      <Badge variant={project.status === 'active' ? 'default' : 'secondary'} className="bg-accent/10 text-accent border-accent/20">
+            dashboardData?.projects.map((project, projectIndex) => (
+              <div key={project.id} className="mb-8">
+                {/* Project Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+                  <div>
+                    <h3 className="text-lg font-semibold text-primary">{project.name}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="outline" className="text-xs">
                         {project.status}
                       </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {project.progress}% complete
+                      </span>
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {/* Project Progress */}
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium">Project Progress</span>
-                        <span className="text-lg font-bold text-accent">{project.progress}%</span>
-                      </div>
-                      <Progress value={project.progress} className="h-3" />
-                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Link to={`/messages?project=${project.id}`}>
+                      <Button size="sm" variant="outline">
+                        <MessageSquare className="h-4 w-4 mr-1" />
+                        Chat
+                      </Button>
+                    </Link>
+                    <Link to={`/documents?project=${project.id}`}>
+                      <Button size="sm" variant="outline">
+                        <FileText className="h-4 w-4 mr-1" />
+                        Docs
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
 
-                    {/* Key Metrics */}
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="text-center p-3 bg-green-50 rounded-lg">
-                        <div className="text-lg font-bold text-green-600">{project.completedTasks || 0}</div>
-                        <div className="text-xs text-muted-foreground">Completed</div>
-                      </div>
-                      <div className="text-center p-3 bg-accent/10 rounded-lg">
-                        <div className="text-lg font-bold text-accent">{(project.totalTasks || 0) - (project.completedTasks || 0)}</div>
-                        <div className="text-xs text-muted-foreground">In Progress</div>
-                      </div>
-                      <div className="text-center p-3 bg-blue-50 rounded-lg">
-                        <div className="text-lg font-bold text-blue-600">{project.totalTasks || 0}</div>
-                        <div className="text-xs text-muted-foreground">Total Tasks</div>
-                      </div>
-                    </div>
+                {/* Progress Bar */}
+                <div className="mb-6">
+                  <Progress value={project.progress} className="h-2" />
+                </div>
 
-                    {/* Essential Project Info */}
-                    <div className="grid grid-cols-2 gap-4 text-sm pt-2">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">Active since 2025</span>
+                {/* Timeline of Tasks */}
+                <div className="relative">
+                  {/* Timeline Line */}
+                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border"></div>
+                  
+                  {/* Mock tasks for visual timeline - replace with real task data */}
+                  {[
+                    { id: 1, name: 'Initial Planning & Design', status: 'completed', date: 'Jan 15', type: 'design' },
+                    { id: 2, name: 'Permits & Documentation', status: 'completed', date: 'Jan 22', type: 'admin' },
+                    { id: 3, name: 'Site Preparation', status: 'in-progress', date: 'Feb 1', type: 'construction' },
+                    { id: 4, name: 'Foundation Work', status: 'pending', date: 'Feb 8', type: 'construction' },
+                    { id: 5, name: 'Framing & Structure', status: 'pending', date: 'Feb 15', type: 'construction' },
+                    { id: 6, name: 'Final Inspection', status: 'pending', date: 'Mar 1', type: 'admin' }
+                  ].map((task, index) => (
+                    <div key={task.id} className="relative flex items-start gap-4 pb-6">
+                      {/* Timeline Dot */}
+                      <div className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center ${
+                        task.status === 'completed' 
+                          ? 'bg-green-100 border-green-500' 
+                          : task.status === 'in-progress' 
+                            ? 'bg-accent/10 border-accent' 
+                            : 'bg-gray-100 border-gray-300'
+                      }`}>
+                        {task.status === 'completed' ? (
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                        ) : task.status === 'in-progress' ? (
+                          <Clock className="h-4 w-4 text-accent" />
+                        ) : (
+                          <Circle className="h-3 w-3 text-gray-400" />
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Target className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">{project.totalTasks} total tasks</span>
-                      </div>
-                    </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex gap-3 pt-4 border-t">
-                      <Link to={`/messages?project=${project.id}`}>
-                        <Button className="flex-1 bg-accent hover:bg-accent/90">
-                          <MessageSquare className="h-4 w-4 mr-2" />
-                          Team Chat
-                        </Button>
-                      </Link>
-                      <Link to={`/documents?project=${project.id}`}>
-                        <Button variant="outline" className="flex-1">
-                          <FileText className="h-4 w-4 mr-2" />
-                          Documents
-                        </Button>
-                      </Link>
+                      {/* Task Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex-1">
+                            <h4 className={`font-medium text-sm ${
+                              task.status === 'completed' ? 'text-green-700' : 'text-foreground'
+                            }`}>
+                              {task.name}
+                            </h4>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="outline" size="sm" className="text-xs">
+                                {task.type}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {task.date}
+                              </span>
+                            </div>
+                          </div>
+                          <Badge 
+                            variant={task.status === 'completed' ? 'default' : 'secondary'}
+                            className={`text-xs ${
+                              task.status === 'completed' 
+                                ? 'bg-green-100 text-green-800 border-green-200' 
+                                : task.status === 'in-progress'
+                                  ? 'bg-accent/10 text-accent border-accent/20'
+                                  : 'bg-gray-100 text-gray-600 border-gray-200'
+                            }`}
+                          >
+                            {task.status === 'completed' ? 'Complete' : 
+                             task.status === 'in-progress' ? 'In Progress' : 'Pending'}
+                          </Badge>
+                        </div>
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  ))}
+                </div>
+              </div>
+            ))
           )}
         </div>
 
