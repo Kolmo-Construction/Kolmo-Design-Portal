@@ -210,15 +210,15 @@ export default function ProjectDetails() {
                 
                 <div className="grid grid-cols-3 gap-4 pt-4 border-t">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{project.completedTasks}</div>
+                    <div className="text-2xl font-bold text-green-600">{completedTasks}</div>
                     <div className="text-sm text-muted-foreground">Completed</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-accent">{project.totalTasks - project.completedTasks}</div>
+                    <div className="text-2xl font-bold text-accent">{totalTasks - completedTasks}</div>
                     <div className="text-sm text-muted-foreground">Remaining</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-primary">{project.totalTasks}</div>
+                    <div className="text-2xl font-bold text-primary">{totalTasks}</div>
                     <div className="text-sm text-muted-foreground">Total Tasks</div>
                   </div>
                 </div>
@@ -356,8 +356,8 @@ export default function ProjectDetails() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {project.recentTasks && project.recentTasks.length > 0 ? (
-                  project.recentTasks.slice(0, 4).map((task) => (
+                {!isLoadingTasks && projectTasks && projectTasks.length > 0 ? (
+                  projectTasks.slice(0, 4).map((task) => (
                     <div key={task.id} className="flex items-center gap-3 p-2 rounded">
                       <div className={`w-2 h-2 rounded-full ${
                         task.status === 'completed' ? 'bg-green-500' :
@@ -375,6 +375,11 @@ export default function ProjectDetails() {
                       </Badge>
                     </div>
                   ))
+                ) : isLoadingTasks ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                    <div className="text-sm">Loading tasks...</div>
+                  </div>
                 ) : (
                   <div className="text-center py-4 text-muted-foreground">
                     <Clock className="h-8 w-8 mx-auto mb-2" />

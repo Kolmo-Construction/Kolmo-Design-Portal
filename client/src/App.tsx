@@ -16,6 +16,7 @@ import Financials from "@/pages/financials";
 import Messages from "@/pages/messages";
 import ClientMessages from "@/pages/client-messages";
 import ClientProjectDetails from "@/pages/project-details";
+import ClientInvoices from "@/pages/client-invoices";
 import ProgressUpdates from "@/pages/progress-updates";
 import Schedule from "@/pages/schedule";
 import Selections from "@/pages/selections";
@@ -67,6 +68,7 @@ function Router() {
         <ProtectedRoute path="/schedule" component={Schedule} />
         <ProtectedRoute path="/selections" component={Selections} />
         <ProtectedRoute path="/quotes" component={Quotes} adminOnly />
+        <ProtectedRoute path="/invoices" component={ClientInvoices} />
         <ProtectedRoute path="/invoices/:invoiceId/view" component={InvoiceDetailPage} />
         <ProtectedRoute path="/settings" component={Settings} adminOnly />
         <ProtectedRoute path="/user-management" component={UserManagement} adminOnly />
