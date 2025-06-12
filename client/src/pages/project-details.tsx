@@ -228,18 +228,22 @@ export default function ProjectDetails() {
               <div className="space-y-4">
                 <div>
                   <div className="font-semibold text-lg">
-                    {project.projectManager.firstName} {project.projectManager.lastName}
+                    {project.projectManager?.firstName && project.projectManager?.lastName 
+                      ? `${project.projectManager.firstName} ${project.projectManager.lastName}`
+                      : 'Project Manager'}
                   </div>
                   <div className="text-muted-foreground">Project Manager</div>
                 </div>
                 
                 <div className="space-y-3">
-                  <Button variant="outline" className="w-full justify-start" asChild>
-                    <a href={`mailto:${project.projectManager.email}`}>
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Send Email
-                    </a>
-                  </Button>
+                  {project.projectManager?.email && (
+                    <Button variant="outline" className="w-full justify-start" asChild>
+                      <a href={`mailto:${project.projectManager.email}`}>
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Send Email
+                      </a>
+                    </Button>
+                  )}
                   
                   <Link to="/messages">
                     <Button className="w-full justify-start bg-accent hover:bg-accent/90">
