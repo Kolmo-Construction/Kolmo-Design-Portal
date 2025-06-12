@@ -289,18 +289,30 @@ export default function ClientPortal() {
                       </div>
                     )}
 
+                    {/* Project Info Grid */}
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Location:</span>
+                        <div className="font-medium">{project.address ? `${project.city}, ${project.state}` : 'Not specified'}</div>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Status:</span>
+                        <div className="font-medium capitalize">{project.status}</div>
+                      </div>
+                    </div>
+
                     {/* Action Buttons */}
                     <div className="flex gap-3 pt-4 border-t">
-                      <Link to={`/projects/${project.id}`}>
-                        <Button className="flex-1 bg-primary hover:bg-primary/90">
-                          <Building className="h-4 w-4 mr-2" />
-                          View Details
+                      <Link to={`/messages?project=${project.id}`}>
+                        <Button className="flex-1 bg-accent hover:bg-accent/90">
+                          <MessageSquare className="h-4 w-4 mr-2" />
+                          Team Chat
                         </Button>
                       </Link>
-                      <Link to={`/messages?project=${project.id}`}>
+                      <Link to={`/documents?project=${project.id}`}>
                         <Button variant="outline" className="flex-1">
-                          <MessageSquare className="h-4 w-4 mr-2" />
-                          Messages
+                          <FileText className="h-4 w-4 mr-2" />
+                          Documents
                         </Button>
                       </Link>
                     </div>

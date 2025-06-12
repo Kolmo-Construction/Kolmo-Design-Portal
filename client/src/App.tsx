@@ -8,13 +8,14 @@ import AuthPageV2 from "@/pages/auth-v2";
 import MagicLinkVerifyPage from "@/pages/magic-link-verify";
 import Dashboard from "@/pages/dashboard";
 import Projects from "@/pages/projects";
-import ProjectDetails from "@/pages/ProjectDetails";
+import AdminProjectDetails from "@/pages/ProjectDetails";
 import ProjectManagement from "@/pages/ProjectManagement";
 import ProjectGeneration from "@/pages/project-generation";
 import Documents from "@/pages/documents";
 import Financials from "@/pages/financials";
 import Messages from "@/pages/messages";
 import ClientMessages from "@/pages/client-messages";
+import ClientProjectDetails from "@/pages/project-details";
 import ProgressUpdates from "@/pages/progress-updates";
 import Schedule from "@/pages/schedule";
 import Selections from "@/pages/selections";
@@ -54,7 +55,7 @@ function Router() {
         <ProtectedRoute path="/" component={Dashboard} adminOnly />
         <ProtectedRoute path="/client-portal" component={ClientPortalPage} />
         <ProtectedRoute path="/projects" component={Projects} adminOnly />
-        <ProtectedRoute path="/projects/:id" component={ProjectDetails} />
+        <ProtectedRoute path="/projects/:id" component={AdminProjectDetails} adminOnly />
         <ProtectedRoute path="/project-generation/:projectId" component={ProjectGeneration} adminOnly />
         <ProtectedRoute path="/project-management" component={ProjectManagement} adminOnly />
         <ProtectedRoute path="/documents" component={Documents} />
