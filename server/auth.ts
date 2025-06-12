@@ -201,13 +201,13 @@ export function setupAuth(app: Express) {
   passport.deserializeUser(async (id: number, done) => {
     try {
       console.log('[Passport] Deserializing user from session ID:', id);
-      // Updated to use storage.users with getUserById
-      const user = await storage.users.getUserById(id.toString());
+      // Updated to use storage.users with getUserById - convert number to string
+      const user = await storage.users.getUserById(String(id));
       console.log('[Passport] Deserialization result:', user ? `Found user ${user.id}` : 'User not found');
       done(null, user);
     } catch (err) {
       console.error('[Passport] Error during deserialization:', err);
-      done(err);
+      done(err, null);
     }
   });
 
