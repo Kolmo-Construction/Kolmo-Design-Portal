@@ -162,9 +162,10 @@ class UserRepository implements IUserRepository {
        try {
            const { hashPassword } = await import('../../auth');
            const hashedPassword = await hashPassword(password);
+           const numericUserId = parseInt(userId, 10);
            const result = await this.db.update(schema.users)
                 .set({ firstName, lastName, password: hashedPassword, isActivated: true, updatedAt: new Date() })
-                .where(eq(schema.users.id, userId))
+                .where(eq(schema.users.id, numericUserId))
                 .returning({
                     id: schema.users.id, 
                     firstName: schema.users.firstName, 
@@ -176,6 +177,8 @@ class UserRepository implements IUserRepository {
                     createdAt: schema.users.createdAt,
                     updatedAt: schema.users.updatedAt,
                     isActivated: schema.users.isActivated,
+                    stripeCustomerId: schema.users.stripeCustomerId,
+                    stripeSubscriptionId: schema.users.stripeSubscriptionId,
                });
            return result.length > 0 ? result[0] : null;
        } catch (error) {
@@ -186,9 +189,10 @@ class UserRepository implements IUserRepository {
 
    async storeMagicLinkToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void> {
         try {
+            const numericUserId = parseInt(userId, 10);
             await this.db.update(schema.users)
                 .set({ magicLinkToken: tokenHash, magicLinkExpiry: expiresAt, updatedAt: new Date() })
-                .where(eq(schema.users.id, userId));
+                .where(eq(schema.users.id, numericUserId));
         } catch (error) {
             console.error(`Error storing magic link token for user ${userId}:`, error);
             throw new Error('Database error while storing magic link token.');

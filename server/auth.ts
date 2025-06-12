@@ -574,16 +574,37 @@ export function setupAuth(app: Express) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Delete the user
-      const success = await storage.users.deleteUser(userId);
-      if (!success) {
-        return res.status(500).json({ message: "Failed to delete user" });
+      // Use direct database deletion with correct Drizzle syntax
+      const { db } = await import("@server/db");
+      const { users } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      const result = await db.delete(users).where(eq(users.id, userId));
+      
+      if (result.rowCount === 0) {
+        return res.status(404).json({ message: "User not found or could not be deleted" });
       }
 
       res.status(204).send(); // No content response for successful deletion
     } catch (err) {
       console.error("Error deleting user:", err);
       res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  // Email configuration status endpoint - admin only
+  app.get("/api/admin/email-config", async (req, res) => {
+    try {
+      // Check if admin
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const configured = isEmailServiceConfigured();
+      res.status(200).json({ configured });
+    } catch (err) {
+      console.error("Error checking email configuration:", err);
+      res.status(500).json({ message: "Failed to check email configuration" });
     }
   });
 
