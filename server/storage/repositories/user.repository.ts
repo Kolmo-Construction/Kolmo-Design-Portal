@@ -27,6 +27,7 @@ export interface IUserRepository {
     updateUser(id: number, userData: Partial<schema.InsertUser>): Promise<schema.User>;
     updateUserMagicLinkToken(id: number, token: string | null, expiry: Date | null): Promise<schema.User>;
     getAllUsers(): Promise<schema.User[]>;
+    deleteUser(id: number): Promise<boolean>;
 }
 
 // Implementation
@@ -87,18 +88,23 @@ class UserRepository implements IUserRepository {
 
     async getUserProfileById(userId: string): Promise<UserProfile | null> {
         try {
+            const numericUserId = parseInt(userId, 10);
             const result = await this.db.select({
                 id: schema.users.id,
                 firstName: schema.users.firstName,
                 lastName: schema.users.lastName,
                 email: schema.users.email,
+                username: schema.users.username,
                 role: schema.users.role,
+                phone: schema.users.phone,
                 createdAt: schema.users.createdAt,
                 updatedAt: schema.users.updatedAt,
-                profileComplete: schema.users.profileComplete,
+                isActivated: schema.users.isActivated,
+                stripeCustomerId: schema.users.stripeCustomerId,
+                stripeSubscriptionId: schema.users.stripeSubscriptionId,
             })
             .from(schema.users)
-            .where(eq(schema.users.id, userId))
+            .where(eq(schema.users.id, numericUserId))
             .limit(1);
             return result.length > 0 ? result[0] : null;
         } catch (error) {
@@ -302,6 +308,19 @@ class UserRepository implements IUserRepository {
         } catch (error) {
             console.error('Error getting all users:', error);
             throw new Error('Database error while getting all users.');
+        }
+    }
+
+    async deleteUser(id: number): Promise<boolean> {
+        try {
+            const result = await this.db.delete(schema.users)
+                .where(eq(schema.users.id, id));
+            
+            // Check if any rows were affected
+            return result.rowCount !== null && result.rowCount > 0;
+        } catch (error) {
+            console.error(`Error deleting user (${id}):`, error);
+            throw new Error('Database error while deleting user.');
         }
     }
 }

@@ -550,6 +550,43 @@ export function setupAuth(app: Express) {
     }
   });
 
+  // Delete a user - admin only
+  app.delete("/api/admin/users/:id", async (req, res) => {
+    try {
+      // Check if admin
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const userId = parseInt(req.params.id, 10);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      // Prevent admin from deleting themselves
+      if (req.user.id === userId) {
+        return res.status(400).json({ message: "Cannot delete your own account" });
+      }
+
+      // Check if user exists
+      const userToDelete = await storage.users.getUserById(String(userId));
+      if (!userToDelete) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Delete the user
+      const success = await storage.users.deleteUser(userId);
+      if (!success) {
+        return res.status(500).json({ message: "Failed to delete user" });
+      }
+
+      res.status(204).send(); // No content response for successful deletion
+    } catch (err) {
+      console.error("Error deleting user:", err);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
   // API endpoint to create an admin user (only in development mode)
   app.post("/api/create-admin", async (req, res) => {
     try {
