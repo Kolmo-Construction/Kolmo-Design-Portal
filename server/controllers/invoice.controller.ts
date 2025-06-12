@@ -124,7 +124,7 @@ export const getInvoiceById = async (
     let isAuthorized = user.role === 'ADMIN';
     if (!isAuthorized) {
        // Use the nested repository: storage.projects
-       const canAccessProject = await storage.projects.checkUserProjectAccess(user.id, invoice.projectId);
+       const canAccessProject = await storage.projects.checkUserProjectAccess(user.id.toString(), invoice.projectId);
        isAuthorized = canAccessProject;
     }
 
@@ -218,11 +218,41 @@ export const downloadInvoicePdf = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { invoiceId } = req.params;
+    const { invoiceId, projectId } = req.params;
     const invoiceIdNum = parseInt(invoiceId, 10);
+    const projectIdNum = parseInt(projectId, 10);
+    const user = req.user as User;
 
     if (isNaN(invoiceIdNum)) {
       throw new HttpError(400, 'Invalid invoice ID.');
+    }
+    if (isNaN(projectIdNum)) {
+      throw new HttpError(400, 'Invalid project ID.');
+    }
+    if (!user?.id) {
+      throw new HttpError(401, 'Authentication required.');
+    }
+
+    // Get invoice to verify permissions
+    const invoice = await storage.invoices.getInvoiceById(invoiceIdNum);
+    if (!invoice) {
+      throw new HttpError(404, 'Invoice not found.');
+    }
+
+    // Verify invoice belongs to the specified project
+    if (invoice.projectId !== projectIdNum) {
+      throw new HttpError(403, 'Invoice does not belong to the specified project.');
+    }
+
+    // Authorization check: Admin or associated with the project
+    let isAuthorized = user.role === 'ADMIN';
+    if (!isAuthorized) {
+      const canAccessProject = await storage.projects.checkUserProjectAccess(user.id, invoice.projectId);
+      isAuthorized = canAccessProject;
+    }
+
+    if (!isAuthorized) {
+      throw new HttpError(403, 'You do not have permission to download this invoice.');
     }
 
     // Import PDF service
@@ -230,7 +260,7 @@ export const downloadInvoicePdf = async (
     const pdfBuffer = await generateInvoicePdf(invoiceIdNum);
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=invoice-${invoiceId}.pdf`);
+    res.setHeader('Content-Disposition', `attachment; filename=invoice-${invoice.invoiceNumber}.pdf`);
     res.send(pdfBuffer);
   } catch (error) {
     next(error);
@@ -246,16 +276,40 @@ export const getInvoiceDetails = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { invoiceId } = req.params;
+    const { invoiceId, projectId } = req.params;
     const invoiceIdNum = parseInt(invoiceId, 10);
+    const projectIdNum = parseInt(projectId, 10);
+    const user = req.user as User;
 
     if (isNaN(invoiceIdNum)) {
       throw new HttpError(400, 'Invalid invoice ID.');
+    }
+    if (isNaN(projectIdNum)) {
+      throw new HttpError(400, 'Invalid project ID.');
+    }
+    if (!user?.id) {
+      throw new HttpError(401, 'Authentication required.');
     }
 
     const invoice = await storage.invoices.getInvoiceById(invoiceIdNum);
     if (!invoice) {
       throw new HttpError(404, 'Invoice not found.');
+    }
+
+    // Verify invoice belongs to the specified project
+    if (invoice.projectId !== projectIdNum) {
+      throw new HttpError(403, 'Invoice does not belong to the specified project.');
+    }
+
+    // Authorization check: Admin or associated with the project
+    let isAuthorized = user.role === 'ADMIN';
+    if (!isAuthorized) {
+      const canAccessProject = await storage.projects.checkUserProjectAccess(user.id, invoice.projectId);
+      isAuthorized = canAccessProject;
+    }
+
+    if (!isAuthorized) {
+      throw new HttpError(403, 'You do not have permission to view this invoice.');
     }
 
     // Get project details
