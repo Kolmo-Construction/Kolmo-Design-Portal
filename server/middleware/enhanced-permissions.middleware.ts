@@ -13,36 +13,77 @@ export interface ProjectManagerPermissions {
   canViewProject: boolean;
   canEditProject: boolean;
   canDeleteProject: boolean;
+  canManageProjectSettings: boolean;
+  canViewProjectAnalytics: boolean;
   
   // Task management
   canCreateTasks: boolean;
   canEditTasks: boolean;
   canDeleteTasks: boolean;
   canAssignTasks: boolean;
+  canViewTaskDependencies: boolean;
+  canManageTaskDependencies: boolean;
+  canPublishTasks: boolean;
+  canImportTasks: boolean;
   
   // Document management
   canUploadDocuments: boolean;
   canDeleteDocuments: boolean;
   canViewDocuments: boolean;
+  canManageDocumentCategories: boolean;
   
   // Communication
   canCreateProgressUpdates: boolean;
+  canEditProgressUpdates: boolean;
+  canDeleteProgressUpdates: boolean;
   canSendMessages: boolean;
   canViewMessages: boolean;
+  canManageProjectChat: boolean;
   
   // Financial
   canViewInvoices: boolean;
   canCreateInvoices: boolean;
   canEditInvoices: boolean;
+  canSendInvoices: boolean;
+  canViewPayments: boolean;
+  canProcessPayments: boolean;
   
   // Client management
   canViewClients: boolean;
   canCommunicateWithClients: boolean;
+  canManageClientAccess: boolean;
   
   // Milestones
   canCreateMilestones: boolean;
   canEditMilestones: boolean;
   canDeleteMilestones: boolean;
+  canCompleteMilestones: boolean;
+  canBillMilestones: boolean;
+  
+  // Punch Lists
+  canCreatePunchListItems: boolean;
+  canEditPunchListItems: boolean;
+  canDeletePunchListItems: boolean;
+  canCompletePunchListItems: boolean;
+  
+  // Daily Logs
+  canCreateDailyLogs: boolean;
+  canEditDailyLogs: boolean;
+  canViewDailyLogs: boolean;
+  
+  // Media Management
+  canUploadMedia: boolean;
+  canDeleteMedia: boolean;
+  canViewMedia: boolean;
+  
+  // Team Management
+  canAssignTeamMembers: boolean;
+  canViewTeamPerformance: boolean;
+  
+  // Reporting
+  canGenerateReports: boolean;
+  canViewProjectMetrics: boolean;
+  canExportData: boolean;
 }
 
 /**
@@ -60,24 +101,55 @@ export async function getProjectPermissions(
       canViewProject: true,
       canEditProject: true,
       canDeleteProject: true,
+      canManageProjectSettings: true,
+      canViewProjectAnalytics: true,
       canCreateTasks: true,
       canEditTasks: true,
       canDeleteTasks: true,
       canAssignTasks: true,
+      canViewTaskDependencies: true,
+      canManageTaskDependencies: true,
+      canPublishTasks: true,
+      canImportTasks: true,
       canUploadDocuments: true,
       canDeleteDocuments: true,
       canViewDocuments: true,
+      canManageDocumentCategories: true,
       canCreateProgressUpdates: true,
+      canEditProgressUpdates: true,
+      canDeleteProgressUpdates: true,
       canSendMessages: true,
       canViewMessages: true,
+      canManageProjectChat: true,
       canViewInvoices: true,
       canCreateInvoices: true,
       canEditInvoices: true,
+      canSendInvoices: true,
+      canViewPayments: true,
+      canProcessPayments: true,
       canViewClients: true,
       canCommunicateWithClients: true,
+      canManageClientAccess: true,
       canCreateMilestones: true,
       canEditMilestones: true,
       canDeleteMilestones: true,
+      canCompleteMilestones: true,
+      canBillMilestones: true,
+      canCreatePunchListItems: true,
+      canEditPunchListItems: true,
+      canDeletePunchListItems: true,
+      canCompletePunchListItems: true,
+      canCreateDailyLogs: true,
+      canEditDailyLogs: true,
+      canViewDailyLogs: true,
+      canUploadMedia: true,
+      canDeleteMedia: true,
+      canViewMedia: true,
+      canAssignTeamMembers: true,
+      canViewTeamPerformance: true,
+      canGenerateReports: true,
+      canViewProjectMetrics: true,
+      canExportData: true,
     };
   }
   
@@ -85,29 +157,62 @@ export async function getProjectPermissions(
   const isProjectManager = await storage.projectManagerHasProjectAccess(userId, projectId);
   
   if (userRole.toLowerCase() === 'projectmanager' && isProjectManager) {
-    // Project managers have full control over their assigned projects
+    // Project managers have full administrative control over their assigned projects
     return {
       canViewProject: true,
       canEditProject: true,
       canDeleteProject: false, // Only admins can delete projects
+      canManageProjectSettings: true,
+      canViewProjectAnalytics: true,
+      
       canCreateTasks: true,
       canEditTasks: true,
       canDeleteTasks: true,
       canAssignTasks: true,
+      canViewTaskDependencies: true,
+      canManageTaskDependencies: true,
+      canPublishTasks: true,
+      canImportTasks: true,
+      
       canUploadDocuments: true,
       canDeleteDocuments: true,
       canViewDocuments: true,
+      canManageDocumentCategories: true,
       canCreateProgressUpdates: true,
+      canEditProgressUpdates: true,
+      canDeleteProgressUpdates: true,
       canSendMessages: true,
       canViewMessages: true,
+      canManageProjectChat: true,
       canViewInvoices: true,
       canCreateInvoices: true,
       canEditInvoices: true,
+      canSendInvoices: true,
+      canViewPayments: true,
+      canProcessPayments: true,
       canViewClients: true,
       canCommunicateWithClients: true,
+      canManageClientAccess: true,
       canCreateMilestones: true,
       canEditMilestones: true,
       canDeleteMilestones: true,
+      canCompleteMilestones: true,
+      canBillMilestones: true,
+      canCreatePunchListItems: true,
+      canEditPunchListItems: true,
+      canDeletePunchListItems: true,
+      canCompletePunchListItems: true,
+      canCreateDailyLogs: true,
+      canEditDailyLogs: true,
+      canViewDailyLogs: true,
+      canUploadMedia: true,
+      canDeleteMedia: true,
+      canViewMedia: true,
+      canAssignTeamMembers: true,
+      canViewTeamPerformance: true,
+      canGenerateReports: true,
+      canViewProjectMetrics: true,
+      canExportData: true,
     };
   }
   
@@ -120,24 +225,55 @@ export async function getProjectPermissions(
       canViewProject: true,
       canEditProject: false,
       canDeleteProject: false,
+      canManageProjectSettings: false,
+      canViewProjectAnalytics: false,
       canCreateTasks: false,
       canEditTasks: false,
       canDeleteTasks: false,
       canAssignTasks: false,
+      canViewTaskDependencies: true,
+      canManageTaskDependencies: false,
+      canPublishTasks: false,
+      canImportTasks: false,
       canUploadDocuments: false,
       canDeleteDocuments: false,
       canViewDocuments: true,
+      canManageDocumentCategories: false,
       canCreateProgressUpdates: false,
+      canEditProgressUpdates: false,
+      canDeleteProgressUpdates: false,
       canSendMessages: true,
       canViewMessages: true,
+      canManageProjectChat: false,
       canViewInvoices: true,
       canCreateInvoices: false,
       canEditInvoices: false,
+      canSendInvoices: false,
+      canViewPayments: true,
+      canProcessPayments: false,
       canViewClients: false,
       canCommunicateWithClients: false,
+      canManageClientAccess: false,
       canCreateMilestones: false,
       canEditMilestones: false,
       canDeleteMilestones: false,
+      canCompleteMilestones: false,
+      canBillMilestones: false,
+      canCreatePunchListItems: false,
+      canEditPunchListItems: false,
+      canDeletePunchListItems: false,
+      canCompletePunchListItems: false,
+      canCreateDailyLogs: false,
+      canEditDailyLogs: false,
+      canViewDailyLogs: true,
+      canUploadMedia: false,
+      canDeleteMedia: false,
+      canViewMedia: true,
+      canAssignTeamMembers: false,
+      canViewTeamPerformance: false,
+      canGenerateReports: false,
+      canViewProjectMetrics: false,
+      canExportData: false,
     };
   }
   
@@ -146,24 +282,55 @@ export async function getProjectPermissions(
     canViewProject: false,
     canEditProject: false,
     canDeleteProject: false,
+    canManageProjectSettings: false,
+    canViewProjectAnalytics: false,
     canCreateTasks: false,
     canEditTasks: false,
     canDeleteTasks: false,
     canAssignTasks: false,
+    canViewTaskDependencies: false,
+    canManageTaskDependencies: false,
+    canPublishTasks: false,
+    canImportTasks: false,
     canUploadDocuments: false,
     canDeleteDocuments: false,
     canViewDocuments: false,
+    canManageDocumentCategories: false,
     canCreateProgressUpdates: false,
+    canEditProgressUpdates: false,
+    canDeleteProgressUpdates: false,
     canSendMessages: false,
     canViewMessages: false,
+    canManageProjectChat: false,
     canViewInvoices: false,
     canCreateInvoices: false,
     canEditInvoices: false,
+    canSendInvoices: false,
+    canViewPayments: false,
+    canProcessPayments: false,
     canViewClients: false,
     canCommunicateWithClients: false,
+    canManageClientAccess: false,
     canCreateMilestones: false,
     canEditMilestones: false,
     canDeleteMilestones: false,
+    canCompleteMilestones: false,
+    canBillMilestones: false,
+    canCreatePunchListItems: false,
+    canEditPunchListItems: false,
+    canDeletePunchListItems: false,
+    canCompletePunchListItems: false,
+    canCreateDailyLogs: false,
+    canEditDailyLogs: false,
+    canViewDailyLogs: false,
+    canUploadMedia: false,
+    canDeleteMedia: false,
+    canViewMedia: false,
+    canAssignTeamMembers: false,
+    canViewTeamPerformance: false,
+    canGenerateReports: false,
+    canViewProjectMetrics: false,
+    canExportData: false,
   };
 }
 
