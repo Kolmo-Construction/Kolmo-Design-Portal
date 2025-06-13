@@ -15,6 +15,7 @@ import Documents from "@/pages/documents";
 import Financials from "@/pages/financials";
 import Messages from "@/pages/messages";
 import ClientMessages from "@/pages/client-messages";
+import AdminMessages from "@/pages/admin-messages";
 import ClientProjectDetails from "@/pages/project-details";
 import ClientInvoices from "@/pages/client-invoices";
 import ProgressUpdates from "@/pages/progress-updates";
@@ -65,8 +66,8 @@ function Router() {
         <ProtectedRoute path="/project-management" component={ProjectManagement} adminOnly />
         <ProtectedRoute path="/documents" component={Documents} />
         <ProtectedRoute path="/financials" component={Financials} adminOnly />
-        <ProtectedRoute path="/messages" component={ClientMessages} />
-        <ProtectedRoute path="/admin/messages" component={Messages} adminOnly />
+        <ProtectedRoute path="/messages" component={AdminMessages} adminOnly />
+        <ProtectedRoute path="/client/messages" component={ClientMessages} />
         <ProtectedRoute path="/progress-updates" component={ProgressUpdates} />
         <ProtectedRoute path="/schedule" component={Schedule} />
         <ProtectedRoute path="/selections" component={Selections} />

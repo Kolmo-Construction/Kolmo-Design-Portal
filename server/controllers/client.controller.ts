@@ -268,11 +268,25 @@ export const getClientChatToken = async (
     for (const project of projects) {
       try {
         const { createProjectChannel } = await import('../stream-chat');
+        
+        // Get the project manager/admin user for this project
+        let adminUserId = 'admin-1'; // fallback
+        if (project.projectManagerId) {
+          adminUserId = `admin-${project.projectManagerId}`;
+        } else {
+          // Find any admin user if no specific project manager
+          const adminUsers = await storage.users.getAllUsers();
+          const adminUser = adminUsers.find(u => u.role === 'admin');
+          if (adminUser) {
+            adminUserId = `admin-${adminUser.id}`;
+          }
+        }
+        
         await createProjectChannel(
           project.id.toString(),
           project.name,
           chatUserId,
-          'admin-1'
+          adminUserId
         );
       } catch (error) {
         // Log error but don't fail the whole request if channel creation fails

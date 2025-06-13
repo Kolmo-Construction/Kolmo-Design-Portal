@@ -21,6 +21,7 @@ export default function AdminMessages() {
   const [chatClient, setChatClient] = useState<StreamChat | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Fetch Stream Chat configuration for the admin
   const { data: chatData, isLoading: isChatDataLoading } = useQuery<StreamChatData>({
@@ -73,8 +74,8 @@ export default function AdminMessages() {
   if (!user || (user.role !== 'admin' && user.role !== 'project_manager')) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <TopNavBar />
-        <Sidebar />
+        <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
+        <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
         <main className="flex-1 ml-0 lg:ml-64 p-4 lg:p-8 pt-20">
           <Card className="max-w-md mx-auto border-destructive/20">
             <CardContent className="pt-6 text-center">
@@ -92,8 +93,8 @@ export default function AdminMessages() {
   if (isChatDataLoading || isConnecting) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <TopNavBar />
-        <Sidebar />
+        <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
+        <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
         <main className="flex-1 ml-0 lg:ml-64 p-4 lg:p-8 pt-20">
           <Card className="max-w-md mx-auto">
             <CardContent className="pt-6 text-center">
@@ -113,8 +114,8 @@ export default function AdminMessages() {
   if (chatError) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <TopNavBar />
-        <Sidebar />
+        <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
+        <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
         <main className="flex-1 ml-0 lg:ml-64 p-4 lg:p-8 pt-20">
           <Card className="max-w-md mx-auto border-destructive/20">
             <CardContent className="pt-6 text-center">
@@ -138,8 +139,8 @@ export default function AdminMessages() {
   if (chatClient) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <TopNavBar />
-        <Sidebar />
+        <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
+        <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
         
         <main className="flex-1 ml-0 lg:ml-64 p-4 lg:p-8 pt-20 overflow-auto">
           {/* Header */}
