@@ -58,6 +58,22 @@ export default function ClientMessages() {
         
         setChatClient(client);
         console.log('Stream Chat connected successfully');
+        
+        // Debug: Check available channels
+        setTimeout(async () => {
+          try {
+            const channels = await client.queryChannels({
+              type: 'messaging',
+              members: { $in: [chatData.userId] }
+            });
+            console.log('Available channels for client:', channels.length);
+            channels.forEach(channel => {
+              console.log('Channel:', channel.id, 'Members:', Object.keys(channel.state.members));
+            });
+          } catch (error) {
+            console.error('Error querying channels:', error);
+          }
+        }, 1000);
       } catch (error) {
         console.error('Error connecting to Stream Chat:', error);
         setChatError('Failed to connect to chat. Please refresh the page and try again.');
@@ -71,10 +87,10 @@ export default function ClientMessages() {
     // Cleanup on unmount
     return () => {
       if (chatClient) {
-        chatClient.disconnectUser();
+        chatClient.disconnectUser().catch(console.error);
       }
     };
-  }, [chatData, user, chatClient]);
+  }, [chatData, user]); // Remove chatClient from dependencies to prevent re-initialization
 
   if (!user || user.role !== 'client') {
     return (
@@ -169,7 +185,13 @@ export default function ClientMessages() {
                   <Channel>
                     <Window>
                       <MessageList />
-                      <MessageInput />
+                      <MessageInput 
+                        focus={true}
+                        overrideSubmitHandler={(params) => {
+                          console.log('Attempting to send message:', params.message);
+                          // Return void to allow default submit handler
+                        }}
+                      />
                     </Window>
                     <Thread />
                   </Channel>
