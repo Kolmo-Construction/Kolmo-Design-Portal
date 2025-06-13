@@ -67,11 +67,11 @@ export function ClientNavigation() {
               </Button>
             </Link>
 
-            <Link to="/messages">
+            <Link to="/client/messages">
               <Button 
-                variant={location === '/messages' ? 'secondary' : 'ghost'}
+                variant={location === '/client/messages' ? 'secondary' : 'ghost'}
                 className={`text-primary-foreground hover:bg-primary-foreground/10 ${
-                  location === '/messages' ? 'bg-accent text-white' : ''
+                  location === '/client/messages' ? 'bg-accent text-white' : ''
                 }`}
               >
                 <MessageSquare className="h-4 w-4 mr-2" />
@@ -178,12 +178,12 @@ export function ClientNavigation() {
               </Button>
             </Link>
 
-            <Link to="/messages">
+            <Link to="/client/messages">
               <Button 
-                variant={location === '/messages' ? 'secondary' : 'ghost'}
+                variant={location === '/client/messages' ? 'secondary' : 'ghost'}
                 size="sm"
                 className={`text-primary-foreground hover:bg-primary-foreground/10 ${
-                  location === '/messages' ? 'bg-accent text-white' : ''
+                  location === '/client/messages' ? 'bg-accent text-white' : ''
                 }`}
               >
                 <MessageSquare className="h-4 w-4 mr-1" />

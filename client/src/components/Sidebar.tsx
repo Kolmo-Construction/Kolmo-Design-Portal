@@ -49,13 +49,13 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
 
   // Simplified navigation for clients
   const clientNavLinks = [
-    { href: "/", icon: <HomeIcon className="h-5 w-5 mr-3" />, label: "Home" },
+    { href: "/client-portal", icon: <HomeIcon className="h-5 w-5 mr-3" />, label: "Home" },
     { href: "/projects", icon: <Building2 className="h-5 w-5 mr-3" />, label: "My Projects" },
     { href: "/progress-updates", icon: <ImageIcon className="h-5 w-5 mr-3" />, label: "Progress Photos" },
     { href: "/schedule", icon: <Calendar className="h-5 w-5 mr-3" />, label: "Schedule" },
     { href: "/documents", icon: <FileText className="h-5 w-5 mr-3" />, label: "Documents" },
     { href: "/selections", icon: <CheckSquare className="h-5 w-5 mr-3" />, label: "Selections" },
-    { href: "/messages", icon: <MessageSquare className="h-5 w-5 mr-3" />, label: "Messages" },
+    { href: "/client/messages", icon: <MessageSquare className="h-5 w-5 mr-3" />, label: "Messages" },
   ];
 
   // Full navigation for PMs and admins
