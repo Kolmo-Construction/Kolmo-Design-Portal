@@ -86,23 +86,27 @@ export default function ClientMessages() {
     }
   }, [chatData, user, reconnectAttempts]);
 
-  // Initialize Stream Chat client
+  // Initialize Stream Chat client with better stability
   useEffect(() => {
+    let isMounted = true;
+    
     const initializeChat = async () => {
       if (!chatData || !user || isInitializingRef.current) return;
       
-      // If we already have a connected client with the same user, don't reinitialize
-      if (clientRef.current && clientRef.current.user?.id === chatData.userId && clientRef.current.wsConnection?.isHealthy) {
+      // Check if we have a healthy connection already
+      if (clientRef.current && 
+          clientRef.current.user?.id === chatData.userId && 
+          clientRef.current.tokenManager?.token === chatData.token) {
         setChatClient(clientRef.current);
         return;
       }
       
       isInitializingRef.current = true;
-      setIsConnecting(true);
-      setChatError(null);
+      if (isMounted) setIsConnecting(true);
+      if (isMounted) setChatError(null);
       
       try {
-        // Clean up existing client if it exists
+        // Clean up existing client
         if (clientRef.current) {
           try {
             await clientRef.current.disconnectUser();
@@ -116,19 +120,23 @@ export default function ClientMessages() {
         
         const client = StreamChat.getInstance(chatData.apiKey);
         
-        // Add connection event listeners for better error handling
+        // Set up event listeners before connecting
         client.on('connection.recovered', () => {
           console.log('Stream Chat connection recovered');
-          setChatError(null);
-          setReconnectAttempts(0);
+          if (isMounted) {
+            setChatError(null);
+            setReconnectAttempts(0);
+          }
         });
         
         client.on('connection.failed', (error) => {
           console.error('Stream Chat connection failed:', error);
-          setChatError('Connection lost. Attempting to reconnect...');
-          setTimeout(attemptReconnection, 3000);
+          if (isMounted) {
+            setChatError('Connection lost. Attempting to reconnect...');
+          }
         });
         
+        // Connect user
         await client.connectUser(
           {
             id: chatData.userId,
@@ -138,13 +146,18 @@ export default function ClientMessages() {
           chatData.token
         );
         
-        clientRef.current = client;
-        setChatClient(client);
-        setReconnectAttempts(0);
-        console.log('Stream Chat connected successfully');
+        // Only update state if component is still mounted
+        if (isMounted) {
+          clientRef.current = client;
+          setChatClient(client);
+          setReconnectAttempts(0);
+          console.log('Stream Chat connected successfully');
+        }
         
-        // Debug: Check available channels with better error handling
+        // Verify channels after connection
         setTimeout(async () => {
+          if (!isMounted || !client.tokenManager?.token) return;
+          
           try {
             const channels = await client.queryChannels(
               {
@@ -159,27 +172,29 @@ export default function ClientMessages() {
               console.log('Channel:', channel.id, 'Members:', Object.keys(channel.state.members));
             });
           } catch (error) {
-            console.error('Error querying channels:', error);
-            // Try to get all channels if the specific query fails
-            try {
-              const allChannels = await client.queryChannels({ type: 'messaging' });
-              console.log('All messaging channels:', allChannels.length);
-            } catch (fallbackError) {
-              console.error('Fallback channel query also failed:', fallbackError);
-            }
+            console.error('Error querying channels:', String(error));
           }
-        }, 2000);
+        }, 1500);
+        
       } catch (error) {
         console.error('Error connecting to Stream Chat:', error);
-        setChatError('Failed to connect to chat. Please try reconnecting.');
+        if (isMounted) {
+          setChatError('Failed to connect to chat. Please try reconnecting.');
+        }
       } finally {
-        setIsConnecting(false);
+        if (isMounted) {
+          setIsConnecting(false);
+        }
         isInitializingRef.current = false;
       }
     };
 
     initializeChat();
-  }, [chatData?.apiKey, chatData?.token, chatData?.userId, user?.id, attemptReconnection]);
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [chatData?.apiKey, chatData?.token, chatData?.userId, user?.id]);
 
   // Cleanup only on unmount
   useEffect(() => {
@@ -330,8 +345,8 @@ export default function ClientMessages() {
                       watch: true,
                       presence: true
                     }}
-                    showChannelSearch={true}
-                    allowNewMessagesFromUnfilteredChannels={false}
+                    showChannelSearch={false}
+                    allowNewMessagesFromUnfilteredChannels={true}
                   />
                 </div>
                 
