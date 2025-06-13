@@ -9,6 +9,12 @@ router.get('/dashboard', getClientDashboard);
 
 // GET /api/client/invoices - Get client invoices
 // Authentication is handled at the router mount level in routes.ts
-router.get('/invoices', getClientInvoices);
+router.get('/invoices', (req, res, next) => {
+  // Disable caching for debugging
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+}, getClientInvoices);
 
 export default router;

@@ -43,9 +43,10 @@ export default function ClientInvoices() {
     : '/api/client/invoices';
 
   const { data: invoices = [], isLoading } = useQuery<Invoice[]>({
-    queryKey: [apiEndpoint, 'v2'], // Added version to force cache invalidation
+    queryKey: [apiEndpoint, 'v4', Date.now()], // Force fresh request with timestamp
     enabled: !!user && (user.role === 'client' || user.role === 'admin'),
-    staleTime: 0 // Disable caching temporarily for debugging
+    staleTime: 0, // Disable caching temporarily for debugging
+    gcTime: 0 // Disable cache storage (renamed from cacheTime in v5)
   });
 
   // Get project name for header when in project context
