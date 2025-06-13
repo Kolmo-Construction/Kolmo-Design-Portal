@@ -48,13 +48,13 @@ export function ResetPasswordDialog({
 
   const resetPasswordMutation = useMutation({
     mutationFn: async ({ userId, newPassword }: { userId: number; newPassword: string }) => {
-      const res = await apiRequest(
+      const result = await apiRequest(
         "POST",
         `/api/admin/users/${userId}/reset-password`,
         { newPassword } // Send only the new password
       );
-      // Check if response is ok before parsing json (assuming apiRequest throws on > 400)
-      return await res.json();
+      // apiRequest already returns parsed JSON data
+      return result;
     },
 
     onSuccess: () => {
