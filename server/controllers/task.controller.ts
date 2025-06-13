@@ -209,7 +209,7 @@ export const updateTask = async (
     // TODO: Add authorization check: Does the authenticated user have permission to update tasks in this project?
 
     // Validate the request body
-    const validationResult = taskUpdateSchema.safeParse(req.body);
+    const validationResult = taskEditSchema.safeParse(req.body);
     if (!validationResult.success) {
       throw new HttpError(400, 'Invalid task update data.', validationResult.error.flatten());
     }

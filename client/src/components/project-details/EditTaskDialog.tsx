@@ -8,8 +8,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-// Import Task type and the insert schema (we'll use .partial() for updates)
-import { Task, InsertTask, insertTaskSchema, User } from "@shared/schema";
+// Import Task type and the schemas for create and update
+import { Task, InsertTask, insertTaskSchema, updateTaskSchema, User } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; // Import mutation hooks
@@ -58,9 +58,8 @@ interface EditTaskDialogProps {
   onDeleteRequest?: (task: Task) => void; // Optional callback to request task deletion
 }
 
-// Use partial schema for updates, as not all fields might be sent
-// Note: If your backend strictly requires certain fields even on update, adjust this schema
-const editTaskFormSchema = insertTaskSchema.partial();
+// Use update schema for editing tasks
+const editTaskFormSchema = updateTaskSchema;
 type EditTaskFormValues = Partial<InsertTask>; // Form values type
 
 export function EditTaskDialog({
