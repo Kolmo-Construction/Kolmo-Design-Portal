@@ -200,6 +200,29 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
     return dateA.getTime() - dateB.getTime();
   });
 
+  // Calculate billing percentage metrics for validation
+  const calculateBillingMetrics = () => {
+    const existingMilestones = isEdit ? 
+      milestones.filter(m => m.id !== editingMilestone?.id) : 
+      milestones;
+    
+    const existingTotal = existingMilestones.reduce((sum, milestone) => {
+      return sum + parseFloat(milestone.billingPercentage || '0');
+    }, 0);
+    
+    const proposedTotal = existingTotal + (formData.isBillable ? formData.billingPercentage : 0);
+    const remainingPercentage = 100 - existingTotal;
+    
+    return {
+      existingTotal,
+      proposedTotal,
+      remainingPercentage,
+      isValid: proposedTotal <= 100
+    };
+  };
+
+  const billingMetrics = calculateBillingMetrics();
+
   // Milestone creation/edit dialog component
   const MilestoneDialog = ({ isOpen, onClose, isEdit = false }: { isOpen: boolean; onClose: () => void; isEdit?: boolean }) => (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -272,21 +295,47 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
             </Label>
           </div>
           {formData.isBillable && (
-            <div>
-              <Label htmlFor="billingPercentage">Billing Percentage</Label>
-              <Input
-                id="billingPercentage"
-                type="number"
-                min="0"
-                max="100"
-                step="0.1"
-                value={formData.billingPercentage}
-                onChange={(e) => setFormData({ ...formData, billingPercentage: parseFloat(e.target.value) || 0 })}
-                placeholder="25.0"
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                Percentage of total project value to bill when completed
-              </p>
+            <div className="space-y-3">
+              <div>
+                <Label htmlFor="billingPercentage">Billing Percentage</Label>
+                <Input
+                  id="billingPercentage"
+                  type="number"
+                  min="0"
+                  max={billingMetrics.remainingPercentage}
+                  step="0.1"
+                  value={formData.billingPercentage}
+                  onChange={(e) => setFormData({ ...formData, billingPercentage: parseFloat(e.target.value) || 0 })}
+                  placeholder="25.0"
+                  className={!billingMetrics.isValid ? "border-red-500" : ""}
+                />
+                <div className="mt-2 space-y-1">
+                  <p className="text-sm text-muted-foreground">
+                    Percentage of total project value to bill when completed
+                  </p>
+                  <div className="text-xs space-y-1">
+                    <div className="flex justify-between">
+                      <span>Current billing total:</span>
+                      <span className="font-medium">{billingMetrics.existingTotal.toFixed(2)}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Available to allocate:</span>
+                      <span className="font-medium">{billingMetrics.remainingPercentage.toFixed(2)}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>New total would be:</span>
+                      <span className={`font-medium ${billingMetrics.isValid ? 'text-green-600' : 'text-red-600'}`}>
+                        {billingMetrics.proposedTotal.toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                  {!billingMetrics.isValid && (
+                    <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
+                      Total billing percentage would exceed 100%. Please reduce the percentage to {billingMetrics.remainingPercentage.toFixed(2)}% or less.
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -296,7 +345,7 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
           </Button>
           <Button
             onClick={isEdit ? handleUpdateMilestone : handleCreateMilestone}
-            disabled={!formData.title || !formData.plannedDate || (createMilestoneMutation.isPending || updateMilestoneMutation.isPending)}
+            disabled={!formData.title || !formData.plannedDate || !billingMetrics.isValid || (createMilestoneMutation.isPending || updateMilestoneMutation.isPending)}
           >
             {(createMilestoneMutation.isPending || updateMilestoneMutation.isPending) ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
