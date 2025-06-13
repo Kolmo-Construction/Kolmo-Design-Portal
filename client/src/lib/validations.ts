@@ -103,9 +103,9 @@ export type NewUserFormValues = z.infer<typeof newUserSchema>;
 // --- *** CORRECTED PLACEMENT/DEFINITION *** ---
 // The Reset Password Schema and its type
 export const resetPasswordSchema = z.object({
-  password: z.string().min(8, "Password must be at least 8 characters long."),
+  newPassword: z.string().min(6, "Password must be at least 6 characters long."),
   confirmPassword: z.string()
-}).refine((data) => data.password === data.confirmPassword, {
+}).refine((data) => data.newPassword === data.confirmPassword, {
   message: "Passwords do not match.",
   path: ["confirmPassword"], // Error appears under the confirm password field
 });
