@@ -191,10 +191,28 @@ export default function AdminMessages() {
                 
                 {/* Chat Area */}
                 <div className="flex-1">
-                  <Channel>
+                  <Channel
+                    LoadingIndicator={() => (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        <span className="ml-2 text-sm text-muted-foreground">Loading messages...</span>
+                      </div>
+                    )}
+                  >
                     <Window>
-                      <MessageList />
-                      <MessageInput />
+                      <MessageList 
+                        messageActions={['edit', 'delete', 'flag', 'mute', 'pin', 'quote', 'react', 'reply']}
+                        disableDateSeparator={false}
+                        hideDeletedMessages={false}
+                        hideNewMessageSeparator={false}
+                        threadList={false}
+                      />
+                      <MessageInput 
+                        focus={true}
+                        additionalTextareaProps={{
+                          placeholder: "Type your message..."
+                        }}
+                      />
                     </Window>
                     <Thread />
                   </Channel>

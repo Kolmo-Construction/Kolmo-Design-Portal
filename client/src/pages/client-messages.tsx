@@ -143,21 +143,32 @@ export default function ClientMessages() {
         setReconnectAttempts(0);
         console.log('Stream Chat connected successfully');
         
-        // Debug: Check available channels
+        // Debug: Check available channels with better error handling
         setTimeout(async () => {
           try {
-            const channels = await client.queryChannels({
-              type: 'messaging',
-              members: { $in: [chatData.userId] }
-            });
+            const channels = await client.queryChannels(
+              {
+                type: 'messaging',
+                members: { $in: [chatData.userId] }
+              },
+              { last_message_at: -1 },
+              { limit: 20 }
+            );
             console.log('Available channels for client:', channels.length);
             channels.forEach(channel => {
               console.log('Channel:', channel.id, 'Members:', Object.keys(channel.state.members));
             });
           } catch (error) {
             console.error('Error querying channels:', error);
+            // Try to get all channels if the specific query fails
+            try {
+              const allChannels = await client.queryChannels({ type: 'messaging' });
+              console.log('All messaging channels:', allChannels.length);
+            } catch (fallbackError) {
+              console.error('Fallback channel query also failed:', fallbackError);
+            }
           }
-        }, 1000);
+        }, 2000);
       } catch (error) {
         console.error('Error connecting to Stream Chat:', error);
         setChatError('Failed to connect to chat. Please try reconnecting.');
@@ -313,16 +324,41 @@ export default function ClientMessages() {
                       members: { $in: [chatData?.userId || ''] }
                     }}
                     sort={{ last_message_at: -1 }}
-                    options={{ limit: 20 }}
+                    options={{ 
+                      limit: 20,
+                      state: true,
+                      watch: true,
+                      presence: true
+                    }}
+                    showChannelSearch={true}
+                    allowNewMessagesFromUnfilteredChannels={false}
                   />
                 </div>
                 
                 {/* Chat Area */}
                 <div className="flex-1">
-                  <Channel>
+                  <Channel
+                    LoadingIndicator={() => (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        <span className="ml-2 text-sm text-muted-foreground">Loading messages...</span>
+                      </div>
+                    )}
+                  >
                     <Window>
-                      <MessageList />
-                      <MessageInput focus={true} />
+                      <MessageList 
+                        messageActions={['edit', 'delete', 'flag', 'mute', 'pin', 'quote', 'react', 'reply']}
+                        disableDateSeparator={false}
+                        hideDeletedMessages={false}
+                        hideNewMessageSeparator={false}
+                        threadList={false}
+                      />
+                      <MessageInput 
+                        focus={true}
+                        additionalTextareaProps={{
+                          placeholder: "Type your message..."
+                        }}
+                      />
                     </Window>
                     <Thread />
                   </Channel>
