@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth-unified';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,6 +27,7 @@ export default function ClientMessages() {
   const [chatClient, setChatClient] = useState<StreamChat | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const clientRef = useRef<StreamChat | null>(null);
 
   // Fetch Stream Chat configuration for the client
   const { data: chatData, isLoading: isChatDataLoading } = useQuery<StreamChatData>({
@@ -37,7 +38,7 @@ export default function ClientMessages() {
   // Initialize Stream Chat client
   useEffect(() => {
     const initializeChat = async () => {
-      if (!chatData || !user || chatClient) return;
+      if (!chatData || !user || clientRef.current) return;
       
       setIsConnecting(true);
       setChatError(null);
@@ -47,15 +48,19 @@ export default function ClientMessages() {
         
         const client = StreamChat.getInstance(chatData.apiKey);
         
-        await client.connectUser(
-          {
-            id: chatData.userId,
-            name: `${user.firstName} ${user.lastName}`,
-            role: 'client'
-          },
-          chatData.token
-        );
+        // Check if already connected to prevent multiple connections
+        if (client.user?.id !== chatData.userId) {
+          await client.connectUser(
+            {
+              id: chatData.userId,
+              name: `${user.firstName} ${user.lastName}`,
+              role: 'client'
+            },
+            chatData.token
+          );
+        }
         
+        clientRef.current = client;
         setChatClient(client);
         console.log('Stream Chat connected successfully');
         
@@ -83,14 +88,17 @@ export default function ClientMessages() {
     };
 
     initializeChat();
+  }, [chatData, user]);
 
-    // Cleanup on unmount
+  // Cleanup only on unmount
+  useEffect(() => {
     return () => {
-      if (chatClient) {
-        chatClient.disconnectUser().catch(console.error);
+      if (clientRef.current) {
+        clientRef.current.disconnectUser().catch(console.error);
+        clientRef.current = null;
       }
     };
-  }, [chatData, user]); // Remove chatClient from dependencies to prevent re-initialization
+  }, []);
 
   if (!user || user.role !== 'client') {
     return (
