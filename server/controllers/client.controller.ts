@@ -100,7 +100,7 @@ export const getClientDashboard = async (
       // Create timeline from actual project milestones if available
       let timeline: any[] = [];
       try {
-        const milestones = await storage.milestones?.getMilestonesForProject(project.id) || [];
+        const milestones = await storage.milestones?.getMilestonesByProjectId(project.id) || [];
         timeline = milestones.map((milestone: any) => ({
           phase: milestone.title,
           status: milestone.status,
