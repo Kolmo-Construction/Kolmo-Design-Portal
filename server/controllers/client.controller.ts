@@ -262,6 +262,24 @@ export const getClientChatToken = async (
       role: 'user'
     });
 
+    // Get client's projects and create channels for them
+    const projects = await storage.projects.getProjectsForUser(user.id.toString());
+    
+    for (const project of projects) {
+      try {
+        const { createProjectChannel } = await import('../stream-chat');
+        await createProjectChannel(
+          project.id.toString(),
+          project.name,
+          chatUserId,
+          'admin-1'
+        );
+      } catch (error) {
+        // Log error but don't fail the whole request if channel creation fails
+        console.error(`Failed to create channel for project ${project.id}:`, error);
+      }
+    }
+
     // Generate Stream Chat token
     const token = generateStreamToken(chatUserId);
     

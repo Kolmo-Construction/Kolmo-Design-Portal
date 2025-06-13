@@ -263,6 +263,41 @@ export async function getOrCreateCustomerUser(
 }
 
 /**
+ * Create a project channel for client-admin communication
+ */
+export async function createProjectChannel(
+  projectId: string,
+  projectName: string,
+  clientId: string,
+  adminUserId: string = 'admin-1'
+): Promise<string> {
+  if (!streamServerClient) {
+    throw new Error('Stream Chat not available. Please configure STREAM_API_KEY and STREAM_SECRET.');
+  }
+  
+  try {
+    const channelId = `project-${projectId}`;
+    const channel = streamServerClient.channel('messaging', channelId, {
+      members: [clientId, adminUserId],
+      created_by_id: adminUserId,
+    });
+    
+    await channel.create();
+    
+    // Update channel with custom data
+    await channel.update({
+      name: `${projectName} - Project Chat`,
+    });
+    
+    console.log(`✓ Created project channel: ${channelId} for project: ${projectName}`);
+    return channelId;
+  } catch (error) {
+    console.error('Error creating project channel:', error);
+    throw error;
+  }
+}
+
+/**
  * Initialize quote chat when quote is sent to customer
  */
 export async function initializeQuoteChat(
