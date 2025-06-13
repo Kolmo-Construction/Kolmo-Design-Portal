@@ -31,7 +31,7 @@ router.get('/', isAuthenticated, requireProjectPermission('canViewProject'), asy
 });
 
 // Create a new milestone
-router.post('/', async (req, res, next) => {
+router.post('/', isAuthenticated, requireProjectPermission('canCreateMilestones'), async (req, res, next) => {
   try {
     const projectId = parseInt(req.params.projectId);
     if (isNaN(projectId)) {
@@ -64,7 +64,7 @@ router.post('/', async (req, res, next) => {
 });
 
 // Update milestone
-router.patch('/:milestoneId', async (req, res, next) => {
+router.patch('/:milestoneId', isAuthenticated, requireProjectPermission('canEditMilestones'), async (req, res, next) => {
   try {
     const projectId = parseInt(req.params.projectId);
     const milestoneId = parseInt(req.params.milestoneId);
