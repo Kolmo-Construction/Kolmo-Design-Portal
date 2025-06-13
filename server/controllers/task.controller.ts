@@ -250,6 +250,15 @@ export const updateTask = async (
         throw new HttpError(404, 'Task not found.');
     }
 
+    // Validate billing percentage if updating billing information
+    if (validatedData.isBillable && validatedData.billingType === 'percentage' && validatedData.billingPercentage) {
+      await BillingValidator.validateAndThrowForTask(
+        currentTask.projectId,
+        parseFloat(validatedData.billingPercentage.toString()),
+        taskIdNum // Exclude current task from validation
+      );
+    }
+
     logger(`[updateTask] Calling repository to update taskId: ${taskIdNum}`, 'TaskController');
     const updatedTask = await storage.tasks.updateTask(taskIdNum, updateData);
     logger(`[updateTask] Repository returned task: ${updatedTask?.id}`, 'TaskController');

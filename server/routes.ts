@@ -32,6 +32,7 @@ import globalFinanceRoutes from "./routes/global-finance.routes"; // Global fina
 import taskBillingRouter from "./routes/task-billing.routes"; // Task billing router for complete-and-bill functionality
 import { milestoneRoutes } from "./routes/milestone.routes"; // Milestone management router
 import clientRouter from "./routes/client.routes"; // Client portal router
+import billingValidationRouter from "./routes/billing-validation.routes"; // Billing validation router
 
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
 import chatRouter from "./routes/chat.routes"; // Stream Chat router
@@ -178,6 +179,14 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   
   // Task billing routes for complete-and-bill functionality
   app.use(taskBillingRouter);
+
+  // Billing validation routes
+  app.use(
+    "/api/projects/:projectId/billing-validation",
+    isAuthenticated,
+    validateProjectId,
+    billingValidationRouter
+  );
 
   // Example: Selections
   // app.use(
