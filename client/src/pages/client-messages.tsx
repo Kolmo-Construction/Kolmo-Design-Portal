@@ -270,10 +270,35 @@ export default function ClientMessages() {
         <div className="container mx-auto px-6 pt-24 pb-12">
           {/* Header */}
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-primary mb-2">Project Messages</h1>
-            <p className="text-muted-foreground">
-              Communicate with your project team in real-time.
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-primary mb-2">Project Messages</h1>
+                <p className="text-muted-foreground">
+                  Communicate with your project team in real-time.
+                </p>
+              </div>
+              {/* Connection Status */}
+              <div className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${chatClient && chatClient.wsConnection?.isHealthy ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <span className="text-sm text-muted-foreground">
+                  {chatClient && chatClient.wsConnection?.isHealthy ? 'Connected' : 'Disconnected'}
+                </span>
+                {chatError && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={attemptReconnection}
+                    disabled={isConnecting}
+                  >
+                    {isConnecting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Stream Chat Interface */}
@@ -297,13 +322,7 @@ export default function ClientMessages() {
                   <Channel>
                     <Window>
                       <MessageList />
-                      <MessageInput 
-                        focus={true}
-                        overrideSubmitHandler={(params) => {
-                          console.log('Attempting to send message:', params.message);
-                          // Return void to allow default submit handler
-                        }}
-                      />
+                      <MessageInput focus={true} />
                     </Window>
                     <Thread />
                   </Channel>
