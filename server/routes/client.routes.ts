@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getClientDashboard, getClientInvoices } from '@server/controllers/client.controller';
+import { getClientDashboard, getClientInvoices, getClientChatToken } from '@server/controllers/client.controller';
 
 const router = Router();
 
@@ -16,5 +16,8 @@ router.get('/invoices', (req, res, next) => {
   res.set('Expires', '0');
   next();
 }, getClientInvoices);
+
+// GET /api/client/chat-token - Get Stream Chat token for client
+router.get('/chat-token', getClientChatToken);
 
 export default router;

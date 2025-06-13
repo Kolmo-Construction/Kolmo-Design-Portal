@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { storage } from '@server/storage';
 import { db } from '@server/db';
 import { sql } from 'drizzle-orm';
+import { generateStreamToken, createStreamUser } from '@server/stream-chat';
 
 interface ClientDashboardResponse {
   projects: any[];
@@ -231,6 +232,57 @@ export const getClientDashboard = async (
     res.json(dashboardData);
   } catch (error) {
     console.error('Error fetching client dashboard:', error);
+    next(error);
+  }
+};
+
+export const getClientChatToken = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const user = req.user;
+    
+    if (!user || user.role !== 'client') {
+      res.status(403).json({ message: 'Access denied. Client role required.' });
+      return;
+    }
+
+    console.log(`[getClientChatToken] Generating chat token for client: ${user.id}`);
+
+    // Generate Stream Chat user ID for client
+    const chatUserId = `client-${user.id}`;
+    
+    // Create or update Stream Chat user
+    await createStreamUser({
+      id: chatUserId,
+      name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      role: 'client'
+    });
+
+    // Generate Stream Chat token
+    const token = generateStreamToken(chatUserId);
+    
+    // Get Stream API key from environment
+    const apiKey = process.env.STREAM_API_KEY;
+    
+    if (!apiKey) {
+      console.error('[getClientChatToken] Stream API key not configured');
+      res.status(500).json({ message: 'Chat service not available' });
+      return;
+    }
+
+    console.log(`[getClientChatToken] Chat token generated successfully for client: ${user.id}`);
+    
+    res.json({
+      apiKey,
+      token,
+      userId: chatUserId
+    });
+  } catch (error) {
+    console.error('[getClientChatToken] Error generating chat token:', error);
     next(error);
   }
 };

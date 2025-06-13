@@ -1,43 +1,80 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth-unified';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { 
   MessageSquare, 
-  Send, 
-  User,
-  Calendar
+  Users,
+  Calendar,
+  Loader2
 } from 'lucide-react';
 import { ClientNavigation } from '@/components/ClientNavigation';
+import { StreamChat } from 'stream-chat';
+import { Chat, Channel, ChannelList, MessageList, MessageInput, Window, Thread } from 'stream-chat-react';
+import 'stream-chat-react/dist/css/v2/index.css';
+import '@/styles/chat-theme.css';
 
-interface Message {
-  id: number;
-  content: string;
-  senderName: string;
-  senderRole: string;
-  timestamp: string;
-  projectName: string;
-  isRead: boolean;
+interface StreamChatData {
+  apiKey: string;
+  token: string;
+  userId: string;
 }
 
 export default function ClientMessages() {
   const { user } = useAuth();
-  const [newMessage, setNewMessage] = React.useState('');
+  const [chatClient, setChatClient] = useState<StreamChat | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
 
-  const { data: messages, isLoading } = useQuery<Message[]>({
-    queryKey: ['/api/client/messages'],
+  // Fetch Stream Chat configuration for the client
+  const { data: chatData, isLoading: isChatDataLoading } = useQuery<StreamChatData>({
+    queryKey: ['/api/client/chat-token'],
     enabled: !!user && user.role === 'client'
   });
 
-  const { data: projects } = useQuery<any[]>({
-    queryKey: ['/api/client/dashboard'],
-    enabled: !!user && user.role === 'client',
-    select: (data: any) => data?.projects || []
-  });
+  // Initialize Stream Chat client
+  useEffect(() => {
+    const initializeChat = async () => {
+      if (!chatData || !user || chatClient) return;
+      
+      setIsConnecting(true);
+      setChatError(null);
+      
+      try {
+        console.log('Initializing Stream Chat for client:', user.id);
+        
+        const client = StreamChat.getInstance(chatData.apiKey);
+        
+        await client.connectUser(
+          {
+            id: chatData.userId,
+            name: `${user.firstName} ${user.lastName}`,
+            role: 'client'
+          },
+          chatData.token
+        );
+        
+        setChatClient(client);
+        console.log('Stream Chat connected successfully');
+      } catch (error) {
+        console.error('Error connecting to Stream Chat:', error);
+        setChatError('Failed to connect to chat. Please refresh the page and try again.');
+      } finally {
+        setIsConnecting(false);
+      }
+    };
+
+    initializeChat();
+
+    // Cleanup on unmount
+    return () => {
+      if (chatClient) {
+        chatClient.disconnectUser();
+      }
+    };
+  }, [chatData, user, chatClient]);
 
   if (!user || user.role !== 'client') {
     return (
@@ -56,150 +93,111 @@ export default function ClientMessages() {
     );
   }
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim()) return;
-    
-    try {
-      // Send message API call would go here
-      setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
-      <ClientNavigation />
-      
-      <div className="container mx-auto px-6 pt-24 pb-12">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-primary mb-2">Project Messages</h1>
-          <p className="text-muted-foreground">
-            Communicate with your project team and stay updated on progress.
-          </p>
+  // Loading states
+  if (isChatDataLoading || isConnecting) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
+        <ClientNavigation />
+        <div className="container mx-auto px-6 pt-24 pb-12">
+          <div className="text-center py-12">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Connecting to Chat</h3>
+            <p className="text-muted-foreground">Setting up your project communication...</p>
+          </div>
         </div>
+      </div>
+    );
+  }
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Messages List */}
-          <div className="lg:col-span-2">
-            <Card className="border-accent/20 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  <MessageSquare className="h-6 w-6 text-accent" />
-                  Recent Messages
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                  </div>
-                ) : messages && messages.length > 0 ? (
-                  <div className="space-y-4">
-                    {messages.map((message) => (
-                      <div key={message.id} className="border border-muted rounded-lg p-4">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-3">
-                            <div className="bg-accent/10 rounded-full p-2">
-                              <User className="h-4 w-4 text-accent" />
-                            </div>
-                            <div>
-                              <div className="font-medium">{message.senderName}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {message.senderRole === 'admin' ? 'Project Manager' : 'Team Member'}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Calendar className="h-4 w-4" />
-                            {new Date(message.timestamp).toLocaleDateString()}
-                          </div>
-                        </div>
-                        
-                        <div className="mb-2">
-                          <Badge variant="outline" className="text-xs">
-                            {message.projectName}
-                          </Badge>
-                        </div>
-                        
-                        <p className="text-foreground">{message.content}</p>
-                        
-                        {!message.isRead && (
-                          <div className="mt-2">
-                            <Badge className="bg-accent text-white">New</Badge>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <MessageSquare className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No Messages Yet</h3>
-                    <p className="text-muted-foreground mb-6">
-                      Messages from your project team will appear here.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+  // Error state
+  if (chatError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
+        <ClientNavigation />
+        <div className="container mx-auto px-6 pt-24 pb-12">
+          <Card className="max-w-md mx-auto border-destructive/20">
+            <CardContent className="pt-6 text-center">
+              <MessageSquare className="h-12 w-12 text-destructive mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Chat Connection Error</h2>
+              <p className="text-muted-foreground mb-4">{chatError}</p>
+              <Button 
+                onClick={() => window.location.reload()}
+                className="bg-accent hover:bg-accent/90"
+              >
+                Retry Connection
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Chat interface
+  if (chatClient) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
+        <ClientNavigation />
+        
+        <div className="container mx-auto px-6 pt-24 pb-12">
+          {/* Header */}
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-primary mb-2">Project Messages</h1>
+            <p className="text-muted-foreground">
+              Communicate with your project team in real-time.
+            </p>
           </div>
 
-          {/* Send Message Form */}
-          <div>
-            <Card className="border-accent/20 shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-lg">Send Message</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Message</label>
-                  <Textarea
-                    placeholder="Type your message to the project team..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    rows={4}
-                    className="resize-none"
+          {/* Stream Chat Interface */}
+          <div className="h-[600px] bg-white rounded-lg shadow-lg border border-accent/20 overflow-hidden">
+            <Chat client={chatClient} theme="kolmo-chat-theme">
+              <div className="flex h-full">
+                {/* Channel List */}
+                <div className="w-1/3 border-r border-gray-200">
+                  <ChannelList
+                    filters={{ 
+                      type: 'messaging',
+                      members: { $in: [chatData?.userId || ''] }
+                    }}
+                    sort={{ last_message_at: -1 }}
+                    options={{ limit: 20 }}
                   />
                 </div>
                 
-                <Button 
-                  onClick={handleSendMessage}
-                  className="w-full bg-accent hover:bg-accent/90"
-                  disabled={!newMessage.trim()}
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  Send Message
-                </Button>
-                
-                <div className="text-xs text-muted-foreground">
-                  Your message will be sent to your project manager and team members.
+                {/* Chat Area */}
+                <div className="flex-1">
+                  <Channel>
+                    <Window>
+                      <MessageList />
+                      <MessageInput />
+                    </Window>
+                    <Thread />
+                  </Channel>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Project Quick Access */}
-            {projects && projects.length > 0 && (
-              <Card className="border-accent/20 shadow-lg mt-6">
-                <CardHeader>
-                  <CardTitle className="text-lg">Your Projects</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {projects.map((project) => (
-                      <div key={project.id} className="flex items-center justify-between p-2 rounded bg-muted/50">
-                        <span className="text-sm font-medium">{project.name}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {project.status}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+              </div>
+            </Chat>
           </div>
+
+          {/* Help Text */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Select a project channel on the left to start messaging your team.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback loading state
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
+      <ClientNavigation />
+      <div className="container mx-auto px-6 pt-24 pb-12">
+        <div className="text-center py-12">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Loading Chat</h3>
+          <p className="text-muted-foreground">Please wait...</p>
         </div>
       </div>
     </div>
