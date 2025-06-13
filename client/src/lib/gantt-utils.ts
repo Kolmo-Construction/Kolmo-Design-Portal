@@ -50,6 +50,7 @@ export function formatTasksForGanttReact(
   const formattedTasks: FormattedTask[] = [];
   const taskMap = new Map<number, ApiTask>(); // Map API task ID to task
   const validTaskIds = new Set<string>(); // Keep track of valid task IDs (using string)
+  const tasksWithOriginalDates = new Set<number>(); // Track tasks that have original dates
 
   // First pass: Create map and validate basic structure + dates
   const potentiallyValidTasks = apiTasks.filter((apiTask) => {
@@ -69,10 +70,10 @@ export function formatTasksForGanttReact(
     taskMap.set(apiTask.id, apiTask); // Add to map
 
     // Date Parsing and Validation - provide defaults for missing dates
-    let hasOriginalDates = true;
     if (!apiTask.startDate || !apiTask.dueDate) {
       console.warn(`[gantt-utils-react] Task ID ${taskIdStr} ('${apiTask.title}') is missing original start or due date. Using default dates.`);
-      hasOriginalDates = false;
+    } else {
+      tasksWithOriginalDates.add(apiTask.id);
     }
     let startDate: Date | null = null;
     let endDate: Date | null = null;
@@ -81,7 +82,7 @@ export function formatTasksForGanttReact(
         startDate = apiTask.startDate;
       } else if (typeof apiTask.startDate === 'string') {
         startDate = parseISO(apiTask.startDate);
-      } else if (!hasOriginalDates || !apiTask.startDate) {
+      } else if (!apiTask.startDate) {
         // Provide default start date (today)
         startDate = new Date();
       } else {
@@ -92,7 +93,7 @@ export function formatTasksForGanttReact(
         endDate = apiTask.dueDate;
       } else if (typeof apiTask.dueDate === 'string') {
         endDate = parseISO(apiTask.dueDate);
-      } else if (!hasOriginalDates || !apiTask.dueDate) {
+      } else if (!apiTask.dueDate) {
         // Provide default end date (tomorrow)
         endDate = new Date();
         endDate.setDate(endDate.getDate() + 1);
@@ -187,7 +188,8 @@ export function formatTasksForGanttReact(
     // Determine Task Type & Validation
     let taskType: TaskType = 'task'; // Default for gantt-task-react
     // Only create milestones for tasks that have actual dates (not default generated ones)
-    if (hasOriginalDates && apiTask.startDate && apiTask.dueDate && differenceInDays(endDate, startDate) === 0) {
+    const hasActualDates = tasksWithOriginalDates.has(apiTask.id);
+    if (hasActualDates && apiTask.startDate && apiTask.dueDate && differenceInDays(endDate, startDate) === 0) {
       taskType = 'milestone';
     }
     // Add logic for 'project' type if applicable based on your data (e.g., apiTask.isSummary)
@@ -280,6 +282,12 @@ export function formatTasksForGanttReact(
 
     // Add billable indicator to task name for extra clarity
     const displayName = apiTask.isBillable ? `💰 ${apiTask.title}` : apiTask.title;
+
+    // Ensure dates are valid Date objects
+    if (!startDate || !endDate || !(startDate instanceof Date) || !(endDate instanceof Date)) {
+      console.error(`[gantt-utils-react] Task ID ${taskIdStr} ('${apiTask.title}') has invalid Date objects. Skipping.`);
+      return false;
+    }
 
     // Construct the GanttTask Object for gantt-task-react
     const ganttTask: FormattedTask = {
