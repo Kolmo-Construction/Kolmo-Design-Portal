@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth-unified";
 import { StreamChat } from 'stream-chat';
@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Loader2 } from "lucide-react";
 import 'stream-chat-react/dist/css/v2/index.css';
+import '@/styles/chat-theme.css';
 
 interface StreamChatData {
   apiKey: string;
@@ -22,6 +23,7 @@ export default function AdminMessages() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const clientRef = useRef<StreamChat | null>(null);
 
   // Fetch Stream Chat configuration for the admin
   const { data: chatData, isLoading: isChatDataLoading } = useQuery<StreamChatData>({
@@ -32,7 +34,23 @@ export default function AdminMessages() {
   // Initialize Stream Chat client
   useEffect(() => {
     const initializeChat = async () => {
-      if (!chatData || !user || chatClient) return;
+      if (!chatData || !user) return;
+      
+      // If we already have a connected client with the same user, don't reinitialize
+      if (clientRef.current && clientRef.current.user?.id === chatData.userId) {
+        setChatClient(clientRef.current);
+        return;
+      }
+      
+      // Clean up existing client if it exists
+      if (clientRef.current) {
+        try {
+          await clientRef.current.disconnectUser();
+        } catch (error) {
+          console.warn('Error disconnecting existing client:', error);
+        }
+        clientRef.current = null;
+      }
       
       setIsConnecting(true);
       setChatError(null);
@@ -51,6 +69,7 @@ export default function AdminMessages() {
           chatData.token
         );
         
+        clientRef.current = client;
         setChatClient(client);
         console.log('Stream Chat connected successfully');
       } catch (error) {
@@ -62,14 +81,17 @@ export default function AdminMessages() {
     };
 
     initializeChat();
+  }, [chatData?.apiKey, chatData?.token, chatData?.userId, user?.id]);
 
-    // Cleanup on unmount
+  // Cleanup only on unmount
+  useEffect(() => {
     return () => {
-      if (chatClient) {
-        chatClient.disconnectUser();
+      if (clientRef.current) {
+        clientRef.current.disconnectUser().catch(console.error);
+        clientRef.current = null;
       }
     };
-  }, [chatData, user, chatClient]);
+  }, []);
 
   if (!user || (user.role !== 'admin' && user.role !== 'project_manager')) {
     return (

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth-unified';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,8 @@ import {
   MessageSquare, 
   Users,
   Calendar,
-  Loader2
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import { ClientNavigation } from '@/components/ClientNavigation';
 import { StreamChat } from 'stream-chat';
@@ -27,7 +28,9 @@ export default function ClientMessages() {
   const [chatClient, setChatClient] = useState<StreamChat | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const clientRef = useRef<StreamChat | null>(null);
+  const isInitializingRef = useRef(false);
 
   // Fetch Stream Chat configuration for the client
   const { data: chatData, isLoading: isChatDataLoading } = useQuery<StreamChatData>({
@@ -35,33 +38,109 @@ export default function ClientMessages() {
     enabled: !!user && user.role === 'client'
   });
 
+  // Reconnection function
+  const attemptReconnection = useCallback(async () => {
+    if (!chatData || !user || isInitializingRef.current) return;
+    
+    console.log(`Attempting reconnection (attempt ${reconnectAttempts + 1})`);
+    setReconnectAttempts(prev => prev + 1);
+    setIsConnecting(true);
+    setChatError(null);
+    
+    try {
+      // Clean up existing client
+      if (clientRef.current) {
+        try {
+          await clientRef.current.disconnectUser();
+        } catch (error) {
+          console.warn('Error disconnecting during reconnection:', error);
+        }
+        clientRef.current = null;
+        setChatClient(null);
+      }
+      
+      // Wait a moment before reconnecting
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const client = StreamChat.getInstance(chatData.apiKey);
+      
+      await client.connectUser(
+        {
+          id: chatData.userId,
+          name: `${user.firstName} ${user.lastName}`,
+          role: 'client'
+        },
+        chatData.token
+      );
+      
+      clientRef.current = client;
+      setChatClient(client);
+      setReconnectAttempts(0);
+      console.log('Stream Chat reconnected successfully');
+      
+    } catch (error) {
+      console.error('Reconnection failed:', error);
+      setChatError('Connection failed. Click to retry.');
+    } finally {
+      setIsConnecting(false);
+    }
+  }, [chatData, user, reconnectAttempts]);
+
   // Initialize Stream Chat client
   useEffect(() => {
     const initializeChat = async () => {
-      if (!chatData || !user || clientRef.current) return;
+      if (!chatData || !user || isInitializingRef.current) return;
       
+      // If we already have a connected client with the same user, don't reinitialize
+      if (clientRef.current && clientRef.current.user?.id === chatData.userId && clientRef.current.wsConnection?.isHealthy) {
+        setChatClient(clientRef.current);
+        return;
+      }
+      
+      isInitializingRef.current = true;
       setIsConnecting(true);
       setChatError(null);
       
       try {
+        // Clean up existing client if it exists
+        if (clientRef.current) {
+          try {
+            await clientRef.current.disconnectUser();
+          } catch (error) {
+            console.warn('Error disconnecting existing client:', error);
+          }
+          clientRef.current = null;
+        }
+        
         console.log('Initializing Stream Chat for client:', user.id);
         
         const client = StreamChat.getInstance(chatData.apiKey);
         
-        // Check if already connected to prevent multiple connections
-        if (client.user?.id !== chatData.userId) {
-          await client.connectUser(
-            {
-              id: chatData.userId,
-              name: `${user.firstName} ${user.lastName}`,
-              role: 'client'
-            },
-            chatData.token
-          );
-        }
+        // Add connection event listeners for better error handling
+        client.on('connection.recovered', () => {
+          console.log('Stream Chat connection recovered');
+          setChatError(null);
+          setReconnectAttempts(0);
+        });
+        
+        client.on('connection.failed', (error) => {
+          console.error('Stream Chat connection failed:', error);
+          setChatError('Connection lost. Attempting to reconnect...');
+          setTimeout(attemptReconnection, 3000);
+        });
+        
+        await client.connectUser(
+          {
+            id: chatData.userId,
+            name: `${user.firstName} ${user.lastName}`,
+            role: 'client'
+          },
+          chatData.token
+        );
         
         clientRef.current = client;
         setChatClient(client);
+        setReconnectAttempts(0);
         console.log('Stream Chat connected successfully');
         
         // Debug: Check available channels
@@ -81,14 +160,15 @@ export default function ClientMessages() {
         }, 1000);
       } catch (error) {
         console.error('Error connecting to Stream Chat:', error);
-        setChatError('Failed to connect to chat. Please refresh the page and try again.');
+        setChatError('Failed to connect to chat. Please try reconnecting.');
       } finally {
         setIsConnecting(false);
+        isInitializingRef.current = false;
       }
     };
 
     initializeChat();
-  }, [chatData, user]);
+  }, [chatData?.apiKey, chatData?.token, chatData?.userId, user?.id, attemptReconnection]);
 
   // Cleanup only on unmount
   useEffect(() => {
@@ -144,12 +224,36 @@ export default function ClientMessages() {
               <MessageSquare className="h-12 w-12 text-destructive mx-auto mb-4" />
               <h2 className="text-xl font-semibold mb-2">Chat Connection Error</h2>
               <p className="text-muted-foreground mb-4">{chatError}</p>
-              <Button 
-                onClick={() => window.location.reload()}
-                className="bg-accent hover:bg-accent/90"
-              >
-                Retry Connection
-              </Button>
+              {reconnectAttempts > 0 && (
+                <p className="text-sm text-muted-foreground mb-4">
+                  Reconnection attempts: {reconnectAttempts}
+                </p>
+              )}
+              <div className="flex gap-2 justify-center">
+                <Button 
+                  onClick={attemptReconnection}
+                  disabled={isConnecting}
+                  className="bg-accent hover:bg-accent/90"
+                >
+                  {isConnecting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Reconnecting...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Retry Connection
+                    </>
+                  )}
+                </Button>
+                <Button 
+                  onClick={() => window.location.reload()}
+                  variant="outline"
+                >
+                  Refresh Page
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
