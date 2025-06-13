@@ -20,24 +20,24 @@ router.put("/:taskId", isAuthenticated, validateResourceId('taskId'), requirePro
 router.delete("/:taskId", isAuthenticated, validateResourceId('taskId'), requireProjectPermission('canDeleteTasks'), taskController.deleteTask);
 
 // GET /api/projects/:projectId/tasks/dependencies - Fetch dependencies for the project
-router.get("/dependencies", isAuthenticated, requireProjectPermission('canViewProject'), taskController.getTaskDependencies);
+router.get("/dependencies", isAuthenticated, requireProjectPermission('canViewTaskDependencies'), taskController.getTaskDependencies);
 
 // POST /api/projects/:projectId/tasks/dependencies - Create a dependency
-router.post("/dependencies", isAuthenticated, requireProjectPermission('canEditTasks'), taskController.createTaskDependency);
+router.post("/dependencies", isAuthenticated, requireProjectPermission('canManageTaskDependencies'), taskController.createTaskDependency);
 
 // DELETE /api/projects/:projectId/tasks/dependencies - Remove a dependency
-router.delete("/dependencies", isAuthenticated, requireProjectPermission('canEditTasks'), taskController.deleteTaskDependency);
+router.delete("/dependencies", isAuthenticated, requireProjectPermission('canManageTaskDependencies'), taskController.deleteTaskDependency);
 
 // POST /api/projects/:projectId/tasks/publish - Publish all project tasks (make visible to clients)
-router.post("/publish", isAuthenticated, requireProjectPermission('canEditTasks'), taskController.publishProjectTasks);
+router.post("/publish", isAuthenticated, requireProjectPermission('canPublishTasks'), taskController.publishProjectTasks);
 
 // POST /api/projects/:projectId/tasks/unpublish - Unpublish all project tasks (hide from clients)
-router.post("/unpublish", isAuthenticated, requireProjectPermission('canEditTasks'), taskController.unpublishProjectTasks);
+router.post("/unpublish", isAuthenticated, requireProjectPermission('canPublishTasks'), taskController.unpublishProjectTasks);
 
 // Import the function directly - bypassing the module import
 import { importTasksFromJson } from '../controllers/task.controller';
 
 // POST /api/projects/:projectId/tasks/import - Import tasks from JSON
-router.post("/import", isAuthenticated, requireProjectPermission('canCreateTasks'), importTasksFromJson);
+router.post("/import", isAuthenticated, requireProjectPermission('canImportTasks'), importTasksFromJson);
 
 export default router;

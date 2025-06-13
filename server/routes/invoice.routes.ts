@@ -20,7 +20,7 @@ router.post("/", isAuthenticated, requireProjectPermission('canCreateInvoices'),
 router.post(
   "/:invoiceId/send",
   isAuthenticated,
-  requireProjectPermission('canEditInvoices'),
+  requireProjectPermission('canSendInvoices'),
   invoiceController.sendInvoice
 );
 

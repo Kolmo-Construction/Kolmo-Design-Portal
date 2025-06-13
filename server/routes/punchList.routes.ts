@@ -10,6 +10,7 @@ import {
 // Import the BASE insert schema, not the one omitting fields, if controller handles parsing
 import { insertPunchListItemSchema } from '@shared/schema';
 import { isAuthenticated, isAdmin } from '../middleware/auth.middleware';
+import { requireProjectPermission } from '../middleware/enhanced-permissions.middleware';
 import { upload } from '../middleware/upload.middleware'; // Import standard upload middleware
 
 // --- Router Setup ---
@@ -22,6 +23,7 @@ router.use(isAuthenticated);
 
 // GET /api/projects/:projectId/punch-list - Get all punch list items for a project
 router.get('/',
+    requireProjectPermission('canViewProject'),
     punchListController.getPunchListItemsForProject
 );
 

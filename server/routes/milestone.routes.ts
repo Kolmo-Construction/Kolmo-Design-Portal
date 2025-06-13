@@ -89,7 +89,7 @@ router.patch('/:milestoneId', isAuthenticated, requireProjectPermission('canEdit
 });
 
 // Complete milestone
-router.patch('/:milestoneId/complete', async (req, res, next) => {
+router.patch('/:milestoneId/complete', isAuthenticated, requireProjectPermission('canCompleteMilestones'), async (req, res, next) => {
   try {
     const projectId = parseInt(req.params.projectId);
     const milestoneId = parseInt(req.params.milestoneId);
@@ -136,7 +136,7 @@ router.patch('/:milestoneId/complete', async (req, res, next) => {
 });
 
 // Trigger billing for a completed milestone
-router.post('/:milestoneId/bill', async (req, res, next) => {
+router.post('/:milestoneId/bill', isAuthenticated, requireProjectPermission('canBillMilestones'), async (req, res, next) => {
   try {
     const projectId = parseInt(req.params.projectId);
     const milestoneId = parseInt(req.params.milestoneId);
