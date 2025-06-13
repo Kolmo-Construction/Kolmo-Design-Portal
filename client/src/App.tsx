@@ -31,6 +31,7 @@ import PaymentPage from "@/pages/PaymentPage";
 import InvoiceDetailPage from "@/pages/InvoiceDetailPage";
 import AdminInvoices from "@/pages/AdminInvoices";
 import ClientPortalPage from "@/pages/client-portal";
+import ProjectManagerDashboard from "@/pages/project-manager-dashboard";
 
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth-unified";
@@ -56,6 +57,7 @@ function Router() {
         <ProtectedRoute path="/setup-profile" component={SetupProfile} />
         <ProtectedRoute path="/" component={Dashboard} adminOnly />
         <ProtectedRoute path="/client-portal" component={ClientPortalPage} />
+        <ProtectedRoute path="/project-manager" component={ProjectManagerDashboard} projectManagerOnly />
         <ProtectedRoute path="/projects" component={Projects} adminOnly />
         <ProtectedRoute path="/projects/:id" component={AdminProjectDetails} adminOnly />
         <ProtectedRoute path="/project-details/:id" component={ClientProjectDetails} />

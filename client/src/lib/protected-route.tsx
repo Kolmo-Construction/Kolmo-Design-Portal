@@ -7,10 +7,12 @@ export function ProtectedRoute({
   path,
   component: Component,
   adminOnly = false,
+  projectManagerOnly = false,
 }: {
   path: string;
   component: React.ComponentType;
   adminOnly?: boolean;
+  projectManagerOnly?: boolean;
 }) {
   const { user, isLoading } = useAuth();
 
@@ -36,9 +38,19 @@ export function ProtectedRoute({
           return <Redirect to="/client-portal" />;
         }
 
+        // Check project manager access for project manager-only routes
+        if (projectManagerOnly && user.role !== 'project_manager') {
+          return <Redirect to="/client-portal" />;
+        }
+
         // Auto-redirect clients to their portal from main dashboard
         if (path === "/" && user.role === 'client') {
           return <Redirect to="/client-portal" />;
+        }
+
+        // Auto-redirect project managers to their dashboard from main admin dashboard
+        if (path === "/" && user.role === 'project_manager') {
+          return <Redirect to="/project-manager" />;
         }
 
         // Render the protected component
