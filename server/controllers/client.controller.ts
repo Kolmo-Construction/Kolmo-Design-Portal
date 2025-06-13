@@ -27,18 +27,32 @@ export const getClientInvoices = async (
       return;
     }
 
+    console.log(`[getClientInvoices] Fetching invoices for user ID: ${userId}`);
+
     // Get client's assigned projects
     const projects = await storage.projects.getProjectsForUser(userId.toString());
+    console.log(`[getClientInvoices] Found ${projects.length} projects for user:`, projects.map(p => ({ id: p.id, name: p.name })));
+    
     const projectIds = projects.map((p: any) => p.id);
     
     let allInvoices: any[] = [];
     if (projectIds.length > 0) {
       try {
-        const invoicePromises = projectIds.map(id => 
-          storage.invoices?.getInvoicesForProject(id).catch(() => [])
-        );
+        console.log(`[getClientInvoices] Fetching invoices for project IDs:`, projectIds);
+        
+        const invoicePromises = projectIds.map(async id => {
+          const invoices = await storage.invoices?.getInvoicesForProject(id).catch(err => {
+            console.error(`[getClientInvoices] Error fetching invoices for project ${id}:`, err);
+            return [];
+          });
+          console.log(`[getClientInvoices] Project ${id} has ${invoices?.length || 0} invoices`);
+          return invoices || [];
+        });
+        
         const invoiceResults = await Promise.all(invoicePromises);
         allInvoices = invoiceResults.flat();
+        
+        console.log(`[getClientInvoices] Total invoices found: ${allInvoices.length}`);
         
         // Add project name to each invoice
         allInvoices = allInvoices.map((invoice: any) => {
@@ -52,8 +66,11 @@ export const getClientInvoices = async (
         console.error('Error fetching client invoices:', error);
         allInvoices = [];
       }
+    } else {
+      console.log(`[getClientInvoices] No projects found for user ${userId}`);
     }
 
+    console.log(`[getClientInvoices] Returning ${allInvoices.length} invoices`);
     res.json(allInvoices);
   } catch (error) {
     console.error('Error fetching client invoices:', error);
