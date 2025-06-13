@@ -32,6 +32,7 @@ export const getClientInvoices = async (
     // Get client's assigned projects
     const projects = await storage.projects.getProjectsForUser(userId.toString());
     console.log(`[getClientInvoices] Found ${projects.length} projects for user:`, projects.map(p => ({ id: p.id, name: p.name })));
+    console.log(`[getClientInvoices] Full projects data:`, JSON.stringify(projects, null, 2));
     
     const projectIds = projects.map((p: any) => p.id);
     
