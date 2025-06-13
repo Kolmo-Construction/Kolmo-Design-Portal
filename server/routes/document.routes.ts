@@ -3,6 +3,7 @@ import { Router } from "express";
 import * as documentController from "@server/controllers/document.controller"; // Updated import
 import { isAuthenticated } from "@server/middleware/auth.middleware"; // Updated import
 import { upload } from "@server/middleware/upload.middleware"; // Updated import
+import { requireProjectPermission } from "@server/middleware/enhanced-permissions.middleware";
 import multer from 'multer'; // Import Multer type for error handling
 
 // This router will handle routes nested under /api/projects/:projectId/documents
@@ -14,14 +15,15 @@ export const globalDocumentRouter = Router();
 // --- Project Specific Document Routes ---
 
 // GET /api/projects/:projectId/documents/
-// Fetches documents for the specific project (permissions checked in controller)
-projectDocumentRouter.get("/", documentController.getDocumentsForProject);
+// Fetches documents for the specific project (permissions checked via middleware)
+projectDocumentRouter.get("/", isAuthenticated, requireProjectPermission('canViewDocuments'), documentController.getDocumentsForProject);
 
 // POST /api/projects/:projectId/documents/
-// Uploads a document for the specific project (permissions checked in controller)
-// Apply Multer middleware first to handle file parsing
+// Uploads a document for the specific project with enhanced permissions
 projectDocumentRouter.post(
     "/",
+    isAuthenticated,
+    requireProjectPermission('canUploadDocuments'),
     (req, res, next) => {
         // Apply multer middleware specifically here
         upload.single('documentFile')(req, res, (err: any) => {

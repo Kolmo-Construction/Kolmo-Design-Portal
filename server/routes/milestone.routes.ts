@@ -3,13 +3,14 @@ import { storage } from '../storage';
 import { insertMilestoneSchema, updateMilestoneSchema } from '@shared/schema';
 import { HttpError } from '../errors';
 import { isAuthenticated } from '../middleware/auth.middleware';
+import { requireProjectPermission } from '../middleware/enhanced-permissions.middleware';
 import { PaymentService } from '../services/payment.service';
 
 const router = Router({ mergeParams: true });
 const paymentService = new PaymentService();
 
 // Get milestones for a project
-router.get('/', async (req, res, next) => {
+router.get('/', isAuthenticated, requireProjectPermission('canViewProject'), async (req, res, next) => {
   try {
     const projectId = parseInt(req.params.projectId);
     if (isNaN(projectId)) {

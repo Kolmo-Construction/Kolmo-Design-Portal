@@ -2,26 +2,25 @@
 import { Router } from "express";
 import * as invoiceController from "@server/controllers/invoice.controller"; // Updated import
 import { isAuthenticated, isAdmin } from "@server/middleware/auth.middleware"; // Updated import
-// Import checkProjectAccess if applying as middleware
-// import { checkProjectAccess } from "../middleware/permissions.middleware";
+import { requireProjectPermission } from "@server/middleware/enhanced-permissions.middleware";
 
 // Use mergeParams: true to access :projectId from the parent router mount point
 const router = Router({ mergeParams: true });
 
 // GET /api/projects/:projectId/invoices/
-// Requires authentication. Access check happens within the controller currently.
-// Alternatively, apply checkProjectAccess middleware here.
-router.get("/", isAuthenticated, invoiceController.getInvoicesForProject);
+// Requires view invoices permission
+router.get("/", isAuthenticated, requireProjectPermission('canViewInvoices'), invoiceController.getInvoicesForProject);
 
 // POST /api/projects/:projectId/invoices/
-// Requires Admin privileges (which implies authentication).
-router.post("/", isAdmin, invoiceController.createInvoice);
+// Requires create invoices permission (Admin or Project Manager)
+router.post("/", isAuthenticated, requireProjectPermission('canCreateInvoices'), invoiceController.createInvoice);
 
 // POST /api/projects/:projectId/invoices/:invoiceId/send
-// Send a draft invoice to the customer
+// Send a draft invoice to the customer (Project Manager access)
 router.post(
   "/:invoiceId/send",
-  isAdmin, // Or another appropriate permission middleware
+  isAuthenticated,
+  requireProjectPermission('canEditInvoices'),
   invoiceController.sendInvoice
 );
 
@@ -30,6 +29,7 @@ router.post(
 router.get(
   "/:invoiceId/download",
   isAuthenticated,
+  requireProjectPermission('canViewInvoices'),
   invoiceController.downloadInvoicePdf
 );
 
@@ -38,6 +38,7 @@ router.get(
 router.get(
   "/:invoiceId/view",
   isAuthenticated,
+  requireProjectPermission('canViewInvoices'),
   invoiceController.getInvoiceDetails
 );
 
