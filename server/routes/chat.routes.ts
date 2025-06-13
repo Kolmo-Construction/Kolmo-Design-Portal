@@ -236,26 +236,31 @@ router.get('/conversations', isAuthenticated, async (req: Request, res: Response
     // Get quote information for each channel
     const conversations = await Promise.all(
       channels.map(async (channel) => {
-        const quoteId = channel.id?.replace('quote-', '');
+        const quoteIdStr = channel.id?.replace('quote-', '');
         let quoteInfo = null;
         
-        if (quoteId) {
-          try {
-            const [quote] = await db
-              .select({ 
-                id: quotes.id, 
-                quoteNumber: quotes.quoteNumber, 
-                title: quotes.title,
-                customerName: quotes.customerName,
-                customerEmail: quotes.customerEmail
+        if (quoteIdStr) {
+          const quoteId = parseInt(quoteIdStr);
+          
+          // Only proceed if we have a valid numeric quote ID
+          if (!isNaN(quoteId) && quoteId > 0) {
+            try {
+              const [quote] = await db
+                .select({ 
+                  id: quotes.id, 
+                  quoteNumber: quotes.quoteNumber, 
+                  title: quotes.title,
+                  customerName: quotes.customerName,
+                  customerEmail: quotes.customerEmail
               })
               .from(quotes)
-              .where(eq(quotes.id, parseInt(quoteId)))
+              .where(eq(quotes.id, quoteId))
               .limit(1);
             
-            quoteInfo = quote;
-          } catch (error) {
-            console.error('Error fetching quote info:', error);
+              quoteInfo = quote;
+            } catch (error) {
+              console.error('Error fetching quote info:', error);
+            }
           }
         }
         
@@ -264,7 +269,7 @@ router.get('/conversations', isAuthenticated, async (req: Request, res: Response
         
         return {
           channelId: channel.id,
-          quoteId: quoteId ? parseInt(quoteId) : null,
+          quoteId: quoteIdStr && !isNaN(parseInt(quoteIdStr)) ? parseInt(quoteIdStr) : null,
           quoteInfo,
           lastMessage: channel.state.last_message_at ? {
             text: channel.state.messages[channel.state.messages.length - 1]?.text || '',
