@@ -50,6 +50,23 @@ router.post('/', isAuthenticated, requireProjectPermission('canCreateMilestones'
       projectId,
     });
 
+    // Check if milestone billing amount would exceed project budget
+    if (validatedData.billingPercentage) {
+      const existingMilestones = await storage.milestones.getMilestonesByProjectId(projectId);
+      
+      // Calculate total existing billing percentage
+      const existingBillingTotal = existingMilestones.reduce((sum, milestone) => {
+        return sum + parseFloat(milestone.billingPercentage || '0');
+      }, 0);
+      
+      const newBillingPercentage = parseFloat(validatedData.billingPercentage.toString());
+      const totalBillingPercentage = existingBillingTotal + newBillingPercentage;
+      
+      if (totalBillingPercentage > 100) {
+        throw new HttpError(400, `Total billing percentage would exceed 100%. Current total: ${existingBillingTotal.toFixed(2)}%, Attempting to add: ${newBillingPercentage.toFixed(2)}%`);
+      }
+    }
+
     // Set order index if not provided
     if (validatedData.orderIndex === undefined || validatedData.orderIndex === null) {
       const existingMilestones = await storage.milestones.getMilestonesByProjectId(projectId);
@@ -81,6 +98,26 @@ router.patch('/:milestoneId', isAuthenticated, requireProjectPermission('canEdit
 
     // Validate the update data
     const validatedData = updateMilestoneSchema.parse(req.body);
+    
+    // Check if milestone billing amount would exceed project budget
+    if (validatedData.billingPercentage !== undefined) {
+      const allMilestones = await storage.milestones.getMilestonesByProjectId(projectId);
+      
+      // Calculate total existing billing percentage (excluding current milestone)
+      const existingBillingTotal = allMilestones
+        .filter(m => m.id !== milestoneId)
+        .reduce((sum, milestone) => {
+          return sum + parseFloat(milestone.billingPercentage || '0');
+        }, 0);
+      
+      const newBillingPercentage = parseFloat(validatedData.billingPercentage.toString());
+      const totalBillingPercentage = existingBillingTotal + newBillingPercentage;
+      
+      if (totalBillingPercentage > 100) {
+        throw new HttpError(400, `Total billing percentage would exceed 100%. Current total (excluding this milestone): ${existingBillingTotal.toFixed(2)}%, Attempting to set: ${newBillingPercentage.toFixed(2)}%`);
+      }
+    }
+    
     const updatedMilestone = await storage.milestones.updateMilestone(milestoneId, validatedData);
     res.json(updatedMilestone);
   } catch (error) {
