@@ -293,9 +293,10 @@ export async function createProjectChannel(
       if (channelError.code === 4 || channelError.message?.includes('does not exist')) {
         console.log(`Creating new channel: ${channelId}`);
         await channel.create({
-          members: [clientId, adminUserId],
           created_by_id: adminUserId,
         });
+        // Add members after creation
+        await channel.addMembers([clientId, adminUserId]);
       } else {
         throw channelError;
       }
