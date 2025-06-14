@@ -8,9 +8,9 @@ import { Project } from "@shared/schema";
 import {
   Card,
   CardContent,
-  CardDescription, // Keep if used by error card
-  CardHeader,      // Keep if used by error card
-  CardTitle        // Keep if used by error card
+  CardDescription,
+  CardHeader,
+  CardTitle
 } from "@/components/ui/card";
 import {
   Tabs,
@@ -18,22 +18,25 @@ import {
   TabsList,
   TabsTrigger
 } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button"; // Keep for Back button
-// --- REMOVED: Badge import (now in ProjectHeader) ---
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
-  // Building2, // Icon not used directly here anymore
-  // MapPin,      // Icon moved to ProjectHeader
-  // FileText,    // Icon moved to ProjectHeader
-  // MessageSquare, // Icon moved to ProjectHeader
-  ArrowLeft,     // Icon used for Back button
-  Loader2,       // Icon used for loading state
-  User,          // Icon used for View Client Portal button
-  // --- ADDED Icons used only for Tabs (kept): ---
-  ListChecks, // For Punch List
-  ClipboardList, // For Tasks
-  NotebookText // For Daily Logs
+  ArrowLeft,
+  Loader2,
+  User,
+  ListChecks,
+  ClipboardList,
+  NotebookText,
+  Building2,
+  MapPin,
+  Calendar,
+  DollarSign,
+  TrendingUp,
+  FileText,
+  MessageSquare,
+  Clock,
+  Target
 } from "lucide-react";
-// Import the existing child components
 import { ProjectOverviewCard } from "@/components/project-details/ProjectOverviewCard";
 import { ProjectUpdatesTab } from "@/components/project-details/ProjectUpdatesTab";
 import { ProjectDocumentsTab } from "@/components/project-details/ProjectDocumentsTab";
@@ -45,9 +48,6 @@ import { ProjectDailyLogsTab } from "@/components/project-details/ProjectDailyLo
 import { ProjectPunchListTab } from "@/components/project-details/ProjectPunchListTab";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth-unified";
-// --- ADDED: Import the new ProjectHeader component ---
-import { ProjectHeader } from "@/components/project-details/ProjectHeader";
-// --- END ADDED ---
 
 
 // --- REMOVED: Helper functions getStatusLabel, getStatusBadgeVariant, getStatusColorClass (assumed moved to utils.txt previously) ---
@@ -75,13 +75,13 @@ export default function ProjectDetails() {
   // --- Loading State ---
   if (isLoadingProject) {
     return (
-      <div className="h-screen bg-slate-50">
+      <div className="h-screen bg-white">
         <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
         <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-        <main className="lg:ml-64 p-4 lg:p-8 pt-32 h-full flex items-center justify-center">
+        <main className="lg:ml-64 p-4 lg:p-8 pt-24 h-full flex items-center justify-center">
           <div className="text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-            <p className="text-slate-600">Loading project details...</p>
+            <Loader2 className="h-12 w-12 animate-spin text-kolmo-primary mx-auto mb-4" />
+            <p className="text-kolmo-secondary">Loading project details...</p>
           </div>
         </main>
       </div>
@@ -94,18 +94,21 @@ export default function ProjectDetails() {
       ? projectError.message
       : "The project you are looking for does not exist or you don't have access to it.";
     return (
-      <div className="h-screen bg-slate-50">
+      <div className="h-screen bg-kolmo-background">
         <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
         <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-        <main className="lg:ml-64 p-4 lg:p-8 pt-32 h-full flex items-center justify-center">
-          <Card className="w-full max-w-md">
+        <main className="lg:ml-64 p-4 lg:p-8 pt-24 h-full flex items-center justify-center">
+          <Card className="w-full max-w-md border-red-200 shadow-lg">
             <CardHeader>
-              <CardTitle className="text-red-600">Project Not Found</CardTitle>
-              <CardDescription>{errorMessage}</CardDescription>
+              <CardTitle className="text-red-600 flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Project Not Found
+              </CardTitle>
+              <CardDescription className="text-kolmo-secondary">{errorMessage}</CardDescription>
             </CardHeader>
             <CardContent>
               <Link href="/projects">
-                <Button className="w-full gap-2">
+                <Button className="w-full gap-2 bg-kolmo-primary hover:bg-kolmo-secondary text-white">
                   <ArrowLeft className="h-4 w-4" />
                   Back to Projects
                 </Button>

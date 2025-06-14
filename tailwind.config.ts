@@ -11,6 +11,14 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       colors: {
+        // Kolmo.io brand colors
+        kolmo: {
+          primary: "#3d4552",    // dark blue/gray
+          secondary: "#4a6670",  // blue-gray
+          accent: "#db973c",     // golden orange
+          background: "#ffffff", // white
+          "background-accent": "#f5f5f5", // light gray
+        },
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {
