@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { User } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -23,8 +24,16 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [authState, setAuthState] = useState<AuthState>("loading");
+  const [location] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Check if this is a public route that doesn't need authentication
+  const isPublicRoute = location.startsWith('/quote/') || 
+                       location.startsWith('/customer/quote/') || 
+                       location.startsWith('/quote-payment/') ||
+                       location.startsWith('/payment/') ||
+                       location.startsWith('/auth');
 
   const {
     data: user,
@@ -53,6 +62,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         throw error;
       }
     },
+    enabled: !isPublicRoute, // Don't run authentication query on public routes
     retry: (failureCount, error: any) => {
       if (error?.status === 401 || failureCount >= 2) {
         return false;
@@ -70,7 +80,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Update auth state based on query results
   useEffect(() => {
-    if (userQueryLoading) {
+    if (isPublicRoute) {
+      // For public routes, set auth state to unauthenticated to avoid loading states
+      setAuthState("unauthenticated");
+    } else if (userQueryLoading) {
       setAuthState("loading");
     } else if (error && error.message !== "Authentication check failed") {
       setAuthState("error");
@@ -79,7 +92,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } else {
       setAuthState("unauthenticated");
     }
-  }, [user, userQueryLoading, error]);
+  }, [user, userQueryLoading, error, isPublicRoute]);
 
   // Login mutation
   const loginMutation = useMutation({
