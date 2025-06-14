@@ -22,9 +22,9 @@ export function ProjectHeader({ project, setActiveTab }: ProjectHeaderProps) {
     const statusClasses = getProjectStatusBadgeClasses(project.status);
 
     return (
-        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="mb-6 flex flex-col md:flex-row md:items-start md:justify-between gap-4 relative z-10">
             {/* Project Title and Location */}
-            <div>
+            <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-1"> {/* Allow wrapping */}
                     <h1 className="text-2xl font-bold text-slate-800">{project.name}</h1>
                     {/* Use status helpers for badge */}
@@ -39,7 +39,7 @@ export function ProjectHeader({ project, setActiveTab }: ProjectHeaderProps) {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-2 flex-shrink-0"> {/* Prevent buttons shrinking */}
+            <div className="flex gap-2 flex-shrink-0 relative z-20"> {/* Prevent buttons shrinking and ensure they appear above navbar */}
                 {/* Buttons now call setActiveTab passed via props */}
                 <Button variant="outline" size="sm" className="gap-2" onClick={() => setActiveTab('messages')}>
                     <MessageSquare className="h-4 w-4" />

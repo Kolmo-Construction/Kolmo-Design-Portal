@@ -41,7 +41,7 @@ export default function TopNavBar({ open, setOpen }: TopNavBarProps) {
   ];
 
   return (
-    <header className="bg-white border-b border-slate-200 fixed top-0 w-full z-20">
+    <header className="bg-white border-b border-slate-200 fixed top-0 w-full z-50">
       <div className="h-16 px-4 lg:px-8 max-w-screen-2xl mx-auto flex items-center justify-between">
         {/* Left section: Logo & Menu Button */}
         <div className="flex items-center gap-4">
