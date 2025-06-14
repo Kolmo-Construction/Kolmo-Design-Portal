@@ -171,6 +171,11 @@ BASE_URL=https://kolmo.design
   - Modified payment processing logic to allow development/test mode completion alongside production
   - Verified complete customer workflow: quote access → acceptance → project creation → payment completion
   - Payment system now properly updates invoice status from draft to paid in all environments
+- June 14, 2025. Fixed quote acceptance authentication redirects:
+  - Resolved React hooks order violation in ClientLayout that was causing authentication errors
+  - Updated quote payment routing to use tokens instead of quote IDs for public access
+  - Fixed customer quote acceptance flow to prevent redirects to /auth page
+  - Customers can now properly access and accept quotes using secure token URLs
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

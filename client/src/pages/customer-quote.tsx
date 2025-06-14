@@ -239,8 +239,8 @@ export default function CustomerQuotePage() {
   };
 
   const handleContinueToPayment = () => {
-    const quoteData = quote as QuoteResponse;
-    setLocation(`/quote-payment/${quoteData.id}`);
+    // Use the token instead of ID for payment flow
+    setLocation(`/quote-payment/${token}`);
   };
 
   const handleDecline = () => {

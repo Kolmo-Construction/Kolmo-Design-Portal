@@ -40,7 +40,7 @@ interface PaymentData {
 }
 
 export default function QuotePaymentPage() {
-  const [, params] = useRoute('/quote-payment/:id');
+  const [, params] = useRoute('/quote-payment/:token');
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   
@@ -56,19 +56,19 @@ export default function QuotePaymentPage() {
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
 
-  const quoteId = params?.id;
+  const quoteToken = params?.token;
 
   useEffect(() => {
-    if (quoteId) {
+    if (quoteToken) {
       loadQuote();
     }
-  }, [quoteId]);
+  }, [quoteToken]);
 
   const loadQuote = async () => {
     try {
       setIsLoadingQuote(true);
       // Use public quote access since this is a customer-facing page
-      const res = await fetch(`/api/quotes/public/${quoteId}`);
+      const res = await fetch(`/api/quotes/public/${quoteToken}`);
       
       if (!res.ok) {
         if (res.status === 404) {
@@ -126,7 +126,7 @@ export default function QuotePaymentPage() {
 
     try {
       setIsCreatingPayment(true);
-      const paymentData = await apiRequest('POST', `/api/quotes/${quoteId}/accept-payment`, {
+      const paymentData = await apiRequest('POST', `/api/quotes/${quote?.id}/accept-payment`, {
         customerName: customerInfo.name,
         customerEmail: customerInfo.email,
         customerPhone: customerInfo.phone,
