@@ -32,6 +32,7 @@ import PaymentPage from "@/pages/PaymentPage";
 import InvoiceDetailPage from "@/pages/InvoiceDetailPage";
 import AdminInvoices from "@/pages/AdminInvoices";
 import ClientPortalPage from "@/pages/client-portal";
+import ClientAccount from "@/pages/client-account";
 import ProjectManagerDashboard from "@/pages/project-manager-dashboard";
 
 import { ProtectedRoute } from "./lib/protected-route";
@@ -68,6 +69,7 @@ function Router() {
         <ProtectedRoute path="/financials" component={Financials} adminOnly />
         <ProtectedRoute path="/messages" component={AdminMessages} adminOnly />
         <ProtectedRoute path="/client/messages" component={ClientMessages} />
+        <ProtectedRoute path="/client/account" component={ClientAccount} />
         <ProtectedRoute path="/progress-updates" component={ProgressUpdates} />
         <ProtectedRoute path="/schedule" component={Schedule} />
         <ProtectedRoute path="/selections" component={Selections} />

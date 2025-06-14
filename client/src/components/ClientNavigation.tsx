@@ -9,7 +9,8 @@ import {
   User,
   LogOut,
   Home,
-  DollarSign
+  DollarSign,
+  Settings
 } from 'lucide-react';
 
 export function ClientNavigation() {
@@ -117,6 +118,18 @@ export function ClientNavigation() {
                 </Button>
               </Link>
             )}
+
+            <Link to="/client/account">
+              <Button 
+                variant={location === '/client/account' ? 'secondary' : 'ghost'}
+                className={`text-primary-foreground hover:bg-primary-foreground/10 ${
+                  location === '/client/account' ? 'bg-accent text-white' : ''
+                }`}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Account
+              </Button>
+            </Link>
           </div>
 
           {/* User Menu */}
@@ -232,6 +245,19 @@ export function ClientNavigation() {
                 </Button>
               </Link>
             )}
+
+            <Link to="/client/account">
+              <Button 
+                variant={location === '/client/account' ? 'secondary' : 'ghost'}
+                size="sm"
+                className={`text-primary-foreground hover:bg-primary-foreground/10 ${
+                  location === '/client/account' ? 'bg-accent text-white' : ''
+                }`}
+              >
+                <Settings className="h-4 w-4 mr-1" />
+                Account
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
