@@ -746,12 +746,9 @@ export class PaymentService {
         
         // Send appropriate confirmation email
         if (metadata.paymentType === 'down_payment' && invoice.projectId) {
-          await this.sendProjectWelcomeEmail(invoice.projectId);
-          console.log(`[PaymentService] Project welcome email sent for project ${invoice.projectId}`);
-          
-          // Also send client portal invitation with magic link
-          await this.sendClientPortalInvitation(invoice.projectId);
-          console.log(`[PaymentService] Client portal invitation sent for project ${invoice.projectId}`);
+          // Send combined welcome email with portal access (includes magic link)
+          await this.sendProjectWelcomeWithPortalAccess(invoice.projectId);
+          console.log(`[PaymentService] Combined welcome and portal invitation sent for project ${invoice.projectId}`);
         } else {
           await this.sendPaymentConfirmationEmail(invoice, paymentAmount);
           console.log(`[PaymentService] Payment confirmation email sent for invoice ${invoice.invoiceNumber}`);
@@ -768,9 +765,10 @@ export class PaymentService {
   }
 
   /**
-   * Send project welcome email after successful down payment
+   * Send combined project welcome email with portal access after successful down payment
+   * This replaces the separate welcome and portal invitation emails to prevent duplicate magic links
    */
-  async sendProjectWelcomeEmail(projectId: number): Promise<void> {
+  async sendProjectWelcomeWithPortalAccess(projectId: number): Promise<void> {
     try {
       const project = await storage.projects.getProjectById(projectId);
       if (!project) {
@@ -778,46 +776,62 @@ export class PaymentService {
         return;
       }
 
-      if (!project.customerEmail || !project.customerName) {
-        console.error('Customer email or name missing for project welcome email');
+      // Get project clients to send magic link portal access
+      const clients = await storage.projects.getProjectClients(projectId);
+      if (clients.length === 0) {
+        console.error(`No clients found for project ${projectId}`);
         return;
       }
 
-      const subject = `Welcome to Your Kolmo Project - ${project.name}`;
-      
-      const html = `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 650px; margin: 0 auto; background: #ffffff;">
-          <!-- Header with Logo -->
-          <div style="background: #3d4552; padding: 30px 40px; text-align: center;">
-            <div style="background: #ffffff; display: inline-block; padding: 12px 24px; border-radius: 8px;">
-              <h1 style="margin: 0; color: #3d4552; font-size: 28px; font-weight: bold; letter-spacing: 2px;">KOLMO</h1>
-              <p style="margin: 0; color: #db973c; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">CONSTRUCTION</p>
-            </div>
-          </div>
+      // Send combined welcome email with portal access to each client
+      for (const client of clients) {
+        try {
+          // Generate magic link token for portal access
+          const token = this.generateMagicLinkToken();
+          const expiry = this.getMagicLinkExpiry();
           
-          <!-- Main Content -->
-          <div style="padding: 40px; background: #ffffff;">
-            <h2 style="color: #3d4552; font-size: 24px; margin: 0 0 24px 0; font-weight: 600;">Welcome to Your Project!</h2>
-            
-            <p style="color: #3d4552; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Dear ${project.customerName},</p>
-            
-            <p style="color: #3d4552; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
-              Thank you for choosing Kolmo Construction! Your down payment has been received and your project 
-              <strong style="color: #db973c;">${project.name}</strong> is now officially underway.
-            </p>
-            
-            <!-- Payment Confirmation Card -->
-            <div style="background: #f5f5f5; padding: 24px; border-radius: 12px; margin: 30px 0; border-left: 6px solid #db973c;">
-              <h3 style="margin: 0 0 16px 0; color: #3d4552; font-size: 18px; font-weight: 600;">Payment Confirmed ✓</h3>
-              <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td style="padding: 6px 0; color: #4a6670; font-weight: 500;">Project Name:</td>
-                  <td style="padding: 6px 0; color: #3d4552; font-weight: 600;">${project.name}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 6px 0; color: #4a6670; font-weight: 500;">Down Payment:</td>
-                  <td style="padding: 6px 0; color: #db973c; font-weight: 600;">Received Successfully</td>
-                </tr>
+          // Update client with magic link token
+          await storage.users.updateUserMagicLinkToken(client.id, token, expiry);
+          
+          // Create magic link URL
+          const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+          const magicLinkUrl = `${baseUrl}/auth/magic-link/${token}`;
+
+          const subject = `Welcome to Your Kolmo Project - ${project.name}`;
+          
+          const html = `
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 650px; margin: 0 auto; background: #ffffff;">
+              <!-- Header with Logo -->
+              <div style="background: #3d4552; padding: 30px 40px; text-align: center;">
+                <div style="background: #ffffff; display: inline-block; padding: 12px 24px; border-radius: 8px;">
+                  <h1 style="margin: 0; color: #3d4552; font-size: 28px; font-weight: bold; letter-spacing: 2px;">KOLMO</h1>
+                  <p style="margin: 0; color: #db973c; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">CONSTRUCTION</p>
+                </div>
+              </div>
+              
+              <!-- Main Content -->
+              <div style="padding: 40px; background: #ffffff;">
+                <h2 style="color: #3d4552; font-size: 24px; margin: 0 0 24px 0; font-weight: 600;">Welcome to Your Project!</h2>
+                
+                <p style="color: #3d4552; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Dear ${client.firstName} ${client.lastName},</p>
+                
+                <p style="color: #3d4552; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+                  Thank you for choosing Kolmo Construction! Your down payment has been received and your project 
+                  <strong style="color: #db973c;">${project.name}</strong> is now officially underway.
+                </p>
+                
+                <!-- Payment Confirmation Card -->
+                <div style="background: #f5f5f5; padding: 24px; border-radius: 12px; margin: 30px 0; border-left: 6px solid #db973c;">
+                  <h3 style="margin: 0 0 16px 0; color: #3d4552; font-size: 18px; font-weight: 600;">Payment Confirmed ✓</h3>
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding: 6px 0; color: #4a6670; font-weight: 500;">Project Name:</td>
+                      <td style="padding: 6px 0; color: #3d4552; font-weight: 600;">${project.name}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 6px 0; color: #4a6670; font-weight: 500;">Down Payment:</td>
+                      <td style="padding: 6px 0; color: #db973c; font-weight: 600;">Received Successfully</td>
+                    </tr>
                 <tr>
                   <td style="padding: 6px 0; color: #4a6670; font-weight: 500;">Project Status:</td>
                   <td style="padding: 6px 0; color: #3d4552; font-weight: 600;">Planning Phase</td>
