@@ -39,7 +39,7 @@ export function PaymentForm({
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/payment-success`,
+          return_url: `${window.location.origin}/payment/${clientSecret}`,
         },
         redirect: 'if_required',
       });

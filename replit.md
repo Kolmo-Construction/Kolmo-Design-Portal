@@ -175,7 +175,9 @@ BASE_URL=https://kolmo.design
   - Resolved React hooks order violation in ClientLayout that was causing authentication errors
   - Updated quote payment routing to use tokens instead of quote IDs for public access
   - Fixed customer quote acceptance flow to prevent redirects to /auth page
+  - Fixed Stripe payment confirmation redirect errors by using 'redirect: never' option
   - Customers can now properly access and accept quotes using secure token URLs
+  - Complete workflow verified: quote access → acceptance → payment processing → project creation
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
