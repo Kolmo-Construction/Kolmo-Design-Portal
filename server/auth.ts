@@ -599,15 +599,23 @@ export function setupAuth(app: Express) {
           throw new Error(`Cannot delete user: they are the project manager for: ${projectNames}. Please reassign these projects first.`);
         }
 
-        // Instead of blocking deletion, we'll remove client-project assignments
+        // Check for client-project assignments and provide clear feedback
         const clientProjectCount = await tx.select({ count: sql`count(*)` })
           .from(clientProjects)
           .where(eq(clientProjects.clientId, userId));
 
         if (clientProjectCount[0] && Number(clientProjectCount[0].count) > 0) {
-          console.log(`Removing ${clientProjectCount[0].count} client-project assignments for user ${userId}`);
-          // Remove client-project relationships
-          await tx.delete(clientProjects).where(eq(clientProjects.clientId, userId));
+          // Get the specific projects this user is assigned to
+          const assignedProjects = await tx.select({ 
+            projectId: clientProjects.projectId,
+            projectName: projects.name 
+          })
+          .from(clientProjects)
+          .innerJoin(projects, eq(clientProjects.projectId, projects.id))
+          .where(eq(clientProjects.clientId, userId));
+          
+          const projectNames = assignedProjects.map(p => p.projectName).join(', ');
+          throw new Error(`Cannot delete user: they are assigned as a client to ${clientProjectCount[0].count} project(s): ${projectNames}. Please remove these project assignments first or reassign the projects to another client.`);
         }
 
         // If no critical dependencies, proceed with safe cleanup

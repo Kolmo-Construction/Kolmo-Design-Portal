@@ -45,13 +45,25 @@ export function DeleteUserDialog({
     onError: (error: Error) => {
        console.error("Delete user error:", error);
        let description = "An unexpected error occurred.";
-        try {
-            const errorBody = JSON.parse(error.message.substring(error.message.indexOf('{')));
-            description = errorBody.errors?.[0]?.message || errorBody.message || description;
-        } catch (e) { /* Ignore parsing error */ }
+       
+       // Try to extract the error message from API response
+       try {
+         // Handle both direct error messages and JSON error responses
+         if (error.message.includes('Cannot delete user:')) {
+           description = error.message;
+         } else if (error.message.includes('{')) {
+           const errorBody = JSON.parse(error.message.substring(error.message.indexOf('{')));
+           description = errorBody.message || errorBody.errors?.[0]?.message || description;
+         } else {
+           description = error.message || description;
+         }
+       } catch (e) { 
+         // If parsing fails, use the original error message
+         description = error.message || description;
+       }
 
       toast({
-        title: "Delete failed",
+        title: "Cannot delete user",
         description: description,
         variant: "destructive",
       });
