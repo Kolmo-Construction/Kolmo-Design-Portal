@@ -75,7 +75,7 @@ export const getAllInvoices = async (
     const user = req.user as User;
 
     if (!user?.id) { throw new HttpError(401, 'Authentication required.'); }
-    if (user.role !== 'ADMIN') { throw new HttpError(403, 'Admin access required.'); }
+    if (user.role !== 'admin') { throw new HttpError(403, 'Admin access required.'); }
 
     // Use the nested repository: storage.invoices
     const invoices = await storage.invoices.getAllInvoices();

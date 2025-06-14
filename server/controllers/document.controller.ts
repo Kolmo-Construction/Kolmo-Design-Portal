@@ -74,7 +74,7 @@ export const uploadDocument = async (
     }
     // 2. Allow Admins implicitly
     // 3. Check other roles (e.g., projectManager) for project access
-    else if (user.role !== 'ADMIN') {
+    else if (user.role !== 'admin') {
       const hasAccess = await storage.projects.checkUserProjectAccess(user.id.toString(), projectIdNum);
       if (!hasAccess) {
         throw new HttpError(403, 'You do not have permission to upload documents to this project.');
@@ -174,7 +174,7 @@ export const deleteDocument = async (
     }
     // 2. Allow Admins implicitly
     // 3. Check other roles (e.g., projectManager) for project access
-    else if (user.role !== 'ADMIN') { // Check non-admin, non-client roles
+    else if (user.role !== 'admin') { // Check non-admin, non-client roles
       const hasAccess = await storage.projects.checkUserProjectAccess(user.id.toString(), projectIdNum);
       if (!hasAccess) {
         throw new HttpError(403, 'You do not have permission to delete documents from this project.');
