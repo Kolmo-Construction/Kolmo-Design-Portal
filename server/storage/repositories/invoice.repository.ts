@@ -10,7 +10,7 @@ import { InvoiceWithPayments } from '../types'; // Import shared types
 // Interface for Invoice Repository
 export interface IInvoiceRepository {
     getInvoicesForProject(projectId: number): Promise<schema.Invoice[]>; // Keep simple for list view?
-    getAllInvoices(): Promise<schema.Invoice[]>; // Get all invoices across all projects
+    getAllInvoices(): Promise<any[]>; // Get all invoices across all projects with project info
     getInvoicesForClient(clientId: number): Promise<schema.Invoice[]>; // Get invoices for a specific client
     getInvoiceById(invoiceId: number): Promise<InvoiceWithPayments | null>; // Fetch with payments
     getInvoiceByPaymentIntentId(paymentIntentId: string): Promise<schema.Invoice | null>; // Find invoice by Stripe payment intent ID
@@ -42,11 +42,33 @@ class InvoiceRepository implements IInvoiceRepository {
         }
     }
 
-    async getAllInvoices(): Promise<schema.Invoice[]> {
+    async getAllInvoices(): Promise<any[]> {
         try {
             return await this.dbOrTx
-                .select()
+                .select({
+                    id: schema.invoices.id,
+                    projectId: schema.invoices.projectId,
+                    quoteId: schema.invoices.quoteId,
+                    milestoneId: schema.invoices.milestoneId,
+                    invoiceNumber: schema.invoices.invoiceNumber,
+                    amount: schema.invoices.amount,
+                    issueDate: schema.invoices.issueDate,
+                    dueDate: schema.invoices.dueDate,
+                    status: schema.invoices.status,
+                    customerName: schema.invoices.customerName,
+                    customerEmail: schema.invoices.customerEmail,
+                    description: schema.invoices.description,
+                    stripePaymentIntentId: schema.invoices.stripePaymentIntentId,
+                    createdAt: schema.invoices.createdAt,
+                    updatedAt: schema.invoices.updatedAt,
+                    project: {
+                        id: schema.projects.id,
+                        name: schema.projects.name,
+                        address: schema.projects.address
+                    }
+                })
                 .from(schema.invoices)
+                .leftJoin(schema.projects, eq(schema.invoices.projectId, schema.projects.id))
                 .orderBy(desc(schema.invoices.issueDate));
         } catch (error) {
             console.error('Error fetching all invoices:', error);
