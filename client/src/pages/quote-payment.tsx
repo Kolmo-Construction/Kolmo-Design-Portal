@@ -208,8 +208,11 @@ export default function QuotePaymentPage() {
                 <li>• You'll receive regular progress updates</li>
               </ul>
             </div>
-            <Button onClick={() => setLocation('/')} className="w-full">
-              Return to Home
+            <Button 
+              onClick={() => window.close()} 
+              className="w-full"
+            >
+              Close Window
             </Button>
           </CardContent>
         </Card>

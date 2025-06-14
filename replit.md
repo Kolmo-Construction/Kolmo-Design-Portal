@@ -152,6 +152,11 @@ BASE_URL=https://kolmo.design
   - Fixed customer name mix-up where portal invitations showed wrong names due to data inconsistency
   - Added user name validation during payment process to prevent future name conflicts
   - Payment setup now completes in under 2 seconds instead of timing out
+- June 13, 2025. Fixed magic link authentication and payment completion navigation:
+  - Resolved "Invalid or expired link" error in magic link authentication system
+  - Added comprehensive debugging for magic link token validation
+  - Removed broken "Return to Quote" navigation button from payment success page
+  - Simplified payment completion to single "Close Window" option for clean user experience
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
