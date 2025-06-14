@@ -251,6 +251,34 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "Invalid token" });
       }
 
+      // Check if user is already authenticated with this session
+      if (req.isAuthenticated() && req.user) {
+        console.log(`[Magic Link] User already authenticated in session: ${req.user.id}`);
+        
+        // For authenticated users, return their session data directly
+        // This handles the case where the token was already consumed but the user is still logged in
+        const { password, magicLinkToken, magicLinkExpiry, ...userWithoutSensitiveData } = req.user;
+        
+        // Handle redirect logic for authenticated users
+        if (!req.user.isActivated) {
+          console.log(`[Magic Link] Authenticated user needs profile setup`);
+          return res.status(200).json({
+            redirect: "/setup-profile",
+            user: {
+              id: req.user.id,
+              email: req.user.email,
+              firstName: req.user.firstName,
+              lastName: req.user.lastName,
+              role: req.user.role,
+              isActivated: req.user.isActivated
+            }
+          });
+        }
+        
+        console.log(`[Magic Link] Returning authenticated user data`);
+        return res.status(200).json({ user: userWithoutSensitiveData });
+      }
+
       // Updated to use storage.users
       console.log(`[Magic Link] Looking up user for token: ${token}`);
       const user = await storage.users.getUserByMagicLinkToken(token);
@@ -276,6 +304,7 @@ export function setupAuth(app: Express) {
 
         // Mark the token as used by removing it - Updated to use storage.users
         await storage.users.updateUserMagicLinkToken(user.id, null, null);
+        console.log(`[Magic Link] Token consumed for user: ${user.id}`);
 
         // If the user hasn't set up their account yet, redirect to profile setup
         if (!user.isActivated) {
