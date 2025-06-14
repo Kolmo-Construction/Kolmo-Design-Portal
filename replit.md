@@ -164,6 +164,13 @@ BASE_URL=https://kolmo.design
   - Ensured consistent spacing for both loading states and main content areas
   - Resolved button visibility issues where top navigation bar was overlapping page elements
   - Fixed mobile responsive design where sidebar was incorrectly overlapping main content
+- June 14, 2025. Fixed customer downpayment payment failures:
+  - Resolved authentication middleware blocking public quote access routes that customers need
+  - Updated frontend query client to handle public endpoints without treating 401 errors as auth failures
+  - Fixed payment success handler to work in development environment with test payment intents
+  - Modified payment processing logic to allow development/test mode completion alongside production
+  - Verified complete customer workflow: quote access → acceptance → project creation → payment completion
+  - Payment system now properly updates invoice status from draft to paid in all environments
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
