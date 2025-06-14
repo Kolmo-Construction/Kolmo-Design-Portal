@@ -157,11 +157,13 @@ BASE_URL=https://kolmo.design
   - Added comprehensive debugging for magic link token validation
   - Removed broken "Return to Quote" navigation button from payment success page
   - Simplified payment completion to single "Close Window" option for clean user experience
-- June 14, 2025. Fixed navbar layout issues across all pages:
+- June 14, 2025. Fixed comprehensive layout issues across all pages:
   - Updated padding-top from pt-20 to pt-24 to prevent navbar from hiding page content
+  - Fixed responsive sidebar overlap by removing ml-0 and using lg:ml-64 only
   - Fixed layout in all pages: dashboard, documents, messages, UserManagement, settings, schedule, selections, progress-updates, ProjectDetails, ProjectManagement
   - Ensured consistent spacing for both loading states and main content areas
   - Resolved button visibility issues where top navigation bar was overlapping page elements
+  - Fixed mobile responsive design where sidebar was incorrectly overlapping main content
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

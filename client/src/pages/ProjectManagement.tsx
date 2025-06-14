@@ -119,7 +119,7 @@ export default function ProjectManagement() {
           <div className="flex h-screen bg-slate-50">
               <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
               <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-              <main className="flex-1 ml-0 lg:ml-64 p-4 lg:p-8 pt-24 flex items-center justify-center">
+              <main className="flex-1 lg:ml-64 p-4 lg:p-8 pt-24 flex items-center justify-center">
                 <p className="text-red-600">Error loading project data. Please try refreshing.</p>
               </main>
           </div>
@@ -132,7 +132,7 @@ export default function ProjectManagement() {
       <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
-      <main className="flex-1 ml-0 lg:ml-64 p-4 lg:p-8 pt-24 overflow-auto">
+      <main className="flex-1 lg:ml-64 p-4 lg:p-8 pt-24 overflow-auto">
         {/* Header */}
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
