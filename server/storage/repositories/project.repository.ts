@@ -229,16 +229,9 @@ class ProjectRepository implements IProjectRepository {
             // Return both the project result and client users for email notifications
             return { result, clientUsers, projectName: projectData.name || 'Your Project' };
         }).then(async (transactionResult) => {
-            // Send notification emails AFTER transaction completes to avoid timeouts
-            if (transactionResult && transactionResult.clientUsers) {
-                for (const client of transactionResult.clientUsers) {
-                    try {
-                        await this.sendClientPortalNotification(client, transactionResult.projectName);
-                    } catch (error) {
-                        console.warn(`Failed to send portal notification to ${client.email}:`, error);
-                    }
-                }
-            }
+            // Portal notifications are now handled by PaymentService to prevent duplicate emails
+            // Automatic portal notifications disabled to avoid sending multiple magic links
+            console.log(`✓ Project created with ${transactionResult?.clientUsers?.length || 0} clients - portal notifications handled by payment service`);
             
             return transactionResult?.result || null;
         });
