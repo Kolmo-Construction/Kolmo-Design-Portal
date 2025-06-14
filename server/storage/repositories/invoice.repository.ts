@@ -117,17 +117,29 @@ class InvoiceRepository implements IInvoiceRepository {
 
     async getInvoiceById(invoiceId: number): Promise<InvoiceWithPayments | null> {
         try {
-            // Fetch invoice and join all associated payments
-            const invoice = await this.dbOrTx.query.invoices.findFirst({
-                where: eq(schema.invoices.id, invoiceId),
-                with: {
-                    payments: { // Fetch related payments
-                        orderBy: [asc(schema.payments.paymentDate)]
-                    }
-                }
-            });
-            // Type cast assumes 'payments' relation exists and is correctly typed
-            return invoice as InvoiceWithPayments ?? null;
+            // Fetch invoice directly from table
+            const invoice = await this.dbOrTx
+                .select()
+                .from(schema.invoices)
+                .where(eq(schema.invoices.id, invoiceId))
+                .limit(1);
+
+            if (!invoice || invoice.length === 0) {
+                return null;
+            }
+
+            // Fetch related payments
+            const payments = await this.dbOrTx
+                .select()
+                .from(schema.payments)
+                .where(eq(schema.payments.invoiceId, invoiceId))
+                .orderBy(asc(schema.payments.paymentDate));
+
+            // Return invoice with payments
+            return {
+                ...invoice[0],
+                payments: payments || []
+            } as InvoiceWithPayments;
         } catch (error) {
             console.error(`Error fetching invoice ${invoiceId}:`, error);
             throw new Error('Database error while fetching invoice details.');
@@ -136,10 +148,13 @@ class InvoiceRepository implements IInvoiceRepository {
 
     async getInvoiceByPaymentIntentId(paymentIntentId: string): Promise<schema.Invoice | null> {
         try {
-            const invoice = await this.dbOrTx.query.invoices.findFirst({
-                where: eq(schema.invoices.stripePaymentIntentId, paymentIntentId)
-            });
-            return invoice || null;
+            const invoices = await this.dbOrTx
+                .select()
+                .from(schema.invoices)
+                .where(eq(schema.invoices.stripePaymentIntentId, paymentIntentId))
+                .limit(1);
+            
+            return invoices.length > 0 ? invoices[0] : null;
         } catch (error) {
             console.error(`Error fetching invoice by payment intent ID ${paymentIntentId}:`, error);
             throw new Error('Database error while fetching invoice by payment intent ID.');
