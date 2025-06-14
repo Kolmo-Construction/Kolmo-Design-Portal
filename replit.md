@@ -178,6 +178,13 @@ BASE_URL=https://kolmo.design
   - Fixed Stripe payment confirmation redirect errors by using 'redirect: never' option
   - Customers can now properly access and accept quotes using secure token URLs
   - Complete workflow verified: quote access → acceptance → payment processing → project creation
+- June 14, 2025. Fixed duplicate magic link emails and missing down payment confirmations:
+  - Completely eliminated duplicate magic links by disabling automatic portal notifications in ProjectRepository
+  - Implemented separate down payment confirmation emails that customers receive immediately after payment
+  - Created single portal access email system that sends only one magic link per customer
+  - PaymentService now handles all email communications during payment flow to prevent duplicates
+  - Customers now receive exactly two emails: payment confirmation + portal access (instead of duplicate portal invitations)
+  - Fixed email routing to ensure proper sender addresses and professional templates
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

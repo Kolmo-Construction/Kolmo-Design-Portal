@@ -282,101 +282,13 @@ class ProjectRepository implements IProjectRepository {
         }
     }
     
-    // Send email notification to client about new portal access with magic link
+    // DISABLED: Send email notification to client about new portal access with magic link
+    // This function has been disabled to prevent duplicate magic links during payment processing
+    // Portal notifications are now handled exclusively by PaymentService
     private async sendClientPortalNotification(client: any, projectName: string): Promise<void> {
-        const baseUrl = getBaseUrl();
-        
-        // Generate a magic link token for the client
-        const token = this.generateMagicLinkToken();
-        const expiry = this.getMagicLinkExpiry();
-        
-        // Update the client user with the magic link token
-        await this.db.update(schema.users)
-            .set({ 
-                magicLinkToken: token, 
-                magicLinkExpiry: expiry,
-                updatedAt: new Date()
-            })
-            .where(eq(schema.users.id, client.id));
-        
-        // Create the magic link URL
-        const magicLinkUrl = `${baseUrl}/auth/magic-link/${token}`;
-        
-        const emailHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Welcome to Your Kolmo Project Portal</title>
-            <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { background: linear-gradient(135deg, #3d4552 0%, #4a6670 100%); color: white; padding: 30px 20px; text-align: center; }
-                .logo { font-size: 28px; font-weight: bold; margin-bottom: 10px; }
-                .content { padding: 30px 20px; background: #ffffff; }
-                .project-info { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #db973c; }
-                .cta-button { display: inline-block; background: #db973c; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
-                .footer { text-align: center; padding: 20px; color: #666; font-size: 14px; }
-                .features { margin: 20px 0; }
-                .feature { margin: 10px 0; padding-left: 20px; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <div class="logo">KOLMO</div>
-                    <p>Welcome to Your Project Portal</p>
-                </div>
-                
-                <div class="content">
-                    <h2>Hi ${client.firstName},</h2>
-                    
-                    <p>Great news! Your project portal is now ready and you have been granted access to track your construction project in real-time.</p>
-                    
-                    <div class="project-info">
-                        <h3>📋 Project: ${projectName}</h3>
-                        <p>You can now monitor progress, communicate with your team, and stay updated on all project activities through your personalized portal.</p>
-                    </div>
-                    
-                    <div class="features">
-                        <h3>What you can do in your portal:</h3>
-                        <div class="feature">✓ Track real-time project progress and milestones</div>
-                        <div class="feature">✓ View detailed task completion status</div>
-                        <div class="feature">✓ Communicate directly with your project team</div>
-                        <div class="feature">✓ Access project documents and updates</div>
-                        <div class="feature">✓ Monitor project timeline and schedule</div>
-                    </div>
-                    
-                    <p style="text-align: center;">
-                        <a href="${magicLinkUrl}" class="cta-button">Access Your Portal</a>
-                    </p>
-                    
-                    <p><strong>Secure Access:</strong><br>
-                    Click the button above to securely access your portal. This link will expire in 24 hours for your security.</p>
-                    
-                    <p>If you have any questions about using the portal or your project, please don't hesitate to reach out to your project manager.</p>
-                    
-                    <p>Thank you for choosing Kolmo Construction!</p>
-                </div>
-                
-                <div class="footer">
-                    <p>Kolmo Construction - Building Excellence Together</p>
-                    <p>This is an automated notification about your project portal access.</p>
-                </div>
-            </div>
-        </body>
-        </html>`;
-
-        await sendEmail({
-            to: client.email,
-            subject: `Welcome to Your ${projectName} Project Portal - Kolmo Construction`,
-            html: emailHtml,
-            from: 'projects@kolmo.io',
-            fromName: 'Kolmo Construction'
-        });
-
-        console.log(`✓ Portal notification sent to ${client.firstName} ${client.lastName} (${client.email})`);
+        console.log(`✓ Portal notification DISABLED for ${client.firstName} ${client.lastName} (${client.email}) - handled by payment service`);
+        // Email sending disabled to prevent duplicates during down payment flow
+        return;
     }
 
     // Generate a unique token for magic links using proper UUID v4
