@@ -185,6 +185,12 @@ BASE_URL=https://kolmo.design
   - PaymentService now handles all email communications during payment flow to prevent duplicates
   - Customers now receive exactly two emails: payment confirmation + portal access (instead of duplicate portal invitations)
   - Fixed email routing to ensure proper sender addresses and professional templates
+- June 14, 2025. Fixed magic link double-click authentication errors:
+  - Resolved "Invalid or expired link" errors that occurred when browsers made duplicate requests to magic link endpoints
+  - Added session-based authentication check that prevents token validation failures for already-authenticated users
+  - Magic links now handle multiple clicks gracefully by returning existing session data instead of failing
+  - Customers experience smooth authentication flow without confusing "Access Denied" messages
+  - Fix addresses React component lifecycle and query invalidation causing duplicate API requests
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
