@@ -3,6 +3,8 @@ import { storage } from '@server/storage';
 import { db } from '@server/db';
 import { sql } from 'drizzle-orm';
 import { generateStreamToken, createStreamUser } from '@server/stream-chat';
+import { hashPassword, comparePasswords } from '@server/auth';
+import { z } from 'zod';
 
 interface ClientDashboardResponse {
   projects: any[];
@@ -315,6 +317,161 @@ export const getClientChatToken = async (
     });
   } catch (error) {
     console.error('[getClientChatToken] Error generating chat token:', error);
+    next(error);
+  }
+};
+
+// Validation schemas
+const profileUpdateSchema = z.object({
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  email: z.string().email('Valid email is required'),
+  phone: z.string().optional(),
+});
+
+const passwordUpdateSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
+export const getClientProjects = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const user = req.user;
+    
+    if (!user || user.role !== 'client') {
+      res.status(403).json({ message: 'Access denied. Client role required.' });
+      return;
+    }
+
+    console.log(`[getClientProjects] Fetching projects for client: ${user.id}`);
+
+    const projects = await storage.projects.getProjectsForUser(user.id.toString());
+    
+    res.json(projects);
+  } catch (error) {
+    console.error('[getClientProjects] Error fetching client projects:', error);
+    next(error);
+  }
+};
+
+export const updateClientProfile = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const user = req.user;
+    
+    if (!user || user.role !== 'client') {
+      res.status(403).json({ message: 'Access denied. Client role required.' });
+      return;
+    }
+
+    // Validate request data
+    const validation = profileUpdateSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({ 
+        message: 'Invalid profile data',
+        errors: validation.error.flatten()
+      });
+      return;
+    }
+
+    const { firstName, lastName, email, phone } = validation.data;
+
+    console.log(`[updateClientProfile] Updating profile for client: ${user.id}`);
+
+    // Check if email is already taken by another user
+    if (email !== user.email) {
+      const existingUser = await storage.users.getUserByEmail(email);
+      if (existingUser && existingUser.id !== user.id) {
+        res.status(400).json({ message: 'Email address is already in use' });
+        return;
+      }
+    }
+
+    // Update user profile
+    const updatedUser = await storage.users.updateUser(user.id, {
+      firstName,
+      lastName,
+      email,
+      phone: phone || null
+    });
+
+    if (!updatedUser) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+
+    // Return updated user data (excluding sensitive information)
+    const { password, magicLinkToken, magicLinkExpiry, ...safeUserData } = updatedUser;
+    
+    res.json({
+      message: 'Profile updated successfully',
+      user: safeUserData
+    });
+  } catch (error) {
+    console.error('[updateClientProfile] Error updating client profile:', error);
+    next(error);
+  }
+};
+
+export const updateClientPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const user = req.user;
+    
+    if (!user || user.role !== 'client') {
+      res.status(403).json({ message: 'Access denied. Client role required.' });
+      return;
+    }
+
+    // Validate request data
+    const validation = passwordUpdateSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({ 
+        message: 'Invalid password data',
+        errors: validation.error.flatten()
+      });
+      return;
+    }
+
+    const { currentPassword, newPassword } = validation.data;
+
+    console.log(`[updateClientPassword] Updating password for client: ${user.id}`);
+
+    // Verify current password
+    const isCurrentPasswordValid = await comparePasswords(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
+      res.status(400).json({ message: 'Current password is incorrect' });
+      return;
+    }
+
+    // Hash new password
+    const hashedNewPassword = await hashPassword(newPassword);
+
+    // Update user password
+    const updatedUser = await storage.users.updateUser(user.id, {
+      password: hashedNewPassword
+    });
+
+    if (!updatedUser) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+
+    res.json({
+      message: 'Password updated successfully'
+    });
+  } catch (error) {
+    console.error('[updateClientPassword] Error updating client password:', error);
     next(error);
   }
 };

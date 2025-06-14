@@ -1,5 +1,12 @@
 import { Router } from 'express';
-import { getClientDashboard, getClientInvoices, getClientChatToken } from '@server/controllers/client.controller';
+import { 
+  getClientDashboard, 
+  getClientInvoices, 
+  getClientChatToken,
+  getClientProjects,
+  updateClientProfile,
+  updateClientPassword
+} from '@server/controllers/client.controller';
 
 const router = Router();
 
@@ -17,7 +24,16 @@ router.get('/invoices', (req, res, next) => {
   next();
 }, getClientInvoices);
 
+// GET /api/client/projects - Get client projects
+router.get('/projects', getClientProjects);
+
 // GET /api/client/chat-token - Get Stream Chat token for client
 router.get('/chat-token', getClientChatToken);
+
+// PUT /api/client/profile - Update client profile information
+router.put('/profile', updateClientProfile);
+
+// PUT /api/client/password - Update client password
+router.put('/password', updateClientPassword);
 
 export default router;

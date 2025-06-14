@@ -76,7 +76,7 @@ export default function ClientAccount() {
   });
 
   // Fetch client projects
-  const { data: projects = [], isLoading: projectsLoading } = useQuery({
+  const { data: projects = [], isLoading: projectsLoading } = useQuery<any[]>({
     queryKey: ['/api/client/projects'],
     enabled: !!user && user.role === 'client'
   });
