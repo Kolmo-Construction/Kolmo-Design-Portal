@@ -88,10 +88,10 @@ export const uploadDocument = async (
 
     // 1. Upload file to R2 storage
     const r2Result = await uploadToR2({
-        projectId: projectIdNum,
         fileName: req.file.originalname,
         buffer: req.file.buffer,
         mimetype: req.file.mimetype,
+        path: `projects/${projectIdNum}/documents/`,
     });
 
     if (!r2Result || !r2Result.key) {
@@ -154,10 +154,11 @@ export const deleteDocument = async (
   next: NextFunction
 ): Promise<void> => {
   let storageKeyToDelete: string | null = null;
+  const { projectId, documentId } = req.params;
+  const documentIdNum = parseInt(documentId, 10);
+  
   try {
-    const { projectId, documentId } = req.params;
     const projectIdNum = parseInt(projectId, 10);
-    const documentIdNum = parseInt(documentId, 10);
     const user = req.user as User; // Ensure User type is imported
 
     if (isNaN(projectIdNum) || isNaN(documentIdNum)) {
