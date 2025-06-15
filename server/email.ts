@@ -193,7 +193,7 @@ export async function sendMagicLinkEmail({
             ${buttonText}
           </a>
         </div>
-        <p style="font-size: 14px; color: #555; line-height: 1.6;">This link will expire in 24 hours for security reasons.</p>
+        <p style="font-size: 14px; color: #555; line-height: 1.6;">This link will remain valid for 5 months, so you can bookmark it for easy access to your project portal.</p>
         <p style="font-size: 14px; color: #555; line-height: 1.6;">If you're having trouble with the button above, copy and paste the URL below into your web browser:</p>
         <p style="word-break: break-all; background-color: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 12px; color: #333;">${link}</p>
         <p style="font-size: 14px; color: #555; line-height: 1.6;">If you didn't request this email, please ignore it.</p>
@@ -213,7 +213,7 @@ ${contentText}
 Please use the following link to ${resetPassword ? 'reset your password' : (isNewUser ? 'set up your account' : 'sign in')}:
 ${link}
 
-This link will expire in 24 hours for security reasons.
+This link will remain valid for 5 months, so you can bookmark it for easy access to your project portal.
 
 If you didn't request this email, please ignore it.
 
