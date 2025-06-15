@@ -30,16 +30,17 @@ router.get('/dashboard', async (req, res) => {
       });
     }
     
-    // Get all projects assigned to this project manager
-    const assignedProjects = await storage.projects.getProjectsByManager(userId);
+    // Get all projects assigned to this project manager using direct DB query
+    const assignedProjects = await db.select().from(schema.projects)
+      .where(eq(schema.projects.projectManagerId, userId));
     
     // Get summary statistics for each project
     const projectsWithStats = await Promise.all(
       assignedProjects.map(async (project) => {
         const [tasks, invoices, punchListItems] = await Promise.all([
-          storage.tasks.getTasksForProject(project.id),
-          storage.invoices.getInvoicesForProject(project.id),
-          storage.punchLists.getPunchListItemsForProject(project.id)
+          db.select().from(schema.tasks).where(eq(schema.tasks.projectId, project.id)),
+          db.select().from(schema.invoices).where(eq(schema.invoices.projectId, project.id)),
+          db.select().from(schema.punchListItems).where(eq(schema.punchListItems.projectId, project.id))
         ]);
         
         const completedTasks = tasks.filter(task => task.status === 'done' || task.status === 'completed');
@@ -48,7 +49,7 @@ router.get('/dashboard', async (req, res) => {
         );
         
         const paidInvoices = invoices.filter(invoice => invoice.status === 'paid');
-        const pendingInvoices = invoices.filter(invoice => invoice.status === 'sent' || invoice.status === 'pending');
+        const pendingInvoices = invoices.filter(invoice => invoice.status === 'pending' || invoice.status === 'draft');
         
         const openPunchItems = punchListItems.filter(item => item.status === 'open' || item.status === 'in_progress');
         
@@ -63,8 +64,8 @@ router.get('/dashboard', async (req, res) => {
             paidInvoices: paidInvoices.length,
             pendingInvoices: pendingInvoices.length,
             openPunchItems: openPunchItems.length,
-            totalInvoiceAmount: invoices.reduce((sum, inv) => sum + parseFloat(inv.totalAmount || '0'), 0),
-            paidAmount: paidInvoices.reduce((sum, inv) => sum + parseFloat(inv.totalAmount || '0'), 0)
+            totalInvoiceAmount: invoices.reduce((sum: number, inv: any) => sum + parseFloat(inv.amount || '0'), 0),
+            paidAmount: paidInvoices.reduce((sum: number, inv: any) => sum + parseFloat(inv.amount || '0'), 0)
           }
         };
       })
@@ -113,7 +114,8 @@ router.get('/projects', async (req, res) => {
       });
     }
     
-    const assignedProjects = await storage.projects.getProjectsByManager(userId);
+    const assignedProjects = await db.select().from(schema.projects)
+      .where(eq(schema.projects.projectManagerId, userId));
     
     res.json({
       projects: assignedProjects,
@@ -141,7 +143,10 @@ router.get('/projects/:projectId/overview', async (req, res) => {
     }
     
     // Get the project and verify the user is assigned as manager
-    const project = await storage.projects.getById(projectId);
+    const projectResult = await db.select().from(schema.projects)
+      .where(eq(schema.projects.id, projectId));
+    const project = projectResult[0];
+    
     if (!project) {
       return res.status(404).json({ message: 'Project not found' });
     }
@@ -153,14 +158,14 @@ router.get('/projects/:projectId/overview', async (req, res) => {
       });
     }
     
-    // Get comprehensive project data
+    // Get comprehensive project data using direct DB queries
     const [tasks, invoices, milestones, documents, punchListItems, clients] = await Promise.all([
-      storage.tasks.getByProjectId(projectId),
-      storage.invoices.getByProjectId(projectId),
-      storage.milestones.getByProjectId(projectId),
-      storage.documents.getByProjectId(projectId),
-      storage.punchList.getByProjectId(projectId),
-      storage.projects.getProjectClients(projectId)
+      db.select().from(schema.tasks).where(eq(schema.tasks.projectId, projectId)),
+      db.select().from(schema.invoices).where(eq(schema.invoices.projectId, projectId)),
+      db.select().from(schema.milestones).where(eq(schema.milestones.projectId, projectId)),
+      db.select().from(schema.documents).where(eq(schema.documents.projectId, projectId)),
+      db.select().from(schema.punchListItems).where(eq(schema.punchListItems.projectId, projectId)),
+      db.select().from(schema.clientProjects).where(eq(schema.clientProjects.projectId, projectId))
     ]);
     
     // Calculate detailed statistics
@@ -182,17 +187,17 @@ router.get('/projects/:projectId/overview', async (req, res) => {
       sent: invoices.filter(i => i.status === 'sent').length,
       paid: invoices.filter(i => i.status === 'paid').length,
       overdue: invoices.filter(i => i.status === 'overdue').length,
-      totalAmount: invoices.reduce((sum, inv) => sum + parseFloat(inv.totalAmount || '0'), 0),
-      paidAmount: invoices.filter(i => i.status === 'paid')
-        .reduce((sum, inv) => sum + parseFloat(inv.totalAmount || '0'), 0)
+      totalAmount: invoices.reduce((sum: number, inv: any) => sum + parseFloat(inv.amount || '0'), 0),
+      paidAmount: invoices.filter((i: any) => i.status === 'paid')
+        .reduce((sum: number, inv: any) => sum + parseFloat(inv.amount || '0'), 0)
     };
     
     const milestoneStats = {
       total: milestones.length,
       pending: milestones.filter(m => m.status === 'pending').length,
       completed: milestones.filter(m => m.status === 'completed').length,
-      overdue: milestones.filter(m => 
-        m.dueDate && new Date(m.dueDate) < new Date() && m.status !== 'completed'
+      overdue: milestones.filter((m: any) => 
+        m.plannedDate && new Date(m.plannedDate) < new Date() && m.status !== 'completed'
       ).length
     };
     

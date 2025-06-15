@@ -1,7 +1,7 @@
 import { useAuth } from '@/hooks/use-auth-unified';
 import { useLocation } from 'wouter';
 import { ClientNavigation } from './ClientNavigation';
-import { ProjectManagerNavigation } from './ProjectManagerNavigation';
+import ProjectManagerNavigation from './ProjectManagerNavigation';
 
 interface UniversalLayoutProps {
   children: React.ReactNode;
