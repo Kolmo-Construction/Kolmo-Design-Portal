@@ -237,8 +237,16 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      // Only allow closing via Cancel button, not by clicking outside
+      if (!newOpen) return;
+      onOpenChange(newOpen);
+    }}>
+      <DialogContent 
+        className="max-w-6xl max-h-[95vh] overflow-hidden flex flex-col"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Create New Quote</DialogTitle>
           <DialogDescription>
