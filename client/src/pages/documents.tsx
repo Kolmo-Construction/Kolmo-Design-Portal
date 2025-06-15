@@ -172,23 +172,22 @@ export default function Documents() {
     refetchDocuments(); // [cite: 6213]
   };
 
-  return ( // [cite: 6214]
-    <div className="h-screen bg-slate-50">
-      <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
-      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
+      <ClientNavigation />
 
-      <main className="lg:ml-64 p-4 lg:p-8 pt-24 overflow-auto h-full">
+      <main className="container mx-auto px-6 pt-24 pb-12">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-800 mb-2">Document Center</h1>
-          <p className="text-slate-600">Access all documents related to your construction projects</p>
+          <h1 className="text-3xl font-bold text-primary mb-3">Document Center</h1>
+          <p className="text-muted-foreground text-lg">Access all documents related to your construction projects</p>
         </div>
 
         {/* Filters */}
-        <Card className="mb-6"> {/* [cite: 6215] */}
+        <Card className="mb-6 border-accent/20 shadow-lg bg-gradient-to-br from-background to-muted/20">
           <CardContent className="p-4 lg:p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
-                <label htmlFor="project-filter" className="text-sm font-medium text-slate-500 mb-1 block">Project</label>
+                <label htmlFor="project-filter" className="text-sm font-medium text-primary mb-2 block">Project</label>
                 <Select value={projectFilter} onValueChange={setProjectFilter}>
                   <SelectTrigger id="project-filter"> {/* [cite: 6216] */}
                     <SelectValue placeholder="All Projects" />
@@ -209,7 +208,7 @@ export default function Documents() {
               </div>
 
               <div>
-                <label htmlFor="category-filter" className="text-sm font-medium text-slate-500 mb-1 block">Category</label>
+                <label htmlFor="category-filter" className="text-sm font-medium text-primary mb-2 block">Category</label>
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}> {/* [cite: 6219] */}
                   <SelectTrigger id="category-filter">
                     <SelectValue placeholder="All Categories" />
@@ -226,7 +225,7 @@ export default function Documents() {
               </div>
 
               <div className="relative"> {/* [cite: 6222] */}
-                <label htmlFor="search-filter" className="text-sm font-medium text-slate-500 mb-1 block">Search</label>
+                <label htmlFor="search-filter" className="text-sm font-medium text-primary mb-2 block">Search</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
@@ -322,19 +321,19 @@ export default function Documents() {
         </Card>
 
         {/* Documents List */}
-        <Card> {/* [cite: 6245] */}
+        <Card className="border-primary/20 shadow-lg bg-gradient-to-br from-background to-muted/20">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Project Documents</CardTitle>
-              <CardDescription>
-                {isLoadingDocuments ? "Loading..." : `${filteredDocuments.length} document${filteredDocuments.length !== 1 ? 's' : ''} found`} {/* [cite: 6246] */}
+              <CardTitle className="text-xl text-primary">Project Documents</CardTitle>
+              <CardDescription className="text-muted-foreground">
+                {isLoadingDocuments ? "Loading..." : `${filteredDocuments.length} document${filteredDocuments.length !== 1 ? 's' : ''} found`}
               </CardDescription>
             </div>
             {/* --- UPLOAD BUTTON & DIALOG (conditionally rendered) --- */}
             {canUploadToSelectedProject && selectedProjectId !== undefined && (
                 <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
                     <DialogTrigger asChild>
-                    <Button size="sm" className="gap-2">
+                    <Button size="sm" className="gap-2 bg-accent hover:bg-accent/90 shadow-md">
                         <Upload className="h-4 w-4" />
                         Upload Document
                     </Button>
