@@ -39,6 +39,7 @@ import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth-unified";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { ClientLayout } from "@/components/ClientLayout";
+import { ProjectManagerLayout } from "@/components/ProjectManagerLayout";
 
 function Router() {
   return (

@@ -35,12 +35,26 @@ export function ProtectedRoute({
 
         // Check admin access for admin-only routes
         if (adminOnly && user.role !== 'admin') {
-          return <Redirect to="/client-portal" />;
+          // Redirect users to their appropriate dashboard based on role
+          if (user.role === 'client') {
+            return <Redirect to="/client-portal" />;
+          } else if (user.role === 'projectManager') {
+            return <Redirect to="/project-manager" />;
+          } else {
+            return <Redirect to="/client-portal" />;
+          }
         }
 
         // Check project manager access for project manager-only routes
-        if (projectManagerOnly && user.role !== 'project_manager') {
-          return <Redirect to="/client-portal" />;
+        if (projectManagerOnly && user.role !== 'projectManager') {
+          // Redirect users to their appropriate dashboard based on role
+          if (user.role === 'client') {
+            return <Redirect to="/client-portal" />;
+          } else if (user.role === 'admin') {
+            return <Redirect to="/" />;
+          } else {
+            return <Redirect to="/client-portal" />;
+          }
         }
 
         // Auto-redirect clients to their portal from main dashboard
@@ -49,7 +63,7 @@ export function ProtectedRoute({
         }
 
         // Auto-redirect project managers to their dashboard from main admin dashboard
-        if (path === "/" && user.role === 'project_manager') {
+        if (path === "/" && user.role === 'projectManager') {
           return <Redirect to="/project-manager" />;
         }
 
