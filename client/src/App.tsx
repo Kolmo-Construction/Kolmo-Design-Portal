@@ -38,12 +38,11 @@ import ProjectManagerDashboard from "@/pages/project-manager-dashboard";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth-unified";
 import { ChatProvider } from "@/contexts/ChatContext";
-import { ClientLayout } from "@/components/ClientLayout";
-import { ProjectManagerLayout } from "@/components/ProjectManagerLayout";
+import { UniversalLayout } from "@/components/UniversalLayout";
 
 function Router() {
   return (
-    <ClientLayout>
+    <UniversalLayout>
       <Switch>
         <Route path="/auth">
           {() => <AuthPageV2 />}
@@ -100,7 +99,7 @@ function Router() {
           {() => <NotFound />}
         </Route>
       </Switch>
-    </ClientLayout>
+    </UniversalLayout>
   );
 }
 
