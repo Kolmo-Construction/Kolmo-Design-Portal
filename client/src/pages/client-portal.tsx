@@ -185,7 +185,7 @@ export default function ClientPortal() {
     );
   }
 
-  if (!user || user.role !== 'client') {
+  if (!user || (user.role !== 'client' && user.role !== 'admin')) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-muted">
         <ClientNavigation />
