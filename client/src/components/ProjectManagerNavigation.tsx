@@ -18,7 +18,7 @@ export function ProjectManagerNavigation() {
 
   const handleLogout = async () => {
     try {
-      await apiRequest('/api/logout', 'POST');
+      await apiRequest('POST', '/api/logout');
       logout();
     } catch (error) {
       console.error('Logout error:', error);

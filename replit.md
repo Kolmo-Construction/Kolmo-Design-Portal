@@ -202,6 +202,13 @@ BASE_URL=https://kolmo.design
   - Fixed document upload controller to store complete proxy URLs instead of just storage keys
   - Updated existing documents in database to use proper URL format for R2 storage access
   - File downloads now work correctly through /api/storage/proxy/ endpoint without authentication issues
+- June 15, 2025. Fixed project manager access control and navigation system:
+  - Resolved "Access Restricted" error where project managers couldn't access their assigned projects
+  - Fixed role validation mismatch (projectManager vs project_manager) in protected route logic
+  - Created dedicated ProjectManagerNavigation component with proper role-based navigation
+  - Implemented UniversalLayout system that automatically shows appropriate navigation based on user role
+  - Fixed apiRequest parameter order bug in logout functionality
+  - Project managers now have full access to their dashboard and assigned projects with proper navigation
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
