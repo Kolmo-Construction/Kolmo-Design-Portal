@@ -231,6 +231,12 @@ BASE_URL=https://kolmo.design
   - Added error logging and success confirmation for tag update operations
   - Implemented real-time tag display updates - tags now change immediately when edited instead of showing stale values
   - Tag editing interface now properly updates Expensify tags when users modify project owner names or creation dates
+- June 18, 2025. Fixed Expensify API authentication 401 errors:
+  - Identified that template inclusion was causing authentication failures with Partner API
+  - Removed problematic template file that triggered 401 responses even with valid credentials
+  - Updated error handling to properly manage 410 "No Template Submitted" responses
+  - Authentication now works correctly - connection tests pass successfully
+  - System ready for real expense data integration once proper template is implemented
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

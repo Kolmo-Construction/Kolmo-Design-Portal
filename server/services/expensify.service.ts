@@ -94,7 +94,7 @@ export class ExpensifyService {
       inputSettings: {
         type: 'combinedReportData',
         filters: {
-          reportState: 'OPEN,PROCESSING,APPROVED,REIMBURSED',
+          reportState: 'APPROVED,REIMBURSED,OPEN',
           startDate: '2024-01-01',
           endDate: new Date().toISOString().split('T')[0],
           ...additionalParams.filters,
@@ -107,10 +107,6 @@ export class ExpensifyService {
 
     const params = new URLSearchParams();
     params.append('requestJobDescription', JSON.stringify(jobDescription));
-
-    // Note: Template inclusion causes 401 authentication errors with current credentials
-    // Using template-less approach and processing raw data
-    console.log('[Expensify] Using template-less request to avoid authentication issues');
 
     return params.toString();
   }
