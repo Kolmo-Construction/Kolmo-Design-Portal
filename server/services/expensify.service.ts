@@ -86,9 +86,6 @@ export class ExpensifyService {
         partnerUserID: this.partnerUserID,
         partnerUserSecret: this.partnerUserSecret,
       },
-      onReceive: {
-        immediateResponse: ['returnRandomFileName'],
-      },
       inputSettings: {
         type: 'combinedReportData',
         filters: {
@@ -103,9 +100,9 @@ export class ExpensifyService {
       },
     };
 
+    // According to Expensify docs, only requestJobDescription is needed as URL parameter
     return new URLSearchParams({
       requestJobDescription: JSON.stringify(jobDescription),
-      template: 'expense_report', // Add template parameter
     }).toString();
   }
 
