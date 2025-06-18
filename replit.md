@@ -229,6 +229,7 @@ BASE_URL=https://kolmo.design
   - Resolved API parameter order issue in tag update mutation that was preventing successful tag modifications
   - Fixed apiRequest method call format to use proper parameter ordering (method, url, data)
   - Added error logging and success confirmation for tag update operations
+  - Implemented real-time tag display updates - tags now change immediately when edited instead of showing stale values
   - Tag editing interface now properly updates Expensify tags when users modify project owner names or creation dates
 
 ## User Preferences

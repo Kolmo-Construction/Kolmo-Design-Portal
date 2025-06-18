@@ -42,6 +42,10 @@ export function ProjectExpensifyTab({ project }: ProjectExpensifyTabProps) {
   const [editedDate, setEditedDate] = useState(
     project.createdAt ? new Date(project.createdAt).toISOString().split('T')[0] : ''
   );
+  const [currentOwnerName, setCurrentOwnerName] = useState(project.customerName || '');
+  const [currentDate, setCurrentDate] = useState(
+    project.createdAt ? new Date(project.createdAt).toISOString().split('T')[0] : ''
+  );
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -57,9 +61,7 @@ export function ProjectExpensifyTab({ project }: ProjectExpensifyTabProps) {
     return `${cleanOwnerName}_${date}`;
   };
 
-  const currentTag = generateTag(project.customerName || '', 
-    project.createdAt ? new Date(project.createdAt).toISOString().split('T')[0] : ''
-  );
+  const currentTag = generateTag(currentOwnerName, currentDate);
 
   const newTag = generateTag(editedOwnerName, editedDate);
 
@@ -74,6 +76,9 @@ export function ProjectExpensifyTab({ project }: ProjectExpensifyTabProps) {
     },
     onSuccess: (data) => {
       console.log('Tag update successful:', data);
+      // Update the current tag values to reflect the changes
+      setCurrentOwnerName(editedOwnerName);
+      setCurrentDate(editedDate);
       toast({
         title: "Tag Updated",
         description: `Expensify tag updated to: ${newTag}`,
@@ -114,8 +119,8 @@ export function ProjectExpensifyTab({ project }: ProjectExpensifyTabProps) {
   };
 
   const handleCancel = () => {
-    setEditedOwnerName(project.customerName || '');
-    setEditedDate(project.createdAt ? new Date(project.createdAt).toISOString().split('T')[0] : '');
+    setEditedOwnerName(currentOwnerName);
+    setEditedDate(currentDate);
     setIsEditing(false);
   };
 
