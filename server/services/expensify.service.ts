@@ -108,15 +108,34 @@ export class ExpensifyService {
     const params = new URLSearchParams();
     params.append('requestJobDescription', JSON.stringify(jobDescription));
 
-    // Add template file content if it exists
-    const templatePath = path.join(process.cwd(), 'expensify_template.ftl');
-    if (fs.existsSync(templatePath)) {
-      const templateContent = fs.readFileSync(templatePath, 'utf-8');
-      params.append('template', templateContent);
-      console.log('[Expensify] Template file found and included, size:', templateContent.length);
-    } else {
-      console.log('[Expensify] Template file not found at:', templatePath);
-    }
+    // Add a simplified inline template that works with Expensify's authentication
+    const simpleTemplate = `[
+<#list reports as report>
+{
+  "reportID": "\${report.reportID}",
+  "reportName": "\${report.reportName?js_string}",
+  "status": "\${report.status?js_string}",
+  "total": \${report.total?c},
+  "expenses": [
+    <#list report.transactionList as expense>
+    {
+      "transactionID": "\${expense.transactionID}",
+      "amount": \${expense.amount?c},
+      "category": "\${(expense.category!'')?js_string}",
+      "tag": "\${(expense.tag!'')?js_string}",
+      "merchant": "\${(expense.merchant!'')?js_string}",
+      "comment": "\${(expense.comment!'')?js_string}",
+      "created": "\${expense.created}",
+      "modified": "\${expense.modified}"
+    }<#if expense_has_next>,</#if>
+    </#list>
+  ]
+}<#if report_has_next>,</#if>
+</#list>
+]`;
+
+    params.append('template', simpleTemplate);
+    console.log('[Expensify] Using inline template for data extraction');
 
     return params.toString();
   }
