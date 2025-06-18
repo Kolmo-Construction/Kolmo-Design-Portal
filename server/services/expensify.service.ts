@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Expensify API schemas
 const ExpensifyExpenseSchema = z.object({
@@ -71,20 +73,22 @@ export class ExpensifyService {
    * Create authentication headers for Expensify API
    */
   private getAuthHeaders() {
-    return {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    };
+    // No Content-Type header needed for FormData - browser sets it automatically with boundary
+    return {};
   }
 
   /**
    * Create request payload for Expensify API
    */
-  private createRequestPayload(command: string, additionalParams: Record<string, any> = {}) {
+  private async createRequestPayload(command: string, additionalParams: Record<string, any> = {}): Promise<FormData> {
     const jobDescription = {
       type: 'file',
       credentials: {
         partnerUserID: this.partnerUserID,
         partnerUserSecret: this.partnerUserSecret,
+      },
+      onReceive: {
+        immediateResponse: ['returnRandomFileName'],
       },
       inputSettings: {
         type: 'combinedReportData',
@@ -100,10 +104,18 @@ export class ExpensifyService {
       },
     };
 
-    // According to Expensify docs, only requestJobDescription is needed as URL parameter
-    return new URLSearchParams({
-      requestJobDescription: JSON.stringify(jobDescription),
-    }).toString();
+    // Create FormData with both requestJobDescription and template file
+    const formData = new FormData();
+    formData.append('requestJobDescription', JSON.stringify(jobDescription));
+    
+    // Read and append the template file
+    const templatePath = path.join(process.cwd(), 'expensify_template.ftl');
+    if (fs.existsSync(templatePath)) {
+      const templateContent = fs.readFileSync(templatePath, 'utf-8');
+      formData.append('template', new Blob([templateContent], { type: 'text/plain' }), 'expensify_template.ftl');
+    }
+
+    return formData;
   }
 
   /**
@@ -126,7 +138,7 @@ export class ExpensifyService {
     try {
       // Get all expenses and filter by project ID
       // This approach works better than tag filtering since we need to handle both old and new tag formats
-      const payload = this.createRequestPayload('download');
+      const payload = await this.createRequestPayload('download');
 
       const response = await fetch(this.baseURL, {
         method: 'POST',
@@ -155,8 +167,8 @@ export class ExpensifyService {
     }
 
     try {
-      const payload = this.createRequestPayload('download');
-      console.log('[Expensify] Making API request with payload:', payload);
+      const payload = await this.createRequestPayload('download');
+      console.log('[Expensify] Making API request with FormData payload');
 
       const response = await fetch(this.baseURL, {
         method: 'POST',
@@ -325,13 +337,13 @@ export class ExpensifyService {
     if (!this.isConfigured()) {
       return {
         connected: false,
-        message: 'Expensify API credentials not configured. Please set EXPENSIFY_API_KEY, EXPENSIFY_USER_ID, and EXPENSIFY_USER_SECRET environment variables.',
+        message: 'Expensify API credentials not configured. Please set EXPENSIFY_PARTNER_USER_ID and EXPENSIFY_PARTNER_USER_SECRET environment variables.',
       };
     }
 
     try {
       // Test with a simple request
-      const payload = this.createRequestPayload('download', {
+      const payload = await this.createRequestPayload('download', {
         filters: {
           limit: 1,
         },
@@ -349,9 +361,10 @@ export class ExpensifyService {
           message: 'Successfully connected to Expensify API',
         };
       } else {
+        const errorText = await response.text();
         return {
           connected: false,
-          message: `Expensify API connection failed: ${response.status} ${response.statusText}`,
+          message: `Expensify API connection failed: ${response.status} ${response.statusText} - ${errorText}`,
         };
       }
     } catch (error) {
