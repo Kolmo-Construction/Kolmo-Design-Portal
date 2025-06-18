@@ -66,13 +66,14 @@ export function ProjectExpensifyTab({ project }: ProjectExpensifyTabProps) {
   // Update project tag mutation
   const updateTagMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest(`/api/expensify/projects/${project.id}/sync`, 'POST', {
+      const response = await apiRequest('POST', `/api/expensify/projects/${project.id}/sync`, {
         customerName: editedOwnerName,
         creationDate: editedDate
       });
       return response;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Tag update successful:', data);
       toast({
         title: "Tag Updated",
         description: `Expensify tag updated to: ${newTag}`,
@@ -81,6 +82,7 @@ export function ProjectExpensifyTab({ project }: ProjectExpensifyTabProps) {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${project.id}`] });
     },
     onError: (error: any) => {
+      console.error('Tag update error:', error);
       toast({
         title: "Update Failed",
         description: error.message || "Failed to update Expensify tag",

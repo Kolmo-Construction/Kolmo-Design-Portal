@@ -225,6 +225,11 @@ BASE_URL=https://kolmo.design
   - Enhanced expense tracking with meaningful tags instead of numeric project IDs
   - Verified API connection and authentication working with real Partner credentials
   - System ready for real-time budget monitoring against actual Expensify expenses
+- June 18, 2025. Fixed project tag editing functionality in Expensify integration:
+  - Resolved API parameter order issue in tag update mutation that was preventing successful tag modifications
+  - Fixed apiRequest method call format to use proper parameter ordering (method, url, data)
+  - Added error logging and success confirmation for tag update operations
+  - Tag editing interface now properly updates Expensify tags when users modify project owner names or creation dates
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
