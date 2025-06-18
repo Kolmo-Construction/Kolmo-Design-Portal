@@ -72,18 +72,16 @@ export class ExpensifyService {
   /**
    * Create authentication headers for Expensify API
    */
-  private getAuthHeaders(contentType?: string) {
-    const headers: Record<string, string> = {};
-    if (contentType) {
-      headers['Content-Type'] = contentType;
-    }
-    return headers;
+  private getAuthHeaders() {
+    return {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    };
   }
 
   /**
-   * Create request payload for Expensify API with multipart form data
+   * Create request payload for Expensify API using URL-encoded form data
    */
-  private createMultipartPayload(command: string, additionalParams: Record<string, any> = {}): { body: string; contentType: string } {
+  private createFormPayload(command: string, additionalParams: Record<string, any> = {}): string {
     const jobDescription = {
       type: 'file',
       credentials: {
@@ -107,30 +105,20 @@ export class ExpensifyService {
       },
     };
 
-    const boundary = `----ExpensifyFormBoundary${Date.now()}`;
-    let body = '';
+    const params = new URLSearchParams();
+    params.append('requestJobDescription', JSON.stringify(jobDescription));
 
-    // Add requestJobDescription field
-    body += `--${boundary}\r\n`;
-    body += `Content-Disposition: form-data; name="requestJobDescription"\r\n\r\n`;
-    body += `${JSON.stringify(jobDescription)}\r\n`;
-
-    // Add template file if it exists
+    // Add template file content if it exists
     const templatePath = path.join(process.cwd(), 'expensify_template.ftl');
     if (fs.existsSync(templatePath)) {
       const templateContent = fs.readFileSync(templatePath, 'utf-8');
-      body += `--${boundary}\r\n`;
-      body += `Content-Disposition: form-data; name="template"; filename="expensify_template.ftl"\r\n`;
-      body += `Content-Type: text/plain\r\n\r\n`;
-      body += `${templateContent}\r\n`;
+      params.append('template', templateContent);
+      console.log('[Expensify] Template file found and included, size:', templateContent.length);
+    } else {
+      console.log('[Expensify] Template file not found at:', templatePath);
     }
 
-    body += `--${boundary}--\r\n`;
-
-    return {
-      body,
-      contentType: `multipart/form-data; boundary=${boundary}`
-    };
+    return params.toString();
   }
 
   /**
@@ -153,12 +141,12 @@ export class ExpensifyService {
     try {
       // Get all expenses and filter by project ID
       // This approach works better than tag filtering since we need to handle both old and new tag formats
-      const { body, contentType } = this.createMultipartPayload('download');
+      const payload = this.createFormPayload('download');
 
       const response = await fetch(this.baseURL, {
         method: 'POST',
-        headers: this.getAuthHeaders(contentType),
-        body: body,
+        headers: this.getAuthHeaders(),
+        body: payload,
       });
 
       if (!response.ok) {
@@ -182,13 +170,13 @@ export class ExpensifyService {
     }
 
     try {
-      const { body, contentType } = this.createMultipartPayload('download');
-      console.log('[Expensify] Making API request with multipart form data');
+      const payload = this.createFormPayload('download');
+      console.log('[Expensify] Making API request with URL-encoded form data');
 
       const response = await fetch(this.baseURL, {
         method: 'POST',
-        headers: this.getAuthHeaders(contentType),
-        body: body,
+        headers: this.getAuthHeaders(),
+        body: payload,
       });
 
       console.log('[Expensify] API response status:', response.status, response.statusText);
@@ -358,7 +346,7 @@ export class ExpensifyService {
 
     try {
       // Test with a simple request
-      const { body, contentType } = this.createMultipartPayload('download', {
+      const payload = this.createFormPayload('download', {
         filters: {
           limit: 1,
         },
@@ -366,8 +354,8 @@ export class ExpensifyService {
 
       const response = await fetch(this.baseURL, {
         method: 'POST',
-        headers: this.getAuthHeaders(contentType),
-        body: body,
+        headers: this.getAuthHeaders(),
+        body: payload,
       });
 
       if (response.ok) {
