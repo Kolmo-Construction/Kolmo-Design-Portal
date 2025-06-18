@@ -33,6 +33,7 @@ import taskBillingRouter from "./routes/task-billing.routes"; // Task billing ro
 import { milestoneRoutes } from "./routes/milestone.routes"; // Milestone management router
 import clientRouter from "./routes/client.routes"; // Client portal router
 import billingValidationRouter from "./routes/billing-validation.routes"; // Billing validation router
+import expensifyRouter from "./routes/expensify.routes"; // Expensify integration router
 
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
 import chatRouter from "./routes/chat.routes"; // Stream Chat router
