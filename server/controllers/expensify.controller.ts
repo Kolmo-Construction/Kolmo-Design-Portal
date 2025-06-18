@@ -45,9 +45,16 @@ export class ExpensifyController {
         const allExpenses = await expensifyService.getAllExpenses();
 
         for (const project of projects) {
-          const projectExpenses: ProcessedExpense[] = allExpenses.filter(
-            expense => expense.projectId === project.id
+          // Generate the expected Expensify tag for this project
+          const expectedTag = expensifyService.generateProjectTag(
+            project.customerName || 'Unknown', 
+            new Date(project.createdAt)
           );
+          
+          const projectExpenses: ProcessedExpense[] = allExpenses.filter(expense => {
+            // Match expenses using both old format (direct project ID) and new format (owner-based tag)
+            return expense.projectId === project.id || expense.tag === expectedTag;
+          });
           
           const totalExpenses = projectExpenses.reduce(
             (sum, expense) => sum + expense.amount, 

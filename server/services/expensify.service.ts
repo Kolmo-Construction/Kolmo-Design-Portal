@@ -47,6 +47,7 @@ export interface ProcessedExpense {
   merchant: string;
   receipt?: string;
   status: 'pending' | 'approved' | 'reimbursed';
+  tag?: string; // Original Expensify tag for mapping purposes
 }
 
 export class ExpensifyService {
@@ -121,13 +122,9 @@ export class ExpensifyService {
     }
 
     try {
-      // For backward compatibility, try both project ID and project-specific tag
-      // In real implementation, you'd get the project details to generate the correct tag
-      const payload = this.createRequestPayload('download', {
-        filters: {
-          tag: projectId.toString(), // Fallback to project ID for existing projects
-        },
-      });
+      // Get all expenses and filter by project ID
+      // This approach works better than tag filtering since we need to handle both old and new tag formats
+      const payload = this.createRequestPayload('download');
 
       const response = await fetch(this.baseURL, {
         method: 'POST',
@@ -216,10 +213,24 @@ export class ExpensifyService {
       for (const report of data) {
         if (report.expenses && Array.isArray(report.expenses)) {
           for (const expense of report.expenses) {
+            // Check if expense belongs to this project using multiple tag formats:
+            // 1. Old format: just project ID (e.g., "62")
+            // 2. New format: OwnerName_YYYY-MM-DD (need to map back to project)
+            let belongsToProject = false;
+            
             if (expense.tag === projectId.toString()) {
+              // Old format - direct project ID match
+              belongsToProject = true;
+            } else if (expense.tag) {
+              // For new format, we'll need to check against all expenses
+              // and let the controller handle the mapping
+              belongsToProject = true;
+            }
+            
+            if (belongsToProject) {
               expenses.push({
                 id: expense.transactionID || `exp_${Date.now()}`,
-                projectId,
+                projectId: expense.tag === projectId.toString() ? projectId : 0, // Set to 0 for new format tags
                 amount: expense.amount || 0,
                 category: expense.category || 'Uncategorized',
                 description: expense.comment || expense.merchant || 'No description',
@@ -227,6 +238,7 @@ export class ExpensifyService {
                 merchant: expense.merchant || 'Unknown',
                 receipt: expense.receipt?.filename,
                 status: this.mapExpensifyStatus(report.status),
+                tag: expense.tag, // Preserve original tag for mapping
               });
             }
           }
