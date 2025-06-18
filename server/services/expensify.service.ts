@@ -83,25 +83,22 @@ export class ExpensifyService {
    */
   private createFormPayload(command: string, additionalParams: Record<string, any> = {}): string {
     const jobDescription = {
-      type: 'file',
+      type: 'download',
       credentials: {
         partnerUserID: this.partnerUserID,
         partnerUserSecret: this.partnerUserSecret,
       },
-      onReceive: {
-        immediateResponse: ['returnRandomFileName'],
-      },
       inputSettings: {
         type: 'combinedReportData',
+        reportState: 'APPROVED,REIMBURSED,OPEN',
         filters: {
-          reportState: 'APPROVED,REIMBURSED,OPEN',
           startDate: '2024-01-01',
           endDate: new Date().toISOString().split('T')[0],
           ...additionalParams.filters,
         },
       },
       outputSettings: {
-        fileExtension: 'json',
+        fileExtension: 'csv',
       },
     };
 
