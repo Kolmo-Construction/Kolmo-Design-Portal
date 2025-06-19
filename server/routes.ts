@@ -33,7 +33,7 @@ import taskBillingRouter from "./routes/task-billing.routes"; // Task billing ro
 import { milestoneRoutes } from "./routes/milestone.routes"; // Milestone management router
 import clientRouter from "./routes/client.routes"; // Client portal router
 import billingValidationRouter from "./routes/billing-validation.routes"; // Billing validation router
-import expensifyRouter from "./routes/expensify.routes.js"; // Expensify integration router
+import zohoExpenseRouter from "./routes/zoho-expense.routes"; // Zoho Expense integration router
 
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
 import chatRouter from "./routes/chat.routes"; // Stream Chat router
@@ -239,8 +239,8 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // Mount Global Finance routes (admin only)
   app.use("/api", globalFinanceRoutes);
 
-  // Mount Expensify integration routes
-  app.use("/api/expensify", isAuthenticated, expensifyRouter);
+  // Mount Zoho Expense integration routes
+  app.use("/api/zoho-expense", isAuthenticated, zohoExpenseRouter);
 
   // Mount Client Portal routes
   app.use("/api/client", isAuthenticated, clientRouter);
