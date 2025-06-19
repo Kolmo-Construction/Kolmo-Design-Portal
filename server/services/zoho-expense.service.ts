@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { db } from '../db';
+import { zohoTokens } from '../../shared/schema';
+import { eq } from 'drizzle-orm';
 
 // Zoho Expense API schemas
 const ZohoExpenseSchema = z.object({
@@ -80,6 +83,79 @@ export class ZohoExpenseService {
     this.clientSecret = process.env.ZOHO_CLIENT_SECRET || '';
     this.organizationId = process.env.ZOHO_ORGANIZATION_ID || '';
     this.redirectUri = process.env.ZOHO_REDIRECT_URI || '';
+    
+    // Load tokens from database on startup
+    this.loadTokensFromDatabase();
+  }
+
+  /**
+   * Load tokens from database
+   */
+  private async loadTokensFromDatabase(): Promise<void> {
+    try {
+      const tokenRecord = await db.select()
+        .from(zohoTokens)
+        .where(eq(zohoTokens.service, 'expense'))
+        .limit(1);
+
+      if (tokenRecord.length > 0) {
+        const record = tokenRecord[0];
+        this.tokens = {
+          access_token: record.accessToken,
+          refresh_token: record.refreshToken,
+          expires_at: record.expiresAt.getTime(),
+        };
+        
+        if (record.organizationId) {
+          this.organizationId = record.organizationId;
+        }
+        
+        console.log('[Zoho] Tokens loaded from database');
+      }
+    } catch (error) {
+      console.error('[Zoho] Failed to load tokens from database:', error);
+    }
+  }
+
+  /**
+   * Save tokens to database
+   */
+  private async saveTokensToDatabase(): Promise<void> {
+    if (!this.tokens) return;
+
+    try {
+      // Check if record exists
+      const existingRecord = await db.select()
+        .from(zohoTokens)
+        .where(eq(zohoTokens.service, 'expense'))
+        .limit(1);
+
+      const tokenData = {
+        service: 'expense',
+        accessToken: this.tokens.access_token,
+        refreshToken: this.tokens.refresh_token,
+        expiresAt: new Date(this.tokens.expires_at),
+        organizationId: this.organizationId || null,
+        updatedAt: new Date(),
+      };
+
+      if (existingRecord.length > 0) {
+        // Update existing record
+        await db.update(zohoTokens)
+          .set(tokenData)
+          .where(eq(zohoTokens.service, 'expense'));
+      } else {
+        // Insert new record
+        await db.insert(zohoTokens).values({
+          ...tokenData,
+          createdAt: new Date(),
+        });
+      }
+      
+      console.log('[Zoho] Tokens saved to database');
+    } catch (error) {
+      console.error('[Zoho] Failed to save tokens to database:', error);
+    }
   }
 
   /**

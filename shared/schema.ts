@@ -18,6 +18,18 @@ export const invoiceStatusEnum = pgEnum('invoice_status', ['draft', 'pending', '
 // Define invoice type enum
 export const invoiceTypeEnum = pgEnum('invoice_type', ['down_payment', 'milestone', 'final', 'change_order', 'regular']);
 
+// Zoho tokens table for OAuth persistence
+export const zohoTokens = pgTable("zoho_tokens", {
+  id: serial("id").primaryKey(),
+  service: text("service").notNull().default("expense"), // expense, books, etc.
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  organizationId: text("organization_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 
 
 
