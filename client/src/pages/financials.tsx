@@ -6,8 +6,8 @@ import Sidebar from "@/components/Sidebar";
 import FinancialSummary from "@/components/FinancialSummary";
 import { Project, Invoice, Payment } from "@shared/schema";
 
-// Expensify integration interfaces
-interface ExpensifyExpense {
+// Zoho Expense integration interfaces
+interface ZohoExpense {
   id: string;
   projectId: number;
   amount: number;
@@ -26,7 +26,7 @@ interface ProjectBudgetTracking {
   totalExpenses: number;
   remainingBudget: number;
   budgetUtilization: number;
-  expenses: ExpensifyExpense[];
+  expenses: ZohoExpense[];
 }
 import {
   Card,
@@ -108,7 +108,7 @@ export default function Financials() {
   const { 
     data: zohoConfig,
     isLoading: isLoadingZohoConfig 
-  } = useQuery<{ configured: boolean; message: string }>({
+  } = useQuery<{ configured: boolean; connected: boolean; message: string }>({
     queryKey: ["/api/zoho-expense/status"],
   });
 
@@ -216,8 +216,8 @@ export default function Financials() {
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant={zohoConfig?.configured ? "default" : "secondary"}>
-                  {zohoConfig?.configured ? "Connected" : "Not Connected"}
+                <Badge variant={zohoConfig?.connected ? "default" : "destructive"}>
+                  {zohoConfig?.connected ? "Connected" : "Not Authorized"}
                 </Badge>
                 <Button 
                   variant="outline" 
@@ -232,7 +232,42 @@ export default function Financials() {
             </div>
           </CardHeader>
           <CardContent>
-            {zohoConfig?.configured ? (
+            {!zohoConfig?.connected ? (
+              <div className="text-center py-8 bg-amber-50 rounded-lg border border-amber-200">
+                <div className="max-w-md mx-auto">
+                  <div className="mb-4">
+                    <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <DollarSign className="h-8 w-8 text-amber-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-amber-800 mb-2">
+                      Connect Zoho Expense
+                    </h3>
+                    <p className="text-amber-700 text-sm mb-6">
+                      To view budget tracking and expense data, you need to authorize access to your Zoho Expense account.
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => {
+                      // Get authorization URL and open in new window
+                      fetch('/api/zoho-expense/auth/url')
+                        .then(res => res.json())
+                        .then(data => {
+                          if (data.authUrl) {
+                            window.open(data.authUrl, '_blank');
+                          }
+                        })
+                        .catch(console.error);
+                    }}
+                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    Connect to Zoho Expense
+                  </Button>
+                  <p className="text-xs text-amber-600 mt-3">
+                    You'll be redirected to Zoho to authorize access. After authorization, return here and refresh the page.
+                  </p>
+                </div>
+              </div>
+            ) : (
               <div className="space-y-4">
                 {/* Budget Overview Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -373,21 +408,31 @@ export default function Financials() {
                   ))}
                 </div>
               </div>
-            ) : (
-              <div className="text-center py-8">
-                <DollarSign className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-slate-800 mb-2">Connect to Zoho Expense</h3>
-                <p className="text-slate-600 mb-4">
-                  Link your Zoho Expense account to automatically track project expenses against budgets
-                </p>
-                <Button onClick={() => refetchBudgetData()} className="gap-2">
-                  <ExternalLink className="h-4 w-4" />
-                  Setup Zoho Integration
-                </Button>
-              </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Traditional Financial Data when Zoho is not connected */}
+        {!zohoConfig?.connected && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Traditional Financial Overview
+              </CardTitle>
+              <CardDescription>
+                View invoices and payments while setting up expense tracking
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-4">
+                <p className="text-slate-600">
+                  Continue viewing your invoices and payments below while setting up Zoho Expense integration for comprehensive budget tracking.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Financial Summary */}
         <div className="mb-6">
