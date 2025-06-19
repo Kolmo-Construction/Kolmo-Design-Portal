@@ -222,6 +222,9 @@ export class ZohoExpenseService {
       expires_at: Date.now() + (data.expires_in * 1000),
     };
 
+    // Save tokens to database
+    await this.saveTokensToDatabase();
+
     return this.tokens;
   }
 
