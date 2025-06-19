@@ -68,7 +68,7 @@ export function ProjectExpensifyTab({ project }: ProjectExpensifyTabProps) {
   // Update project tag mutation
   const updateTagMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('POST', `/api/expensify/projects/${project.id}/sync`, {
+      const response = await apiRequest('POST', `/api/zoho-expense/projects/${project.id}/sync`, {
         customerName: editedOwnerName,
         creationDate: editedDate
       });
@@ -81,7 +81,7 @@ export function ProjectExpensifyTab({ project }: ProjectExpensifyTabProps) {
       setCurrentDate(editedDate);
       toast({
         title: "Tag Updated",
-        description: `Expensify tag updated to: ${newTag}`,
+        description: `Zoho tag updated to: ${newTag}`,
       });
       setIsEditing(false);
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${project.id}`] });
