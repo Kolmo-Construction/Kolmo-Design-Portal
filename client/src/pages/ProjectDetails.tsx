@@ -47,7 +47,7 @@ import { ProjectScheduleTab } from "@/components/project-details/ProjectSchedule
 import { ProjectTasksTab } from "@/components/project-details/ProjectTasksTab";
 import { ProjectDailyLogsTab } from "@/components/project-details/ProjectDailyLogsTab";
 import { ProjectPunchListTab } from "@/components/project-details/ProjectPunchListTab";
-import { ProjectExpensifyTab } from "@/components/project-details/ProjectExpensifyTab";
+import { ProjectZohoExpenseTab } from "@/components/project-details/ProjectZohoExpenseTab";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth-unified";
 
@@ -337,7 +337,7 @@ export default function ProjectDetails() {
             </TabsContent>
             {user?.role === 'admin' && (
               <TabsContent value="expensify" className="mt-0 p-6">
-                {activeTab === 'expensify' && <ProjectExpensifyTab project={project} />}
+                {activeTab === 'expensify' && <ProjectZohoExpenseTab project={project} />}
               </TabsContent>
             )}
           </div>
