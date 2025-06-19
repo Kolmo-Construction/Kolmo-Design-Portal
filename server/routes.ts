@@ -239,15 +239,21 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // Mount Global Finance routes (admin only)
   app.use("/api", globalFinanceRoutes);
 
-  // Mount Zoho Expense integration routes
-  app.use("/api/zoho-expense", zohoExpenseRouter);
-
   // Add redirect route for Zoho callback (compatibility with Zoho app configuration)
   app.get("/api/auth/zoho/callback", async (req: any, res: any) => {
+    console.log('[Zoho Callback Redirect] Processing callback redirect');
+    console.log('[Zoho Callback Redirect] Query params:', req.query);
+    
     // Redirect to the actual callback handler
-    const queryString = new URLSearchParams(req.query).toString();
-    res.redirect(`/api/zoho-expense/auth/callback?${queryString}`);
+    const queryString = new URLSearchParams(req.query as Record<string, string>).toString();
+    const redirectUrl = `/api/zoho-expense/auth/callback?${queryString}`;
+    
+    console.log('[Zoho Callback Redirect] Redirecting to:', redirectUrl);
+    res.redirect(302, redirectUrl);
   });
+
+  // Mount Zoho Expense integration routes
+  app.use("/api/zoho-expense", zohoExpenseRouter);
 
   // Mount Client Portal routes
   app.use("/api/client", isAuthenticated, clientRouter);

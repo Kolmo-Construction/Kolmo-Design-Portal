@@ -33,26 +33,25 @@ export class ZohoExpenseController {
     try {
       const { code } = req.query;
       
+      console.log('[Zoho Callback] Received callback with code:', code);
+      
       if (!code || typeof code !== 'string') {
         return res.status(400).json({ error: 'Authorization code not provided' });
       }
 
+      console.log('[Zoho Callback] Attempting token exchange...');
       const tokens = await zohoExpenseService.exchangeCodeForTokens(code);
       
-      // In a production app, you'd save tokens to secure storage
-      // For now, we'll keep them in memory
+      console.log('[Zoho Callback] Token exchange successful');
       
-      res.json({
-        success: true,
-        message: 'Successfully authorized with Zoho Expense',
-        expiresAt: new Date(tokens.expires_at).toISOString(),
-      });
+      // Redirect to admin dashboard with success message
+      res.redirect('/?zoho_connected=true');
     } catch (error) {
       console.error('Error handling Zoho callback:', error);
-      res.status(500).json({
-        error: 'Failed to complete authorization',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
+      
+      // Redirect to admin dashboard with error message
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.redirect(`/?zoho_error=${encodeURIComponent(errorMessage)}`);
     }
   }
 
