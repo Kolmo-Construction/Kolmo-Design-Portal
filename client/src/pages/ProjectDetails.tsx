@@ -297,7 +297,7 @@ export default function ProjectDetails() {
               {user?.role === 'admin' && (
                 <TabsTrigger value="expensify" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
                   <Tag className="h-4 w-4 mr-2" />
-                  Expensify
+                  Zoho Expense
                 </TabsTrigger>
               )}
             </TabsList>
