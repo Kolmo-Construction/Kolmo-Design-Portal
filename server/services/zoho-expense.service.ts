@@ -74,7 +74,7 @@ export class ZohoExpenseService {
   private clientSecret: string;
   private organizationId: string;
   private redirectUri: string;
-  private baseURL = 'https://books.zohoapis.com/api/v3';
+  private baseURL = 'https://www.zohoapis.com/books/v3';
   private authURL = 'https://accounts.zoho.com/oauth/v2';
   private tokens: ZohoTokens | null = null;
 
