@@ -236,6 +236,11 @@ BASE_URL=https://kolmo.design
   - Created detailed project-expense mapping documentation and verification tools
   - System ready for real-time budget monitoring with proper project tag matching (e.g., "SamarArny_2025-06-18")
   - Fixed token persistence issues to ensure OAuth tokens survive service restarts
+- June 20, 2025. Fixed Zoho API DNS resolution error:
+  - Corrected baseURL from 'https://books.zohoapis.com/api/v3' to 'https://www.zohoapis.com/books/v3'
+  - Resolved ENOTFOUND DNS error that was preventing all Zoho API calls
+  - Verified DNS resolution is working correctly with test script
+  - Zoho integration can now properly connect to API endpoints for budget tracking
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
