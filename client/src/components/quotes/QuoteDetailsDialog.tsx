@@ -33,6 +33,7 @@ import { EditLineItemDialog } from "./EditLineItemDialog";
 import { QuoteFinancialsDialog } from "./QuoteFinancialsDialog";
 import { EditQuoteDetailsDialog } from "./EditQuoteDetailsDialog";
 import { QuoteImageManager } from "./QuoteImageManager";
+import { QuotePhotoGallery } from "./QuotePhotoGallery";
 
 interface QuoteDetailsDialogProps {
   quote: QuoteWithDetails;
@@ -239,6 +240,16 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
                 queryClient.invalidateQueries({ queryKey: [`/api/quotes/${currentQuote.id}`] });
               }}
             />
+
+            {/* Photo Gallery Management */}
+            <div className="mt-6">
+              <QuotePhotoGallery
+                quoteId={currentQuote.id}
+                onPhotosUpdated={() => {
+                  queryClient.invalidateQueries({ queryKey: [`/api/quotes/${currentQuote.id}`] });
+                }}
+              />
+            </div>
 
             {/* Line Items */}
             <Card>

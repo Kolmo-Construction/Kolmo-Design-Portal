@@ -48,7 +48,7 @@ export function QuotePhotoGallery({ quoteId, onPhotosUpdated }: QuotePhotoGaller
   const queryClient = useQueryClient();
 
   // Fetch quote media
-  const { data: photos = [], isLoading } = useQuery({
+  const { data: photos = [], isLoading } = useQuery<QuoteMedia[]>({
     queryKey: [`/api/quotes/${quoteId}/media`],
     enabled: !!quoteId,
   });
@@ -275,7 +275,7 @@ export function QuotePhotoGallery({ quoteId, onPhotosUpdated }: QuotePhotoGaller
           {/* Photos Grid */}
           {photos.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {photos.map((photo: QuoteMedia) => (
+              {photos.map((photo) => (
                 <div key={photo.id} className="relative group">
                   <div className="relative overflow-hidden rounded-lg border">
                     <img

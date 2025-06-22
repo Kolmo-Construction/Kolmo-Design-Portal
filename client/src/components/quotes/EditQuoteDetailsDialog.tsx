@@ -507,6 +507,24 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
               />
             </CardContent>
           </Card>
+
+          {/* Photo Gallery Management */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Photo Gallery</CardTitle>
+              <CardDescription>
+                Add and manage additional photos with custom captions and slogans
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <QuotePhotoGallery
+                quoteId={quote.id}
+                onPhotosUpdated={() => {
+                  queryClient.invalidateQueries({ queryKey: [`/api/quotes/${quote.id}`] });
+                }}
+              />
+            </CardContent>
+          </Card>
         </div>
 
         <div className="flex justify-end gap-2 pt-4">
