@@ -241,6 +241,15 @@ BASE_URL=https://kolmo.design
   - Resolved ENOTFOUND DNS error that was preventing all Zoho API calls
   - Verified DNS resolution is working correctly with test script
   - Zoho integration can now properly connect to API endpoints for budget tracking
+- June 22, 2025. Fixed quote photo gallery display in customer emails and enhanced manual tax editing:
+  - Resolved issue where photo gallery images weren't appearing in quote emails sent to customers
+  - Added comprehensive photo gallery section to quote email template with professional styling
+  - Photos now display with categories, captions, and proper responsive grid layout in emails
+  - Fixed manual tax editing functionality with improved form state management and validation
+  - Enhanced API call handling for tax toggle operations with proper error handling
+  - Added clearer helper text to distinguish between manual tax amounts vs automatic percentage rates
+  - Quote emails now include all uploaded photos from the photo gallery with their custom captions
+  - Verified photo URL storage and retrieval works correctly through database and email system
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
