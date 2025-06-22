@@ -259,6 +259,9 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // Mount Client Portal routes
   app.use("/api/client", isAuthenticated, clientRouter);
 
+  // Mount Admin Images routes
+  app.use("/api/admin/images", adminImagesRoutes);
+
   // --- REMOVED: Old inline route definitions and local router variables ---
   // const taskRouter = Router(...) // REMOVED
   // const dailyLogRouter = Router(...) // REMOVED

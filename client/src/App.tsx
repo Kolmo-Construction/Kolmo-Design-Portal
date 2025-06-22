@@ -34,6 +34,7 @@ import AdminInvoices from "@/pages/AdminInvoices";
 import ClientPortalPage from "@/pages/client-portal";
 import ClientAccount from "@/pages/client-account";
 import ProjectManagerDashboard from "@/pages/project-manager-dashboard";
+import AdminImageGallery from "@/pages/AdminImageGallery";
 
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth-unified";
