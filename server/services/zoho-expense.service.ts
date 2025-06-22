@@ -548,14 +548,16 @@ export class ZohoExpenseService {
       };
     }
 
-    if (!this.tokens) {
-      return {
-        connected: false,
-        message: 'Zoho Expense not authorized. Please complete OAuth authorization first.',
-      };
-    }
-
     try {
+      await this.ensureInitialized();
+      
+      if (!this.tokens) {
+        return {
+          connected: false,
+          message: 'Zoho Expense not authorized. Please complete OAuth authorization first.',
+        };
+      }
+
       const orgs = await this.getOrganizations();
       
       if (orgs.length === 0) {
