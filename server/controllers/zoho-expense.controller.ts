@@ -72,6 +72,124 @@ export class ZohoExpenseController {
   }
 
   /**
+   * Debug Zoho Expense integration with detailed diagnostics
+   */
+  static async debugZohoExpense(req: Request, res: Response) {
+    console.log('=== ZOHO EXPENSE DEBUG START ===');
+    
+    try {
+      const service = zohoExpenseService;
+      
+      // 1. Check basic configuration
+      console.log('1. Configuration Check:');
+      console.log('   - Service configured:', service.isConfigured());
+      console.log('   - Client ID set:', !!process.env.ZOHO_CLIENT_ID);
+      console.log('   - Client Secret set:', !!process.env.ZOHO_CLIENT_SECRET);
+      console.log('   - Redirect URI:', process.env.ZOHO_REDIRECT_URI);
+      
+      // 2. Initialize and check tokens
+      console.log('\n2. Token Check:');
+      await service.initialize();
+      const tokens = service.getTokens();
+      console.log('   - Tokens available:', !!tokens);
+      if (tokens) {
+        console.log('   - Access token length:', tokens.access_token?.length);
+        console.log('   - Token expires at:', new Date(tokens.expires_at));
+        console.log('   - Token expired:', Date.now() >= tokens.expires_at);
+      }
+      
+      // 3. Test organizations endpoint specifically
+      console.log('\n3. Organizations API Test:');
+      try {
+        if (!tokens) {
+          throw new Error('No tokens available - need to complete OAuth first');
+        }
+        
+        const accessToken = await (service as any).getValidAccessToken();
+        console.log('   - Valid access token obtained:', !!accessToken);
+        
+        // Test the exact organizations endpoint
+        const orgUrl = 'https://www.zohoapis.com/expense/v1/organizations';
+        console.log('   - Testing URL:', orgUrl);
+        
+        const orgResponse = await fetch(orgUrl, {
+          headers: {
+            'Authorization': `Zoho-oauthtoken ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        console.log('   - Organizations response status:', orgResponse.status);
+        console.log('   - Organizations response headers:', Object.fromEntries(orgResponse.headers.entries()));
+        
+        if (!orgResponse.ok) {
+          const errorText = await orgResponse.text();
+          console.log('   - Organizations error response:', errorText);
+          throw new Error(`Organizations API failed: ${orgResponse.status} - ${errorText}`);
+        }
+        
+        const orgData = await orgResponse.json();
+        console.log('   - Organizations data:', orgData);
+        
+        if (orgData.organizations && orgData.organizations.length > 0) {
+          const firstOrg = orgData.organizations[0];
+          console.log('   - First organization:', firstOrg);
+          
+          // 4. Test expenses endpoint with organization ID
+          console.log('\n4. Expenses API Test:');
+          const expenseUrl = 'https://www.zohoapis.com/expense/v1/expenses';
+          console.log('   - Testing URL:', expenseUrl);
+          console.log('   - Using org ID:', firstOrg.organization_id);
+          
+          const expenseResponse = await fetch(expenseUrl, {
+            headers: {
+              'Authorization': `Zoho-oauthtoken ${accessToken}`,
+              'X-com-zoho-expense-organizationid': firstOrg.organization_id,
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          console.log('   - Expenses response status:', expenseResponse.status);
+          console.log('   - Expenses response headers:', Object.fromEntries(expenseResponse.headers.entries()));
+          
+          if (!expenseResponse.ok) {
+            const errorText = await expenseResponse.text();
+            console.log('   - Expenses error response:', errorText);
+            console.log('   - This might be normal if no expenses exist');
+          } else {
+            const expenseData = await expenseResponse.json();
+            console.log('   - Expenses data structure:', Object.keys(expenseData));
+            console.log('   - Expenses count:', expenseData.expenses?.length || 0);
+          }
+        } else {
+          console.log('   - No organizations found in response');
+        }
+        
+      } catch (apiError) {
+        console.error('   - API Test Error:', apiError);
+        throw apiError;
+      }
+      
+      console.log('\n=== ZOHO EXPENSE DEBUG END ===');
+      res.json({
+        success: true,
+        message: 'Debug completed successfully'
+      });
+      
+    } catch (error) {
+      console.error('=== ZOHO EXPENSE DEBUG ERROR ===');
+      console.error('Error:', error);
+      console.log('=== ZOHO EXPENSE DEBUG END ===');
+      
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        message: 'Debug failed - check console for details'
+      });
+    }
+  }
+
+  /**
    * Get budget tracking data for all projects
    */
   static async getBudgetTracking(req: Request, res: Response) {

@@ -11,6 +11,7 @@ router.get('/auth/callback', ZohoExpenseController.handleCallback);
 // Configuration and testing routes
 router.get('/status', isAuthenticated, ZohoExpenseController.getConfigurationStatus);
 router.get('/test', isAuthenticated, ZohoExpenseController.testConnection);
+router.get('/debug', isAuthenticated, ZohoExpenseController.debugZohoExpense);
 router.get('/organizations', isAuthenticated, ZohoExpenseController.getOrganizations);
 
 // Budget tracking routes
