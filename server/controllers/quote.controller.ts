@@ -1087,20 +1087,21 @@ This email was sent to ${quote.customerEmail}. All quotes are confidential and p
 
   async deleteQuoteImage(req: Request, res: Response) {
     try {
-      const imageId = parseInt(req.params.imageId);
-      if (isNaN(imageId)) {
-        return res.status(400).json({ error: "Invalid image ID" });
+      // Use mediaId parameter to match the route definition
+      const mediaId = parseInt(req.params.mediaId || req.params.imageId);
+      if (isNaN(mediaId)) {
+        return res.status(400).json({ error: "Invalid media ID" });
       }
 
-      const success = await this.quoteRepository.deleteQuoteImage(imageId);
+      const success = await this.quoteRepository.deleteQuoteImage(mediaId);
       if (!success) {
-        return res.status(404).json({ error: "Image not found" });
+        return res.status(404).json({ error: "Media not found" });
       }
 
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting image:", error);
-      res.status(500).json({ error: "Failed to delete image" });
+      console.error("Error deleting media:", error);
+      res.status(500).json({ error: "Failed to delete media" });
     }
   }
 
