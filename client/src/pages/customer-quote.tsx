@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Check, X, MessageSquare, Calendar, MapPin, Clock, Phone, Mail, Shield, Award, Star, FileText, DollarSign, Calculator, Wrench, Home, Hammer, Zap, Paintbrush, Users, Package, Truck, HardHat, Eye, EyeOff, CreditCard } from "lucide-react";
+import { Check, X, MessageSquare, Calendar, MapPin, Clock, Phone, Mail, Shield, Award, Star, FileText, DollarSign, Calculator, Wrench, Home, Hammer, Zap, Paintbrush, Users, Package, Truck, HardHat, Eye, EyeOff, CreditCard, Camera, Image as ImageIcon } from "lucide-react";
 import QuoteAnalytics from "@/lib/quote-analytics";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,18 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { QuoteChatWidget } from "@/components/chat/QuoteChatWidget";
 import { ChatProvider } from "@/contexts/ChatContext";
+
+interface QuoteMedia {
+  id: number;
+  quoteId: number;
+  mediaUrl: string;
+  mediaType: string;
+  caption: string;
+  category: string;
+  sortOrder: number;
+  uploadedById: number;
+  createdAt: string;
+}
 
 interface QuoteResponse {
   id: number;
@@ -135,6 +147,19 @@ export default function CustomerQuotePage() {
         throw new Error(`Failed to load quote: ${res.statusText}`);
       }
       
+      return await res.json();
+    },
+  });
+
+  // Fetch quote media/photos for display to customer
+  const { data: quotePhotos = [] } = useQuery<QuoteMedia[]>({
+    queryKey: [`/api/quotes/${quote?.id}/media`],
+    enabled: !!quote?.id,
+    queryFn: async () => {
+      const res = await fetch(`/api/quotes/${quote.id}/media`);
+      if (!res.ok) {
+        return []; // Return empty array if photos can't be loaded
+      }
       return await res.json();
     },
   });
@@ -809,6 +834,60 @@ export default function CustomerQuotePage() {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Photo Gallery - Display uploaded images to customer */}
+        {quotePhotos && quotePhotos.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
+              <div className="flex items-center gap-3">
+                <Camera className="h-6 w-6" style={{color: '#db973c'}} />
+                <div>
+                  <h3 className="text-xl font-bold" style={{color: '#1a1a1a'}}>Project Gallery</h3>
+                  <p style={{color: '#4a6670'}}>Additional photos and project details</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {quotePhotos
+                  .sort((a, b) => a.sortOrder - b.sortOrder)
+                  .map((photo) => (
+                    <div key={photo.id} className="group">
+                      <div className="relative rounded-xl overflow-hidden shadow-lg mb-3">
+                        <img 
+                          src={photo.mediaUrl} 
+                          alt={photo.caption || 'Project photo'} 
+                          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        {photo.category && photo.category !== 'gallery' && (
+                          <div className="absolute top-2 right-2">
+                            <Badge 
+                              variant="secondary" 
+                              className="bg-white/90 text-gray-700 text-xs font-medium"
+                            >
+                              {photo.category}
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                      {photo.caption && (
+                        <div className="text-center">
+                          <p className="text-sm font-medium" style={{color: '#1a1a1a'}}>{photo.caption}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+              <div className="text-center mt-6 p-4 rounded-xl" style={{backgroundColor: '#f5f5f5'}}>
+                <p className="text-sm" style={{color: '#4a6670'}}>
+                  <ImageIcon className="h-4 w-4 inline mr-2" />
+                  <strong>Project Gallery:</strong> These photos showcase our work quality, materials, and attention to detail. 
+                  They represent the same level of craftsmanship you can expect for your project.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
