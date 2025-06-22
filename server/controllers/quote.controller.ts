@@ -1086,9 +1086,8 @@ This email was sent to ${quote.customerEmail}. All quotes are confidential and p
       
       // Create media record
       const mediaData = {
-        quoteId,
-        mediaUrl: uploadResult.url,
-        mediaType: 'image',
+        url: uploadResult.url,
+        type: 'image',
         caption: caption || '',
         category: category || 'gallery',
         uploadedById: (req as any).user?.id || 1,
