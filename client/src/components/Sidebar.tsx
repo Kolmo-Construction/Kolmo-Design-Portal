@@ -66,6 +66,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
     { href: "/documents", icon: <FileText className="h-5 w-5 mr-3" />, label: "Documents" },
     { href: "/financials", icon: <ClipboardList className="h-5 w-5 mr-3" />, label: "Financials" },
     { href: "/admin/invoices", icon: <ClipboardList className="h-5 w-5 mr-3" />, label: "Invoice Management" },
+    { href: "/admin/images", icon: <ImageIcon className="h-5 w-5 mr-3" />, label: "Image Gallery" },
     { href: "/messages", icon: <MessageSquare className="h-5 w-5 mr-3" />, label: "Messages" },
     { href: "/progress-updates", icon: <ImageIcon className="h-5 w-5 mr-3" />, label: "Progress Updates" },
     { href: "/schedule", icon: <Calendar className="h-5 w-5 mr-3" />, label: "Schedule" },

@@ -113,11 +113,12 @@ export function AdminImageGalleryView({
   // Update mutation
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<AdminImage> }) =>
-      apiRequest(`/api/admin/images/${id}`, {
+      fetch(`/api/admin/images/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
         headers: { 'Content-Type': 'application/json' },
-      }),
+        credentials: 'include'
+      }).then(res => res.json()),
     onSuccess: () => {
       toast({
         title: 'Image Updated',

@@ -81,6 +81,7 @@ function Router() {
         <ProtectedRoute path="/invoices/:invoiceId/view" component={InvoiceDetailPage} />
         <ProtectedRoute path="/settings" component={Settings} adminOnly />
         <ProtectedRoute path="/user-management" component={UserManagement} adminOnly />
+        <ProtectedRoute path="/admin/images" component={AdminImageGallery} adminOnly />
         
         {/* Public customer quote routes */}
         <Route path="/quote/:token" component={CustomerQuote} />
