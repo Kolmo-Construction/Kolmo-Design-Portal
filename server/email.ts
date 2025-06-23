@@ -117,6 +117,15 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     return true;
   } catch (error: any) {
     console.error('Failed to send email via Mailgun:', error);
+    
+    // Check for specific Mailgun errors and provide helpful messages
+    if (error?.details?.includes('add the address to your authorized recipients')) {
+      console.error(`⚠️  MAILGUN FREE ACCOUNT: Add ${options.to} to authorized recipients in Mailgun dashboard`);
+      console.error('   Or upgrade to a paid plan to remove recipient restrictions');
+    } else if (error?.details?.includes('Please activate your Mailgun account')) {
+      console.error('⚠️  MAILGUN ACCOUNT: Please activate your account via email or Mailgun dashboard');
+    }
+    
     if (error?.response) {
       console.error('Mailgun error response:', error.response);
     }
