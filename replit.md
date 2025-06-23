@@ -259,6 +259,14 @@ BASE_URL=https://kolmo.design
   - Verified Zoho integration working correctly with 45 real expenses retrieved from API
   - Budget tracking now properly initializes service before attempting API calls
   - Photo deletion now works correctly for uploaded images in quote galleries
+- June 23, 2025. Replaced SendGrid with Mailgun for email delivery:
+  - Completely replaced SendGrid service with Mailgun to resolve credit limit issues
+  - Updated email service to use Mailgun API with proper authentication and domain configuration
+  - Removed @sendgrid/mail dependency and added mailgun.js with form-data for email sending
+  - Updated all email templates and sending logic to work with Mailgun's API structure
+  - Maintained existing email functionality for quotes, magic links, and payment confirmations
+  - Email service now uses MAILGUN_API_KEY and MAILGUN_DOMAIN environment variables
+  - Requires Mailgun account activation to enable email sending from sandbox domain
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
