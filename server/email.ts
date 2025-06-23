@@ -1,18 +1,26 @@
-import sgMail from '@sendgrid/mail';
+import Mailgun from 'mailgun.js';
+import formData from 'form-data';
 import { getBaseUrl } from '@server/domain.config';
 
-// Initialize SendGrid with API key
-if (!process.env.SENDGRID_API_KEY) {
-  console.warn("SENDGRID_API_KEY environment variable is not set. Email functionality will not work.");
+// Initialize Mailgun
+let mailgun: any = null;
+
+if (!process.env.MAILGUN_API_KEY || !process.env.MAILGUN_DOMAIN) {
+  console.warn("MAILGUN_API_KEY or MAILGUN_DOMAIN environment variable is not set. Email functionality will not work.");
 } else {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  const mg = new Mailgun(formData);
+  mailgun = mg.client({
+    username: 'api',
+    key: process.env.MAILGUN_API_KEY,
+    url: process.env.MAILGUN_API_URL || 'https://api.mailgun.net'
+  });
 }
 
 /**
  * Check if the email service is configured properly
  */
 export function isEmailServiceConfigured(): boolean {
-  return !!process.env.SENDGRID_API_KEY;
+  return !!(process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN);
 }
 
 interface EmailOptions {
@@ -25,13 +33,13 @@ interface EmailOptions {
   attachments?: any;
 }
 
-// Default sender email - should be a verified domain in SendGrid account
+// Default sender email - should be a verified domain in Mailgun account
 // Override to use the verified Kolmo email address
-const DEFAULT_FROM_EMAIL = 'project@kolmo.io';
+const DEFAULT_FROM_EMAIL = 'projects@kolmo.io';
 const DEFAULT_FROM_NAME = "Kolmo Construction";
 
 /**
- * Send an email using SendGrid
+ * Send an email using Mailgun
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   const isDev = process.env.NODE_ENV === 'development';
@@ -68,7 +76,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   }
 
   if (!isEmailServiceConfigured()) {
-    console.warn("SendGrid API key not configured - skipping email send");
+    console.warn("Mailgun API key or domain not configured - skipping email send");
     return isDev; // Return true in dev mode so app doesn't break, false in production
   }
 
@@ -89,28 +97,28 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
         .trim();
     }
 
-    const msg: any = {
+    const mailgunData: any = {
+      from: `${fromName} <${fromEmail}>`,
       to: options.to,
-      from: {
-        email: fromEmail,
-        name: fromName
-      },
       subject: options.subject,
       text: textContent || 'Please view this email in HTML format.',
       html: options.html || options.text || ''
     };
 
     if (options.attachments) {
-      msg.attachments = options.attachments;
+      mailgunData.attachment = options.attachments;
     }
 
-    await sgMail.send(msg);
-    console.log(`Email sent successfully to ${options.to}`);
+    const domain = process.env.MAILGUN_DOMAIN!;
+    const result = await mailgun.messages.create(domain, mailgunData);
+    
+    console.log(`Email sent successfully to ${options.to} via Mailgun`);
+    console.log('Mailgun response:', result);
     return true;
   } catch (error: any) {
-    console.error('Failed to send email via SendGrid:', error);
+    console.error('Failed to send email via Mailgun:', error);
     if (error?.response) {
-      console.error('SendGrid error response:', error.response.body);
+      console.error('Mailgun error response:', error.response);
     }
     
     // In development, consider it a success to avoid breaking the flow
