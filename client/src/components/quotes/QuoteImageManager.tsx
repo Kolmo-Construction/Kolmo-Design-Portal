@@ -207,7 +207,7 @@ export function QuoteImageManager({
                   <img
                     src={beforeImageUrl}
                     alt="Before"
-                    className="w-full h-48 object-cover rounded-lg border"
+                    className="w-full h-48 object-contain rounded-lg border"
                   />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
                     <Button
@@ -278,7 +278,7 @@ export function QuoteImageManager({
                   <img
                     src={afterImageUrl}
                     alt="After"
-                    className="w-full h-48 object-cover rounded-lg border"
+                    className="w-full h-48 object-contain rounded-lg border"
                   />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
                     <Button

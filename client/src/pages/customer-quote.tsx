@@ -742,14 +742,14 @@ export default function CustomerQuotePage() {
                           <ReactCompareSliderImage 
                             src={quoteData.beforeImageUrl} 
                             alt="Before" 
-                            style={{ objectFit: 'cover', width: '100%', height: '400px' }}
+                            style={{ objectFit: 'contain', width: '100%', height: 'auto', maxHeight: '600px' }}
                           />
                         }
                         itemTwo={
                           <ReactCompareSliderImage 
                             src={quoteData.afterImageUrl} 
                             alt="After" 
-                            style={{ objectFit: 'cover', width: '100%', height: '400px' }}
+                            style={{ objectFit: 'contain', width: '100%', height: 'auto', maxHeight: '600px' }}
                           />
                         }
                         position={50}
@@ -776,7 +776,9 @@ export default function CustomerQuotePage() {
                         }
                         style={{
                           width: '100%',
-                          height: '400px',
+                          height: 'auto',
+                          minHeight: '300px',
+                          maxHeight: '600px',
                           borderRadius: '12px',
                           overflow: 'hidden'
                         }}
@@ -811,7 +813,7 @@ export default function CustomerQuotePage() {
                         <img 
                           src={quoteData.beforeImageUrl} 
                           alt="Before" 
-                          className="w-full h-64 object-cover rounded-lg mb-2"
+                          className="w-full max-h-96 object-contain rounded-lg mb-2"
                         />
                         <p className="text-sm" style={{color: '#4a6670'}}>
                           {quoteData.beforeImageCaption || "Before"}
@@ -823,7 +825,7 @@ export default function CustomerQuotePage() {
                         <img 
                           src={quoteData.afterImageUrl} 
                           alt="After" 
-                          className="w-full h-64 object-cover rounded-lg mb-2"
+                          className="w-full max-h-96 object-contain rounded-lg mb-2"
                         />
                         <p className="text-sm" style={{color: '#4a6670'}}>
                           {quoteData.afterImageCaption || "After"}
