@@ -842,26 +842,27 @@ export default function CustomerQuotePage() {
         {/* Photo Gallery - Display uploaded images to customer */}
         {quotePhotos && quotePhotos.length > 0 && (
           <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
               <div className="flex items-center gap-3">
                 <Camera className="h-6 w-6" style={{color: '#db973c'}} />
                 <div>
                   <h3 className="text-xl font-bold" style={{color: '#1a1a1a'}}>Project Gallery</h3>
-                  <p style={{color: '#4a6670'}}>Additional photos and project details</p>
+                  <p className="text-sm sm:text-base" style={{color: '#4a6670'}}>Additional photos and project details</p>
                 </div>
               </div>
             </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {quotePhotos
                   .sort((a, b) => a.sortOrder - b.sortOrder)
                   .map((photo) => (
                     <div key={photo.id} className="group">
-                      <div className="relative rounded-xl overflow-hidden shadow-lg mb-3">
+                      <div className="relative rounded-xl overflow-hidden shadow-lg mb-3 bg-gray-50">
                         <img 
                           src={photo.mediaUrl} 
                           alt={photo.caption || 'Project photo'} 
-                          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="w-full h-48 sm:h-48 object-contain group-hover:scale-105 transition-transform duration-300"
+                          style={{ minHeight: '192px' }}
                         />
                         {photo.category && photo.category !== 'gallery' && (
                           <div className="absolute top-2 right-2">
@@ -875,14 +876,14 @@ export default function CustomerQuotePage() {
                         )}
                       </div>
                       {photo.caption && (
-                        <div className="text-center">
+                        <div className="text-center px-2">
                           <p className="text-sm font-medium" style={{color: '#1a1a1a'}}>{photo.caption}</p>
                         </div>
                       )}
                     </div>
                   ))}
               </div>
-              <div className="text-center mt-6 p-4 rounded-xl" style={{backgroundColor: '#f5f5f5'}}>
+              <div className="text-center mt-4 sm:mt-6 p-4 rounded-xl" style={{backgroundColor: '#f5f5f5'}}>
                 <p className="text-sm" style={{color: '#4a6670'}}>
                   <ImageIcon className="h-4 w-4 inline mr-2" />
                   <strong>Project Gallery:</strong> These photos showcase our work quality, materials, and attention to detail. 
