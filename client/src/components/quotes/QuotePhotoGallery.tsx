@@ -98,10 +98,22 @@ export function QuotePhotoGallery({ quoteId, onPhotosUpdated }: QuotePhotoGaller
   // Update photo mutation
   const updatePhotoMutation = useMutation({
     mutationFn: async ({ mediaId, caption, category }: { mediaId: number; caption: string; category: string }) => {
-      return apiRequest(`/api/quotes/media/${mediaId}`, 'PATCH', {
-        caption,
-        category,
+      const response = await fetch(`/api/quotes/media/${mediaId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          caption,
+          category,
+        }),
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update photo');
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({
