@@ -736,49 +736,21 @@ export default function CustomerQuotePage() {
               <div className="p-6">
                 {quoteData.beforeImageUrl && quoteData.afterImageUrl ? (
                   <div className="space-y-4">
-                    <div className="relative rounded-xl overflow-hidden shadow-lg bg-gray-50">
+                    <div className="relative rounded-xl overflow-hidden shadow-lg">
                       <ReactCompareSlider
                         itemOne={
-                          <div style={{ 
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            height: '100%',
-                            width: '100%',
-                            background: '#f8f9fa'
-                          }}>
-                            <img 
-                              src={quoteData.beforeImageUrl} 
-                              alt="Before" 
-                              style={{ 
-                                maxWidth: '100%',
-                                maxHeight: '100%',
-                                objectFit: 'contain',
-                                display: 'block'
-                              }}
-                            />
-                          </div>
+                          <ReactCompareSliderImage 
+                            src={quoteData.beforeImageUrl} 
+                            alt="Before" 
+                            style={{ objectFit: 'contain', width: '100%', height: 'auto', maxHeight: '600px' }}
+                          />
                         }
                         itemTwo={
-                          <div style={{ 
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            height: '100%',
-                            width: '100%',
-                            background: '#f8f9fa'
-                          }}>
-                            <img 
-                              src={quoteData.afterImageUrl} 
-                              alt="After" 
-                              style={{ 
-                                maxWidth: '100%',
-                                maxHeight: '100%',
-                                objectFit: 'contain',
-                                display: 'block'
-                              }}
-                            />
-                          </div>
+                          <ReactCompareSliderImage 
+                            src={quoteData.afterImageUrl} 
+                            alt="After" 
+                            style={{ objectFit: 'contain', width: '100%', height: 'auto', maxHeight: '600px' }}
+                          />
                         }
                         position={50}
                         handle={
@@ -804,9 +776,9 @@ export default function CustomerQuotePage() {
                         }
                         style={{
                           width: '100%',
-                          height: '60vh',
+                          height: 'auto',
+                          minHeight: '300px',
                           maxHeight: '600px',
-                          minHeight: '400px',
                           borderRadius: '12px',
                           overflow: 'hidden'
                         }}
