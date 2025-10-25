@@ -131,6 +131,7 @@ export default function CustomerQuotePage() {
   const [showBeforeAfter, setShowBeforeAfter] = useState(true);
   const { toast } = useToast();
   const analyticsRef = useRef<QuoteAnalytics | null>(null);
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
 
   const { data: quote, isLoading, error } = useQuery({
     queryKey: [`/api/quotes/public/${token}`],
@@ -188,6 +189,18 @@ export default function CustomerQuotePage() {
       analyticsRef.current.trackCustomerInfo(customerEmail, customerName);
     }
   }, [customerName, customerEmail]);
+
+  // Detect small screen size for responsive slider (sm breakpoint = 640px)
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsSmallScreen(window.innerWidth < 640);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   const respondMutation = useMutation({
     mutationFn: async (data: { action: string; customerName: string; customerEmail: string; message: string }) => {
@@ -774,8 +787,8 @@ export default function CustomerQuotePage() {
                               border: '2px solid white',
                               color: 'white',
                               borderRadius: '50%',
-                              width: '40px',
-                              height: '40px',
+                              width: isSmallScreen ? '32px' : '40px',
+                              height: isSmallScreen ? '32px' : '40px',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -783,15 +796,16 @@ export default function CustomerQuotePage() {
                             }}
                             linesStyle={{
                               background: '#db973c',
-                              boxShadow: '0 0 8px rgba(219, 151, 60, 0.3)'
+                              boxShadow: '0 0 8px rgba(219, 151, 60, 0.3)',
+                              width: isSmallScreen ? '2px' : '3px'
                             }}
                           />
                         }
                         style={{
                           width: '100%',
                           height: 'auto',
-                          minHeight: '200px',
-                          maxHeight: '60vh',
+                          minHeight: isSmallScreen ? '250px' : '300px',
+                          maxHeight: isSmallScreen ? '400px' : '600px',
                           borderRadius: '12px',
                           overflow: 'hidden',
                           aspectRatio: 'auto',
