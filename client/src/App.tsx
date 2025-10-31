@@ -35,6 +35,8 @@ import ClientPortalPage from "@/pages/client-portal";
 import ClientAccount from "@/pages/client-account";
 import ProjectManagerDashboard from "@/pages/project-manager-dashboard";
 import AdminImageGallery from "@/pages/AdminImageGallery";
+import DesignProposalsPage from "@/pages/design-proposals";
+import PublicDesignProposalPage from "@/pages/public-design-proposal";
 
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth-unified";
@@ -82,6 +84,10 @@ function Router() {
         <ProtectedRoute path="/settings" component={Settings} adminOnly />
         <ProtectedRoute path="/user-management" component={UserManagement} adminOnly />
         <ProtectedRoute path="/admin/images" component={AdminImageGallery} adminOnly />
+        <ProtectedRoute path="/design-proposals" component={DesignProposalsPage} adminOnly />
+        
+        {/* Public design proposal route */}
+        <Route path="/design-proposal/:token" component={PublicDesignProposalPage} />
         
         {/* Public customer quote routes */}
         <Route path="/quote/:token" component={CustomerQuote} />
