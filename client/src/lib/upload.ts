@@ -15,5 +15,5 @@ export async function uploadToR2(file: File): Promise<string> {
   }
 
   const data = await response.json();
-  return data.imageUrl;
+  return data.images[0].imageUrl;
 }
