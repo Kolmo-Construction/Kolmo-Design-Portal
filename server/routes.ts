@@ -35,6 +35,7 @@ import clientRouter from "./routes/client.routes"; // Client portal router
 import billingValidationRouter from "./routes/billing-validation.routes"; // Billing validation router
 import zohoExpenseRouter from "./routes/zoho-expense.routes"; // Zoho Expense integration router
 import { adminImagesRoutes } from "./routes/admin-images.routes"; // Admin image gallery router
+import designProposalRouter from "./routes/design-proposal.routes"; // Design proposal router
 
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
 import chatRouter from "./routes/chat.routes"; // Stream Chat router
@@ -261,6 +262,9 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // Mount Admin Images routes
   app.use("/api/admin/images", adminImagesRoutes);
+
+  // Mount Design Proposal routes (mixed auth - admin routes and public viewing)
+  app.use("/api/design-proposals", designProposalRouter);
 
   // --- REMOVED: Old inline route definitions and local router variables ---
   // const taskRouter = Router(...) // REMOVED
