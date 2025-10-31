@@ -1044,6 +1044,7 @@ export const insertDesignProposalSchema = createInsertSchema(designProposals).om
   createdAt: true,
   updatedAt: true,
   accessToken: true, // Generated automatically
+  createdById: true, // Set from authenticated user
 });
 
 export const insertBeforeAfterComparisonSchema = createInsertSchema(beforeAfterComparisons).omit({
