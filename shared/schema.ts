@@ -298,6 +298,32 @@ export const adminImages = pgTable("admin_images", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Design proposals for before/after comparisons
+export const designProposals = pgTable("design_proposals", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  customerName: text("customer_name"),
+  customerEmail: text("customer_email"),
+  projectId: integer("project_id").references(() => projects.id), // Optional link to existing project
+  accessToken: text("access_token").notNull().unique(), // Public shareable token
+  createdById: integer("created_by_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Before/after comparison pairs within a design proposal
+export const beforeAfterComparisons = pgTable("before_after_comparisons", {
+  id: serial("id").primaryKey(),
+  proposalId: integer("proposal_id").notNull().references(() => designProposals.id, { onDelete: 'cascade' }),
+  title: text("title").notNull(),
+  description: text("description"),
+  beforeImageUrl: text("before_image_url").notNull(),
+  afterImageUrl: text("after_image_url").notNull(),
+  orderIndex: integer("order_index").default(0).notNull(), // For sorting comparisons
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Milestones for project timeline with billing support
 export const milestones = pgTable("milestones", {
   id: serial("id").primaryKey(),
@@ -1011,6 +1037,29 @@ export const updateAdminImageSchema = insertAdminImageSchema.partial();
 export type AdminImage = typeof adminImages.$inferSelect;
 export type InsertAdminImage = z.infer<typeof insertAdminImageSchema>;
 export type UpdateAdminImage = z.infer<typeof updateAdminImageSchema>;
+
+// Design proposals schemas
+export const insertDesignProposalSchema = createInsertSchema(designProposals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  accessToken: true, // Generated automatically
+});
+
+export const insertBeforeAfterComparisonSchema = createInsertSchema(beforeAfterComparisons).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Types for design proposals
+export type DesignProposal = typeof designProposals.$inferSelect;
+export type InsertDesignProposal = z.infer<typeof insertDesignProposalSchema>;
+export type BeforeAfterComparison = typeof beforeAfterComparisons.$inferSelect;
+export type InsertBeforeAfterComparison = z.infer<typeof insertBeforeAfterComparisonSchema>;
+
+export type DesignProposalWithComparisons = DesignProposal & {
+  comparisons: BeforeAfterComparison[];
+};
 
 export const insertDailyLogPhotoSchema = createInsertSchema(dailyLogPhotos).omit({
   id: true,
