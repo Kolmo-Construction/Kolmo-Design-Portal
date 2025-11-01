@@ -14,7 +14,7 @@ export default function PublicDesignProposalPage() {
 
   const { data: proposal, isLoading, error } =
     useQuery<DesignProposalWithComparisons>({
-      queryKey: ["/api/design-proposals/public", token],
+      queryKey: [`/api/design-proposals/public/${token}`],
       enabled: !!token,
     });
 
