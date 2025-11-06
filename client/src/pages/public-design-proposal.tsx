@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import type { DesignProposalWithComparisons } from "@shared/schema";
+import { X } from "lucide-react";
 import {
   ReactCompareSlider,
   ReactCompareSliderImage,
@@ -18,7 +19,9 @@ import {
   Paintbrush,
   ArrowLeftRight,
   Check,
-  Sparkles
+  Sparkles,
+  ThumbsUp,
+  ThumbsDown
 } from "lucide-react";
 import kolmoLogo from "@assets/kolmo-logo (1).png";
 
@@ -317,6 +320,74 @@ export default function PublicDesignProposalPage() {
               </p>
             </CardContent>
           </Card>
+        )}
+
+        {/* Pros and Cons Section */}
+        {proposal.showProsCons && (proposal.pros?.length || proposal.cons?.length) && (
+          <div className="mt-8 sm:mt-12">
+            <div className="text-center mb-6 sm:mb-8">
+              <h2 className="text-2xl sm:text-3xl font-bold" style={{color: '#3d4552'}}>
+                Design Analysis
+              </h2>
+              <p className="text-base sm:text-lg mt-2" style={{color: '#4a6670'}}>
+                Considerations for this design proposal
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+              {/* Pros Card */}
+              {proposal.pros && proposal.pros.length > 0 && (
+                <Card className="shadow-lg border-2 overflow-hidden" style={{borderColor: '#e5e5e5'}}>
+                  <CardHeader className="bg-green-50 border-b-2" style={{borderColor: '#f5f5f5'}}>
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 rounded-full bg-green-100">
+                        <ThumbsUp className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+                      </div>
+                      <CardTitle className="text-xl sm:text-2xl text-green-700">
+                        Advantages
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 sm:p-6">
+                    <ul className="space-y-3">
+                      {proposal.pros.map((pro, index) => (
+                        <li key={index} className="flex gap-3 items-start" data-testid={`pros-item-${index}`}>
+                          <Check className="h-5 w-5 shrink-0 mt-0.5 text-green-600" />
+                          <span className="text-sm sm:text-base" style={{color: '#3d4552'}}>{pro}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Cons Card */}
+              {proposal.cons && proposal.cons.length > 0 && (
+                <Card className="shadow-lg border-2 overflow-hidden" style={{borderColor: '#e5e5e5'}}>
+                  <CardHeader className="bg-red-50 border-b-2" style={{borderColor: '#f5f5f5'}}>
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 rounded-full bg-red-100">
+                        <ThumbsDown className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
+                      </div>
+                      <CardTitle className="text-xl sm:text-2xl text-red-700">
+                        Considerations
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 sm:p-6">
+                    <ul className="space-y-3">
+                      {proposal.cons.map((con, index) => (
+                        <li key={index} className="flex gap-3 items-start" data-testid={`cons-item-${index}`}>
+                          <X className="h-5 w-5 shrink-0 mt-0.5 text-red-600" />
+                          <span className="text-sm sm:text-base" style={{color: '#3d4552'}}>{con}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Call to Action */}

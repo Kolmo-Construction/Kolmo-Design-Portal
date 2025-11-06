@@ -307,6 +307,12 @@ export const designProposals = pgTable("design_proposals", {
   customerEmail: text("customer_email"),
   projectId: integer("project_id").references(() => projects.id), // Optional link to existing project
   accessToken: text("access_token").notNull().unique(), // Public shareable token
+  
+  // Pros and cons section
+  pros: text("pros").array(), // Array of pros
+  cons: text("cons").array(), // Array of cons
+  showProsCons: boolean("show_pros_cons").default(false).notNull(), // Toggle to show/hide pros/cons
+  
   createdById: integer("created_by_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
