@@ -534,7 +534,7 @@ export default function CustomerQuotePage() {
                 </Button>
               </div>
               <p className="text-white/70 text-sm mt-4">
-                Valid until {formatDate(quoteData.validUntil)} • Free consultations available
+                Valid until {formatDate(quoteData.validUntil)} • consultations available
               </p>
             </div>
           </div>
@@ -1136,7 +1136,7 @@ export default function CustomerQuotePage() {
             </div>
             
             <p className="text-white/70 text-sm mt-6">
-              Serving Seattle, WA & Surrounding Areas • Free Consultations Available
+              Serving Seattle, WA & Surrounding Areas • Consultations Available
             </p>
           </div>
         </div>

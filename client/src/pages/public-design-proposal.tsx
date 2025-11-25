@@ -260,7 +260,11 @@ export default function PublicDesignProposalPage() {
                             src={comparison.beforeImageUrl}
                             alt="Before"
                             style={{ 
-                              objectFit: 'contain', 
+                              objectFit: 'cover',
+                              objectPosition: 'center',
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
                               width: '100%', 
                               height: '100%',
                               maxHeight: 'none',
@@ -273,7 +277,11 @@ export default function PublicDesignProposalPage() {
                             src={comparison.afterImageUrl}
                             alt="After"
                             style={{ 
-                              objectFit: 'contain', 
+                              objectFit: 'cover',
+                              objectPosition: 'center',
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
                               width: '100%', 
                               height: '100%',
                               maxHeight: 'none',
@@ -285,6 +293,7 @@ export default function PublicDesignProposalPage() {
                         style={{
                           height: window.innerWidth < 640 ? "300px" : window.innerWidth < 1024 ? "450px" : "600px",
                           width: "100%",
+                          position: 'relative'
                         }}
                       />
                     </div>
