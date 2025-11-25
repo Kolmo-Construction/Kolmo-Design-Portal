@@ -122,21 +122,25 @@ export class QuoteRepository {
       const accessToken = uuidv4();
       const quoteNumber = `KOL-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
+      // Extract line items from data before inserting quote
+      const lineItemsData = data.lineItems || [];
+      const { lineItems: _, ...quoteData } = data;
+
       const [quote] = await db
         .insert(quotes)
         .values({
-          ...data,
+          ...quoteData,
           quoteNumber,
           accessToken,
           createdById: userId,
-          subtotal: data.subtotal || "0",
-          discountedSubtotal: data.discountedSubtotal || data.subtotal || "0",
-          taxRate: data.taxRate || "10.60",
-          taxAmount: data.taxAmount || "0",
-          total: data.total || "0",
-          downPaymentPercentage: data.downPaymentPercentage || 30,
-          milestonePaymentPercentage: data.milestonePaymentPercentage || 40,
-          finalPaymentPercentage: data.finalPaymentPercentage || 30,
+          subtotal: String(quoteData.subtotal ?? 0),
+          discountedSubtotal: String(quoteData.discountedSubtotal ?? quoteData.subtotal ?? 0),
+          taxRate: String(quoteData.taxRate ?? 8.5),
+          taxAmount: String(quoteData.taxAmount ?? 0),
+          total: String(quoteData.total ?? 0),
+          downPaymentPercentage: quoteData.downPaymentPercentage ?? 40,
+          milestonePaymentPercentage: quoteData.milestonePaymentPercentage ?? 40,
+          finalPaymentPercentage: quoteData.finalPaymentPercentage ?? 20,
         })
         .returning();
 
@@ -148,6 +152,23 @@ export class QuoteRepository {
           token: accessToken,
           expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days
         });
+
+      // Create line items if provided
+      if (lineItemsData && lineItemsData.length > 0) {
+        for (const item of lineItemsData) {
+          await db
+            .insert(quoteLineItems)
+            .values({
+              quoteId: quote.id,
+              category: item.category,
+              description: item.description,
+              quantity: String(item.quantity),
+              unit: item.unit || "each",
+              unitPrice: String(item.unitPrice),
+              totalPrice: String(item.total || item.quantity * item.unitPrice),
+            });
+        }
+      }
 
       await this.recalculateQuoteTotals(quote.id);
       return quote;
