@@ -69,7 +69,7 @@ const createQuoteSchema = z.object({
   notes: z.string().optional(),
   taxRate: z.coerce.number().min(0).max(100).default(8.5),
   discountType: z.enum(["percentage", "fixed"]).default("percentage"),
-  discountValue: z.coerce.number().min(0).default(0),
+  discountValue: z.coerce.number().min(0).max(100).default(0),
   downPaymentPercentage: z.coerce.number().min(0).max(100).default(40),
   milestonePaymentPercentage: z.coerce.number().min(0).max(100).default(40),
   finalPaymentPercentage: z.coerce.number().min(0).max(100).default(20),
@@ -1127,11 +1127,15 @@ export default function CreateQuotePage() {
                               <Input
                                 type="number"
                                 min="0"
+                                max={formValues.discountType === "percentage" ? "100" : undefined}
                                 step="0.01"
                                 {...field}
                                 data-testid="input-discount-value"
                               />
                             </FormControl>
+                            <FormDescription>
+                              {formValues.discountType === "percentage" && "Maximum 100%"}
+                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
