@@ -133,6 +133,7 @@ export default function CreateQuotePage() {
   const [suggestedTaxRate, setSuggestedTaxRate] = useState<number | null>(null);
   const [taxLookupLoading, setTaxLookupLoading] = useState(false);
   const [suggestedTaxAccepted, setSuggestedTaxAccepted] = useState(false);
+  const [expandAddress, setExpandAddress] = useState(false);
 
   const form = useForm<CreateQuoteFormData>({
     resolver: zodResolver(createQuoteSchema),
@@ -569,84 +570,97 @@ export default function CreateQuotePage() {
                     )}
                   />
 
-                  <div>
-                    <h4 className="font-medium mb-3" style={{ color: theme.colors.primary }}>
-                      Project Address (for tax rate lookup)
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="customerAddress"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Street Address</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="e.g., 6500 Linderson Way"
-                                {...field}
-                                data-testid="input-customer-address"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setExpandAddress(!expandAddress)}
+                      className="flex items-center gap-2 text-sm font-medium"
+                      style={{ color: theme.colors.primary }}
+                      data-testid="button-toggle-address"
+                    >
+                      <span>{expandAddress ? "▼" : "▶"}</span>
+                      <span>Project Address (optional - for automatic tax rate)</span>
+                    </button>
+                    {expandAddress && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 p-3 rounded-lg" style={{ backgroundColor: theme.getColorWithOpacity(theme.colors.primary, 0.05) }}>
+                        <FormField
+                          control={form.control}
+                          name="customerAddress"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">Street Address</FormLabel>
+                              <FormControl>
+                                <Input
+                                  className="h-8 text-sm"
+                                  placeholder="e.g., 6500 Linderson Way"
+                                  {...field}
+                                  data-testid="input-customer-address"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                      <FormField
-                        control={form.control}
-                        name="customerCity"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>City</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="e.g., Tumwater"
-                                {...field}
-                                data-testid="input-customer-city"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                        <FormField
+                          control={form.control}
+                          name="customerCity"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">City</FormLabel>
+                              <FormControl>
+                                <Input
+                                  className="h-8 text-sm"
+                                  placeholder="e.g., Tumwater"
+                                  {...field}
+                                  data-testid="input-customer-city"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                      <FormField
-                        control={form.control}
-                        name="customerState"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>State</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="WA"
-                                maxLength={2}
-                                {...field}
-                                data-testid="input-customer-state"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                        <FormField
+                          control={form.control}
+                          name="customerState"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">State</FormLabel>
+                              <FormControl>
+                                <Input
+                                  className="h-8 text-sm"
+                                  placeholder="WA"
+                                  maxLength={2}
+                                  {...field}
+                                  data-testid="input-customer-state"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                      <FormField
-                        control={form.control}
-                        name="customerZip"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>ZIP Code</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="e.g., 98501"
-                                {...field}
-                                data-testid="input-customer-zip"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                        <FormField
+                          control={form.control}
+                          name="customerZip"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">ZIP Code</FormLabel>
+                              <FormControl>
+                                <Input
+                                  className="h-8 text-sm"
+                                  placeholder="e.g., 98501"
+                                  {...field}
+                                  data-testid="input-customer-zip"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
