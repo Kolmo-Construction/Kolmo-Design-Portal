@@ -15,6 +15,7 @@ import {
 } from "@shared/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
+import { deleteFromR2 } from "../../r2-upload";
 
 export class QuoteRepository {
   async getAllQuotes() {
@@ -231,6 +232,31 @@ export class QuoteRepository {
   async deleteQuote(id: number) {
     try {
       console.log(`[QuoteRepository.deleteQuote] Starting delete for quote ID: ${id}`);
+      
+      // First, fetch all media files for this quote to delete from R2
+      console.log(`[QuoteRepository.deleteQuote] Fetching media files for R2 cleanup...`);
+      const mediaFiles = await db
+        .select()
+        .from(quoteMedia)
+        .where(eq(quoteMedia.quoteId, id));
+      
+      // Delete all media files from R2
+      console.log(`[QuoteRepository.deleteQuote] Deleting ${mediaFiles.length} files from R2...`);
+      for (const media of mediaFiles) {
+        try {
+          // Extract key from the media URL (format: /api/storage/proxy/{encoded-key})
+          if (media.mediaUrl) {
+            const urlParts = media.mediaUrl.split('/');
+            const encodedKey = urlParts[urlParts.length - 1];
+            const key = decodeURIComponent(encodedKey);
+            await deleteFromR2(key);
+            console.log(`[QuoteRepository.deleteQuote] Deleted from R2: ${key}`);
+          }
+        } catch (r2Error) {
+          console.warn(`[QuoteRepository.deleteQuote] Failed to delete media ${media.id} from R2:`, r2Error);
+          // Continue with other deletions even if one fails
+        }
+      }
       
       // First, nullify foreign key references that don't have cascade delete
       
