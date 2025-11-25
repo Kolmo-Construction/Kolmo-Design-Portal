@@ -3,16 +3,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, FileText, Send, Edit, Trash2, Eye, ArrowLeft, Home } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { QuoteDetailsDialog } from "@/components/quotes/QuoteDetailsDialog";
+import { QuoteViewDialog } from "@/components/quotes/QuoteViewDialog";
 import { apiRequest } from "@/lib/queryClient";
 import { QuoteWithDetails } from "@shared/schema";
 import { theme } from "@/config/theme";
 
 export default function QuotesPage() {
-  const [selectedQuote, setSelectedQuote] = useState<QuoteWithDetails | null>(null);
+  const [viewingQuote, setViewingQuote] = useState<QuoteWithDetails | null>(null);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -128,7 +128,7 @@ export default function QuotesPage() {
         </div>
       </div>
 
-      {/* Header with single CTA */}
+      {/* Header with single Create button */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold" style={{ color: theme.colors.primary }}>
@@ -205,12 +205,12 @@ export default function QuotesPage() {
                   </div>
                 </div>
 
-                {/* Actions */}
+                {/* Actions - Clear separation: View (read-only) and Edit (navigate to edit page) */}
                 <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t" style={{ borderColor: theme.colors.border }}>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setSelectedQuote(quote)}
+                    onClick={() => setViewingQuote(quote)}
                     style={{ borderColor: theme.colors.secondary, color: theme.colors.secondary }}
                     data-testid={`button-view-${quote.id}`}
                   >
@@ -218,10 +218,10 @@ export default function QuotesPage() {
                     View
                   </Button>
                   <Button
-                    variant="outline"
                     size="sm"
-                    onClick={() => setSelectedQuote(quote)}
-                    style={{ borderColor: theme.colors.secondary, color: theme.colors.secondary }}
+                    onClick={() => navigate(`/quotes/${quote.id}/edit`)}
+                    className="text-white"
+                    style={{ backgroundColor: theme.colors.secondary }}
                     data-testid={`button-edit-${quote.id}`}
                   >
                     <Edit className="h-4 w-4 mr-1" />
@@ -262,12 +262,17 @@ export default function QuotesPage() {
         )}
       </div>
 
-      {/* Quote Details Dialog */}
-      {selectedQuote && (
-        <QuoteDetailsDialog
-          quote={selectedQuote}
-          open={!!selectedQuote}
-          onOpenChange={(open) => !open && setSelectedQuote(null)}
+      {/* View-only Quote Dialog */}
+      {viewingQuote && (
+        <QuoteViewDialog
+          quote={viewingQuote}
+          open={!!viewingQuote}
+          onOpenChange={(open) => !open && setViewingQuote(null)}
+          onEdit={() => {
+            const quoteId = viewingQuote.id;
+            setViewingQuote(null);
+            navigate(`/quotes/${quoteId}/edit`);
+          }}
         />
       )}
     </div>

@@ -38,6 +38,7 @@ import AdminImageGallery from "@/pages/AdminImageGallery";
 import DesignProposalsPage from "@/pages/design-proposals";
 import PublicDesignProposalPage from "@/pages/public-design-proposal";
 import CreateQuotePage from "@/pages/create-quote";
+import EditQuotePage from "@/pages/edit-quote";
 
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth-unified";
@@ -79,6 +80,7 @@ function Router() {
         <ProtectedRoute path="/selections" component={Selections} />
         <ProtectedRoute path="/quotes" component={Quotes} adminOnly />
         <ProtectedRoute path="/quotes/create" component={CreateQuotePage} adminOnly />
+        <ProtectedRoute path="/quotes/:id/edit" component={EditQuotePage} adminOnly />
         <ProtectedRoute path="/invoices" component={ClientInvoices} />
         <ProtectedRoute path="/project-details/:projectId/invoices" component={ClientInvoices} />
         <ProtectedRoute path="/admin/invoices" component={AdminInvoices} adminOnly />
