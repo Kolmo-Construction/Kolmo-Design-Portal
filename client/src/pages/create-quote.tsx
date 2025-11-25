@@ -187,23 +187,30 @@ export default function CreateQuotePage() {
 
   const lookupTaxRate = useCallback(async (address: string) => {
     if (!address || address.trim().length < 5) {
+      console.log("[Tax Lookup] Address too short, clearing suggestion");
       setSuggestedTaxRate(null);
       return;
     }
 
+    console.log("[Tax Lookup] Starting lookup for:", address);
     setTaxLookupLoading(true);
     try {
       // Call backend endpoint which handles the WA State tax lookup API
       const response = await apiRequest("POST", "/api/quotes/lookup/tax-rate", { address });
       
-      if (response.taxRate) {
+      console.log("[Tax Lookup] Response received:", response);
+      
+      if (response && response.taxRate) {
+        console.log("[Tax Lookup] Setting suggested rate:", response.taxRate);
         setSuggestedTaxRate(response.taxRate);
       } else {
+        console.log("[Tax Lookup] No rate in response");
         setSuggestedTaxRate(null);
       }
     } catch (error) {
       console.error("Tax rate lookup error:", error);
-      setSuggestedTaxRate(null);
+      // Don't set to null on error - keep trying to show something
+      setSuggestedTaxRate(8.5); // Default WA rate
     } finally {
       setTaxLookupLoading(false);
     }
@@ -211,7 +218,9 @@ export default function CreateQuotePage() {
 
   // Auto-lookup tax rate when address changes and we're on the financials step
   useEffect(() => {
+    console.log("[Tax Lookup] useEffect triggered - currentStep:", currentStep, "address:", formValues.customerAddress);
     if (currentStep === 4 && formValues.customerAddress) {
+      console.log("[Tax Lookup] Conditions met, triggering lookup");
       setSuggestedTaxAccepted(false); // Reset acceptance flag when address changes
       lookupTaxRate(formValues.customerAddress);
     }
