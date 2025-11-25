@@ -80,10 +80,11 @@ export function QuoteImageManager({
     mutationFn: async ({ file, type, caption }: { file: File; type: 'before' | 'after'; caption: string }) => {
       const formData = new FormData();
       formData.append('photo', file);
-      formData.append('category', type);
       formData.append('caption', caption);
+      console.log(`[QuoteImageManager] Uploading ${type} image`);
       
-      const response = await fetch(`/api/quotes/${quoteId}/photos`, {
+      // Pass category as query parameter to ensure it's received correctly
+      const response = await fetch(`/api/quotes/${quoteId}/photos?category=${encodeURIComponent(type)}`, {
         method: 'POST',
         body: formData,
       });

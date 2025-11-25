@@ -1184,7 +1184,9 @@ This email was sent to ${quote.customerEmail}. All quotes are confidential and p
         return res.status(400).json({ error: "No file uploaded" });
       }
 
-      const { caption, category } = req.body;
+      const { caption } = req.body;
+      const category = req.query.category as string || 'gallery';
+      console.log(`[uploadQuotePhoto] Received - caption: ${caption}, category: ${category}`);
       
       // Upload file to R2 storage
       const uploadResult = await uploadToR2({
@@ -1202,6 +1204,7 @@ This email was sent to ${quote.customerEmail}. All quotes are confidential and p
         category: category || 'gallery',
         uploadedById: (req as any).user?.id || 1,
       };
+      console.log(`[uploadQuotePhoto] Saving with category: ${mediaData.category}`);
 
       const media = await this.quoteRepository.uploadQuoteImage(quoteId, mediaData);
       
