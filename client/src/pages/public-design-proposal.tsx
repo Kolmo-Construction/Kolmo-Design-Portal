@@ -262,12 +262,8 @@ export default function PublicDesignProposalPage() {
                             style={{ 
                               objectFit: 'cover',
                               objectPosition: 'center',
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
                               width: '100%', 
                               height: '100%',
-                              maxHeight: 'none',
                               display: 'block'
                             }}
                           />
@@ -279,12 +275,8 @@ export default function PublicDesignProposalPage() {
                             style={{ 
                               objectFit: 'cover',
                               objectPosition: 'center',
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
                               width: '100%', 
                               height: '100%',
-                              maxHeight: 'none',
                               display: 'block'
                             }}
                           />
@@ -292,8 +284,7 @@ export default function PublicDesignProposalPage() {
                         position={50}
                         style={{
                           height: window.innerWidth < 640 ? "300px" : window.innerWidth < 1024 ? "450px" : "600px",
-                          width: "100%",
-                          position: 'relative'
+                          width: "100%"
                         }}
                       />
                     </div>

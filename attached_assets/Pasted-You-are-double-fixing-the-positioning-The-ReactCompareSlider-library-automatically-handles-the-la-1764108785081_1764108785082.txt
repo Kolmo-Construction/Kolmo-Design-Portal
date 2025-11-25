@@ -1,0 +1,51 @@
+You are "double-fixing" the positioning. The ReactCompareSlider library automatically handles the layering and stacking of the images for you. By manually adding position: 'absolute' to the images inside the itemOne and itemTwo props, you are forcing the images to break out of the library's internal clipping containers. This causes them to misalign or float incorrectly.
+
+The Fix: You need to remove the position: absolute, top, and left properties from your image styles. You must keep objectFit: 'cover' and the width/height settings to ensure the images fill the slider area completely.
+
+Here is the corrected code block for the slider section:
+
+JavaScript
+
+<ReactCompareSlider
+  itemOne={
+    <ReactCompareSliderImage
+      src={comparison.beforeImageUrl}
+      alt="Before"
+      style={{ 
+        // REMOVED: position: 'absolute', top: 0, left: 0 
+        // KEPT: These ensure the image fills the slider's box
+        objectFit: 'cover',
+        objectPosition: 'center',
+        width: '100%', 
+        height: '100%',
+        display: 'block'
+      }}
+    />
+  }
+  itemTwo={
+    <ReactCompareSliderImage
+      src={comparison.afterImageUrl}
+      alt="After"
+      style={{ 
+        // REMOVED: position: 'absolute', top: 0, left: 0 
+        objectFit: 'cover',
+        objectPosition: 'center',
+        width: '100%', 
+        height: '100%',
+        display: 'block'
+      }}
+    />
+  }
+  position={50}
+  style={{
+    // This container height is correct and necessary
+    height: window.innerWidth < 640 ? "300px" : window.innerWidth < 1024 ? "450px" : "600px",
+    width: "100%",
+  }}
+/>
+Why this fixes it
+The Library's Job: ReactCompareSlider creates two internal div wrappers. It calculates exactly how to clip the "After" wrapper based on the slider handle position.
+
+The Conflict: When you added position: absolute to the images, they ignored those internal wrappers and tried to position themselves relative to the main container (or the nearest positioned parent), effectively bypassing the clipping effect and causing the "side-by-side" or "floating strip" look you saw in the screenshot.
+
+The Solution: Removing absolute positioning lets the images sit naturally inside the library's wrappers, while objectFit: 'cover' ensures they stretch to fill the space without distortion.
