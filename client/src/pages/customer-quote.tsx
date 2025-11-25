@@ -407,18 +407,24 @@ export default function CustomerQuotePage() {
               </div>
               <div className="text-center sm:text-left">
                 <h1 className="text-2xl sm:text-3xl font-bold" style={{color: '#1a1a1a'}}>Kolmo Construction</h1>
-                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm mt-1" style={{color: '#4a6670'}}>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm mt-2" style={{color: '#4a6670'}}>
                   <div className="flex items-center gap-1">
                     <Shield className="h-4 w-4" style={{color: '#db973c'}} />
-                    <span>Licensed & Insured</span>
+                    <span>Licensed • KOLMOL*753JS</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Award className="h-4 w-4" style={{color: '#db973c'}} />
-                    <span>EPA Certified</span>
+                    <span>OSHA30 Certified</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Star className="h-4 w-4" style={{color: '#db973c'}} />
-                    <span>Seattle's Premier Builder</span>
+                    <span>LEED Green Certified</span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm mt-1" style={{color: '#4a6670'}}>
+                  <div className="flex items-center gap-1">
+                    <Award className="h-4 w-4" style={{color: '#db973c'}} />
+                    <span>ASHE's ICRA 2.0 Certified</span>
                   </div>
                 </div>
               </div>
@@ -1190,26 +1196,33 @@ export default function CustomerQuotePage() {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <div className="flex items-center justify-center gap-3" style={{color: 'rgba(255,255,255,0.7)'}}>
                 <Shield className="h-6 w-6" style={{color: '#db973c'}} />
                 <div>
-                  <div className="font-semibold text-white">Licensed & Insured</div>
-                  <div className="text-sm">WA State Contractor License</div>
+                  <div className="font-semibold text-white">Licensed</div>
+                  <div className="text-sm">KOLMOL*753JS</div>
                 </div>
               </div>
               <div className="flex items-center justify-center gap-3" style={{color: 'rgba(255,255,255,0.7)'}}>
                 <Award className="h-6 w-6" style={{color: '#db973c'}} />
                 <div>
-                  <div className="font-semibold text-white">EPA Certified</div>
-                  <div className="text-sm">Lead-Safe Work Practices</div>
+                  <div className="font-semibold text-white">OSHA30</div>
+                  <div className="text-sm">Certified</div>
                 </div>
               </div>
               <div className="flex items-center justify-center gap-3" style={{color: 'rgba(255,255,255,0.7)'}}>
                 <Star className="h-6 w-6" style={{color: '#db973c'}} />
                 <div>
-                  <div className="font-semibold text-white">Trusted Locally</div>
-                  <div className="text-sm">Pacific Northwest Experts</div>
+                  <div className="font-semibold text-white">LEED Green</div>
+                  <div className="text-sm">Certified</div>
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-3" style={{color: 'rgba(255,255,255,0.7)'}}>
+                <Award className="h-6 w-6" style={{color: '#db973c'}} />
+                <div>
+                  <div className="font-semibold text-white">ASHE ICRA 2.0</div>
+                  <div className="text-sm">Certified</div>
                 </div>
               </div>
             </div>
