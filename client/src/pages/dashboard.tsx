@@ -7,6 +7,7 @@ import { ChatDashboard } from "@/components/dashboard/ChatDashboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { theme } from "@/config/theme";
 import { 
   MessageSquare, 
   FileText, 
@@ -58,67 +59,79 @@ export default function Dashboard() {
       <main className="lg:ml-64 p-6 pt-24 overflow-auto h-full">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#3d4552] mb-2">
+          <h1 className="text-3xl font-bold mb-2" style={{ color: theme.colors.primary }}>
             Welcome back, {user?.firstName || "User"}
           </h1>
-          <p className="text-gray-600">
+          <p style={{ color: theme.colors.textMuted }}>
             Manage your quotes, track analytics, and respond to customer chats
           </p>
         </div>
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="border-l-4 border-l-[#db973c]">
+          <Card style={{ borderLeftColor: theme.colors.accent, borderLeftWidth: "4px" }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Quotes</CardTitle>
-              <FileText className="h-4 w-4 text-[#4a6670]" />
+              <CardTitle className="text-sm font-medium" style={{ color: theme.colors.textMuted }}>
+                Total Quotes
+              </CardTitle>
+              <FileText className="h-4 w-4" style={{ color: theme.colors.secondary }} />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-[#3d4552]">{totalQuotes}</div>
-              <p className="text-xs text-gray-500">
+              <div className="text-2xl font-bold" style={{ color: theme.colors.primary }}>
+                {totalQuotes}
+              </div>
+              <p className="text-xs" style={{ color: theme.colors.textMuted }}>
                 {pendingQuotes} pending • {sentQuotes} sent
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-[#4a6670]">
+          <Card style={{ borderLeftColor: theme.colors.secondary, borderLeftWidth: "4px" }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Messages</CardTitle>
-              <MessageSquare className="h-4 w-4 text-[#4a6670]" />
+              <CardTitle className="text-sm font-medium" style={{ color: theme.colors.textMuted }}>
+                Messages
+              </CardTitle>
+              <MessageSquare className="h-4 w-4" style={{ color: theme.colors.secondary }} />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-[#3d4552]">{unreadMessages}</div>
-              <p className="text-xs text-gray-500">
+              <div className="text-2xl font-bold" style={{ color: theme.colors.primary }}>
+                {unreadMessages}
+              </div>
+              <p className="text-xs" style={{ color: theme.colors.textMuted }}>
                 Unread messages
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-[#db973c]">
+          <Card style={{ borderLeftColor: theme.colors.accent, borderLeftWidth: "4px" }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Quote Views</CardTitle>
-              <TrendingUp className="h-4 w-4 text-[#4a6670]" />
+              <CardTitle className="text-sm font-medium" style={{ color: theme.colors.textMuted }}>
+                Quote Views
+              </CardTitle>
+              <TrendingUp className="h-4 w-4" style={{ color: theme.colors.secondary }} />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-[#3d4552]">
+              <div className="text-2xl font-bold" style={{ color: theme.colors.primary }}>
                 {(analytics as any)?.summary?.totalViews || 0}
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs" style={{ color: theme.colors.textMuted }}>
                 Total views this month
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-[#4a6670]">
+          <Card style={{ borderLeftColor: theme.colors.secondary, borderLeftWidth: "4px" }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Sessions</CardTitle>
-              <Activity className="h-4 w-4 text-[#4a6670]" />
+              <CardTitle className="text-sm font-medium" style={{ color: theme.colors.textMuted }}>
+                Sessions
+              </CardTitle>
+              <Activity className="h-4 w-4" style={{ color: theme.colors.secondary }} />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-[#3d4552]">
+              <div className="text-2xl font-bold" style={{ color: theme.colors.primary }}>
                 {(analytics as any)?.summary?.uniqueSessions || 0}
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs" style={{ color: theme.colors.textMuted }}>
                 Unique sessions
               </p>
             </CardContent>
@@ -129,7 +142,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="text-[#3d4552] flex items-center">
+              <CardTitle className="flex items-center" style={{ color: theme.colors.primary }}>
                 <Activity className="h-5 w-5 mr-2" />
                 Quick Actions
               </CardTitle>
@@ -137,25 +150,40 @@ export default function Dashboard() {
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
                 <Link href="/quotes">
-                  <Button className="w-full bg-[#db973c] hover:bg-[#c8862b] text-white">
+                  <Button
+                    className="w-full text-white hover:opacity-90"
+                    style={{ backgroundColor: theme.colors.accent }}
+                  >
                     <FileText className="h-4 w-4 mr-2" />
                     Create Quote
                   </Button>
                 </Link>
                 <Link href="/quotes">
-                  <Button variant="outline" className="w-full border-[#4a6670] text-[#4a6670] hover:bg-[#4a6670] hover:text-white">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    style={{ borderColor: theme.colors.secondary, color: theme.colors.secondary }}
+                  >
                     <BarChart3 className="h-4 w-4 mr-2" />
                     View All Quotes
                   </Button>
                 </Link>
                 <Link href="/messages">
-                  <Button variant="outline" className="w-full border-[#4a6670] text-[#4a6670] hover:bg-[#4a6670] hover:text-white">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    style={{ borderColor: theme.colors.secondary, color: theme.colors.secondary }}
+                  >
                     <MessageSquare className="h-4 w-4 mr-2" />
                     Messages
                   </Button>
                 </Link>
                 <Link href="/analytics">
-                  <Button variant="outline" className="w-full border-[#4a6670] text-[#4a6670] hover:bg-[#4a6670] hover:text-white">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    style={{ borderColor: theme.colors.secondary, color: theme.colors.secondary }}
+                  >
                     <TrendingUp className="h-4 w-4 mr-2" />
                     Analytics
                   </Button>
@@ -166,7 +194,7 @@ export default function Dashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-[#3d4552] flex items-center">
+              <CardTitle className="flex items-center" style={{ color: theme.colors.primary }}>
                 <FileText className="h-5 w-5 mr-2" />
                 Recent Quotes
               </CardTitle>
@@ -183,7 +211,11 @@ export default function Dashboard() {
                   <FileText className="h-12 w-12 text-gray-300 mx-auto mb-2" />
                   <p className="text-gray-500 text-sm">No quotes yet</p>
                   <Link href="/quotes">
-                    <Button size="sm" className="mt-2 bg-[#db973c] hover:bg-[#c8862b] text-white">
+                    <Button
+                      size="sm"
+                      className="mt-2 text-white hover:opacity-90"
+                      style={{ backgroundColor: theme.colors.accent }}
+                    >
                       Create First Quote
                     </Button>
                   </Link>
@@ -191,21 +223,38 @@ export default function Dashboard() {
               ) : (
                 <div className="space-y-3">
                   {quotesArray.slice(0, 3).map((quote: any) => (
-                    <div key={quote.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div
+                      key={quote.id}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                      style={{ borderColor: theme.colors.border }}
+                    >
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-[#3d4552] truncate">{quote.quoteNumber}</p>
-                        <p className="text-xs text-gray-500 truncate">{quote.title}</p>
+                        <p
+                          className="font-medium text-sm truncate"
+                          style={{ color: theme.colors.primary }}
+                        >
+                          {quote.quoteNumber}
+                        </p>
+                        <p className="text-xs truncate" style={{ color: theme.colors.textMuted }}>
+                          {quote.title}
+                        </p>
                       </div>
-                      <Badge 
-                        variant={quote.status === 'sent' ? 'default' : 'secondary'}
-                        className={quote.status === 'sent' ? 'bg-[#4a6670] text-white hover:bg-[#3d4552]' : 'bg-gray-100 text-gray-600'}
+                      <Badge
+                        style={{
+                          backgroundColor: quote.status === "sent" ? theme.colors.secondary : theme.colors.surfaceLight,
+                          color: quote.status === "sent" ? "white" : theme.colors.textDark,
+                        }}
                       >
                         {quote.status}
                       </Badge>
                     </div>
                   ))}
                   <Link href="/quotes">
-                    <Button variant="link" className="w-full text-[#4a6670] hover:text-[#3d4552] p-0">
+                    <Button
+                      variant="link"
+                      className="w-full p-0"
+                      style={{ color: theme.colors.secondary }}
+                    >
                       View all quotes <ArrowRight className="h-3 w-3 ml-1" />
                     </Button>
                   </Link>

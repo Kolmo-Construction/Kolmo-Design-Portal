@@ -9,11 +9,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast";
 import { CreateQuoteDialog } from "@/components/quotes/CreateQuoteDialog";
 import { QuoteDetailsDialog } from "@/components/quotes/QuoteDetailsDialog";
+import { QuickQuoteForm } from "@/components/quotes/QuickQuoteForm";
 import { apiRequest } from "@/lib/queryClient";
 import { QuoteWithDetails } from "@shared/schema";
+import { theme } from "@/config/theme";
 
 export default function QuotesPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showQuickForm, setShowQuickForm] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<QuoteWithDetails | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -70,14 +73,26 @@ export default function QuotesPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "draft": return "bg-slate-100 text-slate-700";
-      case "sent": return "bg-emerald-100 text-emerald-700";
-      case "pending": return "bg-amber-100 text-amber-700";
-      case "accepted": return "bg-green-100 text-green-700";
-      case "declined": return "bg-red-100 text-red-700";
-      case "expired": return "bg-gray-100 text-gray-600";
-      default: return "bg-slate-100 text-slate-700";
+      case "draft":
+        return `bg-gray-100 text-gray-700`;
+      case "sent":
+        return `text-white`;
+      case "pending":
+        return `bg-amber-100 text-amber-700`;
+      case "accepted":
+        return `bg-green-100 text-green-700`;
+      case "declined":
+        return `bg-red-100 text-red-700`;
+      case "expired":
+        return `bg-gray-100 text-gray-600`;
+      default:
+        return `bg-slate-100 text-slate-700`;
     }
+  };
+
+  const getStatusBgColor = (status: string) => {
+    if (status === "sent") return theme.colors.secondary;
+    return undefined;
   };
 
   const formatCurrency = (amount: string) => {
@@ -125,14 +140,36 @@ export default function QuotesPage() {
 
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Quotes</h1>
-          <p className="text-slate-600">Manage project quotes and proposals</p>
+          <h1 className="text-3xl font-bold" style={{ color: theme.colors.primary }}>
+            Quotes
+          </h1>
+          <p style={{ color: theme.colors.textMuted }}>Manage project quotes and proposals</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700">
-          <Plus className="h-4 w-4" />
-          Create Quote
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setShowQuickForm(!showQuickForm)}
+            className="flex items-center gap-2"
+            style={{ backgroundColor: theme.colors.accent }}
+          >
+            <Plus className="h-4 w-4" />
+            Quick Quote
+          </Button>
+          <Button
+            onClick={() => setShowCreateDialog(true)}
+            variant="outline"
+            className="flex items-center gap-2"
+            style={{ borderColor: theme.colors.secondary, color: theme.colors.secondary }}
+          >
+            <Plus className="h-4 w-4" />
+            Full Quote
+          </Button>
+        </div>
       </div>
+
+      {/* Quick Quote Form */}
+      {showQuickForm && (
+        <QuickQuoteForm onSuccess={() => setShowQuickForm(false)} />
+      )}
 
       <div className="grid gap-6">
         {quotes.length === 0 ? (
@@ -142,7 +179,11 @@ export default function QuotesPage() {
                 <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No quotes yet</h3>
                 <p className="text-gray-500 mb-4">Get started by creating your first quote</p>
-                <Button onClick={() => setShowCreateDialog(true)}>
+                <Button
+                  onClick={() => setShowQuickForm(true)}
+                  style={{ backgroundColor: theme.colors.accent }}
+                  className="text-white"
+                >
                   Create Quote
                 </Button>
               </div>
@@ -154,19 +195,33 @@ export default function QuotesPage() {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle className="flex items-center gap-2">
-                      {quote.quoteNumber}
-                      <Badge className={getStatusColor(quote.status)}>
-                        {quote.status}
-                      </Badge>
-                    </CardTitle>
-                    <CardDescription>{quote.title}</CardDescription>
+                    <CardTitle
+                    className="flex items-center gap-2"
+                    style={{ color: theme.colors.primary }}
+                  >
+                    {quote.quoteNumber}
+                    <Badge
+                      className={getStatusColor(quote.status)}
+                      style={{ backgroundColor: getStatusBgColor(quote.status) }}
+                    >
+                      {quote.status}
+                    </Badge>
+                  </CardTitle>
+                  <CardDescription style={{ color: theme.colors.textMuted }}>
+                    {quote.title}
+                  </CardDescription>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-emerald-600">
+                    <div
+                      className="text-2xl font-bold"
+                      style={{ color: theme.colors.accent }}
+                    >
                       {formatCurrency(quote.total)}
                     </div>
-                    <div className="text-sm text-slate-500">
+                    <div
+                      className="text-sm"
+                      style={{ color: theme.colors.textMuted }}
+                    >
                       Valid until {formatDate(quote.validUntil.toString())}
                     </div>
                   </div>
@@ -175,20 +230,50 @@ export default function QuotesPage() {
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                   <div>
-                    <div className="text-sm font-medium text-slate-500">Customer</div>
+                    <div
+                      className="text-sm font-medium"
+                      style={{ color: theme.colors.textMuted }}
+                    >
+                      Customer
+                    </div>
                     <div className="text-sm">{quote.customerName}</div>
-                    <div className="text-sm text-slate-500">{quote.customerEmail}</div>
+                    <div
+                      className="text-sm"
+                      style={{ color: theme.colors.textMuted }}
+                    >
+                      {quote.customerEmail}
+                    </div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-slate-500">Project Type</div>
+                    <div
+                      className="text-sm font-medium"
+                      style={{ color: theme.colors.textMuted }}
+                    >
+                      Project Type
+                    </div>
                     <div className="text-sm">{quote.projectType}</div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-slate-500">Line Items</div>
-                    <div className="text-sm font-semibold text-emerald-600">{quote.lineItems?.length || 0} items</div>
+                    <div
+                      className="text-sm font-medium"
+                      style={{ color: theme.colors.textMuted }}
+                    >
+                      Line Items
+                    </div>
+                    <div
+                      className="text-sm font-semibold"
+                      style={{ color: theme.colors.accent }}
+                    >
+                      {quote.lineItems?.length || 0} items
+                    </div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-slate-500">Created</div>
+                    <div
+                      className="text-sm font-medium"
+                      style={{ color: theme.colors.textMuted }}
+                    >
+                      Created
+                    </div>
                     <div className="text-sm">{formatDate(quote.createdAt.toString())}</div>
                   </div>
                 </div>
@@ -200,17 +285,18 @@ export default function QuotesPage() {
                       size="sm"
                       onClick={() => setSelectedQuote(quote)}
                       className="flex items-center gap-1"
+                      style={{ borderColor: theme.colors.secondary, color: theme.colors.secondary }}
                     >
                       <Eye className="h-4 w-4" />
                       View Details
                     </Button>
                     {quote.status === "draft" && (
                       <Button
-                        variant="outline"
                         size="sm"
                         onClick={() => sendQuoteMutation.mutate(quote.id)}
                         disabled={sendQuoteMutation.isPending}
-                        className="flex items-center gap-1"
+                        className="flex items-center gap-1 text-white"
+                        style={{ backgroundColor: theme.colors.accent }}
                       >
                         <Send className="h-4 w-4" />
                         Send to Customer
@@ -223,6 +309,7 @@ export default function QuotesPage() {
                       size="sm"
                       onClick={() => setSelectedQuote(quote)}
                       className="flex items-center gap-1"
+                      style={{ borderColor: theme.colors.secondary, color: theme.colors.secondary }}
                     >
                       <Edit className="h-4 w-4" />
                       Edit
@@ -232,7 +319,8 @@ export default function QuotesPage() {
                       size="sm"
                       onClick={() => deleteQuoteMutation.mutate(quote.id)}
                       disabled={deleteQuoteMutation.isPending}
-                      className="flex items-center gap-1 text-red-600 hover:text-red-700"
+                      className="flex items-center gap-1"
+                      style={{ borderColor: "#ef4444", color: "#ef4444" }}
                     >
                       <Trash2 className="h-4 w-4" />
                       Delete
