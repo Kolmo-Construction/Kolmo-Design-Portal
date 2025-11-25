@@ -9,6 +9,17 @@ import { initializeQuoteChat } from "../stream-chat";
 import fs from 'fs';
 import path from 'path';
 
+const lineItemForCreateSchema = z.object({
+  category: z.string(),
+  description: z.string(),
+  quantity: z.union([z.string(), z.number()]),
+  unit: z.string(),
+  unitPrice: z.union([z.string(), z.number()]),
+  discountPercentage: z.union([z.string(), z.number()]).optional(),
+  discountAmount: z.union([z.string(), z.number()]).optional(),
+  total: z.union([z.string(), z.number()]),
+});
+
 const createQuoteSchema = createInsertSchema(quotes).omit({
   id: true,
   quoteNumber: true,
@@ -48,6 +59,8 @@ const createQuoteSchema = createInsertSchema(quotes).omit({
   taxRate: z.union([z.number(), z.string()]).optional().transform((val) => val !== undefined ? val.toString() : undefined),
   taxAmount: z.union([z.number(), z.string()]).optional().transform((val) => val !== undefined ? val.toString() : undefined),
   total: z.union([z.number(), z.string()]).optional().transform((val) => val !== undefined ? val.toString() : undefined),
+  // Add lineItems array to the schema
+  lineItems: z.array(lineItemForCreateSchema).optional(),
 });
 
 const createLineItemSchema = z.object({
