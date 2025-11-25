@@ -119,7 +119,14 @@ export class QuoteController {
 
   async createQuote(req: Request, res: Response) {
     try {
+      console.log("[CREATE QUOTE] Raw request body lineItems:", JSON.stringify(req.body.lineItems, null, 2));
+      console.log("[CREATE QUOTE] lineItems count:", req.body.lineItems?.length || 0);
+      
       const validatedData = createQuoteSchema.parse(req.body);
+      
+      console.log("[CREATE QUOTE] After Zod validation lineItems:", JSON.stringify(validatedData.lineItems, null, 2));
+      console.log("[CREATE QUOTE] After validation lineItems count:", validatedData.lineItems?.length || 0);
+      
       const userId = (req.user as any)?.id;
       if (!userId) {
         return res.status(401).json({ error: "User not authenticated" });

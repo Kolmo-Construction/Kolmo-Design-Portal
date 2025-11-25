@@ -118,12 +118,17 @@ export class QuoteRepository {
 
   async createQuote(data: any, userId: number) {
     try {
+      console.log("[REPO createQuote] Received data.lineItems:", JSON.stringify(data.lineItems, null, 2));
+      console.log("[REPO createQuote] lineItems count:", data.lineItems?.length || 0);
+      
       // Generate unique access token and quote number
       const accessToken = uuidv4();
       const quoteNumber = `KOL-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
       // Extract line items from data before inserting quote
       const lineItemsData = data.lineItems || [];
+      console.log("[REPO createQuote] lineItemsData after extraction:", JSON.stringify(lineItemsData, null, 2));
+      
       const { lineItems: _, ...quoteData } = data;
 
       const [quote] = await db
