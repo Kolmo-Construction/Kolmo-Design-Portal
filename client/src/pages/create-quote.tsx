@@ -86,8 +86,7 @@ const steps = [
   { id: 2, title: "Project", icon: FileText },
   { id: 3, title: "Line Items", icon: Package },
   { id: 4, title: "Financials", icon: Calculator },
-  { id: 5, title: "Notes", icon: Image },
-  { id: 6, title: "Review", icon: Check },
+  { id: 5, title: "Review", icon: Check },
 ];
 
 const CATEGORIES = [
@@ -784,6 +783,27 @@ export default function CreateQuotePage() {
                       </FormItem>
                     )}
                   />
+
+                  <FormField
+                    control={form.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Notes & Terms</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Add any special terms, conditions, payment instructions, or notes for the customer..."
+                            className="min-h-24"
+                            {...field}
+                            data-testid="input-notes"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          These notes will appear on the quote sent to the customer
+                        </FormDescription>
+                      </FormItem>
+                    )}
+                  />
                 </CardContent>
               </Card>
             )}
@@ -1391,60 +1411,8 @@ export default function CreateQuotePage() {
               </Card>
             )}
 
-            {/* Step 5: Notes */}
+            {/* Step 5: Review */}
             {currentStep === 5 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle style={{ color: theme.colors.primary }}>
-                    Additional Notes
-                  </CardTitle>
-                  <CardDescription>
-                    Add any terms, conditions, or additional information
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="notes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Notes & Terms</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Add any special terms, conditions, payment instructions, or notes for the customer..."
-                            className="min-h-48"
-                            {...field}
-                            data-testid="input-notes"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          These notes will appear on the quote sent to the customer
-                        </FormDescription>
-                      </FormItem>
-                    )}
-                  />
-
-                  <div
-                    className="p-4 rounded-lg border-l-4"
-                    style={{ 
-                      backgroundColor: theme.getColorWithOpacity(theme.colors.secondary, 0.1),
-                      borderLeftColor: theme.colors.secondary 
-                    }}
-                  >
-                    <h4 className="font-medium mb-2" style={{ color: theme.colors.secondary }}>
-                      About Images
-                    </h4>
-                    <p className="text-sm" style={{ color: theme.colors.textDark }}>
-                      You can add before/after images and design proposals after creating the quote.
-                      Go to the Edit page to upload photos and create design comparisons for your customer.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Step 6: Review */}
-            {currentStep === 6 && (
               <div className="space-y-6">
                 <Card>
                   <CardHeader>
