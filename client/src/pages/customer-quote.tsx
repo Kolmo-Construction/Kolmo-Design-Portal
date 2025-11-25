@@ -722,169 +722,202 @@ export default function CustomerQuotePage() {
           </div>
         )}
 
-        {/* Before/After Images with Interactive Slider */}
-        {(quoteData.beforeImageUrl || quoteData.afterImageUrl) && (
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-            <div className="px-4 sm:px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Eye className="h-5 w-5 sm:h-6 sm:w-6" style={{color: '#db973c'}} />
-                  <div>
-                    <h3 className="text-lg sm:text-xl font-bold" style={{color: '#1a1a1a'}}>Project Transformation</h3>
-                    <p className="text-sm sm:text-base" style={{color: '#4a6670'}}>Interactive before & after comparison</p>
+        {/* Before/After Images with Interactive Slider - Multiple Pairs */}
+        {(() => {
+          const beforeImages = quotePhotos
+            .filter(m => m.category === 'before')
+            .sort((a, b) => a.sortOrder - b.sortOrder);
+          const afterImages = quotePhotos
+            .filter(m => m.category === 'after')
+            .sort((a, b) => a.sortOrder - b.sortOrder);
+          
+          const hasBeforeAfterPairs = beforeImages.length > 0 || afterImages.length > 0;
+          
+          return hasBeforeAfterPairs ? (
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+              <div className="px-4 sm:px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Eye className="h-5 w-5 sm:h-6 sm:w-6" style={{color: '#db973c'}} />
+                    <div>
+                      <h3 className="text-lg sm:text-xl font-bold" style={{color: '#1a1a1a'}}>Project Transformation</h3>
+                      <p className="text-sm sm:text-base" style={{color: '#4a6670'}}>Interactive before & after comparison{beforeImages.length > 1 || afterImages.length > 1 ? ` - ${Math.max(beforeImages.length, afterImages.length)} pair${Math.max(beforeImages.length, afterImages.length) > 1 ? 's' : ''}` : ''}</p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => setShowBeforeAfter(!showBeforeAfter)}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    {showBeforeAfter ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    <span className="hidden sm:inline">{showBeforeAfter ? "Hide" : "Show"} Images</span>
+                    <span className="sm:hidden">{showBeforeAfter ? "Hide" : "Show"}</span>
+                  </Button>
+                </div>
+              </div>
+              {showBeforeAfter && (
+                <div className="p-4 sm:p-6 space-y-8">
+                  {Array.from({ length: Math.max(beforeImages.length, afterImages.length) }).map((_, pairIndex) => {
+                    const beforeImage = beforeImages[pairIndex];
+                    const afterImage = afterImages[pairIndex];
+                    
+                    if (!beforeImage && !afterImage) return null;
+                    
+                    return (
+                      <div key={pairIndex} className="space-y-4">
+                        {Math.max(beforeImages.length, afterImages.length) > 1 && (
+                          <div className="text-center">
+                            <h4 className="font-semibold text-sm" style={{color: '#4a6670'}}>
+                              Transformation {pairIndex + 1} of {Math.max(beforeImages.length, afterImages.length)}
+                            </h4>
+                          </div>
+                        )}
+                        
+                        {beforeImage && afterImage ? (
+                          <div className="space-y-4">
+                            <div className="relative rounded-xl overflow-hidden shadow-lg bg-gray-50">
+                              <ReactCompareSlider
+                                itemOne={
+                                  <ReactCompareSliderImage 
+                                    src={beforeImage.mediaUrl} 
+                                    alt="Before" 
+                                    style={{ 
+                                      objectFit: 'contain', 
+                                      width: '100%', 
+                                      height: '100%',
+                                      maxHeight: 'none',
+                                      display: 'block'
+                                    }}
+                                  />
+                                }
+                                itemTwo={
+                                  <ReactCompareSliderImage 
+                                    src={afterImage.mediaUrl} 
+                                    alt="After" 
+                                    style={{ 
+                                      objectFit: 'contain', 
+                                      width: '100%', 
+                                      height: '100%',
+                                      maxHeight: 'none',
+                                      display: 'block'
+                                    }}
+                                  />
+                                }
+                                position={50}
+                                handle={
+                                  <ReactCompareSliderHandle
+                                    buttonStyle={{
+                                      backdropFilter: undefined,
+                                      background: '#db973c',
+                                      border: '2px solid white',
+                                      color: 'white',
+                                      borderRadius: '50%',
+                                      width: isSmallScreen ? '32px' : '40px',
+                                      height: isSmallScreen ? '32px' : '40px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+                                    }}
+                                    linesStyle={{
+                                      background: '#db973c',
+                                      boxShadow: '0 0 8px rgba(219, 151, 60, 0.3)',
+                                      width: isSmallScreen ? '2px' : '3px'
+                                    }}
+                                  />
+                                }
+                                style={{
+                                  width: '100%',
+                                  height: 'auto',
+                                  minHeight: isSmallScreen ? '250px' : '300px',
+                                  maxHeight: isSmallScreen ? '400px' : '600px',
+                                  borderRadius: '12px',
+                                  overflow: 'hidden',
+                                  aspectRatio: 'auto',
+                                  touchAction: 'pan-x'
+                                }}
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 sm:gap-4 text-center">
+                              <div className="p-2 sm:p-3 rounded-lg" style={{backgroundColor: '#f5f5f5'}}>
+                                <p className="font-semibold mb-1 text-sm sm:text-base" style={{color: '#1a1a1a'}}>Before</p>
+                                <p className="text-xs sm:text-sm" style={{color: '#4a6670'}}>
+                                  {beforeImage.caption || "Current state"}
+                                </p>
+                              </div>
+                              <div className="p-2 sm:p-3 rounded-lg" style={{backgroundColor: '#f5f5f5'}}>
+                                <p className="font-semibold mb-1 text-sm sm:text-base" style={{color: '#1a1a1a'}}>After</p>
+                                <p className="text-xs sm:text-sm" style={{color: '#4a6670'}}>
+                                  {afterImage.caption || "Transformed result"}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {beforeImage && (
+                              <div className="text-center">
+                                <img 
+                                  src={beforeImage.mediaUrl} 
+                                  alt="Before" 
+                                  className="w-full max-h-96 object-contain rounded-lg mb-2"
+                                />
+                                <p className="text-sm" style={{color: '#4a6670'}}>
+                                  {beforeImage.caption || "Before"}
+                                </p>
+                              </div>
+                            )}
+                            {afterImage && (
+                              <div className="text-center">
+                                <img 
+                                  src={afterImage.mediaUrl} 
+                                  alt="After" 
+                                  className="w-full max-h-96 object-contain rounded-lg mb-2"
+                                />
+                                <p className="text-sm" style={{color: '#4a6670'}}>
+                                  {afterImage.caption || "After"}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  
+                  <div className="text-center p-3 sm:p-4 rounded-xl" style={{backgroundColor: '#f5f5f5'}}>
+                    <p className="text-xs sm:text-sm" style={{color: '#4a6670'}}>
+                      <strong>Interactive Comparison:</strong> Drag the slider to see the transformation. 
+                      This represents the level of quality and craftsmanship you can expect for your project.
+                    </p>
                   </div>
                 </div>
-                <Button
-                  onClick={() => setShowBeforeAfter(!showBeforeAfter)}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  {showBeforeAfter ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  <span className="hidden sm:inline">{showBeforeAfter ? "Hide" : "Show"} Images</span>
-                  <span className="sm:hidden">{showBeforeAfter ? "Hide" : "Show"}</span>
-                </Button>
-              </div>
+              )}
             </div>
-            {showBeforeAfter && (
-              <div className="p-4 sm:p-6">
-                {quoteData.beforeImageUrl && quoteData.afterImageUrl ? (
-                  <div className="space-y-4">
-                    <div className="relative rounded-xl overflow-hidden shadow-lg bg-gray-50">
-                      <ReactCompareSlider
-                        itemOne={
-                          <ReactCompareSliderImage 
-                            src={quoteData.beforeImageUrl} 
-                            alt="Before" 
-                            style={{ 
-                              objectFit: 'contain', 
-                              width: '100%', 
-                              height: '100%',
-                              maxHeight: 'none',
-                              display: 'block'
-                            }}
-                          />
-                        }
-                        itemTwo={
-                          <ReactCompareSliderImage 
-                            src={quoteData.afterImageUrl} 
-                            alt="After" 
-                            style={{ 
-                              objectFit: 'contain', 
-                              width: '100%', 
-                              height: '100%',
-                              maxHeight: 'none',
-                              display: 'block'
-                            }}
-                          />
-                        }
-                        position={50}
-                        handle={
-                          <ReactCompareSliderHandle
-                            buttonStyle={{
-                              backdropFilter: undefined,
-                              background: '#db973c',
-                              border: '2px solid white',
-                              color: 'white',
-                              borderRadius: '50%',
-                              width: isSmallScreen ? '32px' : '40px',
-                              height: isSmallScreen ? '32px' : '40px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
-                            }}
-                            linesStyle={{
-                              background: '#db973c',
-                              boxShadow: '0 0 8px rgba(219, 151, 60, 0.3)',
-                              width: isSmallScreen ? '2px' : '3px'
-                            }}
-                          />
-                        }
-                        style={{
-                          width: '100%',
-                          height: 'auto',
-                          minHeight: isSmallScreen ? '250px' : '300px',
-                          maxHeight: isSmallScreen ? '400px' : '600px',
-                          borderRadius: '12px',
-                          overflow: 'hidden',
-                          aspectRatio: 'auto',
-                          touchAction: 'pan-x'
-                        }}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4 text-center">
-                      <div className="p-2 sm:p-3 rounded-lg" style={{backgroundColor: '#f5f5f5'}}>
-                        <p className="font-semibold mb-1 text-sm sm:text-base" style={{color: '#1a1a1a'}}>Before</p>
-                        <p className="text-xs sm:text-sm" style={{color: '#4a6670'}}>
-                          {quoteData.beforeImageCaption || "Current state"}
-                        </p>
-                      </div>
-                      <div className="p-2 sm:p-3 rounded-lg" style={{backgroundColor: '#f5f5f5'}}>
-                        <p className="font-semibold mb-1 text-sm sm:text-base" style={{color: '#1a1a1a'}}>After</p>
-                        <p className="text-xs sm:text-sm" style={{color: '#4a6670'}}>
-                          {quoteData.afterImageCaption || "Transformed result"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-center p-3 sm:p-4 rounded-xl" style={{backgroundColor: '#f5f5f5'}}>
-                      <p className="text-xs sm:text-sm" style={{color: '#4a6670'}}>
-                        <strong>Interactive Comparison:</strong> Drag the slider to see the transformation. 
-                        This represents the level of quality and craftsmanship you can expect for your project.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  // Fallback for when only one image is available
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {quoteData.beforeImageUrl && (
-                      <div className="text-center">
-                        <img 
-                          src={quoteData.beforeImageUrl} 
-                          alt="Before" 
-                          className="w-full max-h-96 object-contain rounded-lg mb-2"
-                        />
-                        <p className="text-sm" style={{color: '#4a6670'}}>
-                          {quoteData.beforeImageCaption || "Before"}
-                        </p>
-                      </div>
-                    )}
-                    {quoteData.afterImageUrl && (
-                      <div className="text-center">
-                        <img 
-                          src={quoteData.afterImageUrl} 
-                          alt="After" 
-                          className="w-full max-h-96 object-contain rounded-lg mb-2"
-                        />
-                        <p className="text-sm" style={{color: '#4a6670'}}>
-                          {quoteData.afterImageCaption || "After"}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+          ) : null;
+        })()}
 
-        {/* Photo Gallery - Display uploaded images to customer */}
-        {quotePhotos && quotePhotos.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-            <div className="px-4 sm:px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
-              <div className="flex items-center gap-3">
-                <Camera className="h-6 w-6" style={{color: '#db973c'}} />
-                <div>
-                  <h3 className="text-xl font-bold" style={{color: '#1a1a1a'}}>Project Gallery</h3>
-                  <p className="text-sm sm:text-base" style={{color: '#4a6670'}}>Additional photos and project details</p>
+        {/* Photo Gallery - Display uploaded images to customer (excluding before/after) */}
+        {(() => {
+          const galleryPhotos = quotePhotos
+            .filter(p => p.category !== 'before' && p.category !== 'after')
+            .sort((a, b) => a.sortOrder - b.sortOrder);
+          
+          return galleryPhotos.length > 0 ? (
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+              <div className="px-4 sm:px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
+                <div className="flex items-center gap-3">
+                  <Camera className="h-6 w-6" style={{color: '#db973c'}} />
+                  <div>
+                    <h3 className="text-xl font-bold" style={{color: '#1a1a1a'}}>Project Gallery</h3>
+                    <p className="text-sm sm:text-base" style={{color: '#4a6670'}}>Additional photos and project details</p>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="p-4 sm:p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {quotePhotos
-                  .sort((a, b) => a.sortOrder - b.sortOrder)
-                  .map((photo) => (
+              <div className="p-4 sm:p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                  {galleryPhotos.map((photo) => (
                     <div key={photo.id} className="group">
                       <div className="relative rounded-xl overflow-hidden shadow-lg mb-3 bg-gray-50">
                         <img 
@@ -911,17 +944,18 @@ export default function CustomerQuotePage() {
                       )}
                     </div>
                   ))}
-              </div>
-              <div className="text-center mt-4 sm:mt-6 p-4 rounded-xl" style={{backgroundColor: '#f5f5f5'}}>
-                <p className="text-sm" style={{color: '#4a6670'}}>
-                  <ImageIcon className="h-4 w-4 inline mr-2" />
-                  <strong>Project Gallery:</strong> These photos showcase our work quality, materials, and attention to detail. 
-                  They represent the same level of craftsmanship you can expect for your project.
-                </p>
+                </div>
+                <div className="text-center mt-4 sm:mt-6 p-4 rounded-xl" style={{backgroundColor: '#f5f5f5'}}>
+                  <p className="text-sm" style={{color: '#4a6670'}}>
+                    <ImageIcon className="h-4 w-4 inline mr-2" />
+                    <strong>Project Gallery:</strong> These photos showcase our work quality, materials, and attention to detail. 
+                    They represent the same level of craftsmanship you can expect for your project.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          ) : null;
+        })()}
 
         {/* Quote Summary */}
         <div className="rounded-2xl shadow-lg text-white p-6" style={{backgroundColor: '#4a6670'}}>
