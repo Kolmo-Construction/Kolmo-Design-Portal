@@ -22,19 +22,6 @@ export default function QuotesPage() {
     retry: false,
   });
 
-  const { data: analyticsMap = {} } = useQuery<Record<number, { views: number; avgTime: number; scrollDepth: number }>>({
-    queryKey: ["/api/admin/analytics/quotes"],
-    queryFn: async () => {
-      try {
-        const response = await fetch("/api/admin/analytics/quotes");
-        if (!response.ok) return {};
-        return await response.json();
-      } catch {
-        return {};
-      }
-    },
-  });
-
   const sendQuoteMutation = useMutation({
     mutationFn: async (quoteId: number) => {
       return await apiRequest("POST", `/api/quotes/${quoteId}/send`);
@@ -205,9 +192,6 @@ export default function QuotesPage() {
                   <th className="px-4 py-3 text-left font-semibold" style={{ color: theme.colors.textMuted }}>Customer</th>
                   <th className="px-4 py-3 text-left font-semibold" style={{ color: theme.colors.textMuted }}>Status</th>
                   <th className="px-4 py-3 text-right font-semibold" style={{ color: theme.colors.textMuted }}>Amount</th>
-                  <th className="px-4 py-3 text-center font-semibold" style={{ color: theme.colors.textMuted }}>Views</th>
-                  <th className="px-4 py-3 text-center font-semibold" style={{ color: theme.colors.textMuted }}>Avg Time</th>
-                  <th className="px-4 py-3 text-center font-semibold" style={{ color: theme.colors.textMuted }}>Scroll</th>
                   <th className="px-4 py-3 text-left font-semibold" style={{ color: theme.colors.textMuted }}>Actions</th>
                 </tr>
               </thead>
@@ -229,27 +213,6 @@ export default function QuotesPage() {
                     </td>
                     <td className="px-4 py-3 text-right font-semibold" style={{ color: theme.colors.accent }}>
                       {formatCurrency(quote.total)}
-                    </td>
-                    <td className="px-4 py-3 text-center" data-testid={`text-views-${quote.id}`}>
-                      {quote.status !== "draft" ? (
-                        <span className="font-semibold">{analyticsMap[quote.id]?.views ?? 0}</span>
-                      ) : (
-                        <span style={{ color: theme.colors.textMuted }}>—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center" data-testid={`text-avgtime-${quote.id}`}>
-                      {quote.status !== "draft" && analyticsMap[quote.id]?.views > 0 ? (
-                        <span className="font-semibold">{analyticsMap[quote.id]?.avgTime ?? 0}s</span>
-                      ) : (
-                        <span style={{ color: theme.colors.textMuted }}>—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center" data-testid={`text-scroll-${quote.id}`}>
-                      {quote.status !== "draft" && analyticsMap[quote.id]?.views > 0 ? (
-                        <span className="font-semibold">{analyticsMap[quote.id]?.scrollDepth ?? 0}%</span>
-                      ) : (
-                        <span style={{ color: theme.colors.textMuted }}>—</span>
-                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
