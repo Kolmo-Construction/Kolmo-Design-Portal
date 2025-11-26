@@ -45,10 +45,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Query for admin chat token
+  // Query for admin chat token - CHAT DISABLED FOR TROUBLESHOOTING
+  const CHAT_ENABLED = false; // Set to false to disable chat temporarily
   const { data: adminChatData, error: adminError } = useQuery({
     queryKey: ['/api/chat/token'],
-    enabled: !isCustomer, // Enable only for admin users
+    enabled: CHAT_ENABLED && !isCustomer, // Enable only for admin users when chat is enabled
     retry: 2,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -245,9 +246,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
     }
   };
 
-  // Auto-initialize customer chat if props are provided
+  // Auto-initialize customer chat if props are provided - CHAT DISABLED FOR TROUBLESHOOTING
   useEffect(() => {
-    if (isCustomer && quoteToken && customerName && customerEmail && !client) {
+    const CHAT_ENABLED = false;
+    if (CHAT_ENABLED && isCustomer && quoteToken && customerName && customerEmail && !client) {
       initializeCustomerChat(quoteToken, customerName, customerEmail);
     }
   }, [isCustomer, quoteToken, customerName, customerEmail, client]);
