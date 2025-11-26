@@ -45,10 +45,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Query for admin chat token - temporarily disabled due to WebSocket connection issues
+  // Query for admin chat token
   const { data: adminChatData, error: adminError } = useQuery({
     queryKey: ['/api/chat/token'],
-    enabled: false, // Disabled until WebSocket connectivity is resolved
+    enabled: !isCustomer, // Enable only for admin users
     retry: 2,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
