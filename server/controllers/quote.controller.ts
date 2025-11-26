@@ -805,6 +805,8 @@ export class QuoteController {
                 
                 <div class="intro-text">
                     Thank you for choosing Kolmo Construction for your project needs. We have carefully reviewed your requirements and are pleased to present this comprehensive proposal tailored specifically for your construction project.
+                    <br><br>
+                    <strong style="color: #db973c;">👉 <a href="${quoteLink}" style="color: #db973c; text-decoration: underline;">Click here to review your complete proposal</a></strong> including detailed pricing, timeline, and payment options.
                 </div>
                 
                 <div class="quote-card">
@@ -862,12 +864,15 @@ export class QuoteController {
                 </div>
 
                 <div class="cta-section">
-                    <a href="${quoteLink}" class="cta-button">View Complete Proposal</a>
+                    <p style="font-size: 18px; color: #3d4552; margin-bottom: 20px; text-align: center; font-weight: 600;">
+                        Ready to move forward? Click below to review the full proposal details, timelines, and payment options.
+                    </p>
+                    <a href="${quoteLink}" class="cta-button">View & Accept Your Proposal</a>
                 </div>
 
                 <div class="validity-section">
-                    <strong>Quote Validity:</strong> This proposal is valid until <strong>${formatDate(quote.validUntil)}</strong>. 
-                    Please review and confirm your acceptance by this date to secure your project scheduling and locked-in pricing.
+                    <strong>⏰ Time Sensitive:</strong> This proposal is valid until <strong>${formatDate(quote.validUntil)}</strong>. 
+                    <span style="display: block; margin-top: 10px;">Please click above to review and confirm your acceptance by this date to secure your project scheduling and locked-in pricing.</span>
                 </div>
 
                 <div class="included-section">
@@ -882,6 +887,11 @@ export class QuoteController {
                         <li>Progress tracking and regular updates</li>
                         <li>Post-completion support and maintenance guidance</li>
                     </ul>
+                    <div style="text-align: center; margin-top: 25px;">
+                        <a href="${quoteLink}" class="cta-button" style="background: linear-gradient(135deg, #db973c 0%, #c8852f 100%); color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 50px; font-weight: 700; display: inline-block; font-size: 14px;">
+                            Review Full Proposal Details →
+                        </a>
+                    </div>
                 </div>
 
                 <div class="contact-section">
