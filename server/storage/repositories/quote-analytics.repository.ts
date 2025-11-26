@@ -275,17 +275,17 @@ export class QuoteAnalyticsRepository {
   // Get aggregated analytics for dashboard
   async getDashboardAnalytics() {
     try {
-      // Get total views across all quotes
+      // Get total views across all quotes (tracks 'page_view' events)
       const [totalViewsResult] = await db
         .select({ count: count() })
         .from(quoteAnalytics)
-        .where(eq(quoteAnalytics.event, 'view'));
+        .where(eq(quoteAnalytics.event, 'page_view'));
 
       // Get unique sessions across all quotes
       const [uniqueSessionsResult] = await db
         .select({ count: sql<number>`COUNT(DISTINCT ${quoteAnalytics.sessionId})` })
         .from(quoteAnalytics)
-        .where(eq(quoteAnalytics.event, 'view'));
+        .where(eq(quoteAnalytics.event, 'page_view'));
 
       // Get average time on page
       const [avgTimeResult] = await db
@@ -306,7 +306,7 @@ export class QuoteAnalyticsRepository {
           views: count(),
         })
         .from(quoteAnalytics)
-        .where(eq(quoteAnalytics.event, 'view'))
+        .where(eq(quoteAnalytics.event, 'page_view'))
         .groupBy(quoteAnalytics.quoteId)
         .orderBy(desc(count()))
         .limit(5);
@@ -320,7 +320,7 @@ export class QuoteAnalyticsRepository {
         .from(quoteAnalytics)
         .where(
           and(
-            eq(quoteAnalytics.event, 'view'),
+            eq(quoteAnalytics.event, 'page_view'),
             gte(quoteAnalytics.createdAt, yesterday)
           )
         );
@@ -365,14 +365,14 @@ export class QuoteAnalyticsRepository {
         };
       }
 
-      // Get view counts per quote
+      // Get view counts per quote (tracks 'page_view' events from customer views)
       const viewsPerQuote = await db
         .select({
           quoteId: quoteAnalytics.quoteId,
           views: count(),
         })
         .from(quoteAnalytics)
-        .where(eq(quoteAnalytics.event, 'view'))
+        .where(eq(quoteAnalytics.event, 'page_view'))
         .groupBy(quoteAnalytics.quoteId);
 
       // Get session metrics per quote
