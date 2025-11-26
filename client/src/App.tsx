@@ -39,6 +39,7 @@ import DesignProposalsPage from "@/pages/design-proposals";
 import PublicDesignProposalPage from "@/pages/public-design-proposal";
 import CreateQuotePage from "@/pages/create-quote";
 import EditQuotePage from "@/pages/edit-quote";
+import AnalyticsPage from "@/pages/analytics";
 
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth-unified";
@@ -89,6 +90,7 @@ function Router() {
         <ProtectedRoute path="/user-management" component={UserManagement} adminOnly />
         <ProtectedRoute path="/admin/images" component={AdminImageGallery} adminOnly />
         <ProtectedRoute path="/design-proposals" component={DesignProposalsPage} adminOnly />
+        <ProtectedRoute path="/analytics" component={AnalyticsPage} adminOnly />
         
         {/* Public design proposal route */}
         <Route path="/design-proposal/:token" component={PublicDesignProposalPage} />
