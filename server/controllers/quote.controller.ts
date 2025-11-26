@@ -888,8 +888,8 @@ export class QuoteController {
                     <h3>Ready to Discuss Your Project?</h3>
                     <div class="contact-info">Our experienced project consultants are standing by to answer your questions and guide you through the next steps.</div>
                     <div class="contact-info"><strong>Email:</strong> <span class="email-link">projects@kolmo.io</span></div>
-                    <div class="contact-info"><strong>Phone:</strong> (555) 123-KOLMO</div>
-                    <div class="contact-info"><strong>Hours:</strong> Monday - Friday, 8:00 AM - 6:00 PM PST</div>
+                    <div class="contact-info"><strong>Phone:</strong> (206) 410-5100</div>
+                    <div class="contact-info"><strong>Hours:</strong> Monday - Friday, 7:00 AM - 5:00 PM PST</div>
                 </div>
 
                 <div class="closing">
@@ -907,7 +907,7 @@ export class QuoteController {
                 <div class="accent-line"></div>
                 <p>Licensed • Bonded • Insured</p>
                 <p>Building Excellence Since 2020</p>
-                <p>www.kolmo.io | <span style="color: rgba(255, 255, 255, 0.7);">projects@kolmo.io</span> | (555) 123-KOLMO</p>
+                <p>www.kolmo.io | <span style="color: rgba(255, 255, 255, 0.7);">projects@kolmo.io</span> | (206) 410-5100</p>
                 <p style="font-size: 12px; margin-top: 15px; opacity: 0.7;">This email was sent to ${quote.customerEmail}. All quotes are confidential and proprietary.</p>
             </div>
         </div>
