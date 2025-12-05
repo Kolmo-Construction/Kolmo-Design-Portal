@@ -6,10 +6,10 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "@server/storage/index";
 import { User as SelectUser } from "@shared/schema";
-import { sendMagicLinkEmail, isEmailServiceConfigured } from "@server/email";
+import { sendMagicLinkEmail, isEmailServiceConfigured, sendEmail } from "@server/email";
 import { UserProfile } from "@server/storage/types"; // Import UserProfile
 import { HttpError } from "./errors";
-import { generateMagicLinkUrl } from "@server/domain.config";
+import { generateMagicLinkUrl, getBaseUrl } from "@server/domain.config";
 
 declare global {
   namespace Express {
@@ -87,6 +87,11 @@ export async function createAndSendMagicLink(email: string): Promise<boolean> {
       console.log(`[DEV] Magic link token for ${email}: ${token}`);
       return false;
     }
+
+    // Add detailed logging
+    console.log(`[createAndSendMagicLink] Email service configured: ${isEmailServiceConfigured()}`);
+    console.log(`[createAndSendMagicLink] Base URL: ${getBaseUrl()}`);
+    console.log(`[createAndSendMagicLink] Full magic link: ${getBaseUrl()}/api/auth/magic-link/${token}`);
 
     // Send the magic link email
     console.log(`[createAndSendMagicLink] Attempting to send magic link email to: ${user.email}`);
@@ -775,6 +780,46 @@ export function setupAuth(app: Express) {
     } catch (err) {
       console.error("Error checking email configuration:", err);
       res.status(500).json({ message: "Failed to check email configuration" });
+    }
+  });
+
+  // Test email sending endpoint - admin only
+  app.get("/api/test-email", async (req, res) => {
+    try {
+      // Check if admin
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const configured = isEmailServiceConfigured();
+      if (!configured) {
+        return res.status(400).json({ 
+          configured: false,
+          message: "Email service not configured. Check REPLIT_CONNECTORS_HOSTNAME environment variable." 
+        });
+      }
+
+      // Try to send a test email
+      const testEmail = req.user.email || "test@example.com";
+      const success = await sendEmail({
+        to: testEmail,
+        subject: "Test Email from Construction Portal",
+        text: "This is a test email to verify email sending is working.",
+        html: "<h2>Test Email</h2><p>This is a test email to verify email sending is working.</p>"
+      });
+
+      return res.status(200).json({
+        configured: true,
+        emailSent: success,
+        message: success ? "Test email sent successfully" : "Failed to send test email"
+      });
+    } catch (error: any) {
+      console.error("Test email error:", error);
+      return res.status(500).json({ 
+        configured: false,
+        error: error.message,
+        details: "Check Gmail connector setup in Replit" 
+      });
     }
   });
 
