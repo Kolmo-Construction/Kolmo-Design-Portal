@@ -1,13 +1,15 @@
 import Stripe from 'stripe';
 import { HttpError } from '../errors';
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
-}
+let stripe: Stripe | null = null;
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-05-28.basil',
-});
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.warn('WARNING: STRIPE_SECRET_KEY not set. Stripe functionality will be disabled.');
+} else {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2025-05-28.basil',
+  });
+}
 
 export interface CreatePaymentIntentOptions {
   amount: number; // in cents
@@ -33,13 +35,18 @@ export interface CreateCustomerOptions {
 }
 
 export class StripeService {
-  /**
-   * Create a payment intent for one-time payments
-   */
+  private checkStripeAvailable() {
+    if (!stripe) {
+      throw new HttpError(503, 'Stripe is not configured. Payment functionality is unavailable.');
+    }
+  }
+
   async createPaymentIntent(options: CreatePaymentIntentOptions): Promise<Stripe.PaymentIntent> {
+    this.checkStripeAvailable();
+    
     try {
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(options.amount), // Ensure it's an integer
+      const paymentIntent = await stripe!.paymentIntents.create({
+        amount: Math.round(options.amount),
         currency: options.currency || 'usd',
         description: options.description,
         metadata: options.metadata || {},
@@ -55,13 +62,11 @@ export class StripeService {
     }
   }
 
-  /**
-   * Create or retrieve a Stripe customer
-   */
   async createCustomer(options: CreateCustomerOptions): Promise<Stripe.Customer> {
+    this.checkStripeAvailable();
+    
     try {
-      // First check if customer already exists
-      const existingCustomers = await stripe.customers.list({
+      const existingCustomers = await stripe!.customers.list({
         email: options.email,
         limit: 1,
       });
@@ -70,8 +75,7 @@ export class StripeService {
         return existingCustomers.data[0];
       }
 
-      // Create new customer
-      const customer = await stripe.customers.create({
+      const customer = await stripe!.customers.create({
         email: options.email,
         name: options.name,
         phone: options.phone,
@@ -86,9 +90,6 @@ export class StripeService {
     }
   }
 
-  /**
-   * Create a payment link for invoice payments
-   */
   async createPaymentLink(options: {
     amount: number;
     description: string;
@@ -97,8 +98,10 @@ export class StripeService {
     successUrl?: string;
     cancelUrl?: string;
   }): Promise<Stripe.PaymentLink> {
+    this.checkStripeAvailable();
+    
     try {
-      const paymentLink = await stripe.paymentLinks.create({
+      const paymentLink = await stripe!.paymentLinks.create({
         line_items: [
           {
             price_data: {
@@ -129,25 +132,23 @@ export class StripeService {
     }
   }
 
-  /**
-   * Retrieve payment intent details
-   */
   async getPaymentIntent(paymentIntentId: string): Promise<Stripe.PaymentIntent> {
+    this.checkStripeAvailable();
+    
     try {
-      return await stripe.paymentIntents.retrieve(paymentIntentId);
+      return await stripe!.paymentIntents.retrieve(paymentIntentId);
     } catch (error: any) {
       console.error('Error retrieving payment intent:', error);
       throw new HttpError(404, `Payment intent not found: ${error.message}`);
     }
   }
 
-  /**
-   * Confirm payment intent (for server-side confirmation)
-   */
   async confirmPaymentIntent(
     paymentIntentId: string,
     paymentMethodId?: string
   ): Promise<Stripe.PaymentIntent> {
+    this.checkStripeAvailable();
+    
     try {
       const confirmation: Stripe.PaymentIntentConfirmParams = {};
       
@@ -155,17 +156,16 @@ export class StripeService {
         confirmation.payment_method = paymentMethodId;
       }
 
-      return await stripe.paymentIntents.confirm(paymentIntentId, confirmation);
+      return await stripe!.paymentIntents.confirm(paymentIntentId, confirmation);
     } catch (error: any) {
       console.error('Error confirming payment intent:', error);
       throw new HttpError(400, `Payment confirmation failed: ${error.message}`);
     }
   }
 
-  /**
-   * Create a refund for a payment
-   */
   async createRefund(chargeId: string, amount?: number): Promise<Stripe.Refund> {
+    this.checkStripeAvailable();
+    
     try {
       const refundData: Stripe.RefundCreateParams = {
         charge: chargeId,
@@ -175,17 +175,16 @@ export class StripeService {
         refundData.amount = Math.round(amount);
       }
 
-      return await stripe.refunds.create(refundData);
+      return await stripe!.refunds.create(refundData);
     } catch (error: any) {
       console.error('Error creating refund:', error);
       throw new HttpError(400, `Refund creation failed: ${error.message}`);
     }
   }
 
-  /**
-   * Handle Stripe webhook events
-   */
   async constructEvent(body: string | Buffer, signature: string): Promise<Stripe.Event> {
+    this.checkStripeAvailable();
+    
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
     
     if (!webhookSecret) {
@@ -193,7 +192,7 @@ export class StripeService {
     }
 
     try {
-      return stripe.webhooks.constructEvent(body, signature, webhookSecret);
+      return stripe!.webhooks.constructEvent(body, signature, webhookSecret);
     } catch (error: any) {
       console.error('Error constructing webhook event:', error);
       throw new HttpError(400, `Webhook signature verification failed: ${error.message}`);

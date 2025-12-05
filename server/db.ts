@@ -1,9 +1,9 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+import { Pool as NeonPool, neonConfig } from '@neondatabase/serverless';
+import { drizzle as neonDrizzle } from 'drizzle-orm/neon-serverless';
+import { Pool as PgPool } from 'pg';
+import { drizzle as pgDrizzle } from 'drizzle-orm/node-postgres';
+import ws from 'ws';
 import * as schema from "@shared/schema";
-
-neonConfig.webSocketConstructor = ws;
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -11,5 +11,26 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle({ client: pool, schema });
+// Detect if we're using Neon (Railway/Production) or local PostgreSQL
+const isNeon = process.env.DATABASE_URL.includes('neon.tech') || 
+               process.env.DATABASE_URL.includes('.pooler.') ||
+               process.env.USE_NEON === 'true';
+
+let pool: NeonPool | PgPool;
+let db: ReturnType<typeof neonDrizzle> | ReturnType<typeof pgDrizzle>;
+
+if (isNeon) {
+  console.log('Using Neon serverless driver for production/Railway');
+  neonConfig.webSocketConstructor = ws;
+  pool = new NeonPool({ connectionString: process.env.DATABASE_URL });
+  db = neonDrizzle({ client: pool, schema });
+} else {
+  console.log('Using standard PostgreSQL driver for local development');
+  pool = new PgPool({ 
+    connectionString: process.env.DATABASE_URL,
+    ssl: false
+  });
+  db = pgDrizzle({ client: pool, schema });
+}
+
+export { pool, db };
