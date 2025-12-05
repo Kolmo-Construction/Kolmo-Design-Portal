@@ -185,7 +185,7 @@ export async function sendMagicLinkEmail({
 
   const path = resetPassword
     ? `/reset-password?token=${token}`
-    : `/auth/magic-link/${token}`;
+    : `/api/auth/magic-link/${token}`;
 
   const link = `${baseUrl}${path}`;
 

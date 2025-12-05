@@ -89,12 +89,19 @@ export async function createAndSendMagicLink(email: string): Promise<boolean> {
     }
 
     // Send the magic link email
-    return await sendMagicLinkEmail({
+    console.log(`[createAndSendMagicLink] Attempting to send magic link email to: ${user.email}`);
+    console.log(`[createAndSendMagicLink] Token: ${token}`);
+    console.log(`[createAndSendMagicLink] User is activated: ${user.isActivated}`);
+    
+    const emailSent = await sendMagicLinkEmail({
       email: user.email,
       firstName: user.firstName || '',
       token,
       isNewUser: !user.isActivated
     });
+    
+    console.log(`[createAndSendMagicLink] Email sending result: ${emailSent}`);
+    return emailSent;
   } catch (error) {
     console.error('Error creating and sending magic link:', error);
     return false;
@@ -397,6 +404,10 @@ export function setupAuth(app: Express) {
       const isNewUser = !user.isActivated;
       let emailSent = false;
 
+      console.log(`[Admin create magic link] Attempting to send email to: ${email}`);
+      console.log(`[Admin create magic link] Token: ${token}`);
+      console.log(`[Admin create magic link] User is activated: ${user.isActivated}`);
+      
       if (isEmailServiceConfigured()) {
         emailSent = await sendMagicLinkEmail({
           email,
@@ -404,6 +415,7 @@ export function setupAuth(app: Express) {
           token,  // Pass the token, not the full magicLink
           isNewUser
         });
+        console.log(`[Admin create magic link] Email sending result: ${emailSent}`);
       } else {
         console.warn('Email service not configured. Magic link will not be sent.');
         console.log(`[DEV] Magic link: ${magicLink}`);
