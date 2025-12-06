@@ -135,6 +135,8 @@ export const projects = pgTable("projects", {
   city: text("city").notNull(),
   state: text("state").notNull(),
   zipCode: text("zip_code").notNull(),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
   startDate: timestamp("start_date"),
   estimatedCompletionDate: timestamp("estimated_completion_date"),
   actualCompletionDate: timestamp("actual_completion_date"),
@@ -296,6 +298,36 @@ export const adminImages = pgTable("admin_images", {
   uploadedById: integer("uploaded_by_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Google Drive images ingestion with EXIF metadata
+export const driveImages = pgTable("drive_images", {
+  id: serial("id").primaryKey(),
+  fileId: text("file_id").notNull().unique(), // Google Drive file ID
+  name: text("name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(), // in bytes
+
+  // Drive timestamps
+  driveCreatedTime: timestamp("drive_created_time").notNull(),
+  driveModifiedTime: timestamp("drive_modified_time").notNull(),
+
+  // EXIF GPS coordinates (decimal degrees)
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+
+  // EXIF capture date (DateTimeOriginal or fallback to driveCreatedTime)
+  captureDate: timestamp("capture_date"),
+
+  // Device information from EXIF
+  device: text("device"), // e.g., "Apple iPhone 12 Pro"
+
+  // R2 storage information
+  r2Url: text("r2_url"),
+  r2Key: text("r2_key"),
+
+  // Processing metadata
+  processedAt: timestamp("processed_at").defaultNow().notNull(),
 });
 
 // Design proposals for before/after comparisons
@@ -872,6 +904,14 @@ export const insertProjectSchema = createInsertSchema(projects)
       z.string().transform(val => parseFloat(val.replace(/[^0-9.]/g, ''))).refine(n => !isNaN(n) && n > 0, { message: "Budget must be a positive number" }),
       z.number().min(1, "Budget must be a positive number")
     ]),
+    longitude: z.string().optional().nullable().refine(
+      val => !val || (!isNaN(parseFloat(val)) && parseFloat(val) >= -180 && parseFloat(val) <= 180),
+      { message: "Longitude must be between -180 and 180" }
+    ),
+    latitude: z.string().optional().nullable().refine(
+      val => !val || (!isNaN(parseFloat(val)) && parseFloat(val) >= -90 && parseFloat(val) <= 90),
+      { message: "Latitude must be between -90 and 90" }
+    ),
     clientIds: z.array(z.number()).optional(),
   });
 

@@ -27,8 +27,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { CalendarIcon, X, Upload, Loader2 } from "lucide-react";
+import { CalendarIcon, X, Upload, Loader2, MapPin, CheckCircle2 } from "lucide-react";
 import { ClientMultiSelectCombobox } from "./ClientMultiSelectCombobox";
+import { geocodeAddress } from "@/lib/geocoding";
+import { useToast } from "@/hooks/use-toast";
 
 // REMOVE the local definition of projectFormSchema and ProjectFormValues here
 
@@ -62,6 +64,59 @@ export function ProjectFormFields({
   onFileChange,
   onRemoveFile,
 }: ProjectFormFieldsProps) {
+    const { toast } = useToast();
+    const [isGeocoding, setIsGeocoding] = React.useState(false);
+
+    // Function to fetch geolocation coordinates
+    const handleGeocode = async () => {
+      const address = form.getValues('address');
+      const city = form.getValues('city');
+      const state = form.getValues('state');
+      const zipCode = form.getValues('zipCode');
+
+      if (!address || !city || !state || !zipCode) {
+        toast({
+          title: "Incomplete address",
+          description: "Please fill in all address fields before fetching coordinates.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setIsGeocoding(true);
+      try {
+        const result = await geocodeAddress({
+          street: address,
+          city,
+          state,
+          zipCode,
+        });
+
+        if (result) {
+          form.setValue('longitude', result.longitude);
+          form.setValue('latitude', result.latitude);
+          toast({
+            title: "Location found",
+            description: `Coordinates: ${result.latitude}, ${result.longitude}`,
+          });
+        } else {
+          toast({
+            title: "Location not found",
+            description: "Could not find coordinates for this address. Please check the address and try again.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error("Geocoding error:", error);
+        toast({
+          title: "Geocoding failed",
+          description: "An error occurred while fetching coordinates. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsGeocoding(false);
+      }
+    };
 
     // Function to safely format dates
     const safeFormatDate = (date: Date | string | null | undefined, formatString: string) => {
@@ -211,6 +266,72 @@ export function ProjectFormFields({
                 <Input placeholder="Enter zip code" {...field} disabled={disabled} />
               </FormControl>
               <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
+      {/* Geocoding Section */}
+      <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <MapPin className="h-4 w-4 text-slate-600" />
+            <span className="text-sm font-medium text-slate-700">Geolocation</span>
+          </div>
+          <p className="text-xs text-slate-500">
+            Fetch coordinates from the address above to store the project location.
+          </p>
+          {form.watch('latitude') && form.watch('longitude') && (
+            <div className="mt-2 flex items-center gap-2 text-xs text-green-600">
+              <CheckCircle2 className="h-3 w-3" />
+              <span>
+                Coordinates: {form.watch('latitude')}, {form.watch('longitude')}
+              </span>
+            </div>
+          )}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleGeocode}
+          disabled={disabled || isGeocoding}
+          className="flex items-center gap-2"
+        >
+          {isGeocoding ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Fetching...
+            </>
+          ) : (
+            <>
+              <MapPin className="h-4 w-4" />
+              Get Coordinates
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* Hidden fields for longitude and latitude */}
+      <div className="hidden">
+        <FormField
+          control={form.control}
+          name="longitude"
+          render={({ field }) => (
+            <FormItem>
+              <FormControl>
+                <Input {...field} value={field.value ?? ""} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="latitude"
+          render={({ field }) => (
+            <FormItem>
+              <FormControl>
+                <Input {...field} value={field.value ?? ""} />
+              </FormControl>
             </FormItem>
           )}
         />

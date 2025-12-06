@@ -8,6 +8,20 @@
       "when": 1764970790603,
       "tag": "0000_omniscient_titania",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1765036377735,
+      "tag": "0001_overjoyed_namora",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1765054783412,
+      "tag": "0002_rare_red_wolf",
+      "breakpoints": true
     }
   ]
 }

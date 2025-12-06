@@ -7,3 +7,6 @@ vite.config.ts.*
 .aider*
 .env
 .env.local
+
+# Google service account credentials
+server/config/google-drive-credentials.json

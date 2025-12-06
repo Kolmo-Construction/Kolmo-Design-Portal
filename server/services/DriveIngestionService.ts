@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import exifr from 'exifr';
 import { db } from '../db';
+import { driveImages } from '@shared/schema';
 import { uploadToR2 } from '../r2-upload';
 
 // Define the structure for our metadata
@@ -117,11 +118,14 @@ export class DriveIngestionService {
     
     // 2. Parse EXIF metadata
     const exifData = await this.parseExifMetadata(buffer);
-    
+
     // 3. Upload to R2
     const r2Info = await this.uploadToR2(buffer, file);
-    
-    // 4. Prepare metadata
+
+    // 4. Prepare metadata with date fallback
+    // Prefer DateTimeOriginal from EXIF, fallback to Drive createdTime
+    const captureDate = exifData.date || new Date(file.createdTime);
+
     const metadata: DriveImageMetadata = {
       fileId: file.id,
       name: file.name,
@@ -131,7 +135,7 @@ export class DriveIngestionService {
       modifiedTime: file.modifiedTime,
       lat: exifData.lat,
       lon: exifData.lon,
-      date: exifData.date,
+      date: captureDate,
       device: exifData.device,
       r2Url: r2Info.url,
       r2Key: r2Info.key,
@@ -160,6 +164,7 @@ export class DriveIngestionService {
 
   /**
    * Parse EXIF metadata from image buffer
+   * Note: exifr returns GPS coordinates as decimal degrees already
    */
   private async parseExifMetadata(buffer: ArrayBuffer): Promise<{
     lat?: number;
@@ -177,27 +182,39 @@ export class DriveIngestionService {
         iptc: false,
         jfif: false,
         // Extract specific tags
-        pick: ['latitude', 'longitude', 'DateTimeOriginal', 'Make', 'Model']
+        pick: ['latitude', 'longitude', 'DateTimeOriginal', 'Make', 'Model',
+               'GPSLatitude', 'GPSLongitude', 'GPSLatitudeRef', 'GPSLongitudeRef']
       });
 
-      // Normalize GPS coordinates
+      // exifr returns coordinates as decimal degrees
+      // However, some formats may need conversion
       let lat: number | undefined;
       let lon: number | undefined;
-      if (exif?.latitude && exif?.longitude) {
-        lat = this.convertDMSToDecimal(exif.latitude, exif.latitudeRef);
-        lon = this.convertDMSToDecimal(exif.longitude, exif.longitudeRef);
+
+      if (exif?.latitude !== undefined && exif?.longitude !== undefined) {
+        // exifr already converts to decimal degrees
+        lat = typeof exif.latitude === 'number' ? exif.latitude : undefined;
+        lon = typeof exif.longitude === 'number' ? exif.longitude : undefined;
+      } else if (exif?.GPSLatitude && exif?.GPSLongitude) {
+        // Fallback: manual conversion if raw DMS data is present
+        lat = this.convertDMSToDecimal(exif.GPSLatitude, exif.GPSLatitudeRef || 'N');
+        lon = this.convertDMSToDecimal(exif.GPSLongitude, exif.GPSLongitudeRef || 'E');
       }
 
-      // Normalize date
+      // Normalize date - prefer DateTimeOriginal
       let date: Date | undefined;
       if (exif?.DateTimeOriginal) {
         date = new Date(exif.DateTimeOriginal);
+        // Validate date
+        if (isNaN(date.getTime())) {
+          date = undefined;
+        }
       }
 
       // Device information
       let device: string | undefined;
       if (exif?.Make || exif?.Model) {
-        device = [exif.Make, exif.Model].filter(Boolean).join(' ');
+        device = [exif.Make, exif.Model].filter(Boolean).join(' ').trim();
       }
 
       return { lat, lon, date, device };
@@ -209,19 +226,28 @@ export class DriveIngestionService {
 
   /**
    * Convert DMS (Degrees Minutes Seconds) to Decimal Degrees
+   * Handles both array format [degrees, minutes, seconds] and object format
    */
   private convertDMSToDecimal(
-    dms: { degrees: number; minutes: number; seconds: number } | number,
+    dms: { degrees: number; minutes: number; seconds: number } | number | number[],
     ref: string
   ): number {
     // If it's already a number, return it
     if (typeof dms === 'number') {
       return dms;
     }
-    
-    // Calculate decimal degrees
-    const decimal = dms.degrees + (dms.minutes / 60) + (dms.seconds / 3600);
-    
+
+    let decimal: number;
+
+    // Handle array format [degrees, minutes, seconds]
+    if (Array.isArray(dms)) {
+      const [degrees = 0, minutes = 0, seconds = 0] = dms;
+      decimal = degrees + (minutes / 60) + (seconds / 3600);
+    } else {
+      // Handle object format
+      decimal = dms.degrees + (dms.minutes / 60) + (dms.seconds / 3600);
+    }
+
     // Apply direction reference
     if (ref === 'S' || ref === 'W') {
       return -decimal;
@@ -233,43 +259,40 @@ export class DriveIngestionService {
    * Upload image to R2 storage
    */
   private async uploadToR2(buffer: ArrayBuffer, file: any): Promise<{ url: string; key: string }> {
-    // Convert ArrayBuffer to Buffer for R2 upload
+    // Convert ArrayBuffer to Node.js Buffer
     const nodeBuffer = Buffer.from(buffer);
-    
-    // Create a File-like object
-    const blob = new Blob([nodeBuffer], { type: file.mimeType });
-    const r2File = new File([blob], file.name, { type: file.mimeType });
-    
+
     // Upload to R2 using the existing uploadToR2 function
-    // Note: uploadToR2 expects a File object
-    const key = await uploadToR2(r2File);
-    
-    // Construct URL (adjust based on your R2 configuration)
-    const url = `https://your-r2-domain.com/${key}`;
-    
-    return { url, key };
+    const result = await uploadToR2({
+      fileName: file.name,
+      buffer: nodeBuffer,
+      mimetype: file.mimeType,
+      path: 'drive-ingestion/' // Store in a specific folder
+    });
+
+    return result;
   }
 
   /**
-   * Save metadata to database
+   * Save metadata to database using Drizzle ORM
    */
   private async saveToDatabase(metadata: DriveImageMetadata): Promise<void> {
-    // Insert into the drive_images table
-    // Adjust based on your actual database schema
-    await db.insert('drive_images').values({
+    await db.insert(driveImages).values({
       fileId: metadata.fileId,
       name: metadata.name,
       mimeType: metadata.mimeType,
       size: metadata.size,
-      createdTime: new Date(metadata.createdTime),
-      modifiedTime: new Date(metadata.modifiedTime),
-      lat: metadata.lat,
-      lon: metadata.lon,
+      driveCreatedTime: new Date(metadata.createdTime),
+      driveModifiedTime: new Date(metadata.modifiedTime),
+      latitude: metadata.lat?.toString(),
+      longitude: metadata.lon?.toString(),
       captureDate: metadata.date,
       device: metadata.device,
       r2Url: metadata.r2Url,
       r2Key: metadata.r2Key,
-      processedAt: new Date(),
+      // processedAt is set automatically by defaultNow()
     });
+
+    console.log(`✓ Saved ${metadata.name} to database`);
   }
 }

@@ -52,6 +52,8 @@ export function CreateProjectDialog({
       city: "",
       state: "",
       zipCode: "",
+      longitude: null,
+      latitude: null,
       status: "planning",
       totalBudget: "", // Keep as string initially
       projectManagerId: undefined,
@@ -213,6 +215,7 @@ export function CreateProjectDialog({
       // Reset with default values for the create form schema
        form.reset({
             name: "", description: "", address: "", city: "", state: "", zipCode: "",
+            longitude: null, latitude: null,
             status: "planning", totalBudget: "", projectManagerId: undefined,
             imageUrl: "", startDate: undefined, estimatedCompletionDate: undefined,
             clientIds: [],

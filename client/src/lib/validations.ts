@@ -28,6 +28,8 @@ export const projectFormSchema = z.object({
   city: z.string().min(1, "City is required"),
   state: z.string().min(1, "State is required"),
   zipCode: z.string().min(1, "Zip code is required"),
+  longitude: z.string().optional().nullable(),
+  latitude: z.string().optional().nullable(),
   // Accept Date objects or strings for dates
   startDate: z.union([z.date(), z.string()]).optional(),
   estimatedCompletionDate: z.union([z.date(), z.string()]).optional(),

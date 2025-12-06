@@ -2,20 +2,22 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AdminImageUploader } from '@/components/admin/AdminImageUploader';
 import { AdminImageGalleryView } from '@/components/admin/AdminImageGalleryView';
+import { DriveIngestionDialog } from '@/components/admin/DriveIngestionDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Upload, 
-  Grid3X3, 
-  BarChart3, 
-  Search, 
+import {
+  Upload,
+  Grid3X3,
+  BarChart3,
+  Search,
   Filter,
   Images,
-  TrendingUp
+  TrendingUp,
+  Cloud
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth-unified';
 
@@ -31,6 +33,7 @@ export default function AdminImageGallery() {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [driveDialogOpen, setDriveDialogOpen] = useState(false);
 
   // Check if user has admin or project manager access
   const hasAccess = user?.role === 'admin' || user?.role === 'projectManager';
@@ -42,6 +45,10 @@ export default function AdminImageGallery() {
   });
 
   const handleUploadComplete = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
+
+  const handleDriveIngestComplete = () => {
     setRefreshTrigger(prev => prev + 1);
   };
 
@@ -80,6 +87,14 @@ export default function AdminImageGallery() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setDriveDialogOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Cloud className="h-4 w-4" />
+            Import from Drive
+          </Button>
           <Badge variant="outline">
             {stats?.totalImages || 0} images
           </Badge>
@@ -203,6 +218,13 @@ export default function AdminImageGallery() {
           <AdminImageUploader onUploadComplete={handleUploadComplete} />
         </TabsContent>
       </Tabs>
+
+      {/* Drive Ingestion Dialog */}
+      <DriveIngestionDialog
+        isOpen={driveDialogOpen}
+        onOpenChange={setDriveDialogOpen}
+        onIngestComplete={handleDriveIngestComplete}
+      />
     </div>
   );
 }
