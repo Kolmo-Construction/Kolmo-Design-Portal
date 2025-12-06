@@ -7,6 +7,7 @@ export interface UseUserManagementDialogsResult {
     isCreateUserDialogOpen: boolean;
     openCreateUserDialog: () => void;
     closeCreateUserDialog: () => void; // Explicit close if needed
+    openEditUserDialog: (user: User) => void; // Open dialog in edit mode
 
     isResetPasswordDialogOpen: boolean;
     openResetPasswordDialog: (user: User) => void;
@@ -17,6 +18,7 @@ export interface UseUserManagementDialogsResult {
     closeDeleteUserDialog: () => void; // Explicit close if needed
 
     userToManage: User | null; // User currently targeted by Reset/Delete dialog
+    userToEdit: User | null; // User currently being edited in Create/Edit dialog
 
     // Combined setter for dialog open state if preferred
     // setDialogState: (dialog: 'create' | 'reset' | 'delete', open: boolean) => void;
@@ -30,14 +32,22 @@ export function useUserManagementDialogs(): UseUserManagementDialogsResult {
     const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
     const [isDeleteUserDialogOpen, setIsDeleteUserDialogOpen] = useState(false);
     const [userToManage, setUserToManage] = useState<User | null>(null);
+    const [userToEdit, setUserToEdit] = useState<User | null>(null);
 
     const openCreateUserDialog = useCallback(() => {
+        setUserToEdit(null); // Clear edit user when opening create
         setUserToManage(null); // Ensure no user is selected when opening create
+        setIsCreateUserDialogOpen(true);
+    }, []);
+
+    const openEditUserDialog = useCallback((user: User) => {
+        setUserToEdit(user);
         setIsCreateUserDialogOpen(true);
     }, []);
 
     const closeCreateUserDialog = useCallback(() => {
         setIsCreateUserDialogOpen(false);
+        setUserToEdit(null); // Clear edit user when closing
     }, []);
 
     const openResetPasswordDialog = useCallback((user: User) => {
@@ -63,7 +73,14 @@ export function useUserManagementDialogs(): UseUserManagementDialogsResult {
          // setUserToManage(null);
     }, []);
 
-    // Controlled setters that also clear userToManage on close
+    // Controlled setters that also clear state on close
+    const controlledSetIsCreateUserDialogOpen = useCallback((open: boolean) => {
+        setIsCreateUserDialogOpen(open);
+        if (!open) {
+            setUserToEdit(null);
+        }
+    }, []);
+
     const controlledSetIsResetPasswordDialogOpen = useCallback((open: boolean) => {
         setIsResetPasswordDialogOpen(open);
         if (!open) {
@@ -71,35 +88,33 @@ export function useUserManagementDialogs(): UseUserManagementDialogsResult {
         }
     }, []);
 
-     const controlledSetIsDeleteDialogOpen = useCallback((open: boolean) => {
+    const controlledSetIsDeleteDialogOpen = useCallback((open: boolean) => {
         setIsDeleteUserDialogOpen(open);
         if (!open) {
             setUserToManage(null);
         }
     }, []);
 
-
     return {
         isCreateUserDialogOpen,
         openCreateUserDialog,
-        closeCreateUserDialog, // provide explicit close
+        openEditUserDialog, // Add edit handler
+        closeCreateUserDialog,
 
         isResetPasswordDialogOpen,
         openResetPasswordDialog,
-        closeResetPasswordDialog, // provide explicit close
+        closeResetPasswordDialog,
 
         isDeleteUserDialogOpen,
         openDeleteUserDialog,
-        closeDeleteUserDialog, // provide explicit close
+        closeDeleteUserDialog,
 
         userToManage,
+        userToEdit, // Add edit user state
 
         // Provide controlled setters if dialogs use onOpenChange directly
-        // If dialogs have explicit close buttons, the above handlers might be enough.
-        // For consistency with Shadcn Dialog's onOpenChange, pass these setters:
-        setIsCreateUserDialogOpen, // Direct setter for create dialog
+        setIsCreateUserDialogOpen: controlledSetIsCreateUserDialogOpen,
         setIsResetPasswordDialogOpen: controlledSetIsResetPasswordDialogOpen,
         setIsDeleteDialogOpen: controlledSetIsDeleteDialogOpen,
-
     };
 }

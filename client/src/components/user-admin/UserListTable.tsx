@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Building2, Key, Trash2 } from "lucide-react";
+import { Loader2, Building2, Key, Trash2, Pencil } from "lucide-react";
 // ADDED Imports from utils
 import { getUserRoleLabel, getUserRoleBadgeVariant, getUserStatusBadgeClasses } from "@/lib/utils";
 
@@ -20,6 +20,7 @@ interface UserListTableProps {
   onSelectClient: (userId: number) => void;
   onResetPassword: (user: User) => void;
   onDeleteUser: (user: User) => void;
+  onEditUser: (user: User) => void;
 }
 
 // REMOVED: Local getRoleBadgeVariant helper function
@@ -33,6 +34,7 @@ export function UserListTable({
   onSelectClient,
   onResetPassword,
   onDeleteUser,
+  onEditUser,
 }: UserListTableProps) {
   if (isLoading) {
     return (
@@ -81,41 +83,43 @@ export function UserListTable({
                 {user.role === "client" && (
                   <Button
                     variant="ghost"
-
                     size="sm"
                     onClick={() => onSelectClient(user.id)}
                     className="gap-1 text-xs"
                   >
                     <Building2 className="h-3.5 w-3.5" />
-
                     View Projects
                   </Button>
                 )}
                 {/* Don't allow actions on own account */}
                 {user.id !== currentUser?.id && (
-
                   <>
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => onEditUser(user)}
+                      className="gap-1 text-xs"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => onResetPassword(user)}
-
                       className="gap-1 text-xs"
                     >
                       <Key className="h-3.5 w-3.5" />
                       Reset Password
-
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => onDeleteUser(user)}
-
                       className="gap-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300 hover:border-red-400"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       Delete
-
                     </Button>
                   </>
                 )}

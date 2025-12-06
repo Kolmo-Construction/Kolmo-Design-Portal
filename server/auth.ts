@@ -608,6 +608,75 @@ export function setupAuth(app: Express) {
     }
   });
 
+  // Update a user - admin only
+  app.patch("/api/admin/users/:id", async (req, res) => {
+    try {
+      // Check if admin
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const userId = parseInt(req.params.id, 10);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      const { email, firstName, lastName, role, projectIds, phoneNumber } = req.body;
+
+      // Check if user exists
+      const userToUpdate = await storage.users.getUserById(String(userId));
+      if (!userToUpdate) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Prevent admin from changing their own role
+      if (req.user.id === userId && role && role !== req.user.role) {
+        return res.status(400).json({ message: "Cannot change your own role" });
+      }
+
+      // Update user basic information
+      const updatedUser = await storage.users.updateUser(userId, {
+        email: email || userToUpdate.email,
+        firstName: firstName || userToUpdate.firstName,
+        lastName: lastName || userToUpdate.lastName,
+        role: role || userToUpdate.role,
+        phoneNumber: phoneNumber !== undefined ? phoneNumber : userToUpdate.phoneNumber,
+      });
+
+      // Handle project assignments for clients
+      if (role === "client" && projectIds !== undefined && Array.isArray(projectIds)) {
+        try {
+          const { db } = await import("@server/db");
+          const { clientProjects } = await import("@shared/schema");
+          const { eq } = await import("drizzle-orm");
+
+          // Remove all existing project assignments
+          await db.delete(clientProjects).where(eq(clientProjects.clientId, userId));
+
+          // Add new project assignments
+          for (const projectId of projectIds) {
+            await storage.projects.assignClientToProject(userId, projectId);
+          }
+          console.log(`Updated client ${userId} project assignments to ${projectIds.length} projects`);
+        } catch (error) {
+          console.error("Error updating project assignments:", error);
+          // Continue with response even if project assignment update fails
+        }
+      }
+
+      // Remove sensitive information from response
+      const { password, magicLinkToken, magicLinkExpiry, ...userWithoutSensitiveData } = updatedUser;
+
+      res.status(200).json({
+        message: "User updated successfully",
+        user: userWithoutSensitiveData
+      });
+    } catch (err) {
+      console.error("Error updating user:", err);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
   // Delete a user - admin only
   app.delete("/api/admin/users/:id", async (req, res) => {
     try {

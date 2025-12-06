@@ -47,20 +47,19 @@ export default function UserManagement() {
   // --- ADDED: Get dialog state and handlers from hook ---
   const {
       isCreateUserDialogOpen,
-      // openCreateUserDialog, // Use if button needs explicit open handler
+      openEditUserDialog, // Handler to open dialog in edit mode
       setIsCreateUserDialogOpen, // Use if Dialog uses onOpenChange
 
       isResetPasswordDialogOpen,
       openResetPasswordDialog, // Pass this down to UserListTable
-      // closeResetPasswordDialog, // Use if dialog needs explicit close
       setIsResetPasswordDialogOpen, // Use if Dialog uses onOpenChange
 
       isDeleteUserDialogOpen,
       openDeleteUserDialog, // Pass this down to UserListTable
-      // closeDeleteUserDialog, // Use if dialog needs explicit close
       setIsDeleteDialogOpen, // Use if Dialog uses onOpenChange
 
-      userToManage // Pass this down to Reset/Delete dialogs
+      userToManage, // Pass this down to Reset/Delete dialogs
+      userToEdit // Pass this down to Create/Edit dialog
   } = useUserManagementDialogs();
   // --- END ADDED ---
 
@@ -196,6 +195,7 @@ export default function UserManagement() {
                                     currentUser={currentUser}
                                     isLoading={usersLoading}
                                     onSelectClient={handleSelectClient} // Keep local handler
+                                    onEditUser={openEditUserDialog} // Pass edit handler from hook
                                     onResetPassword={openResetPasswordDialog} // Pass handler from hook
                                     onDeleteUser={openDeleteUserDialog} // Pass handler from hook
                                 />
@@ -218,6 +218,8 @@ export default function UserManagement() {
             isOpen={isCreateUserDialogOpen}
             onOpenChange={setIsCreateUserDialogOpen} // Use setter from hook
             emailConfigured={emailConfig?.configured ?? false}
+            userToEdit={userToEdit} // Pass user to edit
+            onDeleteUser={openDeleteUserDialog} // Pass delete handler
         />
 
         <ResetPasswordDialog
