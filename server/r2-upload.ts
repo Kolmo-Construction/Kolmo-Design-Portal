@@ -12,14 +12,27 @@ const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY || process.env.AWS_SECR
 const bucketName = process.env.R2_BUCKET_NAME || process.env.AWS_S3_BUCKET;
 const accountId = process.env.R2_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID;
 
-// Log the configuration status
+// Debug: log all environment variables that start with R2_ or AWS_
+console.log('Environment variables check:');
+console.log('R2_ACCOUNT_ID exists:', !!process.env.R2_ACCOUNT_ID);
+console.log('R2_ACCESS_KEY_ID exists:', !!process.env.R2_ACCESS_KEY_ID);
+console.log('R2_SECRET_ACCESS_KEY exists:', !!process.env.R2_SECRET_ACCESS_KEY);
+console.log('R2_BUCKET_NAME exists:', !!process.env.R2_BUCKET_NAME);
+console.log('AWS_ACCESS_KEY_ID exists:', !!process.env.AWS_ACCESS_KEY_ID);
+console.log('AWS_SECRET_ACCESS_KEY exists:', !!process.env.AWS_SECRET_ACCESS_KEY);
+console.log('AWS_S3_BUCKET exists:', !!process.env.AWS_S3_BUCKET);
+console.log('CLOUDFLARE_ACCOUNT_ID exists:', !!process.env.CLOUDFLARE_ACCOUNT_ID);
+
+// Log the configuration status (mask sensitive values)
 console.log('R2 Configuration:', {
   hasAccessKeyId: !!accessKeyId,
   hasSecretAccessKey: !!secretAccessKey,
   hasBucketName: !!bucketName,
   hasAccountId: !!accountId,
   bucketName,
-  accountId
+  accountId,
+  accessKeyIdPrefix: accessKeyId ? accessKeyId.substring(0, 5) + '...' : 'none',
+  secretAccessKeyPrefix: secretAccessKey ? secretAccessKey.substring(0, 5) + '...' : 'none'
 });
 
 if (!accessKeyId || !secretAccessKey || !bucketName || !accountId) {
