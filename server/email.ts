@@ -1,8 +1,30 @@
 import { google } from 'googleapis';
 import { getBaseUrl } from '@server/domain.config';
 import * as nodemailer from 'nodemailer';
+import type { Transporter } from 'nodemailer';
 
 let connectionSettings: any;
+let smtpTransporter: Transporter | null = null;
+
+// Check if Gmail SMTP is configured (standard method)
+function isGmailSMTPConfigured(): boolean {
+  return !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
+}
+
+// Get or create SMTP transporter
+function getSmtpTransporter(): Transporter {
+  if (!smtpTransporter) {
+    smtpTransporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD,
+      },
+    });
+    console.log('Gmail SMTP transporter created for:', process.env.GMAIL_USER);
+  }
+  return smtpTransporter;
+}
 
 async function getAccessToken() {
   if (connectionSettings && connectionSettings.settings.expires_at && new Date(connectionSettings.settings.expires_at).getTime() > Date.now()) {
@@ -51,9 +73,21 @@ async function getGmailClient() {
 
 /**
  * Check if the email service is configured properly
+ * Returns true if either Gmail SMTP or Replit connectors are configured
  */
 export function isEmailServiceConfigured(): boolean {
-  return !!process.env.REPLIT_CONNECTORS_HOSTNAME;
+  const smtpConfigured = isGmailSMTPConfigured();
+  const replitConfigured = !!process.env.REPLIT_CONNECTORS_HOSTNAME;
+
+  if (smtpConfigured) {
+    console.log('Email service: Gmail SMTP configured');
+  } else if (replitConfigured) {
+    console.log('Email service: Replit Gmail connector configured');
+  } else {
+    console.log('Email service: NOT configured');
+  }
+
+  return smtpConfigured || replitConfigured;
 }
 
 interface EmailOptions {
@@ -70,7 +104,7 @@ const DEFAULT_FROM_EMAIL = 'projects@kolmo.io';
 const DEFAULT_FROM_NAME = "Kolmo Construction";
 
 /**
- * Send an email using Gmail API
+ * Send an email using Gmail SMTP or Gmail API
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   const isDev = process.env.NODE_ENV === 'development';
@@ -125,8 +159,28 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
         .trim();
     }
 
+    // Try Gmail SMTP first (simpler and more reliable)
+    if (isGmailSMTPConfigured()) {
+      console.log(`Sending email to ${options.to} via Gmail SMTP...`);
+
+      const transporter = getSmtpTransporter();
+      const info = await transporter.sendMail({
+        from: `${fromName} <${fromEmail}>`,
+        to: options.to,
+        subject: options.subject,
+        text: textContent,
+        html: options.html,
+      });
+
+      console.log(`✅ Email sent successfully via Gmail SMTP to ${options.to}`);
+      console.log('Message ID:', info.messageId);
+      return true;
+    }
+
+    // Fall back to Gmail API (Replit connector)
+    console.log(`Sending email to ${options.to} via Gmail API...`);
     const gmail = await getGmailClient();
-    
+
     const message = [
       `From: ${fromName} <${fromEmail}>`,
       `To: ${options.to}`,
@@ -150,17 +204,18 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       },
     });
 
-    console.log(`Email sent successfully to ${options.to} via Gmail API`);
+    console.log(`✅ Email sent successfully via Gmail API to ${options.to}`);
     console.log('Gmail response:', result.data);
     return true;
   } catch (error: any) {
-    console.error('Failed to send email via Gmail:', error);
-    
+    console.error('❌ Failed to send email:', error);
+    console.error('Error details:', error.message);
+
     if (isDev) {
       console.log('Development mode: Email delivery failed, but continuing as if successful');
       return true;
     }
-    
+
     return false;
   }
 }

@@ -608,6 +608,46 @@ export function setupAuth(app: Express) {
     }
   });
 
+  // Search/Get clients - admin only
+  app.get("/api/admin/clients/search", async (req, res) => {
+    try {
+      // Check if admin
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const searchQuery = req.query.q as string;
+
+      // Get all users
+      const users = await storage.users.getAllUsers();
+
+      // Filter for clients only
+      let clients = users.filter(user => user.role === "client");
+
+      // If search query provided, filter by name or email
+      if (searchQuery && searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        clients = clients.filter(client =>
+          client.firstName?.toLowerCase().includes(query) ||
+          client.lastName?.toLowerCase().includes(query) ||
+          client.email.toLowerCase().includes(query) ||
+          `${client.firstName} ${client.lastName}`.toLowerCase().includes(query)
+        );
+      }
+
+      // Remove sensitive information from response
+      const sanitizedClients = clients.map(client => {
+        const { password, magicLinkToken, magicLinkExpiry, ...clientWithoutSensitiveData } = client;
+        return clientWithoutSensitiveData;
+      });
+
+      res.status(200).json(sanitizedClients);
+    } catch (err) {
+      console.error("Error searching clients:", err);
+      res.status(500).json({ message: "Failed to search clients" });
+    }
+  });
+
   // Update a user - admin only
   app.patch("/api/admin/users/:id", async (req, res) => {
     try {
