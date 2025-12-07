@@ -26,11 +26,11 @@ import {
   User
 } from "lucide-react";
 
-interface ProjectZohoExpenseTabProps {
+interface ProjectTaggunTabProps {
   project: Project;
 }
 
-interface ZohoExpenseConfig {
+interface TaggunConfig {
   configured: boolean;
   connected: boolean;
   message: string;
