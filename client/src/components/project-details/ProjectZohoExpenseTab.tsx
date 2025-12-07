@@ -36,7 +36,7 @@ interface ZohoExpenseConfig {
   message: string;
 }
 
-export function ProjectZohoExpenseTab({ project }: ProjectZohoExpenseTabProps) {
+export function ProjectTaggunTab({ project }: ProjectTaggunTabProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedOwnerName, setEditedOwnerName] = useState(project.customerName || '');
   const [editedDate, setEditedDate] = useState(
@@ -49,9 +49,9 @@ export function ProjectZohoExpenseTab({ project }: ProjectZohoExpenseTabProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch Zoho Expense configuration
-  const { data: zohoConfig } = useQuery<ZohoExpenseConfig>({
-    queryKey: ['/api/zoho-expense/status'],
+  // Fetch Taggun configuration
+  const { data: taggunConfig } = useQuery<TaggunConfig>({
+    queryKey: ['/api/taggun/status'],
   });
 
   // Generate current tag
@@ -114,16 +114,16 @@ export function ProjectZohoExpenseTab({ project }: ProjectZohoExpenseTabProps) {
     setIsEditing(false);
   };
 
-  if (!zohoConfig?.configured) {
+  if (!taggunConfig?.configured) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Tag className="h-5 w-5" />
-            Zoho Expense Integration
+            Taggun Receipt Scanning
           </CardTitle>
           <CardDescription>
-            Zoho Expense is not configured. Contact your administrator to set up expense tracking.
+            Taggun is not configured. Contact your administrator to set up receipt scanning.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -294,11 +294,11 @@ export function ProjectZohoExpenseTab({ project }: ProjectZohoExpenseTabProps) {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2">
-            <Badge variant={zohoConfig?.connected ? "default" : "destructive"}>
-              {zohoConfig?.connected ? "Connected" : "Disconnected"}
+            <Badge variant={taggunConfig?.connected ? "default" : "destructive"}>
+              {taggunConfig?.connected ? "Connected" : "Disconnected"}
             </Badge>
             <span className="text-sm text-muted-foreground">
-              {zohoConfig?.message}
+              {taggunConfig?.message}
             </span>
           </div>
         </CardContent>

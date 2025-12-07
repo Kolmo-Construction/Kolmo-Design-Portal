@@ -33,7 +33,7 @@ import taskBillingRouter from "./routes/task-billing.routes"; // Task billing ro
 import { milestoneRoutes } from "./routes/milestone.routes"; // Milestone management router
 import clientRouter from "./routes/client.routes"; // Client portal router
 import billingValidationRouter from "./routes/billing-validation.routes"; // Billing validation router
-import zohoExpenseRouter from "./routes/zoho-expense.routes"; // Zoho Expense integration router
+import taggunRouter from "./routes/taggun.routes"; // Taggun receipt scanning router
 import { adminImagesRoutes } from "./routes/admin-images.routes"; // Admin image gallery router
 import driveIngestionRouter from "./routes/drive-ingestion.routes"; // Google Drive ingestion router
 import designProposalRouter from "./routes/design-proposal.routes"; // Design proposal router
@@ -275,21 +275,8 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // Mount Global Finance routes (admin only)
   app.use("/api", globalFinanceRoutes);
 
-  // Add redirect route for Zoho callback (compatibility with Zoho app configuration)
-  app.get("/api/auth/zoho/callback", async (req: any, res: any) => {
-    console.log('[Zoho Callback Redirect] Processing callback redirect');
-    console.log('[Zoho Callback Redirect] Query params:', req.query);
-    
-    // Redirect to the actual callback handler
-    const queryString = new URLSearchParams(req.query as Record<string, string>).toString();
-    const redirectUrl = `/api/zoho-expense/auth/callback?${queryString}`;
-    
-    console.log('[Zoho Callback Redirect] Redirecting to:', redirectUrl);
-    res.redirect(302, redirectUrl);
-  });
-
-  // Mount Zoho Expense integration routes
-  app.use("/api/zoho-expense", zohoExpenseRouter);
+  // Mount Taggun receipt scanning routes
+  app.use("/api/taggun", taggunRouter);
 
   // Mount Client Portal routes
   app.use("/api/client", isAuthenticated, clientRouter);
