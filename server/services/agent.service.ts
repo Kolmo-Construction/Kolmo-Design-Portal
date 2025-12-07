@@ -47,7 +47,7 @@ class AgentService {
         this.llm = new ChatOpenAI({
           modelName: "deepseek-chat",
           temperature: 0,
-          openAIApiKey: deepseekKey,
+          apiKey: deepseekKey,
           configuration: {
             baseURL: "https://api.deepseek.com",
           },
@@ -57,9 +57,18 @@ class AgentService {
         this.llm = new ChatOpenAI({
           modelName: "gpt-4-turbo-preview",
           temperature: 0,
-          openAIApiKey: openaiKey,
+          apiKey: openaiKey,
         });
         console.log('[AgentService] Initialized with OpenAI');
+      }
+
+      // Test the LLM connection by making a simple call
+      // This will catch authentication errors early
+      if (this.llm) {
+        // Create a simple test prompt to verify the connection
+        const testPrompt = PromptTemplate.fromTemplate("Say 'OK'");
+        const testChain = testPrompt.pipe(this.llm).pipe(new StringOutputParser());
+        await testChain.invoke({});
       }
 
       this.createChain();
@@ -67,6 +76,8 @@ class AgentService {
     } catch (error) {
       this.initError = error instanceof Error ? error.message : 'Unknown initialization error';
       console.error('[AgentService] Initialization failed:', error);
+      // Set initialized to false to prevent usage
+      this.initialized = false;
     }
   }
 
@@ -149,10 +160,10 @@ class AgentService {
   }
 
   /**
-   * Create the LangChain chain for agent consultation
+   * Get the system prompt for the agent
    */
-  private createChain() {
-    const systemPrompt = `You are Kolmo AI, an intelligent assistant for Kolmo Construction project management.
+  private getSystemPrompt(): string {
+    return `You are Kolmo AI, an intelligent assistant for Kolmo Construction project management.
 
 You have READ-ONLY access to the following database tables:
 - projects: Construction projects with status, budget, timeline
@@ -198,6 +209,13 @@ Your responses should be:
 - Data-driven based on database queries
 - Proactive in suggesting next steps
 - Clear about dependencies and blockers`;
+  }
+
+  /**
+   * Create the LangChain chain for agent consultation
+   */
+  private createChain() {
+    const systemPrompt = this.getSystemPrompt();
 
     // For now, create a simple prompt-based chain
     // We'll handle SQL execution separately
@@ -271,7 +289,7 @@ Response:`
 
             // Second pass: Give the agent the query results
             const followUpPrompt = PromptTemplate.fromTemplate(
-              `${systemPrompt}
+              `${this.getSystemPrompt()}
 
 Original Question: {question}
 SQL Query: {query}
