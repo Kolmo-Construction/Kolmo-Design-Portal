@@ -81,6 +81,16 @@ export default function AgentConsole() {
     const currentPrompt = userPrompt;
     setUserPrompt('');
 
+    // Add a thinking message
+    const thinkingMessageId = `${messageId}-thinking`;
+    const thinkingMessage: ChatMessage = {
+      id: thinkingMessageId,
+      type: 'agent',
+      content: '',
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, thinkingMessage]);
+
     try {
       // Call agent API
       const response = await apiRequest('POST', '/api/agent/consult', {
@@ -88,16 +98,18 @@ export default function AgentConsole() {
         projectId: selectedProjectId ? Number(selectedProjectId) : undefined,
       });
 
-      // Add agent response to chat
-      const agentMessage: ChatMessage = {
-        id: `${messageId}-response`,
-        type: 'agent',
-        content: response.answer,
-        actions: response.actions || [],
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, agentMessage]);
+      // Remove the thinking message and add the actual response
+      setMessages((prev) => {
+        const filtered = prev.filter((msg) => msg.id !== thinkingMessageId);
+        const agentMessage: ChatMessage = {
+          id: `${messageId}-response`,
+          type: 'agent',
+          content: response.answer,
+          actions: response.actions || [],
+          timestamp: new Date(),
+        };
+        return [...filtered, agentMessage];
+      });
 
       // If there are suggested actions, notify the user
       if (response.actions && response.actions.length > 0) {
@@ -114,16 +126,19 @@ export default function AgentConsole() {
         variant: 'destructive',
       });
 
-      // Add error message to chat
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `${messageId}-error`,
-          type: 'agent',
-          content: 'Sorry, I encountered an error processing your request. Please try again.',
-          timestamp: new Date(),
-        },
-      ]);
+      // Remove thinking message and add error message
+      setMessages((prev) => {
+        const filtered = prev.filter((msg) => msg.id !== thinkingMessageId);
+        return [
+          ...filtered,
+          {
+            id: `${messageId}-error`,
+            type: 'agent',
+            content: 'Sorry, I encountered an error processing your request. Please try again.',
+            timestamp: new Date(),
+          },
+        ];
+      });
     }
   };
 
@@ -271,18 +286,40 @@ export default function AgentConsole() {
                 )}
                 <div className={`flex-1 max-w-[80%] space-y-3`}>
                   {/* Message Content */}
-                  <div
-                    className={`p-4 rounded-lg ${
-                      message.type === 'user'
-                        ? 'bg-blue-600 text-white ml-auto'
-                        : 'bg-gray-100 text-gray-900'
-                    }`}
-                  >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                    <p className="text-xs mt-2 opacity-70">
-                      {message.timestamp.toLocaleTimeString()}
-                    </p>
-                  </div>
+                  {message.content === '' ? (
+                    // Thinking indicator
+                    <div className="p-4 rounded-lg bg-gray-100 text-gray-900">
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+                            <Bot className="h-5 w-5 text-white" />
+                          </div>
+                          <div className="absolute -top-1 -right-1 h-4 w-4 border-2 border-white rounded-full bg-purple-500 animate-ping"></div>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                            <div className="h-2 w-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                            <div className="h-2 w-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                          </div>
+                          <p className="text-xs text-gray-600">Kolmo AI is thinking...</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className={`p-4 rounded-lg ${
+                        message.type === 'user'
+                          ? 'bg-blue-600 text-white ml-auto'
+                          : 'bg-gray-100 text-gray-900'
+                      }`}
+                    >
+                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      <p className="text-xs mt-2 opacity-70">
+                        {message.timestamp.toLocaleTimeString()}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Action Cards */}
                   {message.type === 'agent' && message.actions && message.actions.length > 0 && (
