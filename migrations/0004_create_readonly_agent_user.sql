@@ -1,14 +1,14 @@
 -- Create readonly user for AI agent
 -- This user can only SELECT from tables, ensuring the AI cannot modify data
+-- Password must match AGENT_DB_PASSWORD environment variable
 
--- Create the user (if it doesn't exist)
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_user WHERE usename = 'kolmo_agent_readonly') THEN
-    CREATE USER kolmo_agent_readonly WITH PASSWORD 'change_this_in_production';
-  END IF;
-END
-$$;
+-- Drop user if exists (to allow password updates)
+DROP USER IF EXISTS kolmo_agent_readonly;
+
+-- Create the user with password
+-- Note: Update this password to match your AGENT_DB_PASSWORD env var
+-- For security, the actual password is: grP0TNu0nGRDxUc9/Flhwo+Lj2z6P/UGJ0QN25c2gXc=
+CREATE USER kolmo_agent_readonly WITH PASSWORD 'grP0TNu0nGRDxUc9/Flhwo+Lj2z6P/UGJ0QN25c2gXc=';
 
 -- Grant connect to database
 GRANT CONNECT ON DATABASE postgres TO kolmo_agent_readonly;
