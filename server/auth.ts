@@ -32,6 +32,14 @@ export async function comparePasswords(supplied: string, stored: string) {
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
+// Middleware to check if user is authenticated and has admin role
+export function isAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!req.isAuthenticated() || req.user.role !== "admin") {
+    return res.status(403).json({ message: "Admin access required" });
+  }
+  next();
+}
+
 // Generate a unique token for magic links using proper UUID v4
 function generateMagicLinkToken(): string {
   // Generate a proper UUID v4 format
