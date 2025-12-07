@@ -62,15 +62,6 @@ class AgentService {
         console.log('[AgentService] Initialized with OpenAI');
       }
 
-      // Test the LLM connection by making a simple call
-      // This will catch authentication errors early
-      if (this.llm) {
-        // Create a simple test prompt to verify the connection
-        const testPrompt = PromptTemplate.fromTemplate("Say 'OK'");
-        const testChain = testPrompt.pipe(this.llm).pipe(new StringOutputParser());
-        await testChain.invoke({});
-      }
-
       this.createChain();
       this.initialized = true;
     } catch (error) {
