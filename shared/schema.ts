@@ -769,7 +769,7 @@ export const quoteViewSessions = pgTable("quote_view_sessions", {
 // Chat messages table for saving conversations
 export const chatMessages = pgTable('chat_messages', {
   id: uuid('id').primaryKey().defaultRandom(),
-  sessionId: uuid('session_id').notNull(),
+  sessionId: text('session_id').notNull(),
   role: text('role').notNull(),
   content: text('content').notNull(),
   createdAt: timestamp('created_at', { mode: 'date', withTimezone: true }).defaultNow().notNull(),

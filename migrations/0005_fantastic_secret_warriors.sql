@@ -1,0 +1,1 @@
+ALTER TABLE "chat_messages" ALTER COLUMN "session_id" SET DATA TYPE text;

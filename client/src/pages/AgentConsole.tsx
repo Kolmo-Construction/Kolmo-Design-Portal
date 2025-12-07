@@ -51,7 +51,13 @@ export default function AgentConsole() {
   const [approvedActions, setApprovedActions] = useState<ApprovedAction[]>([]);
   const [rejectedActions, setRejectedActions] = useState<ApprovedAction[]>([]);
 
+  // Pagination state
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [totalMessages, setTotalMessages] = useState(0);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -66,17 +72,19 @@ export default function AgentConsole() {
   // Generate a session ID based on the project
   const sessionId = selectedProjectId ? `project-${selectedProjectId}` : 'general';
 
-  // Load chat history when project is selected
+  // Load initial chat history when project is selected
   useEffect(() => {
     const loadChatHistory = async () => {
       if (!selectedProjectId) {
         setMessages([]);
+        setHasMore(false);
+        setTotalMessages(0);
         return;
       }
 
       try {
-        const response = await apiRequest('GET', `/api/chat/session/${sessionId}`);
-        const loadedMessages: ChatMessage[] = response.map((msg: any) => ({
+        const response = await apiRequest('GET', `/api/chat/session/${sessionId}?limit=10&offset=0`);
+        const loadedMessages: ChatMessage[] = response.messages.map((msg: any) => ({
           id: msg.id,
           type: msg.role === 'assistant' ? 'agent' : msg.role,
           content: msg.content,
@@ -85,6 +93,8 @@ export default function AgentConsole() {
           sessionId: msg.sessionId,
         }));
         setMessages(loadedMessages);
+        setHasMore(response.pagination.hasMore);
+        setTotalMessages(response.pagination.total);
       } catch (error) {
         console.error('Failed to load chat history:', error);
       }
@@ -92,6 +102,56 @@ export default function AgentConsole() {
 
     loadChatHistory();
   }, [selectedProjectId, sessionId]);
+
+  // Load more messages (for infinite scroll)
+  const loadMoreMessages = async () => {
+    if (isLoadingMore || !hasMore) return;
+
+    setIsLoadingMore(true);
+    try {
+      const currentOffset = messages.length;
+      const response = await apiRequest('GET', `/api/chat/session/${sessionId}?limit=10&offset=${currentOffset}`);
+      const loadedMessages: ChatMessage[] = response.messages.map((msg: any) => ({
+        id: msg.id,
+        type: msg.role === 'assistant' ? 'agent' : msg.role,
+        content: msg.content,
+        timestamp: new Date(msg.createdAt),
+        isVerified: msg.isVerified,
+        sessionId: msg.sessionId,
+      }));
+
+      setMessages((prev) => [...prev, ...loadedMessages]);
+      setHasMore(response.pagination.hasMore);
+    } catch (error) {
+      console.error('Failed to load more messages:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  // Infinite scroll handler
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      // Load more when scrolled to top
+      if (container.scrollTop === 0 && hasMore && !isLoadingMore) {
+        const previousScrollHeight = container.scrollHeight;
+        loadMoreMessages().then(() => {
+          // Maintain scroll position after loading
+          requestAnimationFrame(() => {
+            if (container) {
+              container.scrollTop = container.scrollHeight - previousScrollHeight;
+            }
+          });
+        });
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [hasMore, isLoadingMore, messages.length, sessionId]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -338,8 +398,21 @@ export default function AgentConsole() {
       </Card>
 
       {/* Chat Messages */}
-      <Card className="mb-4 min-h-[500px] max-h-[600px] overflow-y-auto">
+      <Card className="mb-4 min-h-[500px] max-h-[600px] overflow-y-auto" ref={messagesContainerRef}>
         <CardContent className="pt-6 space-y-6">
+          {/* Loading indicator for infinite scroll */}
+          {isLoadingMore && (
+            <div className="flex justify-center py-2">
+              <Loader2 className="h-5 w-5 animate-spin text-kolmo-primary" />
+              <span className="ml-2 text-sm text-kolmo-secondary">Loading more messages...</span>
+            </div>
+          )}
+          {/* Show if there are more messages to load */}
+          {hasMore && !isLoadingMore && messages.length > 0 && (
+            <div className="flex justify-center py-2">
+              <p className="text-xs text-kolmo-secondary">Scroll up to load more messages ({totalMessages - messages.length} remaining)</p>
+            </div>
+          )}
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="p-4 bg-kolmo-muted rounded-full mb-4">

@@ -3,6 +3,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { createServer } from "http"; // Import createServer
 import { registerRoutes } from "@server/routes";
 import { setupVite, serveStatic, log } from "@server/vite";
+import chatRoutes from "./routes/chat";
 
 const app = express();
 
@@ -61,8 +62,6 @@ app.use((req, res, next) => {
   await registerRoutes(app);
 
   // --- Register Chat Routes ---
-  // Import and use chat routes
-  import chatRoutes from './routes/chat';
   app.use('/api/chat', chatRoutes);
 
   // --- Setup Vite Dev Server OR Static File Serving ---
