@@ -104,6 +104,9 @@ export default function AgentConsole() {
     const currentPrompt = userPrompt;
     setUserPrompt('');
 
+    // Declare thinkingMessageId outside try block to make it accessible in catch block
+    const thinkingMessageId = `thinking-${Date.now()}`;
+
     try {
       // Save user message to database
       const userMessageResponse = await apiRequest('POST', '/api/chat', {
@@ -125,7 +128,6 @@ export default function AgentConsole() {
       setMessages((prev) => [...prev, userMessage]);
 
       // Add a thinking message
-      const thinkingMessageId = `thinking-${Date.now()}`;
       const thinkingMessage: ChatMessage = {
         id: thinkingMessageId,
         type: 'agent',
