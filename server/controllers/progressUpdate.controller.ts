@@ -28,6 +28,8 @@ interface R2UploadResult { key: string; url?: string; }
 
 /**
  * Get all progress updates for a specific project.
+ * For clients: only returns published updates (visibility = 'published')
+ * For admins/PMs: returns all updates
  */
 export const getProgressUpdatesForProject = async (
   req: Request,
@@ -39,9 +41,24 @@ export const getProgressUpdatesForProject = async (
     const projectIdNum = parseInt(projectId, 10);
     if (isNaN(projectIdNum)) { throw new HttpError(400, 'Invalid project ID parameter.'); }
 
+    const user = req.user as User;
+    const userRole = user?.role;
+
     // Use the nested repository: storage.progressUpdates
-    const updates = await storage.progressUpdates.getProgressUpdatesForProject(projectIdNum);
-    res.status(200).json(updates);
+    let updates = await storage.progressUpdates.getProgressUpdatesForProject(projectIdNum);
+
+    // Filter by visibility for clients
+    // Clients should only see updates with visibility = 'published'
+    // Admins and project managers see everything
+    if (userRole === 'client') {
+      updates = updates.filter((update: any) => {
+        // If the update has a visibility field, only show published ones
+        // For backwards compatibility, if visibility field doesn't exist, show it
+        return !update.visibility || update.visibility === 'published';
+      });
+    }
+
+    res.status(200).json({ updates });
   } catch (error) {
     next(error);
   }

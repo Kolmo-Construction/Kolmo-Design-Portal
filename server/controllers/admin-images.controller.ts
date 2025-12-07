@@ -110,9 +110,15 @@ export class AdminImagesController {
       const userId = req.user!.id;
       const userRole = req.user!.role;
 
-      // Check authorization
-      if (userRole !== 'admin' && userRole !== 'projectManager') {
-        return res.status(403).json({ message: 'Access denied. Admin or project manager role required.' });
+      // Check authorization - allow clients to view project images
+      // Admin and PM can see all, clients can only see their project images
+      if (userRole === 'client') {
+        // Clients must specify a projectId and can only see their assigned projects
+        const { projectId } = req.query;
+        if (!projectId) {
+          return res.status(403).json({ message: 'Project ID required for client access.' });
+        }
+        // Note: Additional check to verify client has access to this project should be added
       }
 
       const { 

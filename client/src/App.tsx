@@ -35,6 +35,8 @@ import ClientPortalPage from "@/pages/client-portal";
 import ClientAccount from "@/pages/client-account";
 import ProjectManagerDashboard from "@/pages/project-manager-dashboard";
 import AdminImageGallery from "@/pages/AdminImageGallery";
+import ImageAnalysisPOCPage from "@/pages/ImageAnalysisPOCPage";
+import AIReportReviewPage from "@/pages/AIReportReviewPage";
 import DesignProposalsPage from "@/pages/design-proposals";
 import PublicDesignProposalPage from "@/pages/public-design-proposal";
 import CreateQuotePage from "@/pages/create-quote";
@@ -89,6 +91,8 @@ function Router() {
         <ProtectedRoute path="/settings" component={Settings} adminOnly />
         <ProtectedRoute path="/user-management" component={UserManagement} adminOnly />
         <ProtectedRoute path="/admin/images" component={AdminImageGallery} adminOnly />
+        <ProtectedRoute path="/admin/image-analysis-poc" component={ImageAnalysisPOCPage} adminOnly />
+        <ProtectedRoute path="/admin/ai-report-review" component={AIReportReviewPage} adminOnly />
         <ProtectedRoute path="/design-proposals" component={DesignProposalsPage} adminOnly />
         <ProtectedRoute path="/analytics" component={AnalyticsPage} adminOnly />
         

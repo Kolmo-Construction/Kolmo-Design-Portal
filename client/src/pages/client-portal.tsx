@@ -25,6 +25,7 @@ import {
   Timer
 } from 'lucide-react';
 import { ClientNavigation } from '@/components/ClientNavigation';
+import { DashboardRecentUpdates } from '@/components/client/DashboardRecentUpdates';
 import { getQueryFn } from '@/lib/queryClient';
 import type { Task } from '@shared/schema';
 
@@ -306,6 +307,11 @@ export default function ClientPortal() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Recent Updates from All Projects */}
+        <div className="mb-12">
+          <DashboardRecentUpdates />
         </div>
 
         {/* Project Timeline */}

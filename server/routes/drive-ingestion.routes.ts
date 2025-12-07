@@ -4,6 +4,7 @@
 
 import { Router, Request, Response, NextFunction } from 'express';
 import { createDriveService } from '../services/drive-service-factory';
+import { ImageGeoProcessor } from '../services/ImageGeoProcessor';
 import { isAdmin } from '../auth'; // Assuming admin middleware exists
 import { HttpError } from '../errors';
 
@@ -13,10 +14,14 @@ const router = Router();
  * POST /api/drive-ingestion/trigger
  * Trigger a new Drive ingestion run
  * Admin only
+ * Query params:
+ *   - autoProcess=true: Automatically run geolocation matching after ingestion
  */
 router.post('/trigger', isAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     console.log('[Drive Ingestion] Trigger requested by user:', req.user?.id);
+
+    const autoProcess = req.query.autoProcess === 'true';
 
     // Create service
     const service = await createDriveService();
@@ -28,10 +33,21 @@ router.post('/trigger', isAdmin, async (req: Request, res: Response, next: NextF
 
     console.log(`[Drive Ingestion] Completed in ${duration}ms. Processed ${results.length} images.`);
 
+    // Optionally run geolocation processing
+    let geoResults = null;
+    if (autoProcess && results.length > 0) {
+      console.log('[Drive Ingestion] Running automatic geolocation processing...');
+      const processor = new ImageGeoProcessor();
+      geoResults = await processor.processAllImages();
+
+      const matched = geoResults.filter(r => r.matched).length;
+      console.log(`[Drive Ingestion] Geo-processing complete: ${matched}/${geoResults.length} images matched to projects`);
+    }
+
     // Return results
     res.json({
       success: true,
-      message: `Successfully ingested ${results.length} new image(s)`,
+      message: `Successfully ingested ${results.length} new image(s)${geoResults ? `. ${geoResults.filter(r => r.matched).length} matched to projects` : ''}`,
       data: {
         count: results.length,
         duration: duration,
@@ -46,6 +62,11 @@ router.post('/trigger', isAdmin, async (req: Request, res: Response, next: NextF
           device: img.device,
           r2Url: img.r2Url,
         })),
+        geoProcessing: geoResults ? {
+          total: geoResults.length,
+          matched: geoResults.filter(r => r.matched).length,
+          unmatched: geoResults.length - geoResults.filter(r => r.matched).length,
+        } : null,
       },
     });
   } catch (error) {
@@ -150,6 +171,62 @@ router.get('/images', isAdmin, async (req: Request, res: Response, next: NextFun
     });
   } catch (error) {
     console.error('[Drive Ingestion] List images error:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/drive-ingestion/process-geo
+ * Process Drive images and match them to projects based on GPS coordinates
+ * Admin only
+ */
+router.post('/process-geo', isAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    console.log('[Drive Ingestion] Starting geolocation processing...');
+
+    const processor = new ImageGeoProcessor();
+    const results = await processor.processAllImages();
+
+    const matched = results.filter(r => r.matched).length;
+    const unmatched = results.length - matched;
+
+    res.json({
+      success: true,
+      message: `Processed ${results.length} images: ${matched} matched, ${unmatched} unmatched`,
+      data: {
+        total: results.length,
+        matched,
+        unmatched,
+        results: results.map(r => ({
+          imageName: r.imageName,
+          projectName: r.projectName,
+          distance: r.distance ? Math.round(r.distance) : null,
+          matched: r.matched,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error('[Drive Ingestion] Geo processing error:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/drive-ingestion/process-stats
+ * Get statistics about image processing
+ * Admin only
+ */
+router.get('/process-stats', isAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const processor = new ImageGeoProcessor();
+    const stats = await processor.getProcessingStats();
+
+    res.json({
+      success: true,
+      data: stats,
+    });
+  } catch (error) {
+    console.error('[Drive Ingestion] Stats error:', error);
     next(error);
   }
 });

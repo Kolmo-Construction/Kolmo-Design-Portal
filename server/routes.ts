@@ -159,6 +159,35 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
     progressUpdateRouter
   );
 
+  // Global progress updates endpoint (for AI Report Review Dashboard)
+  app.get("/api/progress-updates", isAuthenticated, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user) {
+        return res.status(401).json({ success: false, message: "Unauthorized" });
+      }
+
+      const { progressUpdates } = await import("@shared/schema");
+      const { db } = await import("@server/db");
+      const { desc, sql } = await import("drizzle-orm");
+
+      // Fetch all AI-generated progress updates
+      const updates = await db
+        .select()
+        .from(progressUpdates)
+        .where(sql`${progressUpdates.generatedByAI} = true`)
+        .orderBy(desc(progressUpdates.createdAt));
+
+      res.json({ updates });
+    } catch (error) {
+      console.error("[API] Error fetching progress updates:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch progress updates",
+      });
+    }
+  });
+
   // Tasks within a project
   // Mount ONLY ONCE with all necessary middleware
   app.use(

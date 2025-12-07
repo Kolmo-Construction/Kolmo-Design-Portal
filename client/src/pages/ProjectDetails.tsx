@@ -36,7 +36,9 @@ import {
   MessageSquare,
   Clock,
   Target,
-  Tag
+  Tag,
+  Images,
+  Brain
 } from "lucide-react";
 import { ProjectOverviewCard } from "@/components/project-details/ProjectOverviewCard";
 import { ProjectUpdatesTab } from "@/components/project-details/ProjectUpdatesTab";
@@ -48,6 +50,8 @@ import { ProjectTasksTab } from "@/components/project-details/ProjectTasksTab";
 import { ProjectDailyLogsTab } from "@/components/project-details/ProjectDailyLogsTab";
 import { ProjectPunchListTab } from "@/components/project-details/ProjectPunchListTab";
 import { ProjectZohoExpenseTab } from "@/components/project-details/ProjectZohoExpenseTab";
+import { ProjectImagesTab } from "@/components/project-details/ProjectImagesTab";
+import { GenerateAIReportDialog } from "@/components/admin/GenerateAIReportDialog";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth-unified";
 
@@ -56,6 +60,7 @@ export default function ProjectDetails() {
   const params = useParams();
   const projectId = params.id ? parseInt(params.id, 10) : 0;
   const [activeTab, setActiveTab] = useState('updates');
+  const [generateReportDialogOpen, setGenerateReportDialogOpen] = useState(false);
 
   const { user } = useAuth();
 
@@ -161,14 +166,25 @@ export default function ProjectDetails() {
                   </Button>
                 </Link>
               )}
-              
+
               {user?.role !== 'client' && (
-                <Link href={`/project-generation/${projectId}`}>
-                  <Button size="sm" className="gap-2 bg-kolmo-accent hover:bg-kolmo-accent/90 text-white">
-                    <ClipboardList className="h-4 w-4" />
-                    Generate Tasks
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white"
+                    onClick={() => setGenerateReportDialogOpen(true)}
+                  >
+                    <Brain className="h-4 w-4" />
+                    Generate AI Report
                   </Button>
-                </Link>
+                  <Link href={`/project-generation/${projectId}`}>
+                    <Button size="sm" className="gap-2 bg-kolmo-accent hover:bg-kolmo-accent/90 text-white">
+                      <ClipboardList className="h-4 w-4" />
+                      Generate Tasks
+                    </Button>
+                  </Link>
+                </>
               )}
             </div>
           </div>
@@ -255,17 +271,21 @@ export default function ProjectDetails() {
           <div className="overflow-x-auto mb-6">
             <TabsList className={cn(
               "grid grid-flow-col auto-cols-max w-max sm:w-full gap-1 bg-white border border-kolmo-primary/10 p-1",
-              user?.role === 'client' ? 'sm:grid-cols-6' : 'sm:grid-cols-9'
+              user?.role === 'client' ? 'sm:grid-cols-7' : 'sm:grid-cols-10'
             )}>
               <TabsTrigger value="updates" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
                 <TrendingUp className="h-4 w-4 mr-2" />
                 Updates
               </TabsTrigger>
+              <TabsTrigger value="images" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
+                <Images className="h-4 w-4 mr-2" />
+                Images
+              </TabsTrigger>
               <TabsTrigger value="tasks" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
                 <ListChecks className="h-4 w-4 mr-2" />
                 Tasks
               </TabsTrigger>
-              
+
               {user?.role !== 'client' && (
                 <>
                   <TabsTrigger value="dailylogs" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
@@ -308,7 +328,11 @@ export default function ProjectDetails() {
             <TabsContent value="updates" className="mt-0 p-6">
               {activeTab === 'updates' && <ProjectUpdatesTab projectId={projectId} />}
             </TabsContent>
-            
+
+            <TabsContent value="images" className="mt-0 p-6">
+              {activeTab === 'images' && <ProjectImagesTab projectId={projectId} />}
+            </TabsContent>
+
             <TabsContent value="tasks" className="mt-0 p-6">
               {activeTab === 'tasks' && <ProjectTasksTab projectId={projectId} user={user || undefined} project={project} />}
             </TabsContent>
@@ -343,6 +367,14 @@ export default function ProjectDetails() {
           </div>
         </Tabs>
       </main>
+
+      {/* Generate AI Report Dialog */}
+      <GenerateAIReportDialog
+        open={generateReportDialogOpen}
+        onOpenChange={setGenerateReportDialogOpen}
+        projectId={projectId}
+        projectName={project?.name || 'Project'}
+      />
     </div>
   );
 }

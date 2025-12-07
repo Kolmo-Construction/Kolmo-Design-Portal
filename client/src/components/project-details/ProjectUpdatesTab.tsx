@@ -17,14 +17,17 @@ interface ProjectUpdatesTabProps {
 
 export function ProjectUpdatesTab({ projectId }: ProjectUpdatesTabProps) {
   const {
-    data: updates = [],
+    data: response,
     isLoading: isLoadingUpdates
-  } = useQuery<ProgressUpdate[]>({
+  } = useQuery({
     // Only fetch if projectId is valid
     queryKey: [`/api/projects/${projectId}/updates`],
     queryFn: getQueryFn({ on401: "throw" }),
     enabled: projectId > 0,
   });
+
+  // Extract updates array from response (API returns { updates: [...] })
+  const updates = response?.updates || [];
 
   // TODO: If needed, fetch users and media separately or adjust the API
   // to return enriched update objects including createdBy user details and media.

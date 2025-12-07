@@ -21,6 +21,7 @@ import {
   Users
 } from 'lucide-react';
 import { ClientNavigation } from '@/components/ClientNavigation';
+import { ClientProgressUpdates } from '@/components/client/ClientProgressUpdates';
 import { Link } from 'wouter';
 
 interface ProjectTask {
@@ -391,6 +392,11 @@ export default function ProjectDetails() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Progress Updates Section */}
+        <div className="mt-12">
+          <ClientProgressUpdates projectId={parseInt(id!)} />
         </div>
       </div>
     </div>

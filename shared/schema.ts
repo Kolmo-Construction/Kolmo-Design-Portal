@@ -18,6 +18,12 @@ export const invoiceStatusEnum = pgEnum('invoice_status', ['draft', 'pending', '
 // Define invoice type enum
 export const invoiceTypeEnum = pgEnum('invoice_type', ['down_payment', 'milestone', 'final', 'change_order', 'regular']);
 
+// Define progress update status enum (for LLM-generated reports workflow)
+export const progressUpdateStatusEnum = pgEnum('progress_update_status', ['draft', 'pending_review', 'approved', 'rejected']);
+
+// Define progress update visibility enum
+export const progressUpdateVisibilityEnum = pgEnum('progress_update_visibility', ['admin_only', 'published']);
+
 // Zoho tokens table for OAuth persistence
 export const zohoTokens = pgTable("zoho_tokens", {
   id: serial("id").primaryKey(),
@@ -258,9 +264,74 @@ export const progressUpdates = pgTable("progress_updates", {
   projectId: integer("project_id").notNull().references(() => projects.id),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  updateType: text("update_type").notNull(), // milestone, photo, issue, general
+  updateType: text("update_type").notNull(), // milestone, photo, issue, general, ai_analysis
   createdById: integer("created_by_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+
+  // LLM-powered progress report fields
+  generatedByAI: boolean("generated_by_ai").default(false).notNull(),
+  status: progressUpdateStatusEnum("status").default('draft'),
+  visibility: progressUpdateVisibilityEnum("visibility").default('admin_only'),
+  reviewedById: integer("reviewed_by_id").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+
+  // AI analysis metadata for auditability and debugging
+  aiAnalysisMetadata: jsonb("ai_analysis_metadata").$type<{
+    confidence?: number;
+    tokensUsed?: { input: number; output: number };
+    cost?: { total: number };
+    model?: string;
+    imageIds?: number[];
+    previousSummaryUsed?: boolean;
+  }>(),
+
+  // Store raw LLM response for audit trail
+  rawLLMResponse: jsonb("raw_llm_response").$type<{
+    executiveSummary?: string;
+    keyObservations?: string[];
+    progressEstimate?: Record<string, number>;
+    concernsOrIssues?: string[];
+    recommendedActions?: string[];
+    rawText?: string;
+  }>(),
+
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Progress report summaries - stores incremental summaries for LLM context
+// This allows us to provide previous context without sending full history
+export const progressReportSummaries = pgTable("progress_report_summaries", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => projects.id),
+  progressUpdateId: integer("progress_update_id").references(() => progressUpdates.id, { onDelete: 'set null' }),
+
+  // Summary text for LLM context (compressed version of the full report)
+  summaryText: text("summary_text").notNull(),
+
+  // Date range this summary covers
+  dateFrom: timestamp("date_from").notNull(),
+  dateTo: timestamp("date_to").notNull(),
+
+  // Progress snapshot at this point
+  progressSnapshot: jsonb("progress_snapshot").$type<{
+    overallProgress?: number;
+    phaseProgress?: Record<string, number>;
+    completedMilestones?: string[];
+  }>(),
+
+  // Metadata
+  imageCount: integer("image_count").default(0),
+  generatedById: integer("generated_by_id").notNull().references(() => users.id),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Progress update views - tracks which updates clients have seen
+export const progressUpdateViews = pgTable("progress_update_views", {
+  id: serial("id").primaryKey(),
+  progressUpdateId: integer("progress_update_id").notNull().references(() => progressUpdates.id, { onDelete: 'cascade' }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  viewedAt: timestamp("viewed_at").defaultNow().notNull(),
 });
 
 // Update media (photos/videos) connected to progress updates OR punch list items
@@ -328,6 +399,7 @@ export const driveImages = pgTable("drive_images", {
 
   // Processing metadata
   processedAt: timestamp("processed_at").defaultNow().notNull(),
+  migrated: boolean("migrated").default(false).notNull(), // Has this been migrated to admin_images?
 });
 
 // Design proposals for before/after comparisons
