@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import { db } from '../db';
 import { chatMessages } from '@shared/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, asc } from 'drizzle-orm';
 import { z } from 'zod';
 import OpenAI from 'openai';
 
@@ -90,7 +90,7 @@ router.get('/session/:sessionId', async (req: Request, res: Response) => {
     const messages = await db.select()
       .from(chatMessages)
       .where(eq(chatMessages.sessionId, sessionId))
-      .orderBy(desc(chatMessages.createdAt));
+      .orderBy(asc(chatMessages.createdAt));
 
     res.json(messages);
   } catch (error) {
