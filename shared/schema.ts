@@ -1,6 +1,7 @@
 // shared/schema.ts
 
-import { pgTable, text, serial, integer, decimal, timestamp, boolean, jsonb, foreignKey, pgEnum, uuid as pgUuid } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, decimal, timestamp, boolean, jsonb, foreignKey, pgEnum, uuid as pgUuid, uuid } from "drizzle-orm/pg-core";
+import { vector } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -955,6 +956,13 @@ export const quoteViewSessionRelations = relations(quoteViewSessions, ({ one }) 
 
 // --- Insert Schemas (with Zod validations) ---
 
+// Chat messages insert schema
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
+  id: true,
+  createdAt: true,
+  embedding: true,
+});
+
 // Create insert schemas for each table
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -1228,6 +1236,7 @@ export const insertTaskChunkSchema = createInsertSchema(taskChunks).omit({
 
 
 // --- Export Types ---
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 

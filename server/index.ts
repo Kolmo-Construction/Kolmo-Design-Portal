@@ -60,6 +60,11 @@ app.use((req, res, next) => {
   // It no longer needs to return the server instance.
   await registerRoutes(app);
 
+  // --- Register Chat Routes ---
+  // Import and use chat routes
+  import chatRoutes from './routes/chat';
+  app.use('/api/chat', chatRoutes);
+
   // --- Setup Vite Dev Server OR Static File Serving ---
   // IMPORTANT: This now runs *before* the final application error handler.
   if (process.env.NODE_ENV === "development") {
