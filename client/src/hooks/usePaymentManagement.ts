@@ -24,18 +24,43 @@ export function usePaymentManagement() {
     retry: 2,
   });
 
+  // Trigger down payment
+  const triggerDownPayment = useMutation({
+    mutationFn: async ({ projectId }: { projectId: number }) => {
+      return apiRequest('POST', `/api/payment/projects/${projectId}/trigger-down-payment`);
+    },
+    onSuccess: (data, variables) => {
+      toast({
+        title: "Down Payment Request Sent",
+        description: "Down payment invoice has been sent to the customer with payment link.",
+      });
+
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ['/api/projects/payment-summaries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${variables.projectId}/invoices`] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Down Payment Request Failed",
+        description: error.message || "Failed to send down payment request",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Trigger milestone payment
   const triggerMilestone = useMutation({
-    mutationFn: async ({ projectId, paymentType, description }: { 
-      projectId: number; 
+    mutationFn: async ({ projectId, paymentType, description }: {
+      projectId: number;
       paymentType: 'milestone' | 'final';
       description?: string;
     }) => {
-      const endpoint = paymentType === 'milestone' 
+      const endpoint = paymentType === 'milestone'
         ? `/api/projects/${projectId}/milestone-payment`
         : `/api/projects/${projectId}/final-payment`;
-      
-      return apiRequest('POST', endpoint, { 
+
+      return apiRequest('POST', endpoint, {
         milestoneDescription: description || `${paymentType} payment request`
       });
     },
@@ -44,7 +69,7 @@ export function usePaymentManagement() {
         title: "Payment Request Created",
         description: `${variables.paymentType === 'milestone' ? 'Milestone' : 'Final'} payment request sent to customer.`,
       });
-      
+
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['/api/projects/payment-summaries'] });
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
@@ -62,6 +87,7 @@ export function usePaymentManagement() {
   return {
     paymentSummaries,
     loadingPayments,
+    triggerDownPayment,
     triggerMilestone,
     selectedProject,
     setSelectedProject,

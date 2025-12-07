@@ -272,27 +272,47 @@ class ProjectRepository implements IProjectRepository {
             console.log(`[deleteProject] Starting deletion of project ${projectId}`);
 
             // Use a transaction and delete each table with raw SQL to avoid ORM issues
+            // Delete in order to respect foreign key constraints
             await this.db.transaction(async (tx) => {
-                const tables = [
+                const operations = [
+                    // 1. Delete payments first (references invoices)
+                    { name: 'payments', sql: sql`DELETE FROM payments WHERE invoice_id IN (SELECT id FROM invoices WHERE project_id = ${projectId})` },
+
+                    // 2. Delete tasks before invoices (tasks.invoiceId references invoices)
+                    { name: 'tasks', sql: sql`DELETE FROM tasks WHERE project_id = ${projectId}` },
+
+                    // 3. Delete tables that reference projects directly
                     { name: 'client_projects', sql: sql`DELETE FROM client_projects WHERE project_id = ${projectId}` },
                     { name: 'documents', sql: sql`DELETE FROM documents WHERE project_id = ${projectId}` },
                     { name: 'messages', sql: sql`DELETE FROM messages WHERE project_id = ${projectId}` },
+                    { name: 'progress_report_summaries', sql: sql`DELETE FROM progress_report_summaries WHERE project_id = ${projectId}` },
                     { name: 'progress_updates', sql: sql`DELETE FROM progress_updates WHERE project_id = ${projectId}` },
                     { name: 'milestones', sql: sql`DELETE FROM milestones WHERE project_id = ${projectId}` },
                     { name: 'selections', sql: sql`DELETE FROM selections WHERE project_id = ${projectId}` },
+
+                    // 4. Delete invoices after payments and tasks
                     { name: 'invoices', sql: sql`DELETE FROM invoices WHERE project_id = ${projectId}` },
+
+                    // 5. Delete tables with cascade (for consistency)
                     { name: 'daily_logs', sql: sql`DELETE FROM daily_logs WHERE project_id = ${projectId}` },
                     { name: 'punch_list_items', sql: sql`DELETE FROM punch_list_items WHERE project_id = ${projectId}` },
-                    { name: 'tasks', sql: sql`DELETE FROM tasks WHERE project_id = ${projectId}` },
+                    { name: 'project_versions', sql: sql`DELETE FROM project_versions WHERE project_id = ${projectId}` },
+
+                    // 6. Nullify nullable references to project
+                    { name: 'admin_images (nullify)', sql: sql`UPDATE admin_images SET project_id = NULL WHERE project_id = ${projectId}` },
+                    { name: 'design_proposals (nullify)', sql: sql`UPDATE design_proposals SET project_id = NULL WHERE project_id = ${projectId}` },
+
+                    // 7. Finally delete the project itself
                     { name: 'projects', sql: sql`DELETE FROM projects WHERE id = ${projectId}` }
                 ];
 
-                for (const table of tables) {
+                for (const operation of operations) {
                     try {
-                        console.log(`[deleteProject] Deleting from ${table.name} for project ${projectId}`);
-                        await tx.execute(table.sql);
+                        console.log(`[deleteProject] Executing operation: ${operation.name} for project ${projectId}`);
+                        await tx.execute(operation.sql);
                     } catch (error) {
-                        console.error(`[deleteProject] Failed to delete from ${table.name}:`, error);
+                        console.error(`[deleteProject] Failed operation: ${operation.name}:`, error);
+                        console.error(`[deleteProject] Error details:`, JSON.stringify(error, null, 2));
                         // Re-throw to abort transaction
                         throw error;
                     }

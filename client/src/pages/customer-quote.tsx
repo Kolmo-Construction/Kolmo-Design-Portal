@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Check, X, MessageSquare, Calendar, MapPin, Clock, Phone, Mail, Shield, Award, Star, FileText, DollarSign, Calculator, Wrench, Home, Hammer, Zap, Paintbrush, Users, Package, Truck, HardHat, Eye, EyeOff, CreditCard, Camera, Image as ImageIcon } from "lucide-react";
+import { Check, X, MessageSquare, Calendar, MapPin, Clock, Phone, Mail, Shield, Award, Star, FileText, DollarSign, Calculator, Wrench, Home, Hammer, Zap, Paintbrush, Users, Package, Truck, HardHat, Eye, EyeOff, CreditCard, Camera, Image as ImageIcon, Loader2 } from "lucide-react";
 import { initializeQuoteAnalytics, trackSectionView, trackDownload, trackResponse } from "@/lib/analytics";
 import QuoteAnalytics from "@/lib/quote-analytics";
 import { Button } from "@/components/ui/button";
@@ -126,7 +126,10 @@ export default function CustomerQuotePage() {
   const [showDeclineReason, setShowDeclineReason] = useState(false);
   const [quoteId, setQuoteId] = useState<number | null>(null);
   const [showAcceptSummary, setShowAcceptSummary] = useState(false);
+  const [showAcceptSuccess, setShowAcceptSuccess] = useState(false);
+  const [acceptedProjectName, setAcceptedProjectName] = useState("");
   const [showDeclineConfirm, setShowDeclineConfirm] = useState(false);
+  const [isAccepting, setIsAccepting] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -257,17 +260,18 @@ export default function CustomerQuotePage() {
     },
   });
 
-  const handleAccept = () => {
+  const handleAccept = async () => {
     const quoteData = quote as QuoteResponse;
-    
+
     // Track button click
     if (analyticsRef.current) {
       analyticsRef.current.trackButtonClick('accept_proposal', { quoteId: quoteData?.id });
     }
-    
+
     // Use existing customer information from the quote
     const finalCustomerName = customerName || quoteData?.customerName || '';
     const finalCustomerEmail = customerEmail || quoteData?.customerEmail || '';
+    const finalCustomerPhone = quoteData?.customerPhone || '';
 
     if (!finalCustomerName || !finalCustomerEmail) {
       toast({
@@ -278,19 +282,44 @@ export default function CustomerQuotePage() {
       return;
     }
 
-    // Show accept summary modal instead of redirecting immediately
-    setShowAcceptSummary(true);
-    setShowResponse(false);
+    try {
+      setIsAccepting(true);
+
+      // Call the acceptance endpoint
+      const res = await fetch(`/api/payment/quotes/${quoteData.id}/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          customerName: finalCustomerName,
+          customerEmail: finalCustomerEmail,
+          customerPhone: finalCustomerPhone,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to accept quote');
+      }
+
+      // Store project name and show success dialog
+      setAcceptedProjectName(data.project.name);
+      setShowAcceptSuccess(true);
+      setShowResponse(false);
+
+    } catch (error) {
+      console.error('Error accepting quote:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to accept quote. Please try again.',
+        variant: "destructive",
+      });
+    } finally {
+      setIsAccepting(false);
+    }
   };
 
-  const handleContinueToPayment = () => {
-    // Track button click
-    if (analyticsRef.current) {
-      analyticsRef.current.trackButtonClick('continue_to_payment', { quoteId: (quote as QuoteResponse)?.id });
-    }
-    // Use the token instead of ID for payment flow
-    setLocation(`/quote-payment/${token}`);
-  };
 
   const handleDecline = () => {
     const quoteData = quote as QuoteResponse;
@@ -517,16 +546,26 @@ export default function CustomerQuotePage() {
                 Please review the details and let us know how you'd like to proceed.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button 
+                <Button
                   onClick={handleAccept}
+                  disabled={isAccepting}
                   className="px-8 py-3 text-lg font-semibold text-white"
-                  style={{backgroundColor: '#db973c'}}
-                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#c8863a'}
-                  onMouseLeave={e => e.currentTarget.style.backgroundColor = '#db973c'}
+                  style={{backgroundColor: isAccepting ? '#9a6c2d' : '#db973c'}}
+                  onMouseEnter={e => !isAccepting && (e.currentTarget.style.backgroundColor = '#c8863a')}
+                  onMouseLeave={e => !isAccepting && (e.currentTarget.style.backgroundColor = '#db973c')}
                   size="lg"
                 >
-                  <Check className="h-5 w-5 mr-2" />
-                  Accept Proposal
+                  {isAccepting ? (
+                    <>
+                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-5 w-5 mr-2" />
+                      Accept Proposal
+                    </>
+                  )}
                 </Button>
                 <Button 
                   variant="outline" 
@@ -1315,92 +1354,119 @@ export default function CustomerQuotePage() {
       )}
 
       {/* Accept Summary Modal */}
-      {showAcceptSummary && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="max-w-lg w-full">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Check className="h-6 w-6 text-green-600" />
-                Accept Quote & Continue to Payment
-              </CardTitle>
-              <CardDescription>
-                Review your quote summary before proceeding to secure payment
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Customer Info */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="text-sm font-medium text-gray-700 mb-2">Quote For:</div>
-                  <div className="font-semibold">{quoteData?.customerName || customerName}</div>
-                  <div className="text-sm text-gray-600">{quoteData?.customerEmail || customerEmail}</div>
-                </div>
+      {/* Beautiful Success Dialog - Shown after acceptance */}
+      {showAcceptSuccess && (
+        <div className="fixed inset-0 bg-gradient-to-br from-[#3d4552]/95 to-[#4a6670]/95 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="max-w-2xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-500">
+            {/* Header with Kolmo branding */}
+            <div className="bg-gradient-to-r from-[#3d4552] to-[#4a6670] px-8 py-10 text-center">
+              <div className="mb-6">
+                <img src={kolmoLogo} alt="Kolmo" className="h-16 mx-auto filter brightness-0 invert" />
+              </div>
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-[#db973c] rounded-full mb-6 shadow-lg">
+                <Check className="h-10 w-10 text-white" strokeWidth={3} />
+              </div>
+              <h2 className="text-3xl font-bold text-white mb-2">
+                Quote Accepted Successfully!
+              </h2>
+              <p className="text-white/90 text-lg">
+                Welcome to the Kolmo family
+              </p>
+            </div>
 
-                {/* Quote Summary */}
-                <div className="border rounded-lg p-4">
-                  <div className="text-sm font-medium text-gray-700 mb-3">Project Summary:</div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="font-semibold">{quoteData?.title}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Quote #{quoteData?.quoteNumber}</span>
-                    </div>
-                    <div className="border-t pt-2 mt-2">
-                      <div className="flex justify-between text-lg font-bold">
-                        <span>Total Investment:</span>
-                        <span className="text-green-600">{formatCurrency(quoteData?.total || '0')}</span>
+            {/* Content */}
+            <div className="px-8 py-8">
+              {/* Project Name */}
+              <div className="text-center mb-8">
+                <div className="text-sm text-gray-500 uppercase tracking-wide mb-2">Your Project</div>
+                <h3 className="text-2xl font-bold text-[#3d4552] mb-6">
+                  {acceptedProjectName}
+                </h3>
+              </div>
+
+              {/* Info Cards */}
+              <div className="space-y-4 mb-8">
+                {/* What Happens Next */}
+                <div className="bg-gradient-to-r from-[#db973c]/10 to-[#db973c]/5 border-l-4 border-[#db973c] rounded-lg p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-[#db973c] rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold">1</span>
                       </div>
                     </div>
-                  </div>
-                </div>
-
-                {/* Payment Breakdown */}
-                <div className="border rounded-lg p-4">
-                  <div className="text-sm font-medium text-gray-700 mb-3">Payment Schedule:</div>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>Down Payment ({quoteData?.downPaymentPercentage || 30}%):</span>
-                      <span className="font-semibold">
-                        {formatCurrency(((parseFloat(quoteData?.total || '0') * (quoteData?.downPaymentPercentage || 30)) / 100).toString())}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Progress Payment ({quoteData?.milestonePaymentPercentage || 40}%):</span>
-                      <span>{formatCurrency(((parseFloat(quoteData?.total || '0') * (quoteData?.milestonePaymentPercentage || 40)) / 100).toString())}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Final Payment ({quoteData?.finalPaymentPercentage || 30}%):</span>
-                      <span>{formatCurrency(((parseFloat(quoteData?.total || '0') * (quoteData?.finalPaymentPercentage || 30)) / 100).toString())}</span>
+                    <div>
+                      <h4 className="font-semibold text-[#3d4552] mb-2">Project Setup</h4>
+                      <p className="text-gray-600 text-sm leading-relaxed">
+                        Your project has been created and our team has been notified. We're preparing everything for your construction journey.
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Next Steps */}
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="text-sm font-medium text-blue-800 mb-1">Next Steps:</div>
-                  <div className="text-sm text-blue-700">
-                    You'll be taken to a secure payment page to process your down payment and finalize project details.
+                <div className="bg-gradient-to-r from-blue-50 to-blue-50/50 border-l-4 border-blue-500 rounded-lg p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold">2</span>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-[#3d4552] mb-2">We'll Contact You Soon</h4>
+                      <p className="text-gray-600 text-sm leading-relaxed">
+                        A member of our team will reach out within 24 hours to discuss project timeline, payment details, and answer any questions you may have.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-r from-green-50 to-green-50/50 border-l-4 border-green-500 rounded-lg p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold">3</span>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-[#3d4552] mb-2">Track Your Progress</h4>
+                      <p className="text-gray-600 text-sm leading-relaxed">
+                        You'll receive an email with access to your personalized project portal where you can track progress, view updates, and communicate with your team.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </CardContent>
-            <div className="flex justify-between p-6 pt-0">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowAcceptSummary(false)}
-              >
-                Back to Quote
-              </Button>
-              <Button
-                onClick={handleContinueToPayment}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <CreditCard className="h-4 w-4 mr-2" />
-                Continue to Payment
-              </Button>
+
+              {/* Contact Info */}
+              <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                <div className="text-center">
+                  <p className="text-sm text-gray-600 mb-3">Questions? We're here to help!</p>
+                  <div className="flex items-center justify-center gap-6 text-sm">
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <Mail className="h-4 w-4 text-[#db973c]" />
+                      <span>support@kolmo.com</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <Phone className="h-4 w-4 text-[#db973c]" />
+                      <span>(555) 123-4567</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Close Button */}
+              <div className="text-center">
+                <Button
+                  onClick={() => {
+                    setShowAcceptSuccess(false);
+                    window.location.reload();
+                  }}
+                  className="bg-gradient-to-r from-[#3d4552] to-[#4a6670] hover:from-[#4a6670] hover:to-[#3d4552] text-white px-8 py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                >
+                  Close
+                </Button>
+              </div>
             </div>
-          </Card>
+          </div>
         </div>
       )}
 

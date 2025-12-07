@@ -68,7 +68,11 @@ export default function ProjectManagement() {
   } = useProjectManagementDialogs();
 
   // --- ADDED: Get payment management functionality ---
-  const { triggerMilestone } = usePaymentManagement();
+  const { triggerDownPayment, triggerMilestone } = usePaymentManagement();
+
+  const handleTriggerDownPayment = (projectId: number) => {
+    triggerDownPayment.mutate({ projectId });
+  };
 
   const handleTriggerMilestone = (projectId: number, paymentType: 'milestone' | 'final') => {
     triggerMilestone.mutate({ projectId, paymentType });
@@ -81,10 +85,14 @@ export default function ProjectManagement() {
       const res = await apiRequest("DELETE", `/api/projects/${projectId}`);
       return res;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    onSuccess: async () => {
+      // Invalidate and refetch projects list for immediate UI update
+      await queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      await refetchProjects();
+
       setIsDeleteDialogOpen(false);
       setProjectToDelete(null);
+
       toast({
         title: "Project deleted",
         description: "The project has been successfully deleted.",
@@ -94,7 +102,7 @@ export default function ProjectManagement() {
       console.error("Delete project error:", error);
       toast({
         title: "Failed to delete project",
-        description: "An unexpected error occurred while deleting the project.",
+        description: error.message || "An unexpected error occurred while deleting the project.",
         variant: "destructive",
       });
     },
@@ -259,6 +267,7 @@ export default function ProjectManagement() {
                     isLoading={projectsLoading || managersLoading}
                     onEditProject={openEditDialog} // Pass handler from hook
                     onDeleteProject={handleDeleteProject}
+                    onTriggerDownPayment={handleTriggerDownPayment}
                     onTriggerMilestone={handleTriggerMilestone}
                 />
                 {/* --- END MODIFIED --- */}

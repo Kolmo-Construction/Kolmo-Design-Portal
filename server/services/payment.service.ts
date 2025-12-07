@@ -52,7 +52,7 @@ export class PaymentService {
   }
 
   /**
-   * Process quote acceptance and create payment workflow
+   * Process quote acceptance and create project (without immediate payment)
    */
   async processQuoteAcceptance(quoteId: number, customerInfo: {
     name: string;
@@ -61,11 +61,10 @@ export class PaymentService {
   }): Promise<{
     project: Project;
     downPaymentInvoice: Invoice;
-    paymentIntent: any;
   }> {
     try {
       console.log(`[PaymentService] Starting processQuoteAcceptance for quote ${quoteId}`);
-      
+
       // Get quote details
       console.log(`[PaymentService] Fetching quote details for ID ${quoteId}...`);
       const quote = await storage.quotes.getQuoteById(quoteId);
@@ -85,25 +84,62 @@ export class PaymentService {
       const project = await this.createProjectFromQuote(quote, customerInfo);
       console.log(`[PaymentService] Project created with ID: ${project.id}`);
 
-      // Create down payment invoice
-      console.log(`[PaymentService] Creating down payment invoice...`);
+      // Create down payment invoice (draft status - will be sent manually)
+      console.log(`[PaymentService] Creating draft down payment invoice...`);
       const downPaymentInvoice = await this.createDownPaymentInvoice(
         quote,
         project,
         paymentSchedule.downPayment,
         customerInfo
       );
-      console.log(`[PaymentService] Invoice created: ${downPaymentInvoice.invoiceNumber} - $${downPaymentInvoice.amount}`);
+      console.log(`[PaymentService] Draft invoice created: ${downPaymentInvoice.invoiceNumber} - $${downPaymentInvoice.amount}`);
+      console.log(`[PaymentService] Invoice will be sent manually when admin triggers payment`);
 
-      // Create Stripe payment intent for down payment
-      console.log(`[PaymentService] Creating Stripe payment intent...`);
+      return {
+        project,
+        downPaymentInvoice,
+      };
+    } catch (error) {
+      console.error('Error processing quote acceptance:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Manually trigger down payment for a project
+   * This creates the payment intent and sends payment instructions to the customer
+   */
+  async triggerDownPayment(projectId: number): Promise<{ invoice: Invoice; paymentIntent: any }> {
+    try {
+      console.log(`[PaymentService] Triggering down payment for project ${projectId}`);
+
+      // Get project
+      const project = await storage.projects.getProjectById(projectId);
+      if (!project || !project.originQuoteId) {
+        throw new HttpError(404, 'Project or originating quote not found');
+      }
+
+      // Get the down payment invoice
+      const invoices = await storage.invoices.getInvoicesForProject(projectId);
+      const downPaymentInvoice = invoices.find(inv => inv.invoiceType === 'down_payment');
+
+      if (!downPaymentInvoice) {
+        throw new HttpError(404, 'Down payment invoice not found for this project');
+      }
+
+      if (downPaymentInvoice.status !== 'draft') {
+        throw new HttpError(400, `Down payment invoice is already ${downPaymentInvoice.status}. Cannot trigger payment again.`);
+      }
+
+      // Create Stripe payment intent
+      console.log(`[PaymentService] Creating Stripe payment intent for invoice ${downPaymentInvoice.invoiceNumber}...`);
       const paymentIntent = await stripeService.createPaymentIntent({
-        amount: Math.round(paymentSchedule.downPayment.amount * 100), // Convert to cents
-        customerEmail: customerInfo.email,
-        customerName: customerInfo.name,
-        description: `Down payment for ${quote.title} - Quote #${quote.quoteNumber}`,
+        amount: Math.round(parseFloat(downPaymentInvoice.amount) * 100), // Convert to cents
+        customerEmail: project.customerEmail || undefined,
+        customerName: project.customerName || undefined,
+        description: `Down payment for ${project.name}`,
         metadata: {
-          quoteId: quote.id.toString(),
+          quoteId: project.originQuoteId.toString(),
           invoiceId: downPaymentInvoice.id.toString(),
           projectId: project.id.toString(),
           paymentType: 'down_payment',
@@ -111,23 +147,34 @@ export class PaymentService {
       });
       console.log(`[PaymentService] Stripe payment intent created: ${paymentIntent.id}`);
 
-      // Update invoice with Stripe payment intent ID
+      // Update invoice with payment intent and change status to pending
+      const paymentLink = `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`;
       await storage.invoices.updateInvoice(downPaymentInvoice.id, {
         stripePaymentIntentId: paymentIntent.id,
-        paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
+        paymentLink,
+        status: 'pending',
+        issueDate: new Date(), // Update issue date to when payment was triggered
       });
 
-      // Note: For down payments, we don't send payment instructions immediately.
-      // The customer will complete payment through the UI, and the webhook will
-      // send the project welcome email upon successful payment.
+      // Send payment instructions email
+      if (project.customerEmail) {
+        await this.sendPaymentInstructions(project.customerEmail, {
+          customerName: project.customerName || 'Customer',
+          projectName: project.name,
+          amount: parseFloat(downPaymentInvoice.amount),
+          paymentLink,
+          dueDate: new Date(downPaymentInvoice.dueDate),
+          paymentType: 'down_payment',
+        });
+        console.log(`[PaymentService] Payment instructions sent to ${project.customerEmail}`);
+      }
 
       return {
-        project,
-        downPaymentInvoice,
+        invoice: downPaymentInvoice,
         paymentIntent,
       };
     } catch (error) {
-      console.error('Error processing quote acceptance:', error);
+      console.error('Error triggering down payment:', error);
       throw error;
     }
   }
@@ -193,10 +240,10 @@ export class PaymentService {
     const projectData = {
       name: quote.title,
       description: quote.description || `Project created from Quote #${quote.quoteNumber}`,
-      address: quote.customerAddress || 'Address from quote',
-      city: 'City', // Default value, will be enhanced with proper quote fields
-      state: 'State', // Default value, will be enhanced with proper quote fields  
-      zipCode: '00000', // Default value, will be enhanced with proper quote fields
+      address: quote.customerAddress || 'Address not provided',
+      city: quote.customerCity || 'City not provided',
+      state: quote.customerState || 'State not provided',
+      zipCode: quote.customerZip || 'Zip not provided',
       totalBudget: quote.total?.toString() || '0',
       status: 'planning' as const,
       estimatedCompletionDate: quote.estimatedCompletionDate,

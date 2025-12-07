@@ -6,10 +6,11 @@ import { Project } from '@shared/schema';
 
 interface PaymentStatusColumnProps {
   project: Project;
+  onTriggerDownPayment?: (projectId: number) => void;
   onTriggerMilestone?: (projectId: number, paymentType: 'milestone' | 'final') => void;
 }
 
-export function PaymentStatusColumn({ project, onTriggerMilestone }: PaymentStatusColumnProps) {
+export function PaymentStatusColumn({ project, onTriggerDownPayment, onTriggerMilestone }: PaymentStatusColumnProps) {
   const totalBudget = parseFloat(project.totalBudget?.toString() || '0');
   
   // Calculate expected payment amounts (will be replaced with actual invoice data)
@@ -39,7 +40,7 @@ export function PaymentStatusColumn({ project, onTriggerMilestone }: PaymentStat
 
   const getNextPaymentAction = () => {
     if (paymentStatus.finalPaid) return null;
-    
+
     if (paymentStatus.milestonePaid && !paymentStatus.finalPaid) {
       return (
         <Button
@@ -52,7 +53,7 @@ export function PaymentStatusColumn({ project, onTriggerMilestone }: PaymentStat
         </Button>
       );
     }
-    
+
     if (paymentStatus.downPaymentPaid && !paymentStatus.milestonePaid) {
       return (
         <Button
@@ -65,7 +66,22 @@ export function PaymentStatusColumn({ project, onTriggerMilestone }: PaymentStat
         </Button>
       );
     }
-    
+
+    // Show down payment button when project is in planning (no down payment paid yet)
+    if (!paymentStatus.downPaymentPaid) {
+      return (
+        <Button
+          size="sm"
+          variant="default"
+          onClick={() => onTriggerDownPayment?.(project.id)}
+          className="text-xs bg-blue-600 hover:bg-blue-700"
+        >
+          <DollarSign className="h-3 w-3 mr-1" />
+          Send Down Payment Request
+        </Button>
+      );
+    }
+
     return null;
   };
 

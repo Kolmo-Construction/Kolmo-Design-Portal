@@ -1,11 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { isAuthenticated } from '../middleware/auth.middleware';
-import { 
-  generateStreamToken, 
-  createStreamUser, 
+import {
+  generateStreamToken,
+  createStreamUser,
   initializeQuoteChat,
   addUserToQuoteChannel,
-  connectionMonitor
+  connectionMonitor,
+  streamServerClient
 } from '../stream-chat';
 import { db } from '../db';
 import { quotes } from '../../shared/schema';
@@ -191,13 +192,14 @@ router.post('/connections/cleanup', isAuthenticated, async (req: Request, res: R
  */
 router.get('/usage', isAuthenticated, async (req: Request, res: Response) => {
   try {
-    const { StreamChat } = await import('stream-chat');
-    const client = StreamChat.getInstance(process.env.STREAM_API_KEY!, process.env.STREAM_API_SECRET!);
-    
+    if (!streamServerClient) {
+      return res.status(503).json({ error: 'Stream Chat not configured' });
+    }
+
     // Query channels to get active usage
-    const channels = await client.queryChannels({});
+    const channels = await streamServerClient.queryChannels({});
     const stats = connectionMonitor.getConnectionStats();
-    
+
     res.json({
       totalChannels: channels.length,
       activeConnections: stats.current,
@@ -222,13 +224,15 @@ router.get('/usage', isAuthenticated, async (req: Request, res: Response) => {
  */
 router.get('/conversations', isAuthenticated, async (req: Request, res: Response) => {
   try {
-    const { StreamChat } = await import('stream-chat');
-    const client = StreamChat.getInstance(process.env.STREAM_API_KEY!, process.env.STREAM_API_SECRET!);
+    if (!streamServerClient) {
+      return res.status(503).json({ error: 'Stream Chat not configured' });
+    }
+
     const user = req.user as any;
     const adminUserId = `admin-${user.id}`;
-    
+
     // Query channels where the admin is a member
-    const channels = await client.queryChannels({
+    const channels = await streamServerClient.queryChannels({
       members: { $in: [adminUserId] },
       type: 'messaging'
     }, { last_message_at: -1 }, { limit: 50 });

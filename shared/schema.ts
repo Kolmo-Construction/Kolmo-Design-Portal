@@ -337,12 +337,12 @@ export const progressUpdateViews = pgTable("progress_update_views", {
 // Update media (photos/videos) connected to progress updates OR punch list items
 export const updateMedia = pgTable("update_media", {
   id: serial("id").primaryKey(),
-  updateId: integer("update_id").references(() => progressUpdates.id),
-  punchListItemId: integer("punch_list_item_id").references(() => punchListItems.id),
+  updateId: integer("update_id").references(() => progressUpdates.id, { onDelete: 'cascade' }),
+  punchListItemId: integer("punch_list_item_id").references(() => punchListItems.id, { onDelete: 'cascade' }),
   mediaUrl: text("media_url").notNull(),
   mediaType: text("media_type").notNull(), // image, video
   caption: text("caption"),
-  uploadedById: integer("uploaded_by_id").references(() => users.id),
+  uploadedById: integer("uploaded_by_id").references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

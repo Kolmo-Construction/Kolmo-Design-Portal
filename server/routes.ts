@@ -40,6 +40,7 @@ import designProposalRouter from "./routes/design-proposal.routes"; // Design pr
 
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
 import chatRouter from "./routes/chat.routes"; // Stream Chat router
+import agentRouter from "./routes/agent.routes"; // AI Agent router
 // Import other routers as needed (milestones, selections, admin, etc.)
 // import milestoneRouter from "@server/routes/milestone.routes";
 // import selectionRouter from "@server/routes/selection.routes";
@@ -264,6 +265,9 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // Mount Chat routes (mixed auth - admin authenticated, customer public tokens)
   app.use("/api/chat", chatRouter);
+
+  // Mount AI Agent routes (authenticated users only)
+  app.use("/api/agent", agentRouter);
 
   // Mount Webhook routes (no authentication - Stripe handles verification)
   app.use("/api/webhooks", webhookRoutes);

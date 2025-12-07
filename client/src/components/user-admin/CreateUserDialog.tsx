@@ -91,6 +91,7 @@ export function CreateUserDialog({
       role: userToEdit?.role || "client",
       projectIds: userToEdit?.projectIds || [],
       phoneNumber: userToEdit?.phoneNumber || "",
+      isActivated: userToEdit?.isActivated ?? false,
     },
   });
 
@@ -104,6 +105,7 @@ export function CreateUserDialog({
         role: userToEdit?.role || "client",
         projectIds: userToEdit?.projectIds || [],
         phoneNumber: userToEdit?.phoneNumber || "",
+        isActivated: userToEdit?.isActivated ?? false,
       });
       setCreatedMagicLink(null);
     }
@@ -125,19 +127,24 @@ export function CreateUserDialog({
     const submissionData = data.role === 'client' ? data : { ...data, projectIds: [] };
 
     createOrUpdateMutation.mutate(submissionData, {
-      onSuccess: (response) => {
+      onSuccess: async (response) => {
         if (isEditMode) {
           // Edit mode: just show success and close
           toast({
             title: "User Updated",
             description: "User information has been updated successfully.",
           });
+          // Force immediate refetch for user list
+          await queryClient.refetchQueries({ queryKey: ["/api/admin/users"] });
           closeAndReset();
         } else {
           // Create mode: handle magic link
           console.log("Magic link mutation response:", response);
           console.log("Response type:", typeof response);
           console.log("Response keys:", Object.keys(response || {}));
+
+          // Force immediate refetch of user list
+          await queryClient.refetchQueries({ queryKey: ["/api/admin/users"] });
 
           // Check if response has magicLink property
           if (response && response.magicLink) {
@@ -289,6 +296,7 @@ export function CreateUserDialog({
                 projects={projects}
                 isLoadingProjects={isLoadingProjects}
                 disabled={createOrUpdateMutation.isPending}
+                isEditMode={isEditMode}
               />
 
               {createOrUpdateMutation.isError && (

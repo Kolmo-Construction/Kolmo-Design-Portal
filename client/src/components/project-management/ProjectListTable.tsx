@@ -21,6 +21,7 @@ interface ProjectListTableProps {
   isLoading: boolean;
   onEditProject: (project: Project) => void;
   onDeleteProject: (project: Project) => void;
+  onTriggerDownPayment?: (projectId: number) => void;
   onTriggerMilestone?: (projectId: number, paymentType: 'milestone' | 'final') => void;
 }
 
@@ -34,6 +35,7 @@ export function ProjectListTable({
   isLoading,
   onEditProject,
   onDeleteProject,
+  onTriggerDownPayment,
   onTriggerMilestone,
 }: ProjectListTableProps) {
   if (isLoading) {
@@ -80,8 +82,9 @@ export function ProjectListTable({
                   ${Number(project.totalBudget ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </TableCell>
                 <TableCell>
-                  <PaymentStatusColumn 
-                    project={project} 
+                  <PaymentStatusColumn
+                    project={project}
+                    onTriggerDownPayment={onTriggerDownPayment}
                     onTriggerMilestone={onTriggerMilestone}
                   />
                 </TableCell>

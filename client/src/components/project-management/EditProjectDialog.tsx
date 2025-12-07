@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; // Import mutation hooks
 import { getQueryFn, apiRequest } from "@/lib/queryClient"; // Import query helpers
+import { uploadToR2 } from "@/lib/upload"; // Import upload function
+import { useToast } from "@/hooks/use-toast";
 import {
   Form,
   FormControl,
@@ -81,6 +83,12 @@ export function EditProjectDialog({
   // --- END ADDED ---
 }: EditProjectDialogProps) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // Image upload state
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // --- REMOVED: Assignee query (handled by ProjectFormFields) ---
 
@@ -136,9 +144,69 @@ export function EditProjectDialog({
     }
   }, [isOpen, projectToEdit, form]);
 
+  // Image upload handlers
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Invalid file type",
+          description: "Please select an image file (JPEG, PNG, etc.)",
+          variant: "destructive",
+        });
+        return;
+      }
+      // Check file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Image must be less than 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      setSelectedFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+      // Clear the file input value to allow selecting the same file again
+      e.target.value = '';
+    }
+  };
 
-  // Helper function to safely format dates (can be removed if using ProjectFormFields' logic)
-  // const safeFormatDate = ... (keep if needed outside ProjectFormFields)
+  const removeSelectedFile = () => {
+    setSelectedFile(null);
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    setImagePreview(null);
+  };
+
+  const uploadImage = async (): Promise<string | null> => {
+    if (!selectedFile) return null;
+
+    setIsUploading(true);
+    try {
+      const imageUrl = await uploadToR2(selectedFile);
+      // Update the form field with the uploaded URL
+      form.setValue('imageUrl', imageUrl);
+      toast({
+        title: "Image uploaded",
+        description: "Project image has been uploaded successfully.",
+      });
+      return imageUrl;
+    } catch (error) {
+      console.error("Image upload error:", error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload image. Please try again.",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   // --- CORRECTION: Update Project Mutation ---
   const updateProjectMutation = useMutation({
@@ -178,8 +246,16 @@ export function EditProjectDialog({
 
   // Handle form submission
   // --- CORRECTION: Use EditProjectFormValues ---
-  const handleFormSubmit = (values: EditProjectFormValues) => {
+  const handleFormSubmit = async (values: EditProjectFormValues) => {
     if (!projectToEdit) return;
+
+    // Upload image if one is selected
+    if (selectedFile) {
+      const uploadedUrl = await uploadImage();
+      if (uploadedUrl) {
+        values.imageUrl = uploadedUrl;
+      }
+    }
 
     console.log("Submitting update:", values);
     // The mutationFn now handles formatting, just pass the form values
@@ -213,6 +289,14 @@ export function EditProjectDialog({
                     isLoadingManagers={isLoadingManagers}
                     disabled={updateProjectMutation.isPending}
                     isEditMode={true} // Explicitly indicate edit mode
+                    // Image upload props
+                    selectedFile={selectedFile}
+                    setSelectedFile={setSelectedFile}
+                    imagePreview={imagePreview}
+                    setImagePreview={setImagePreview}
+                    isUploading={isUploading}
+                    onFileChange={handleFileChange}
+                    onRemoveFile={removeSelectedFile}
                  />
 
                 {/* Form Buttons */}

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -29,6 +30,7 @@ type NewUserFormValues = {
     role: UserRole;
     projectIds?: number[];
     phoneNumber?: string;
+    isActivated?: boolean;
 };
 
 interface CreateUserFormProps {
@@ -36,6 +38,7 @@ interface CreateUserFormProps {
   projects: Project[];
   isLoadingProjects: boolean;
   disabled?: boolean;
+  isEditMode?: boolean;
 }
 
 export function CreateUserForm({
@@ -43,6 +46,7 @@ export function CreateUserForm({
   projects,
   isLoadingProjects,
   disabled = false,
+  isEditMode = false,
 }: CreateUserFormProps) {
   const selectedRole = form.watch("role");
 
@@ -144,6 +148,31 @@ export function CreateUserForm({
           </FormItem>
         )}
       />
+
+      {/* Active Status Toggle - Only show in edit mode */}
+      {isEditMode && (
+        <FormField
+          control={form.control}
+          name="isActivated"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">Active Status</FormLabel>
+                <FormDescription>
+                  Activate or deactivate this user's account. Inactive users cannot log in.
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  disabled={disabled}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+      )}
 
       {/* Conditional Project Assignment for Clients */}
       {selectedRole === "client" && (

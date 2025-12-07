@@ -59,10 +59,10 @@ const createQuoteSchema = z.object({
   customerName: z.string().min(1, "Customer name is required"),
   customerEmail: z.string().email("Valid email is required"),
   customerPhone: z.string().optional(),
-  customerAddress: z.string().optional(),
-  customerCity: z.string().optional(),
-  customerState: z.string().optional(),
-  customerZip: z.string().optional(),
+  customerAddress: z.string().min(1, "Street address is required"),
+  customerCity: z.string().min(1, "City is required"),
+  customerState: z.string().min(1, "State is required"),
+  customerZip: z.string().min(1, "ZIP code is required"),
   projectType: z.string().min(1, "Project type is required"),
   location: z.string().optional(),
   description: z.string().optional(),
@@ -135,7 +135,7 @@ export default function CreateQuotePage() {
   const [suggestedTaxRate, setSuggestedTaxRate] = useState<number | null>(null);
   const [taxLookupLoading, setTaxLookupLoading] = useState(false);
   const [suggestedTaxAccepted, setSuggestedTaxAccepted] = useState(false);
-  const [expandAddress, setExpandAddress] = useState(false);
+  const [expandAddress, setExpandAddress] = useState(true);
 
   const form = useForm<CreateQuoteFormData>({
     resolver: zodResolver(createQuoteSchema),
@@ -601,7 +601,7 @@ export default function CreateQuotePage() {
                       data-testid="button-toggle-address"
                     >
                       <span>{expandAddress ? "▼" : "▶"}</span>
-                      <span>Project Address (optional - for automatic tax rate)</span>
+                      <span>Project Address (required for automatic tax rate)</span>
                     </button>
                     {expandAddress && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 p-3 rounded-lg" style={{ backgroundColor: theme.getColorWithOpacity(theme.colors.primary, 0.05) }}>

@@ -22,37 +22,39 @@ try {
 const router = Router();
 
 /**
- * Create payment intent for quote acceptance down payment
+ * Accept quote and create project (without immediate payment)
+ * Payment will be triggered manually by admin later
  */
-router.post('/quotes/:id/accept-payment', async (req, res, next) => {
+router.post('/payment/quotes/:id/accept', async (req, res, next) => {
   try {
-    console.log('[accept-payment] Starting payment setup process...');
-    console.log('[accept-payment] Request body:', JSON.stringify(req.body, null, 2));
-    
-    if (!stripe) {
-      console.log('[accept-payment] ERROR: Stripe not initialized');
-      throw new HttpError(503, 'Payment processing temporarily unavailable');
-    }
+    console.log('[accept-quote] Starting quote acceptance process...');
+    console.log('[accept-quote] Request body:', JSON.stringify(req.body, null, 2));
 
     const quoteId = parseInt(req.params.id);
-    const { customerName, customerEmail, customerPhone } = req.body;
-    console.log(`[accept-payment] Processing for quote ID: ${quoteId}, customer: ${customerName} (${customerEmail})`);
 
-    if (!customerName || !customerEmail) {
-      console.log('[accept-payment] ERROR: Missing customer information');
-      throw new HttpError(400, 'Customer name and email are required');
+    if (isNaN(quoteId)) {
+      console.log('[accept-quote] ERROR: Invalid quote ID');
+      return res.status(400).json({ error: 'Invalid quote ID' });
     }
 
-    console.log('[accept-payment] Calling paymentService.processQuoteAcceptance...');
-    // Use PaymentService to process quote acceptance
+    const { customerName, customerEmail, customerPhone } = req.body;
+    console.log(`[accept-quote] Processing for quote ID: ${quoteId}, customer: ${customerName} (${customerEmail})`);
+
+    if (!customerName || !customerEmail) {
+      console.log('[accept-quote] ERROR: Missing customer information');
+      return res.status(400).json({ error: 'Customer name and email are required' });
+    }
+
+    console.log('[accept-quote] Calling paymentService.processQuoteAcceptance...');
+    // Use PaymentService to create project without payment
     const result = await paymentService.processQuoteAcceptance(quoteId, {
       name: customerName,
       email: customerEmail,
       phone: customerPhone,
     });
-    console.log('[accept-payment] Payment service completed successfully');
+    console.log('[accept-quote] Project created successfully');
 
-    console.log('[accept-payment] Updating quote status to accepted...');
+    console.log('[accept-quote] Updating quote status to accepted...');
     // Update quote status to accepted
     await storage.quotes.updateQuote(quoteId, {
       status: 'accepted',
@@ -61,26 +63,66 @@ router.post('/quotes/:id/accept-payment', async (req, res, next) => {
       respondedAt: new Date(),
     });
 
-    res.json({
-      clientSecret: result.paymentIntent.client_secret,
-      amount: parseFloat(result.downPaymentInvoice.amount.toString()),
-      downPaymentPercentage: result.paymentIntent.metadata.downPaymentPercentage || '30',
-      quote: {
-        id: quoteId,
-        title: result.project.name,
-        quoteNumber: result.paymentIntent.metadata.quoteNumber,
-        total: result.project.totalBudget,
-      },
+    const response = {
+      success: true,
+      message: 'Quote accepted successfully. Project has been created.',
       project: {
-        id: result.project.id,
-        name: result.project.name,
-        status: result.project.status,
+        id: Number(result.project.id),
+        name: String(result.project.name),
+        status: String(result.project.status),
+        totalBudget: String(result.project.totalBudget),
       },
       invoice: {
-        id: result.downPaymentInvoice.id,
-        invoiceNumber: result.downPaymentInvoice.invoiceNumber,
-        amount: result.downPaymentInvoice.amount,
-        status: result.downPaymentInvoice.status,
+        id: Number(result.downPaymentInvoice.id),
+        invoiceNumber: String(result.downPaymentInvoice.invoiceNumber),
+        amount: String(result.downPaymentInvoice.amount),
+        status: String(result.downPaymentInvoice.status),
+        description: 'Down payment invoice created (draft status - will be sent manually)',
+      },
+    };
+
+    console.log('[accept-quote] Sending response:', JSON.stringify(response));
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error('[accept-quote] Error:', error);
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : 'Failed to accept quote'
+    });
+  }
+});
+
+/**
+ * Manually trigger down payment for a project
+ * This creates the payment intent and sends payment instructions to the customer
+ */
+router.post('/projects/:id/trigger-down-payment', async (req, res, next) => {
+  try {
+    console.log('[trigger-down-payment] Triggering down payment for project...');
+
+    if (!stripe) {
+      console.log('[trigger-down-payment] ERROR: Stripe not initialized');
+      throw new HttpError(503, 'Payment processing temporarily unavailable');
+    }
+
+    const projectId = parseInt(req.params.id);
+    console.log(`[trigger-down-payment] Project ID: ${projectId}`);
+
+    const result = await paymentService.triggerDownPayment(projectId);
+    console.log('[trigger-down-payment] Down payment triggered successfully');
+
+    res.json({
+      success: true,
+      message: 'Down payment invoice sent to customer',
+      invoice: {
+        id: result.invoice.id,
+        invoiceNumber: result.invoice.invoiceNumber,
+        amount: result.invoice.amount,
+        status: 'pending',
+        paymentLink: result.invoice.paymentLink,
+      },
+      paymentIntent: {
+        id: result.paymentIntent.id,
+        status: result.paymentIntent.status,
       },
     });
   } catch (error) {

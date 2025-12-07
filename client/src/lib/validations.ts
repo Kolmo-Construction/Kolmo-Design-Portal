@@ -87,6 +87,8 @@ export const newUserSchema = z.object({
     required_error: "Role is required",
   }),
   projectIds: z.array(z.number().int().positive()).optional(),
+  phoneNumber: z.string().optional(),
+  isActivated: z.boolean().optional(),
 });
 
 export type NewUserFormValues = z.infer<typeof newUserSchema>;

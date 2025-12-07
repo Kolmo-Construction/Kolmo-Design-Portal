@@ -680,7 +680,7 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "Invalid user ID" });
       }
 
-      const { email, firstName, lastName, role, projectIds, phoneNumber } = req.body;
+      const { email, firstName, lastName, role, projectIds, phoneNumber, isActivated } = req.body;
 
       // Check if user exists
       const userToUpdate = await storage.users.getUserById(String(userId));
@@ -700,6 +700,7 @@ export function setupAuth(app: Express) {
         lastName: lastName || userToUpdate.lastName,
         role: role || userToUpdate.role,
         phoneNumber: phoneNumber !== undefined ? phoneNumber : userToUpdate.phoneNumber,
+        isActivated: isActivated !== undefined ? isActivated : userToUpdate.isActivated,
       });
 
       // Handle project assignments for clients

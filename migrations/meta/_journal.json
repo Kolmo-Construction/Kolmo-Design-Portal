@@ -22,6 +22,13 @@
       "when": 1765054783412,
       "tag": "0002_rare_red_wolf",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1765076334794,
+      "tag": "0003_remarkable_cannonball",
+      "breakpoints": true
     }
   ]
 }
