@@ -78,6 +78,7 @@ export function useUserManagementDialogs(): UseUserManagementDialogsResult {
         setIsCreateUserDialogOpen(open);
         if (!open) {
             setUserToEdit(null);
+            setUserToManage(null);
         }
     }, []);
 

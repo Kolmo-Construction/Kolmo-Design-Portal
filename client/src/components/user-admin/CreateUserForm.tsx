@@ -28,6 +28,7 @@ type NewUserFormValues = {
     lastName: string;
     role: UserRole;
     projectIds?: number[];
+    phoneNumber?: string;
 };
 
 interface CreateUserFormProps {
@@ -85,6 +86,23 @@ export function CreateUserForm({
             <FormControl>
               <Input type="email" placeholder="john@example.com" {...field} disabled={disabled} />
             </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="phoneNumber"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Phone Number</FormLabel>
+            <FormControl>
+              <Input type="tel" placeholder="+1 (555) 123-4567" {...field} disabled={disabled} />
+            </FormControl>
+            <FormDescription>
+              Optional phone number for contact purposes.
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}

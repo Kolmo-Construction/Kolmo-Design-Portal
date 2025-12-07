@@ -361,7 +361,7 @@ export function setupAuth(app: Express) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const { email, firstName, lastName, role = "client", projectIds = [] } = req.body;
+      const { email, firstName, lastName, role = "client", projectIds = [], phoneNumber } = req.body;
 
       if (!email || !firstName || !lastName) {
         return res.status(400).json({ message: "Email, first name, and last name are required" });
@@ -392,7 +392,8 @@ export function setupAuth(app: Express) {
           role,
           magicLinkToken: token,
           magicLinkExpiry: expiry,
-          isActivated: false
+          isActivated: false,
+          phoneNumber: phoneNumber || null
         });
       }
 

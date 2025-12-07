@@ -66,7 +66,7 @@ export function UserListTable({
               </TableCell>
               <TableCell>{user.email}</TableCell>
 
-              <TableCell>{user.username ?? <span className="text-slate-400 italic">N/A</span>}</TableCell>
+              <TableCell>{user.username || <span className="text-slate-400 italic">N/A</span>}</TableCell>
               <TableCell>
                 <Badge variant={getUserRoleBadgeVariant(user.role as UserRole)}> {/* USE Imported helper */}
                     {getUserRoleLabel(user.role as UserRole)} {/* USE Imported helper */}
