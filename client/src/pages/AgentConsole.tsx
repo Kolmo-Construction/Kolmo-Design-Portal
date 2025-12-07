@@ -24,6 +24,8 @@ import {
   User,
   CheckCircle2,
   XCircle,
+  ThumbsUp,
+  Brain,
 } from 'lucide-react';
 import { Project } from '@shared/schema';
 
@@ -33,6 +35,8 @@ interface ChatMessage {
   content: string;
   actions?: AgentAction[];
   timestamp: Date;
+  isVerified?: boolean;
+  sessionId?: string;
 }
 
 interface ApprovedAction {
@@ -59,6 +63,36 @@ export default function AgentConsole() {
     queryFn: getQueryFn({ on401: () => window.location.href = '/login' }),
   });
 
+  // Generate a session ID based on the project
+  const sessionId = selectedProjectId ? `project-${selectedProjectId}` : 'general';
+
+  // Load chat history when project is selected
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      if (!selectedProjectId) {
+        setMessages([]);
+        return;
+      }
+
+      try {
+        const response = await apiRequest('GET', `/api/chat/session/${sessionId}`);
+        const loadedMessages: ChatMessage[] = response.map((msg: any) => ({
+          id: msg.id,
+          type: msg.role === 'assistant' ? 'agent' : msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.createdAt),
+          isVerified: msg.isVerified,
+          sessionId: msg.sessionId,
+        }));
+        setMessages(loadedMessages);
+      } catch (error) {
+        console.error('Failed to load chat history:', error);
+      }
+    };
+
+    loadChatHistory();
+  }, [selectedProjectId, sessionId]);
+
   // Scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -67,46 +101,63 @@ export default function AgentConsole() {
   const handleSendMessage = async () => {
     if (!userPrompt.trim() || isConsulting) return;
 
-    const messageId = Date.now().toString();
-
-    // Add user message to chat
-    const userMessage: ChatMessage = {
-      id: messageId,
-      type: 'user',
-      content: userPrompt,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
     const currentPrompt = userPrompt;
     setUserPrompt('');
 
-    // Add a thinking message
-    const thinkingMessageId = `${messageId}-thinking`;
-    const thinkingMessage: ChatMessage = {
-      id: thinkingMessageId,
-      type: 'agent',
-      content: '',
-      timestamp: new Date(),
-    };
-    setMessages((prev) => [...prev, thinkingMessage]);
-
     try {
+      // Save user message to database
+      const userMessageResponse = await apiRequest('POST', '/api/chat', {
+        sessionId,
+        role: 'user',
+        content: currentPrompt,
+      });
+
+      // Add user message to chat
+      const userMessage: ChatMessage = {
+        id: userMessageResponse.id,
+        type: 'user',
+        content: currentPrompt,
+        timestamp: new Date(userMessageResponse.createdAt),
+        isVerified: false,
+        sessionId,
+      };
+
+      setMessages((prev) => [...prev, userMessage]);
+
+      // Add a thinking message
+      const thinkingMessageId = `thinking-${Date.now()}`;
+      const thinkingMessage: ChatMessage = {
+        id: thinkingMessageId,
+        type: 'agent',
+        content: '',
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, thinkingMessage]);
+
       // Call agent API
       const response = await apiRequest('POST', '/api/agent/consult', {
         userPrompt: currentPrompt,
         projectId: selectedProjectId ? Number(selectedProjectId) : undefined,
       });
 
+      // Save agent response to database
+      const agentMessageResponse = await apiRequest('POST', '/api/chat', {
+        sessionId,
+        role: 'assistant',
+        content: response.answer,
+      });
+
       // Remove the thinking message and add the actual response
       setMessages((prev) => {
         const filtered = prev.filter((msg) => msg.id !== thinkingMessageId);
         const agentMessage: ChatMessage = {
-          id: `${messageId}-response`,
+          id: agentMessageResponse.id,
           type: 'agent',
           content: response.answer,
           actions: response.actions || [],
-          timestamp: new Date(),
+          timestamp: new Date(agentMessageResponse.createdAt),
+          isVerified: false,
+          sessionId,
         };
         return [...filtered, agentMessage];
       });
@@ -132,7 +183,7 @@ export default function AgentConsole() {
         return [
           ...filtered,
           {
-            id: `${messageId}-error`,
+            id: `error-${Date.now()}`,
             type: 'agent',
             content: 'Sorry, I encountered an error processing your request. Please try again.',
             timestamp: new Date(),
@@ -204,6 +255,33 @@ export default function AgentConsole() {
       title: 'Action Rejected',
       description: 'The suggested action has been rejected.',
     });
+  };
+
+  const handleSaveToMemory = async (messageId: string) => {
+    try {
+      // Call the verify endpoint to generate embeddings and mark as verified
+      await apiRequest('POST', `/api/chat/${messageId}/verify`, {});
+
+      // Update the message in state to reflect verification
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, isVerified: true } : msg
+        )
+      );
+
+      toast({
+        title: 'Saved to Memory',
+        description: 'This response has been added to the AI\'s long-term memory.',
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Failed to save to memory:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to save to memory',
+        variant: 'destructive',
+      });
+    }
   };
 
   const isActionApproved = (messageId: string, actionIndex: number) =>
@@ -307,17 +385,41 @@ export default function AgentConsole() {
                       </div>
                     </div>
                   ) : (
-                    <div
-                      className={`p-4 rounded-lg ${
-                        message.type === 'user'
-                          ? 'bg-kolmo-primary text-white ml-auto'
-                          : 'bg-kolmo-muted text-kolmo-foreground'
-                      }`}
-                    >
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                      <p className="text-xs mt-2 opacity-70">
-                        {message.timestamp.toLocaleTimeString()}
-                      </p>
+                    <div>
+                      <div
+                        className={`p-4 rounded-lg ${
+                          message.type === 'user'
+                            ? 'bg-kolmo-primary text-white ml-auto'
+                            : 'bg-kolmo-muted text-kolmo-foreground'
+                        }`}
+                      >
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                        <p className="text-xs mt-2 opacity-70">
+                          {message.timestamp.toLocaleTimeString()}
+                        </p>
+                      </div>
+
+                      {/* Save to Memory Button - Only for agent messages */}
+                      {message.type === 'agent' && message.content && (
+                        <div className="mt-2 flex items-center gap-2">
+                          {message.isVerified ? (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              <Brain className="h-3 w-3 mr-1" />
+                              Saved to Memory
+                            </Badge>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleSaveToMemory(message.id)}
+                              className="text-kolmo-secondary hover:text-kolmo-primary hover:bg-kolmo-muted"
+                            >
+                              <ThumbsUp className="h-4 w-4 mr-1" />
+                              Save to Memory
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 
