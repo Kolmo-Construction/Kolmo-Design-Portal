@@ -14,7 +14,7 @@ const openai = new OpenAI({
 
 // Schema for chat message creation
 const createChatMessageSchema = z.object({
-  sessionId: z.string().uuid(),
+  sessionId: z.string().min(1),
   role: z.enum(['user', 'assistant']),
   content: z.string().min(1),
 });
