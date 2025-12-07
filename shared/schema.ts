@@ -766,6 +766,20 @@ export const quoteViewSessions = pgTable("quote_view_sessions", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Chat messages table for saving conversations
+export const chatMessages = pgTable('chat_messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  sessionId: uuid('session_id').notNull(),
+  role: text('role').notNull(),
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
+  isVerified: boolean('is_verified').default(false).notNull(),
+  embedding: vector('embedding', { dimensions: 1536 }),
+});
+
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type NewChatMessage = typeof chatMessages.$inferInsert;
+
 
 
 
