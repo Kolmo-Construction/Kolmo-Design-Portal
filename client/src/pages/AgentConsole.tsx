@@ -217,12 +217,12 @@ export default function AgentConsole() {
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg">
+          <div className="p-2 bg-kolmo-primary rounded-lg">
             <Bot className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Kolmo AI Agent</h1>
-            <p className="text-sm text-gray-600 mt-1">
+            <h1 className="text-3xl font-bold text-kolmo-foreground">Kolmo AI Agent</h1>
+            <p className="text-sm text-kolmo-secondary mt-1">
               Ask questions about your projects, get insights, and approve suggested actions
             </p>
           </div>
@@ -230,16 +230,16 @@ export default function AgentConsole() {
       </div>
 
       {/* Project Context Selector */}
-      <Card className="mb-6">
-        <CardHeader className="pb-3">
+      <Card className="mb-6 border-kolmo-muted">
+        <CardHeader className="pb-3 bg-kolmo-muted">
           <div className="flex items-center gap-2">
-            <FolderOpen className="h-4 w-4 text-gray-600" />
-            <CardTitle className="text-sm font-medium">Project Context</CardTitle>
+            <FolderOpen className="h-4 w-4 text-kolmo-primary" />
+            <CardTitle className="text-sm font-medium text-kolmo-primary">Project Context</CardTitle>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full border-kolmo-secondary/30 focus:ring-kolmo-accent">
               <SelectValue placeholder="Select a project (optional)" />
             </SelectTrigger>
             <SelectContent>
@@ -251,7 +251,7 @@ export default function AgentConsole() {
               ))}
             </SelectContent>
           </Select>
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs text-kolmo-secondary mt-2">
             Select a project to provide context for your questions
           </p>
         </CardContent>
@@ -262,13 +262,13 @@ export default function AgentConsole() {
         <CardContent className="pt-6 space-y-6">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="p-4 bg-purple-50 rounded-full mb-4">
-                <Sparkles className="h-8 w-8 text-purple-600" />
+              <div className="p-4 bg-kolmo-muted rounded-full mb-4">
+                <Sparkles className="h-8 w-8 text-kolmo-accent" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold text-kolmo-foreground mb-2">
                 Start a Conversation
               </h3>
-              <p className="text-sm text-gray-600 max-w-md">
+              <p className="text-sm text-kolmo-secondary max-w-md">
                 Ask me anything about your projects, tasks, milestones, or invoices.
                 I can provide insights and suggest actions based on your data.
               </p>
@@ -280,29 +280,29 @@ export default function AgentConsole() {
                 className={`flex gap-3 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {message.type === 'agent' && (
-                  <div className="p-2 bg-purple-100 rounded-full h-fit">
-                    <Bot className="h-5 w-5 text-purple-600" />
+                  <div className="p-2 bg-kolmo-muted rounded-full h-fit">
+                    <Bot className="h-5 w-5 text-kolmo-primary" />
                   </div>
                 )}
                 <div className={`flex-1 max-w-[80%] space-y-3`}>
                   {/* Message Content */}
                   {message.content === '' ? (
                     // Thinking indicator
-                    <div className="p-4 rounded-lg bg-gray-100 text-gray-900">
+                    <div className="p-4 rounded-lg bg-kolmo-muted text-kolmo-foreground">
                       <div className="flex items-center gap-3">
                         <div className="relative">
-                          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+                          <div className="h-8 w-8 rounded-full bg-kolmo-primary flex items-center justify-center">
                             <Bot className="h-5 w-5 text-white" />
                           </div>
-                          <div className="absolute -top-1 -right-1 h-4 w-4 border-2 border-white rounded-full bg-purple-500 animate-ping"></div>
+                          <div className="absolute -top-1 -right-1 h-4 w-4 border-2 border-white rounded-full bg-kolmo-accent animate-ping"></div>
                         </div>
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                            <div className="h-2 w-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                            <div className="h-2 w-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                            <div className="h-2 w-2 rounded-full bg-kolmo-accent animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                            <div className="h-2 w-2 rounded-full bg-kolmo-accent animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                            <div className="h-2 w-2 rounded-full bg-kolmo-accent animate-bounce" style={{ animationDelay: '300ms' }}></div>
                           </div>
-                          <p className="text-xs text-gray-600">Kolmo AI is thinking...</p>
+                          <p className="text-xs text-kolmo-secondary">Kolmo AI is thinking...</p>
                         </div>
                       </div>
                     </div>
@@ -310,8 +310,8 @@ export default function AgentConsole() {
                     <div
                       className={`p-4 rounded-lg ${
                         message.type === 'user'
-                          ? 'bg-blue-600 text-white ml-auto'
-                          : 'bg-gray-100 text-gray-900'
+                          ? 'bg-kolmo-primary text-white ml-auto'
+                          : 'bg-kolmo-muted text-kolmo-foreground'
                       }`}
                     >
                       <p className="text-sm whitespace-pre-wrap">{message.content}</p>
@@ -335,7 +335,7 @@ export default function AgentConsole() {
                               className={`p-4 rounded-lg border-2 ${
                                 approved
                                   ? 'bg-green-50 border-green-200'
-                                  : 'bg-gray-50 border-gray-200'
+                                  : 'bg-kolmo-muted border-kolmo-muted'
                               }`}
                             >
                               <div className="flex items-center gap-2">
@@ -348,8 +348,8 @@ export default function AgentConsole() {
                                   </>
                                 ) : (
                                   <>
-                                    <XCircle className="h-5 w-5 text-gray-600" />
-                                    <span className="text-sm font-medium text-gray-700">
+                                    <XCircle className="h-5 w-5 text-kolmo-secondary" />
+                                    <span className="text-sm font-medium text-kolmo-secondary">
                                       Action Rejected
                                     </span>
                                   </>
@@ -372,8 +372,8 @@ export default function AgentConsole() {
                   )}
                 </div>
                 {message.type === 'user' && (
-                  <div className="p-2 bg-blue-100 rounded-full h-fit">
-                    <User className="h-5 w-5 text-blue-600" />
+                  <div className="p-2 bg-kolmo-muted rounded-full h-fit">
+                    <User className="h-5 w-5 text-kolmo-primary" />
                   </div>
                 )}
               </div>
@@ -403,7 +403,7 @@ export default function AgentConsole() {
             <Button
               onClick={handleSendMessage}
               disabled={!userPrompt.trim() || isConsulting}
-              className="h-auto bg-purple-600 hover:bg-purple-700"
+              className="h-auto bg-kolmo-accent hover:bg-kolmo-accent/90 text-white"
             >
               {isConsulting ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
@@ -412,7 +412,7 @@ export default function AgentConsole() {
               )}
             </Button>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs text-kolmo-secondary mt-2">
             Press Enter to send, Shift+Enter for new line
           </p>
         </CardContent>
