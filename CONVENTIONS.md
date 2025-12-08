@@ -9,3 +9,8 @@
 ## Workflow
 - When a file is missing, do not assume it is off-limits. Ask for it.
 - Prioritize full-stack resolution over frontend patches.
+
+## File Management
+1. **Do Not Guess Filenames**: Never ask the user to add a file "or similar."
+2. **Hunt First**: Before asking for a file, use `ls -R` or `grep` to locate the exact path.
+3. **Specific Requests**: Only ask the user to add files that you have verified exist in the file tree.
