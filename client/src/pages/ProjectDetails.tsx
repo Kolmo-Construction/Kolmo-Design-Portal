@@ -49,7 +49,7 @@ import { ProjectScheduleTab } from "@/components/project-details/ProjectSchedule
 import { ProjectTasksTab } from "@/components/project-details/ProjectTasksTab";
 import { ProjectDailyLogsTab } from "@/components/project-details/ProjectDailyLogsTab";
 import { ProjectPunchListTab } from "@/components/project-details/ProjectPunchListTab";
-import { ProjectZohoExpenseTab } from "@/components/project-details/ProjectZohoExpenseTab";
+import { ProjectTaggunTab } from "@/components/project-details/ProjectTaggunTab";
 import { ProjectImagesTab } from "@/components/project-details/ProjectImagesTab";
 import { GenerateAIReportDialog } from "@/components/admin/GenerateAIReportDialog";
 import { cn } from "@/lib/utils";
@@ -361,7 +361,7 @@ export default function ProjectDetails() {
             </TabsContent>
             {user?.role === 'admin' && (
               <TabsContent value="expensify" className="mt-0 p-6">
-                {activeTab === 'expensify' && <ProjectZohoExpenseTab project={project} />}
+                {activeTab === 'expensify' && <ProjectTaggunTab project={project} />}
               </TabsContent>
             )}
           </div>
