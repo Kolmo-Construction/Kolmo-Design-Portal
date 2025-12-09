@@ -18,6 +18,8 @@ const allowedOrigins = [
   'http://localhost:5000',
   'https://api.kolmo.design',
   'https://kolmo.design',
+  'https://www.kolmo.design',            // Main website with www
+  'https://kolmo-design.up.railway.app', // Railway deployment URL
 ];
 
 app.use(cors({
