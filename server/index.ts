@@ -1,11 +1,50 @@
 // server/index.ts
 import express, { type Request, Response, NextFunction } from "express";
 import { createServer } from "http"; // Import createServer
+import cors from "cors";
 import { registerRoutes } from "@server/routes";
 import { setupVite, serveStatic, log } from "@server/vite";
 import chatRoutes from "./routes/chat";
 
 const app = express();
+
+// --- CORS Configuration ---
+// Allow requests from Replit and other mobile app origins
+const allowedOrigins = [
+  'https://bcf5d4f5-2d23-4f8c-85e1-bc408d039841-00-22w626y67ebqj.worf.replit.dev',
+  /\.replit\.dev$/,  // Allow all Replit domains
+  /\.replit\.app$/,  // Allow Replit app domains
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'https://api.kolmo.design',
+  'https://kolmo.design',
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    // Check if origin is in allowed list or matches regex patterns
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return allowed === origin;
+      } else {
+        return allowed.test(origin);
+      }
+    });
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.log(`[CORS] Blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true, // Allow cookies/session
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
+}));
 
 // --- Basic Middleware ---
 // For Stripe webhooks, we need raw body parsing
