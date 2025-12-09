@@ -1,20 +1,31 @@
 import { Request, Response } from 'express';
 import { taggunService } from '../services/taggun.service';
+import { geminiReceiptService } from '../services/gemini-receipt.service';
 
 export class TaggunController {
   /**
-   * Get Taggun configuration status
+   * Get OCR service configuration status
+   * Shows both Taggun and Gemini status
    */
   static async getStatus(req: Request, res: Response) {
     try {
-      const status = taggunService.getStatus();
-      res.json(status);
+      const taggunStatus = taggunService.getStatus();
+      const geminiStatus = geminiReceiptService.getStatus();
+
+      res.json({
+        taggun: taggunStatus,
+        gemini: geminiStatus,
+        activeService: geminiStatus.configured ? 'gemini' : (taggunStatus.configured ? 'taggun' : 'none'),
+        message: geminiStatus.configured
+          ? 'Using Gemini 2.0 for receipt OCR'
+          : (taggunStatus.configured ? 'Using Taggun for receipt OCR' : 'No OCR service configured'),
+      });
     } catch (error) {
-      console.error('Error getting Taggun status:', error);
+      console.error('Error getting OCR status:', error);
       res.status(500).json({
         configured: false,
         connected: false,
-        message: 'Failed to get Taggun status',
+        message: 'Failed to get OCR status',
       });
     }
   }

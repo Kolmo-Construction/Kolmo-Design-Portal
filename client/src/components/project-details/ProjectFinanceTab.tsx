@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getQueryFn, apiRequest } from "@/lib/queryClient";
-import type { Milestone, Invoice, Project } from "@shared/schema";
+import type { Milestone, Invoice, Project, Receipt } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { 
-  DollarSign, 
-  Receipt, 
-  Calendar, 
-  CheckCircle2, 
-  Clock, 
+import {
+  DollarSign,
+  Receipt as ReceiptIcon,
+  Calendar,
+  CheckCircle2,
+  Clock,
   AlertTriangle,
   FileText,
   TrendingUp,
@@ -23,6 +23,36 @@ import { useToast } from "@/hooks/use-toast";
 
 interface ProjectFinanceTabProps {
   projectId: number;
+}
+
+interface ExpenseSummary {
+  totalAmount: number;
+  totalReceipts: number;
+  byCategory: Array<{
+    category: string;
+    amount: number;
+    count: number;
+  }>;
+  byVendor: Array<{
+    vendor: string;
+    amount: number;
+    count: number;
+  }>;
+  verified: number;
+  unverified: number;
+}
+
+interface ReceiptWithRelations extends Receipt {
+  uploader?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+  };
+  verifier?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+  };
 }
 
 export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
@@ -96,6 +126,32 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
     enabled: !!projectId,
   });
 
+  // Fetch receipts for the project
+  const {
+    data: receiptsResponse,
+    isLoading: isLoadingReceipts,
+    error: receiptsError,
+  } = useQuery<{ success: boolean; receipts: ReceiptWithRelations[] }>({
+    queryKey: [`/api/projects/${projectId}/receipts`],
+    queryFn: getQueryFn({ on401: "throw" }),
+    enabled: !!projectId,
+  });
+
+  const receipts = receiptsResponse?.receipts || [];
+
+  // Fetch expense summary for the project
+  const {
+    data: expenseSummaryResponse,
+    isLoading: isLoadingExpenseSummary,
+    error: expenseSummaryError,
+  } = useQuery<{ success: boolean; summary: ExpenseSummary }>({
+    queryKey: [`/api/projects/${projectId}/expenses`],
+    queryFn: getQueryFn({ on401: "throw" }),
+    enabled: !!projectId,
+  });
+
+  const expenseSummary = expenseSummaryResponse?.summary;
+
   // Billing mutation for completed milestones
   const billMilestoneMutation = useMutation({
     mutationFn: async (milestoneId: number) => {
@@ -133,9 +189,37 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
     },
   });
 
+  // Receipt verification mutation
+  const verifyReceiptMutation = useMutation({
+    mutationFn: async (receiptId: number) => {
+      const response = await apiRequest("POST", `/api/receipts/${receiptId}/verify`);
+      return response;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Receipt Verified",
+        description: "The receipt has been verified successfully.",
+      });
+      // Refresh receipts and expense summary
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/receipts`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/expenses`] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Verification Failed",
+        description: error.message || "Failed to verify receipt",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleBillMilestone = (milestoneId: number) => {
     setLoadingMilestoneId(milestoneId);
     billMilestoneMutation.mutate(milestoneId);
+  };
+
+  const handleVerifyReceipt = (receiptId: number) => {
+    verifyReceiptMutation.mutate(receiptId);
   };
 
   const getMilestoneStatusBadge = (milestone: Milestone) => {
@@ -164,61 +248,97 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
     }
   };
 
+  const getReceiptVerificationBadge = (receipt: ReceiptWithRelations) => {
+    if (receipt.isVerified) {
+      return <Badge className="bg-green-100 text-green-800">Verified</Badge>;
+    }
+    return <Badge className="bg-yellow-100 text-yellow-800">Pending Verification</Badge>;
+  };
+
+  const getCategoryBadge = (category: string | null) => {
+    const categoryColors: Record<string, string> = {
+      materials: 'bg-blue-100 text-blue-800',
+      labor: 'bg-purple-100 text-purple-800',
+      equipment: 'bg-orange-100 text-orange-800',
+      other: 'bg-gray-100 text-gray-800',
+    };
+
+    const color = categoryColors[category || 'other'] || categoryColors.other;
+    return <Badge variant="outline" className={color}>{category || 'Other'}</Badge>;
+  };
+
   const calculateFinancialSummary = () => {
     const projectBudget = project ? parseFloat(project.totalBudget) : 0;
-    
+
     // Calculate total billable percentage (sum of all billable milestone percentages)
-    const totalBillablePercentage = milestones
+    const totalBillablePercentage = (milestones || [])
       .filter(m => m.isBillable)
       .reduce((sum, m) => sum + parseFloat(m.billingPercentage || '0'), 0);
-    
+
     // Calculate total billable amount based on project budget
     const totalBillableAmount = (projectBudget * totalBillablePercentage) / 100;
-    
-    const totalInvoiced = invoices
+
+    const totalInvoiced = (invoices || [])
       .reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
-    
-    const totalPaid = invoices
+
+    const totalPaid = (invoices || [])
       .filter(inv => inv.status === 'paid')
       .reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
 
-
+    // Calculate total expenses from receipts
+    const totalExpenses = expenseSummary?.totalAmount || 0;
+    const verifiedExpenses = receipts
+      .filter(r => r.isVerified)
+      .reduce((sum, r) => sum + parseFloat(r.totalAmount || '0'), 0);
 
     const remainingToInvoice = Math.max(0, totalBillableAmount - totalInvoiced);
     const remainingToPay = Math.max(0, totalInvoiced - totalPaid);
 
-    return { 
+    // Calculate remaining budget after expenses
+    const netPosition = totalPaid - totalExpenses;
+    const remainingBudget = projectBudget - totalExpenses;
+
+    return {
       projectBudget,
-      totalBillablePercentage, 
+      totalBillablePercentage,
       totalBillableAmount,
-      totalInvoiced, 
+      totalInvoiced,
       totalPaid,
       remainingToInvoice,
-      remainingToPay
+      remainingToPay,
+      totalExpenses,
+      verifiedExpenses,
+      netPosition,
+      remainingBudget,
     };
   };
 
-  const { 
+  const {
     projectBudget,
-    totalBillablePercentage, 
+    totalBillablePercentage,
     totalBillableAmount,
-    totalInvoiced, 
+    totalInvoiced,
     totalPaid,
     remainingToInvoice,
-    remainingToPay
+    remainingToPay,
+    totalExpenses,
+    verifiedExpenses,
+    netPosition,
+    remainingBudget,
   } = calculateFinancialSummary();
 
-  if (isLoadingMilestones || isLoadingInvoices || isLoadingProject) {
+  if (isLoadingMilestones || isLoadingInvoices || isLoadingProject || isLoadingReceipts || isLoadingExpenseSummary) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-48 w-full" />
         <Skeleton className="h-48 w-full" />
         <Skeleton className="h-48 w-full" />
       </div>
     );
   }
 
-  if (milestonesError || invoicesError || projectError) {
+  if (milestonesError || invoicesError || projectError || receiptsError || expenseSummaryError) {
     return (
       <Alert>
         <AlertTriangle className="h-4 w-4" />
@@ -240,25 +360,36 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Project Budget */}
             <div className="text-center p-4 bg-slate-50 rounded-lg border">
               <div className="text-2xl font-bold text-slate-700">${projectBudget.toFixed(2)}</div>
               <div className="text-sm text-slate-600">Total Project Value</div>
             </div>
-            
+
             {/* Total Billable Amount */}
             <div className="text-center p-4 bg-blue-50 rounded-lg border">
               <div className="text-2xl font-bold text-blue-700">${totalInvoiced.toFixed(2)}</div>
               <div className="text-sm text-blue-600">Total Invoiced</div>
             </div>
-            
+
             {/* Total Collected */}
             <div className="text-center p-4 bg-green-50 rounded-lg border">
               <div className="text-2xl font-bold text-green-700">${totalPaid.toFixed(2)}</div>
               <div className="text-sm text-green-600">Total Collected</div>
             </div>
-            
+
+            {/* Total Expenses */}
+            <div className="text-center p-4 bg-red-50 rounded-lg border">
+              <div className="text-2xl font-bold text-red-700">${totalExpenses.toFixed(2)}</div>
+              <div className="text-sm text-red-600">Total Expenses</div>
+              {expenseSummary && expenseSummary.unverified > 0 && (
+                <div className="text-xs text-red-500 mt-1">
+                  {expenseSummary.unverified} pending verification
+                </div>
+              )}
+            </div>
+
             {/* Outstanding Balance */}
             <div className="text-center p-4 bg-orange-50 rounded-lg border">
               <div className="text-2xl font-bold text-orange-700">${remainingToPay.toFixed(2)}</div>
@@ -331,7 +462,7 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
                           disabled={loadingMilestoneId === milestone.id}
                           className="gap-1"
                         >
-                          <Receipt className="h-4 w-4" />
+                          <ReceiptIcon className="h-4 w-4" />
                           {loadingMilestoneId === milestone.id ? "Generating..." : "Generate Invoice"}
                         </Button>
                       )}
@@ -339,6 +470,126 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Expenses from Receipts */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ReceiptIcon className="h-5 w-5" />
+            Expenses & Receipts
+          </CardTitle>
+          <CardDescription>
+            Track material and operational costs from uploaded receipts
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoadingReceipts || isLoadingExpenseSummary ? (
+            <div className="space-y-4">
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          ) : receiptsError || expenseSummaryError ? (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Failed to load expense data. Please try again.
+              </AlertDescription>
+            </Alert>
+          ) : receipts.length === 0 ? (
+            <p className="text-center text-gray-500 py-8">
+              No expenses recorded yet. Upload receipts to track material and operational costs.
+            </p>
+          ) : (
+            <div className="space-y-6">
+              {/* Category Summary */}
+              {expenseSummary && expenseSummary.byCategory.length > 0 && (
+                <div className="border rounded-lg p-4 bg-slate-50">
+                  <h4 className="font-medium mb-3 text-sm text-slate-700">Expenses by Category</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {expenseSummary.byCategory.map((cat) => (
+                      <div key={cat.category} className="text-center">
+                        <div className="text-lg font-bold text-slate-800">
+                          ${cat.amount.toFixed(2)}
+                        </div>
+                        <div className="text-xs text-slate-600 capitalize">
+                          {cat.category || 'Other'} ({cat.count})
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Receipts List */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm text-slate-700">Recent Receipts</h4>
+                {receipts.slice(0, 10).map((receipt) => (
+                  <div key={receipt.id} className="border rounded-lg p-4 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-medium">{receipt.vendorName || 'Unknown Vendor'}</h4>
+                          {getReceiptVerificationBadge(receipt)}
+                          {receipt.category && getCategoryBadge(receipt.category)}
+                        </div>
+
+                        {receipt.notes && (
+                          <p className="text-sm text-gray-600 mb-2">{receipt.notes}</p>
+                        )}
+
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {receipt.receiptDate
+                              ? format(new Date(receipt.receiptDate), 'MMM dd, yyyy')
+                              : 'Date unknown'}
+                          </span>
+                          {receipt.uploader && (
+                            <span className="flex items-center gap-1 text-blue-600">
+                              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                              {receipt.uploader.firstName} {receipt.uploader.lastName}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 ml-4">
+                        <div className="text-right">
+                          <div className="text-xl font-bold text-slate-800">
+                            ${parseFloat(receipt.totalAmount || '0').toFixed(2)}
+                          </div>
+                          <div className="text-xs text-slate-500">{receipt.currency || 'USD'}</div>
+                        </div>
+                        {!receipt.isVerified && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleVerifyReceipt(receipt.id)}
+                            disabled={verifyReceiptMutation.isPending}
+                            className="gap-1"
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                            Verify
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {receipts.length > 10 && (
+                  <p className="text-sm text-slate-500 text-center py-2">
+                    Showing 10 of {receipts.length} receipts
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </CardContent>

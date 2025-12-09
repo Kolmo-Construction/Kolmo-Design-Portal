@@ -199,10 +199,22 @@ class TimeTrackingService {
       const durationMs = endTime.getTime() - startTime.getTime();
       const durationMinutes = Math.round(durationMs / (1000 * 60));
 
+      // Calculate labor cost if user has hourly rate
+      let laborCost: string | null = null;
+      if (activeEntry.user?.hourlyRate) {
+        const durationHours = durationMinutes / 60;
+        const hourlyRate = Number(activeEntry.user.hourlyRate);
+        laborCost = (durationHours * hourlyRate).toFixed(2);
+        console.log(`[TimeTracking] Calculated labor cost: ${durationHours}h × $${hourlyRate}/h = $${laborCost}`);
+      } else {
+        console.log('[TimeTracking] No hourly rate set for user, labor cost not calculated');
+      }
+
       // Update time entry with clock out data
       const updatedEntry = await timeEntryRepository.update(activeEntry.id, {
         endTime,
         durationMinutes,
+        laborCost,
         clockOutLatitude: latitude.toString(),
         clockOutLongitude: longitude.toString(),
         clockOutWithinGeofence: withinGeofence,

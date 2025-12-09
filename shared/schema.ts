@@ -122,12 +122,16 @@ export const users = pgTable("users", {
   lastName: text("last_name").notNull(),
   phone: text("phone"),
   role: text("role").notNull().default("client"), // client, admin, projectManager
+
+  // Labor cost tracking
+  hourlyRate: decimal("hourly_rate", { precision: 10, scale: 2 }), // Hourly wage for labor cost calculations
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   magicLinkToken: text("magic_link_token").unique(),
   magicLinkExpiry: timestamp("magic_link_expiry"),
   isActivated: boolean("is_activated").default(false).notNull(),
-  
+
   // Stripe customer integration for payment processing
   stripeCustomerId: text("stripe_customer_id").unique(),
   stripeSubscriptionId: text("stripe_subscription_id"),
@@ -170,6 +174,9 @@ export const timeEntries = pgTable("time_entries", {
   startTime: timestamp("start_time").notNull(),
   endTime: timestamp("end_time"), // Nullable for active entries
   durationMinutes: integer("duration_minutes"), // Calculated on clock-out
+
+  // Labor cost calculation
+  laborCost: decimal("labor_cost", { precision: 10, scale: 2 }), // Calculated on clock-out (durationMinutes / 60 * hourlyRate)
 
   // Geolocation
   clockInLatitude: decimal("clock_in_latitude", { precision: 10, scale: 7 }).notNull(),

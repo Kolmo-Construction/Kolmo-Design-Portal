@@ -6,8 +6,8 @@ import Sidebar from "@/components/Sidebar";
 import FinancialSummary from "@/components/FinancialSummary";
 import { Project, Invoice, Payment } from "@shared/schema";
 
-// Zoho Expense integration interfaces
-interface ZohoExpense {
+// Budget tracking interfaces
+interface Expense {
   id: string;
   projectId: number;
   amount: number;
@@ -26,7 +26,7 @@ interface ProjectBudgetTracking {
   totalExpenses: number;
   remainingBudget: number;
   budgetUtilization: number;
-  expenses: ZohoExpense[];
+  expenses: Expense[];
 }
 
 import {
@@ -105,21 +105,13 @@ export default function Financials() {
     enabled: allInvoices.length > 0,
   });
 
-  // Fetch Zoho Expense configuration status
-  const { 
-    data: zohoConfig,
-    isLoading: isLoadingZohoConfig 
-  } = useQuery<{ configured: boolean; connected: boolean; message: string }>({
-    queryKey: ["/api/zoho-expense/status"],
-  });
-
-  // Fetch budget tracking data from Zoho Expense
-  const { 
+  // Fetch budget tracking data
+  const {
     data: budgetTrackingData = [],
     isLoading: isLoadingBudgetData,
     refetch: refetchBudgetData
   } = useQuery<ProjectBudgetTracking[]>({
-    queryKey: ["/api/zoho-expense/budget-tracking"],
+    queryKey: ["/api/expense-tracking/budget"],
   });
 
   // Filter projects based on the selected filter
@@ -203,25 +195,22 @@ export default function Financials() {
           </CardContent>
         </Card>
 
-        {/* Zoho Expense Integration Section */}
+        {/* Expense Tracking Section */}
         <Card className="mb-6">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <DollarSign className="h-5 w-5 text-green-600" />
-                  Zoho Expense Budget Tracking
+                  Budget Tracking
                 </CardTitle>
                 <CardDescription>
-                  Connect with Zoho Expense to track project expenses against budgets in real-time
+                  Track project expenses against budgets with AI-powered receipt scanning
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant={zohoConfig?.connected ? "default" : "destructive"}>
-                  {zohoConfig?.connected ? "Connected" : "Not Authorized"}
-                </Badge>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => refetchBudgetData()}
                   className="flex items-center gap-2"
@@ -233,102 +222,54 @@ export default function Financials() {
             </div>
           </CardHeader>
           <CardContent>
-            {!zohoConfig?.connected ? (
-              <div className="py-4 px-6 bg-slate-50 rounded-lg border">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="text-sm text-slate-600 mb-1">
-                      Budget tracking is available when connected to Zoho Expense
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {zohoConfig?.message || "Authorization required to view expense data"}
-                    </p>
-                  </div>
-                  <Button 
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Get authorization URL and open in new window
-                      fetch('/api/zoho-expense/auth/url', {
-                        method: 'GET',
-                        credentials: 'include',
-                        headers: {
-                          'Content-Type': 'application/json',
-                        }
-                      })
-                        .then(res => {
-                          if (!res.ok) {
-                            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-                          }
-                          return res.json();
-                        })
-                        .then(data => {
-                          if (data.authUrl) {
-                            window.open(data.authUrl, '_blank');
-                          } else {
-                            console.error('No authorization URL received');
-                          }
-                        })
-                        .catch(error => {
-                          console.error('Error fetching auth URL:', error);
-                          alert('Failed to get authorization URL. Please check the logs.');
-                        });
-                    }}
-                    className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Connect
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Budget Overview Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card className="border-l-4 border-l-blue-500">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-slate-600">Total Budget</p>
-                          <p className="text-2xl font-bold text-slate-900">
-                            ${totalBudget.toLocaleString()}
-                          </p>
-                        </div>
-                        <CircleDollarSign className="h-8 w-8 text-blue-500" />
+            <div className="space-y-4">
+              {/* Budget Overview Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="border-l-4 border-l-blue-500">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-600">Total Budget</p>
+                        <p className="text-2xl font-bold text-slate-900">
+                          ${totalBudget.toLocaleString()}
+                        </p>
                       </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="border-l-4 border-l-orange-500">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-slate-600">Total Expenses</p>
-                          <p className="text-2xl font-bold text-slate-900">
-                            ${totalExpenses.toLocaleString()}
-                          </p>
-                        </div>
-                        <TrendingUp className="h-8 w-8 text-orange-500" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="border-l-4 border-l-green-500">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-slate-600">Remaining Budget</p>
-                          <p className="text-2xl font-bold text-slate-900">
-                            ${(totalBudget - totalExpenses).toLocaleString()}
-                          </p>
-                        </div>
-                        <TrendingDown className="h-8 w-8 text-green-500" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
+                      <CircleDollarSign className="h-8 w-8 text-blue-500" />
+                    </div>
+                  </CardContent>
+                </Card>
 
-                {/* Project Budget Details */}
+                <Card className="border-l-4 border-l-orange-500">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-600">Total Expenses</p>
+                        <p className="text-2xl font-bold text-slate-900">
+                          ${totalExpenses.toLocaleString()}
+                        </p>
+                      </div>
+                      <TrendingUp className="h-8 w-8 text-orange-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-l-4 border-l-green-500">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-600">Remaining Budget</p>
+                        <p className="text-2xl font-bold text-slate-900">
+                          ${(totalBudget - totalExpenses).toLocaleString()}
+                        </p>
+                      </div>
+                      <TrendingDown className="h-8 w-8 text-green-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Project Budget Details */}
+              {filteredBudgetData.length > 0 ? (
                 <div className="space-y-4">
                   {filteredBudgetData.map((project) => (
                     <Card key={project.projectId} className="border">
@@ -349,9 +290,9 @@ export default function Financials() {
                               <span>${project.totalExpenses.toLocaleString()} / ${project.totalBudget.toLocaleString()}</span>
                             </div>
                             <div className="w-full bg-slate-200 rounded-full h-2">
-                              <div 
+                              <div
                                 className={`h-2 rounded-full ${
-                                  project.budgetUtilization > 90 ? 'bg-red-500' : 
+                                  project.budgetUtilization > 90 ? 'bg-red-500' :
                                   project.budgetUtilization > 75 ? 'bg-yellow-500' : 'bg-green-500'
                                 }`}
                                 style={{ width: `${Math.min(project.budgetUtilization, 100)}%` }}
@@ -377,11 +318,6 @@ export default function Financials() {
                                   </div>
                                 ))}
                               </div>
-                              {project.expenses.length > 3 && (
-                                <Button variant="link" size="sm" className="p-0 h-auto text-blue-600">
-                                  View All in Zoho
-                                </Button>
-                              )}
                             </div>
                           )}
                         </div>
@@ -389,8 +325,13 @@ export default function Financials() {
                     </Card>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="py-8 text-center text-slate-500">
+                  <p className="text-sm">No expense data available yet.</p>
+                  <p className="text-xs mt-1">Upload receipts to track project expenses.</p>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 

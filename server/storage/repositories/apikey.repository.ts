@@ -149,6 +149,52 @@ class ApiKeyRepository implements IApiKeyRepository {
       throw new Error('Database error while updating API key.');
     }
   }
+
+  /**
+   * Find active API key by user ID and name
+   */
+  async findActiveByUserIdAndName(
+    userId: number,
+    name: string
+  ): Promise<schema.ApiKey | null> {
+    try {
+      const apiKey = await this.dbOrTx.query.apiKeys.findFirst({
+        where: and(
+          eq(schema.apiKeys.userId, userId),
+          eq(schema.apiKeys.name, name),
+          eq(schema.apiKeys.isActive, true)
+        ),
+      });
+
+      return apiKey || null;
+    } catch (error) {
+      console.error(`Error finding active API key for user ${userId}:`, error);
+      throw new Error('Database error while finding API key.');
+    }
+  }
+
+  /**
+   * Find API key by full key string
+   */
+  async findByFullKey(fullKey: string): Promise<schema.ApiKey | null> {
+    try {
+      const apiKey = await this.dbOrTx.query.apiKeys.findFirst({
+        where: eq(schema.apiKeys.fullKey, fullKey),
+      });
+
+      return apiKey || null;
+    } catch (error) {
+      console.error('Error finding API key by full key:', error);
+      throw new Error('Database error while finding API key.');
+    }
+  }
+
+  /**
+   * Revoke (deactivate) an API key
+   */
+  async revoke(id: number): Promise<void> {
+    return this.deactivate(id);
+  }
 }
 
 // Export singleton instance

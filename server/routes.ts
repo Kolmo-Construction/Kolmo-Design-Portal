@@ -15,6 +15,7 @@ import { setupAuth } from "@server/auth";
 
 // --- Import Feature Routers ---
 import authRouter from "@server/routes/auth.routes";
+import mobileAuthRouter from "@server/routes/mobile-auth.routes";
 import projectRouter from "@server/routes/project.routes";
 import { projectDocumentRouter, globalDocumentRouter } from "@server/routes/document.routes";
 import invoiceRouter from "@server/routes/invoice.routes";
@@ -41,6 +42,7 @@ import designProposalRouter from "./routes/design-proposal.routes"; // Design pr
 import apiKeyRouter from "./routes/apikey.routes"; // API key management router
 import timeTrackingRouter from "./routes/timetracking.routes"; // Time tracking router
 import receiptRouter from "./routes/receipt.routes"; // Receipt scanning router
+import userRouter from "./routes/user.routes"; // User management router
 
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
 import chatRouter from "./routes/chat.routes"; // Stream Chat router
@@ -74,6 +76,11 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // This router is for additional auth flows like password reset.
   app.use("/api", authRouter); // Assuming authRouter handles routes like /api/password-reset-request
 
+  // --- Mount Mobile Auth Routes ---
+  // Routes for mobile app login with API key generation
+  // These routes provide API key-based authentication for mobile apps
+  app.use("/api/auth", mobileAuthRouter);
+
   // --- Mount API Key Management Routes ---
   // Routes for creating, listing, and revoking API keys
   // These routes require session authentication (not API key auth) to manage keys
@@ -88,6 +95,11 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // Routes for receipt uploads and OCR processing with Taggun
   // Supports both API key and session authentication
   app.use("/api", receiptRouter);
+
+  // --- Mount User Management Routes ---
+  // Routes for user management and hourly rate configuration
+  // Admin only
+  app.use("/api/users", userRouter);
 
   // --- Development-only routes (Example) ---
   if (process.env.NODE_ENV === 'development') {

@@ -24,16 +24,26 @@ import {
   TrendingUp,
   FileText,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Brain
 } from "lucide-react";
 
-interface ProjectTaggunTabProps {
+interface ProjectReceiptsTabProps {
   project: Project;
 }
 
-interface TaggunConfig {
-  configured: boolean;
-  connected: boolean;
+interface OCRConfig {
+  taggun?: {
+    configured: boolean;
+    connected: boolean;
+    message: string;
+  };
+  gemini?: {
+    configured: boolean;
+    connected: boolean;
+    message: string;
+  };
+  activeService: string;
   message: string;
 }
 
@@ -48,14 +58,14 @@ interface ProcessedReceipt {
   status: 'pending' | 'processed' | 'error';
 }
 
-export function ProjectTaggunTab({ project }: ProjectTaggunTabProps) {
+export function ProjectReceiptsTab({ project }: ProjectReceiptsTabProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch Taggun configuration
-  const { data: taggunConfig } = useQuery<TaggunConfig>({
+  // Fetch OCR service configuration (Gemini/Taggun)
+  const { data: ocrConfig } = useQuery<OCRConfig>({
     queryKey: ['/api/taggun/status'],
   });
 
@@ -70,18 +80,18 @@ export function ProjectTaggunTab({ project }: ProjectTaggunTabProps) {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append('receipt', file);
-      
+
       const response = await fetch(`/api/taggun/projects/${project.id}/scan`, {
         method: 'POST',
         body: formData,
         credentials: 'include',
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'Failed to scan receipt');
       }
-      
+
       return response.json();
     },
     onSuccess: (data) => {
@@ -121,16 +131,19 @@ export function ProjectTaggunTab({ project }: ProjectTaggunTabProps) {
     scanReceiptMutation.mutate(selectedFile);
   };
 
-  if (!taggunConfig?.configured) {
+  const isGeminiActive = ocrConfig?.activeService === 'gemini';
+  const isConfigured = ocrConfig?.gemini?.configured || ocrConfig?.taggun?.configured;
+
+  if (!isConfigured) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5" />
-            Taggun Receipt Scanning
+            Receipt Scanning
           </CardTitle>
           <CardDescription>
-            Taggun is not configured. Contact your administrator to set up receipt scanning.
+            Receipt OCR is not configured. Contact your administrator to set up receipt scanning.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -151,7 +164,14 @@ export function ProjectTaggunTab({ project }: ProjectTaggunTabProps) {
             Scan Receipt
           </CardTitle>
           <CardDescription>
-            Upload a receipt image to extract data using Taggun AI
+            {isGeminiActive ? (
+              <span className="flex items-center gap-2">
+                <Brain className="h-4 w-4 text-purple-600" />
+                Upload a receipt image to extract data using Gemini AI
+              </span>
+            ) : (
+              "Upload a receipt image to extract data using AI OCR"
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -186,8 +206,8 @@ export function ProjectTaggunTab({ project }: ProjectTaggunTabProps) {
                   Click "Scan Receipt" to extract data from {selectedFile.name}
                 </div>
               </div>
-              
-              <Button 
+
+              <Button
                 onClick={handleScan}
                 disabled={scanReceiptMutation.isPending}
                 className="w-full flex items-center gap-2"
@@ -281,17 +301,34 @@ export function ProjectTaggunTab({ project }: ProjectTaggunTabProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
-            Integration Status
+            AI OCR Status
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-2">
-            <Badge variant={taggunConfig?.connected ? "default" : "destructive"}>
-              {taggunConfig?.connected ? "Connected" : "Disconnected"}
-            </Badge>
-            <span className="text-sm text-muted-foreground">
-              {taggunConfig?.message}
-            </span>
+          <div className="space-y-3">
+            {isGeminiActive ? (
+              <div className="flex items-center gap-2 p-3 bg-purple-50 rounded-lg">
+                <Brain className="h-5 w-5 text-purple-600" />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="default" className="bg-purple-600">Active</Badge>
+                    <span className="font-medium">Gemini 2.0 Flash</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {ocrConfig?.gemini?.message || "Using Google's Gemini AI for receipt scanning"}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Badge variant={ocrConfig?.taggun?.connected ? "default" : "destructive"}>
+                  {ocrConfig?.taggun?.connected ? "Connected" : "Disconnected"}
+                </Badge>
+                <span className="text-sm text-muted-foreground">
+                  {ocrConfig?.message}
+                </span>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

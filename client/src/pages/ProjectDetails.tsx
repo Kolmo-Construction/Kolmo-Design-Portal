@@ -38,7 +38,8 @@ import {
   Target,
   Tag,
   Images,
-  Brain
+  Brain,
+  Receipt
 } from "lucide-react";
 import { ProjectOverviewCard } from "@/components/project-details/ProjectOverviewCard";
 import { ProjectUpdatesTab } from "@/components/project-details/ProjectUpdatesTab";
@@ -49,8 +50,9 @@ import { ProjectScheduleTab } from "@/components/project-details/ProjectSchedule
 import { ProjectTasksTab } from "@/components/project-details/ProjectTasksTab";
 import { ProjectDailyLogsTab } from "@/components/project-details/ProjectDailyLogsTab";
 import { ProjectPunchListTab } from "@/components/project-details/ProjectPunchListTab";
-import { ProjectTaggunTab } from "@/components/project-details/ProjectTaggunTab";
+import { ProjectReceiptsTab } from "@/components/project-details/ProjectReceiptsTab";
 import { ProjectImagesTab } from "@/components/project-details/ProjectImagesTab";
+import { ProjectLaborTab } from "@/components/project-details/ProjectLaborTab";
 import { GenerateAIReportDialog } from "@/components/admin/GenerateAIReportDialog";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth-unified";
@@ -271,7 +273,7 @@ export default function ProjectDetails() {
           <div className="overflow-x-auto mb-6">
             <TabsList className={cn(
               "grid grid-flow-col auto-cols-max w-max sm:w-full gap-1 bg-white border border-kolmo-primary/10 p-1",
-              user?.role === 'client' ? 'sm:grid-cols-7' : 'sm:grid-cols-10'
+              user?.role === 'client' ? 'sm:grid-cols-7' : 'sm:grid-cols-11'
             )}>
               <TabsTrigger value="updates" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
                 <TrendingUp className="h-4 w-4 mr-2" />
@@ -306,6 +308,12 @@ export default function ProjectDetails() {
                 <DollarSign className="h-4 w-4 mr-2" />
                 Financials
               </TabsTrigger>
+              {user?.role !== 'client' && (
+                <TabsTrigger value="labor" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
+                  <Clock className="h-4 w-4 mr-2" />
+                  Labor
+                </TabsTrigger>
+              )}
               <TabsTrigger value="messages" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Messages
@@ -315,9 +323,9 @@ export default function ProjectDetails() {
                 Schedule
               </TabsTrigger>
               {user?.role === 'admin' && (
-                <TabsTrigger value="expensify" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
-                  <Tag className="h-4 w-4 mr-2" />
-                  Zoho Expense
+                <TabsTrigger value="receipts" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
+                  <Receipt className="h-4 w-4 mr-2" />
+                  Receipts
                 </TabsTrigger>
               )}
             </TabsList>
@@ -353,6 +361,11 @@ export default function ProjectDetails() {
             <TabsContent value="financials" className="mt-0 p-6">
               {activeTab === 'financials' && <ProjectFinanceTab projectId={projectId} />}
             </TabsContent>
+            {user?.role !== 'client' && (
+              <TabsContent value="labor" className="mt-0 p-6">
+                {activeTab === 'labor' && <ProjectLaborTab projectId={projectId} />}
+              </TabsContent>
+            )}
             <TabsContent value="messages" className="mt-0 p-6">
               {activeTab === 'messages' && <ProjectMessagesTab projectId={projectId} />}
             </TabsContent>
@@ -360,8 +373,8 @@ export default function ProjectDetails() {
               {activeTab === 'schedule' && <ProjectScheduleTab projectId={projectId} />}
             </TabsContent>
             {user?.role === 'admin' && (
-              <TabsContent value="expensify" className="mt-0 p-6">
-                {activeTab === 'expensify' && <ProjectTaggunTab project={project} />}
+              <TabsContent value="receipts" className="mt-0 p-6">
+                {activeTab === 'receipts' && <ProjectReceiptsTab project={project} />}
               </TabsContent>
             )}
           </div>

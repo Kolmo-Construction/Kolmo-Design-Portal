@@ -9,7 +9,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import multer from 'multer';
 import { receiptRepository } from '../storage/repositories/receipt.repository';
-import { taggunService } from '../services/taggun.service';
+import { geminiReceiptService } from '../services/gemini-receipt.service';
 import { uploadToR2 } from '../r2-upload';
 
 // Validation schemas
@@ -108,18 +108,18 @@ export class ReceiptController {
 
       console.log('[Receipt] Image uploaded to R2:', uploadResult.key);
 
-      // Scan receipt with Taggun
-      console.log('[Receipt] Scanning receipt with Taggun...');
-      const scanResult = await taggunService.scanReceipt(
+      // Scan receipt with Gemini
+      console.log('[Receipt] Scanning receipt with Gemini 2.0...');
+      const scanResult = await geminiReceiptService.scanReceipt(
         req.file.buffer,
         req.file.originalname
       );
 
       if (!scanResult.success) {
-        console.error('[Receipt] Taggun scan failed:', scanResult.error);
+        console.error('[Receipt] Gemini scan failed:', scanResult.error);
         // Continue anyway and save the receipt without OCR data
       } else {
-        console.log('[Receipt] Taggun scan successful:', {
+        console.log('[Receipt] Gemini scan successful:', {
           vendor: scanResult.vendorName,
           amount: scanResult.totalAmount,
           confidence: scanResult.ocrConfidence,
@@ -181,6 +181,11 @@ export class ReceiptController {
         return;
       }
 
+      // Get projectId from URL params first (for /projects/:projectId/receipts route)
+      const projectIdFromUrl = req.params.projectId
+        ? parseInt(req.params.projectId)
+        : undefined;
+
       // Validate query parameters
       const validationResult = getReceiptsSchema.safeParse(req.query);
       if (!validationResult.success) {
@@ -192,7 +197,10 @@ export class ReceiptController {
         return;
       }
 
-      const { projectId, startDate, endDate, category, isVerified } = validationResult.data;
+      const { projectId: projectIdFromQuery, startDate, endDate, category, isVerified } = validationResult.data;
+
+      // Use URL param if available, otherwise use query param
+      const projectId = projectIdFromUrl || projectIdFromQuery;
 
       let receipts;
       if (projectId) {
