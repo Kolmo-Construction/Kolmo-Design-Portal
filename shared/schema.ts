@@ -122,6 +122,7 @@ export const users = pgTable("users", {
   lastName: text("last_name").notNull(),
   phone: text("phone"),
   role: text("role").notNull().default("client"), // client, admin, projectManager
+  accessScope: text("access_scope").notNull().default("both"), // Platform access: 'web', 'mobile', or 'both'
 
   // Labor cost tracking
   hourlyRate: decimal("hourly_rate", { precision: 10, scale: 2 }), // Hourly wage for labor cost calculations

@@ -28,6 +28,7 @@ type NewUserFormValues = {
     firstName: string;
     lastName: string;
     role: UserRole;
+    accessScope: "web" | "mobile" | "both";
     projectIds?: number[];
     phoneNumber?: string;
     isActivated?: boolean;
@@ -125,6 +126,12 @@ export function CreateUserForm({
                 if (value !== "client") {
                   form.setValue("projectIds", []);
                 }
+                // Set default access scope based on role
+                if (value === "contractor") {
+                  form.setValue("accessScope", "mobile");
+                } else if (value === "admin" || value === "projectManager") {
+                  form.setValue("accessScope", "web");
+                }
               }}
               defaultValue={field.value}
               value={field.value}
@@ -137,12 +144,44 @@ export function CreateUserForm({
               </FormControl>
               <SelectContent>
                 <SelectItem value="client">Client</SelectItem>
+                <SelectItem value="contractor">Contractor / Field Worker</SelectItem>
                 <SelectItem value="projectManager">Project Manager</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>
             <FormDescription>
               The user's role determines their level of access.
+            </FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="accessScope"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Platform Access*</FormLabel>
+            <Select
+              onValueChange={field.onChange}
+              defaultValue={field.value}
+              value={field.value}
+              disabled={disabled}
+            >
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select platform access" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value="web">Web Portal Only</SelectItem>
+                <SelectItem value="mobile">Mobile App Only</SelectItem>
+                <SelectItem value="both">Both Web & Mobile</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormDescription>
+              Controls which platforms this user can access. Mobile-only users cannot log into the web portal.
             </FormDescription>
             <FormMessage />
           </FormItem>

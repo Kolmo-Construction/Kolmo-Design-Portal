@@ -55,6 +55,7 @@ export function CreateUserDialog({
       lastName: string;
       email: string;
       role: string;
+      accessScope: string;
       projectIds?: number[];
       phoneNumber?: string;
     }): Promise<{ magicLink?: string; user: any }> => {
@@ -89,6 +90,7 @@ export function CreateUserDialog({
       firstName: userToEdit?.firstName || "",
       lastName: userToEdit?.lastName || "",
       role: userToEdit?.role || "client",
+      accessScope: userToEdit?.accessScope || "both",
       projectIds: userToEdit?.projectIds || [],
       phoneNumber: userToEdit?.phoneNumber || "",
       isActivated: userToEdit?.isActivated ?? false,
@@ -103,6 +105,7 @@ export function CreateUserDialog({
         firstName: userToEdit?.firstName || "",
         lastName: userToEdit?.lastName || "",
         role: userToEdit?.role || "client",
+        accessScope: userToEdit?.accessScope || "both",
         projectIds: userToEdit?.projectIds || [],
         phoneNumber: userToEdit?.phoneNumber || "",
         isActivated: userToEdit?.isActivated ?? false,

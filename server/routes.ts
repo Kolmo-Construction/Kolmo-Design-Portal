@@ -4,7 +4,7 @@ import { createServer, type Server } from "http";
 import { Router } from "express"; // Keep Router for potential future use or other routes defined here
 
 // Import middleware
-import { isAuthenticated, isAdmin } from "@server/middleware/auth.middleware";
+import { isAuthenticated, isAdmin, requireWebAccess } from "@server/middleware/auth.middleware";
 import { validateApiKey } from "@server/middleware/apikey.middleware";
 import { validateProjectId } from "@server/middleware/validation.middleware";
 // Import Schemas/Types if needed for other routes defined in this file
@@ -118,24 +118,24 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   app.use("/api/projects", projectRouter);
 
   // --- Mount Global Document Router ---
-  // Base path: /api/documents
-  app.use("/api/documents", isAuthenticated, globalDocumentRouter);
+  // Base path: /api/documents (Web-only)
+  app.use("/api/documents", isAuthenticated, requireWebAccess, globalDocumentRouter);
 
   // --- Mount Global Admin Routes ---
-  // Global invoice access for admins
-  app.get("/api/admin/invoices", isAuthenticated, isAdmin, async (req: any, res: any, next: any) => {
+  // Global invoice access for admins (Web-only)
+  app.get("/api/admin/invoices", isAuthenticated, requireWebAccess, isAdmin, async (req: any, res: any, next: any) => {
     const { getAllInvoices } = await import("./controllers/invoice.controller");
     return getAllInvoices(req, res, next);
   });
 
-  // Client invoice access - for both clients and admins
-  app.get("/api/client/invoices", isAuthenticated, async (req: any, res: any, next: any) => {
+  // Client invoice access - for both clients and admins (Web-only)
+  app.get("/api/client/invoices", isAuthenticated, requireWebAccess, async (req: any, res: any, next: any) => {
     const { getClientInvoices } = await import("./controllers/client.controller");
     return getClientInvoices(req, res, next);
   });
 
-  // Get all project managers for assignment dropdowns
-  app.get("/api/project-managers", isAuthenticated, isAdmin, async (req: any, res: any) => {
+  // Get all project managers for assignment dropdowns (Web-only)
+  app.get("/api/project-managers", isAuthenticated, requireWebAccess, isAdmin, async (req: any, res: any) => {
     try {
       const { storage } = await import("./storage");
       const projectManagers = await storage.users.getByRole("projectManager");
@@ -151,53 +151,58 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // --- Mount Project-Specific Routers ---
   // Apply common middleware like isAuthenticated and validateProjectId here
 
-  // Project Manager Dashboard Routes
+  // Project Manager Dashboard Routes (Web-only)
   const projectManagerRouter = await import("./routes/project-manager.routes");
-  app.use("/api/project-manager", projectManagerRouter.default);
+  app.use("/api/project-manager", isAuthenticated, requireWebAccess, projectManagerRouter.default);
 
-  // Project Administration Routes - Enhanced permissions for project managers
+  // Project Administration Routes - Enhanced permissions for project managers (Web-only)
   const projectAdminRouter = await import("./routes/project-admin.routes");
   app.use(
     "/api/projects/:projectId/admin",
     isAuthenticated,
+    requireWebAccess,
     validateProjectId,
     projectAdminRouter.default
   );
 
-  // Documents within a project
+  // Documents within a project (Web-only)
   app.use(
     "/api/projects/:projectId/documents",
     isAuthenticated,
+    requireWebAccess,
     validateProjectId, // Ensure projectId is valid before proceeding
     projectDocumentRouter
   );
 
-  // Invoices within a project
+  // Invoices within a project (Web-only)
   app.use(
     "/api/projects/:projectId/invoices",
     isAuthenticated,
+    requireWebAccess,
     validateProjectId,
     invoiceRouter
   );
 
-  // Messages within a project
+  // Messages within a project (Web-only)
   app.use(
     "/api/projects/:projectId/messages",
     isAuthenticated,
+    requireWebAccess,
     validateProjectId,
     messageRouter
   );
 
-  // Progress Updates within a project
+  // Progress Updates within a project (Web-only)
   app.use(
     "/api/projects/:projectId/updates",
     isAuthenticated,
+    requireWebAccess,
     validateProjectId,
     progressUpdateRouter
   );
 
-  // Global progress updates endpoint (for AI Report Review Dashboard)
-  app.get("/api/progress-updates", isAuthenticated, async (req, res) => {
+  // Global progress updates endpoint (for AI Report Review Dashboard) (Web-only)
+  app.get("/api/progress-updates", isAuthenticated, requireWebAccess, async (req, res) => {
     try {
       const user = (req as any).user;
       if (!user) {
@@ -225,47 +230,53 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
     }
   });
 
-  // Tasks within a project
+  // Tasks within a project (Web-only)
   // Mount ONLY ONCE with all necessary middleware
   app.use(
     "/api/projects/:projectId/tasks",
     isAuthenticated,      // Check authentication first
+    requireWebAccess,     // Check web access
     validateProjectId,    // Then validate the ID
     taskRouterModule      // Then pass to the specific task router
   );
 
-  // Daily Logs within a project
+  // Daily Logs within a project (Web-only)
   app.use(
     "/api/projects/:projectId/daily-logs",
     isAuthenticated,
+    requireWebAccess,
     validateProjectId,
     dailyLogRouter // Assuming dailyLogRouter is imported
   );
 
-  // Punch List within a project
+  // Punch List within a project (Web-only)
   app.use(
     "/api/projects/:projectId/punch-list",
     isAuthenticated,
+    requireWebAccess,
     validateProjectId,
     punchListRouter // Assuming punchListRouter is imported
   );
 
   // --- Mount other project-specific or admin routers ---
-  // Milestones within a project
+  // Milestones within a project (Web-only)
   app.use(
     "/api/projects/:projectId/milestones",
     isAuthenticated,
+    requireWebAccess,
     validateProjectId,
     milestoneRoutes
   );
-  
-  // Task billing routes for complete-and-bill functionality
-  app.use(taskBillingRouter);
 
-  // Billing validation routes
+  // Task billing routes for complete-and-bill functionality (Web-only)
+  // Note: If taskBillingRouter doesn't have isAuthenticated, add it
+  app.use("/api", isAuthenticated, requireWebAccess, taskBillingRouter);
+
+  // Billing validation routes (Web-only)
   app.use(
     "/api/projects/:projectId/billing-validation",
     isAuthenticated,
+    requireWebAccess,
     validateProjectId,
     billingValidationRouter
   );
@@ -281,49 +292,56 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // Example: Admin routes (ensure isAdmin middleware is used appropriately within adminRouter)
   // app.use("/api/admin", isAuthenticated, isAdmin, adminRouter);
 
-  // Mount RAG system routes
-  app.use("/api/rag", ragRouter);
+  // Mount RAG system routes (Web-only)
+  app.use("/api/rag", isAuthenticated, requireWebAccess, ragRouter);
 
-  // Mount Quote system routes
-  app.use("/api/quotes", quoteRouter);
+  // Mount Quote system routes (Web-only for management)
+  app.use("/api/quotes", isAuthenticated, requireWebAccess, quoteRouter);
 
   // Mount Quote Analytics routes (mixed auth - public tracking, admin analytics)
+  // Note: Contains public endpoints, do not protect at router level
   app.use("/api", quoteAnalyticsRouter);
 
   // Mount Payment routes (mixed auth - public payment processing, admin invoice management)
+  // Note: Contains public endpoints, do not protect at router level
   app.use("/api", paymentRoutes);
 
-  // Mount Project Payment Summary routes (admin only)
-  app.use("/api/projects", isAuthenticated, projectPaymentRoutes);
+  // Mount Project Payment Summary routes (admin only, Web-only)
+  app.use("/api/projects", isAuthenticated, requireWebAccess, projectPaymentRoutes);
 
   // Mount Storage/R2 routes with mixed authentication
+  // Note: May include mobile uploads, check individual routes
   app.use("/api/storage", storageRoutes);
 
   // Mount Chat routes (mixed auth - admin authenticated, customer public tokens)
+  // Note: Contains public endpoints, do not protect at router level
   app.use("/api/chat", chatRouter);
 
-  // Mount AI Agent routes (authenticated users only)
-  app.use("/api/agent", agentRouter);
+  // Mount AI Agent routes (authenticated users only, Web-only)
+  app.use("/api/agent", isAuthenticated, requireWebAccess, agentRouter);
 
   // Mount Webhook routes (no authentication - Stripe handles verification)
   app.use("/api/webhooks", webhookRoutes);
 
-  // Mount Global Finance routes (admin only)
-  app.use("/api", globalFinanceRoutes);
+  // Mount Global Finance routes (admin only, Web-only)
+  app.use("/api", requireWebAccess, globalFinanceRoutes);
 
   // Mount Taggun receipt scanning routes
+  // Note: Used by receipt upload which may be mobile, do not protect here
   app.use("/api/taggun", taggunRouter);
 
-  // Mount Client Portal routes
-  app.use("/api/client", isAuthenticated, clientRouter);
+  // Mount Client Portal routes (Web-only)
+  app.use("/api/client", isAuthenticated, requireWebAccess, clientRouter);
 
   // Mount Admin Images routes
+  // Note: Mobile app uploads images, authentication checked within routes
   app.use("/api/admin/images", adminImagesRoutes);
 
-  // Mount Google Drive Ingestion routes (admin only)
-  app.use("/api/drive-ingestion", driveIngestionRouter);
+  // Mount Google Drive Ingestion routes (admin only, Web-only)
+  app.use("/api/drive-ingestion", isAuthenticated, requireWebAccess, driveIngestionRouter);
 
   // Mount Design Proposal routes (mixed auth - admin routes and public viewing)
+  // Note: Contains public endpoints, do not protect at router level
   app.use("/api/design-proposals", designProposalRouter);
 
   // --- REMOVED: Old inline route definitions and local router variables ---

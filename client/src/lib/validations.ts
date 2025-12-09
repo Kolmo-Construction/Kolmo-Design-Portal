@@ -83,9 +83,12 @@ export const newUserSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   // Ensure this enum matches your actual roles ('projectManager' seems to be used elsewhere)
-  role: z.enum(["admin", "projectManager", "client"], { // NOTE: Make sure 'projectManager' is a valid role in your UserRole enum if used.
+  role: z.enum(["admin", "projectManager", "client", "contractor"], { // NOTE: Make sure 'projectManager' is a valid role in your UserRole enum if used.
     required_error: "Role is required",
   }),
+  accessScope: z.enum(["web", "mobile", "both"], {
+    required_error: "Access scope is required",
+  }).default("both"),
   projectIds: z.array(z.number().int().positive()).optional(),
   phoneNumber: z.string().optional(),
   isActivated: z.boolean().optional(),

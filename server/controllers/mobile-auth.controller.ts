@@ -57,6 +57,13 @@ export const mobileLogin = async (
 
     console.log('[Mobile Login] Authentication successful for:', email);
 
+    // Check if user has mobile access
+    const accessScope = user.accessScope || 'both'; // Default to 'both' for backward compatibility
+    if (accessScope === 'web') {
+      console.log('[Mobile Login] User has web-only access:', email);
+      throw new HttpError(403, 'This account is configured for web portal access only. Please contact your administrator.');
+    }
+
     // Check if user already has an active API key for mobile
     let apiKey = await apiKeyRepository.findActiveByUserIdAndName(user.id, 'Mobile App Auto-Generated');
 
@@ -98,6 +105,11 @@ export const mobileLogin = async (
       res.status(401).json({
         success: false,
         message: 'Invalid email or password',
+      });
+    } else if (error instanceof HttpError && error.statusCode === 403) {
+      res.status(403).json({
+        success: false,
+        message: error.message,
       });
     } else {
       next(error);
