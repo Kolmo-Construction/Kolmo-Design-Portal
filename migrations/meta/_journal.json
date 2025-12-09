@@ -43,6 +43,34 @@
       "when": 1765099275602,
       "tag": "0005_fantastic_secret_warriors",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1765181562691,
+      "tag": "0006_steady_metal_master",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1765245962787,
+      "tag": "0007_funny_power_pack",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1765246475231,
+      "tag": "0008_flashy_warstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1765247707515,
+      "tag": "0009_normal_morbius",
+      "breakpoints": true
     }
   ]
 }

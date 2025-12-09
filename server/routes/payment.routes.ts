@@ -45,6 +45,22 @@ router.post('/payment/quotes/:id/accept', async (req, res, next) => {
       return res.status(400).json({ error: 'Customer name and email are required' });
     }
 
+    // Check if quote has already been accepted
+    console.log('[accept-quote] Checking if quote is already accepted...');
+    const existingQuote = await storage.quotes.getQuoteById(quoteId);
+    if (!existingQuote) {
+      console.log('[accept-quote] ERROR: Quote not found');
+      return res.status(404).json({ error: 'Quote not found' });
+    }
+
+    if (existingQuote.status === 'accepted') {
+      console.log('[accept-quote] ERROR: Quote already accepted');
+      return res.status(400).json({
+        error: 'This quote has already been accepted',
+        alreadyAccepted: true
+      });
+    }
+
     console.log('[accept-quote] Calling paymentService.processQuoteAcceptance...');
     // Use PaymentService to create project without payment
     const result = await paymentService.processQuoteAcceptance(quoteId, {
@@ -61,6 +77,15 @@ router.post('/payment/quotes/:id/accept', async (req, res, next) => {
       customerName,
       customerEmail,
       respondedAt: new Date(),
+    });
+
+    console.log('[accept-quote] Creating quote response entry...');
+    // Create response entry so frontend can detect acceptance
+    await storage.quotes.createQuoteResponse(quoteId, {
+      action: 'accepted',
+      customerName,
+      customerEmail,
+      message: 'Quote accepted and project created',
     });
 
     const response = {

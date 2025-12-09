@@ -20,6 +20,9 @@ import { IMilestoneRepository, milestoneRepository } from './repositories/milest
 // *** ADDED: Import PunchListRepository CLASS and INTERFACE ***
 import { PunchListRepository, IPunchListRepository } from './repositories/punchList.repository';
 import { PaymentRepository, IPaymentRepository } from './repositories/payment.repository';
+import { IApiKeyRepository, apiKeyRepository } from './repositories/apikey.repository';
+import { ITimeEntryRepository, timeEntryRepository } from './repositories/timeentry.repository';
+import { IReceiptRepository, receiptRepository } from './repositories/receipt.repository';
 // *** END ADDED ***
 
 // Define the shape of the aggregated storage object
@@ -37,6 +40,9 @@ export interface StorageAggregate {
     media: IMediaRepository;
     quotes: IQuoteRepository;
     milestones: IMilestoneRepository;
+    apiKeys: IApiKeyRepository;
+    timeEntries: ITimeEntryRepository;
+    receipts: IReceiptRepository;
     sessionStore: session.Store;
     // Permission helper functions
     projectManagerHasProjectAccess: (userId: number, projectId: number) => Promise<boolean>;
@@ -102,6 +108,9 @@ export const storage: StorageAggregate = {
     media: mediaRepository,
     quotes: quoteRepository,
     milestones: milestoneRepository,
+    apiKeys: apiKeyRepository,
+    timeEntries: timeEntryRepository,
+    receipts: receiptRepository,
     sessionStore,
     projectManagerHasProjectAccess,
     clientHasProjectAccess,
@@ -119,5 +128,8 @@ export {
     progressUpdateRepository,
     dailyLogRepository,
     punchListRepositoryInstance as punchListRepository, // Export the instance with the original name
-    mediaRepository
+    mediaRepository,
+    apiKeyRepository,
+    timeEntryRepository,
+    receiptRepository
 };

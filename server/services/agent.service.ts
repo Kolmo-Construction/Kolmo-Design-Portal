@@ -3,7 +3,8 @@ import { PromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { RunnableSequence } from "@langchain/core/runnables";
 import { db } from "../db";
-import { sql as drizzleSql } from "drizzle-orm";
+import { sql as drizzleSql, eq } from "drizzle-orm";
+import { chatAttachments } from "@shared/schema";
 
 export interface AgentAction {
   type: 'SUGGEST_ACTION' | 'RESPONSE';
@@ -16,6 +17,7 @@ export interface AgentConsultRequest {
   userPrompt: string;
   projectId?: number;
   context?: Record<string, any>;
+  messageId?: string;
 }
 
 export interface AgentConsultResponse {
@@ -249,6 +251,15 @@ Response:`
       // Get schema info
       const schema = await this.getSchemaInfo();
 
+      // Fetch attachments if messageId is provided
+      let attachments: any[] = [];
+      if (request.messageId) {
+        attachments = await db.select()
+          .from(chatAttachments)
+          .where(eq(chatAttachments.messageId, request.messageId));
+        console.log('[AgentService] Found attachments:', attachments.length);
+      }
+
       // Add context to the prompt if provided
       let contextStr = '';
       if (request.projectId) {
@@ -256,6 +267,16 @@ Response:`
       }
       if (request.context) {
         contextStr += `\nAdditional context: ${JSON.stringify(request.context)}`;
+      }
+
+      // Add attachment information to context
+      if (attachments.length > 0) {
+        contextStr += '\n\nUser has attached the following files:';
+        attachments.forEach((att) => {
+          contextStr += `\n- ${att.fileName} (${att.mimeType}, ${(att.fileSize / 1024).toFixed(1)} KB)`;
+          contextStr += `\n  URL: ${att.url}`;
+        });
+        contextStr += '\n\nNote: You can reference these files in your response. For images, you can describe what analysis might be helpful. For documents, acknowledge their receipt.';
       }
 
       // First pass: Get initial response

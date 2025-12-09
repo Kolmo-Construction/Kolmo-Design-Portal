@@ -1120,51 +1120,93 @@ export class PaymentService {
                             invoice.invoiceType === 'milestone' ? 'Milestone Payment' :
                             invoice.invoiceType === 'final' ? 'Final Payment' : 'Payment';
 
-    const subject = `Payment Confirmation - ${paymentTypeText} Received`;
-    
+    const subject = `Payment Confirmed - ${invoice.invoiceNumber}`;
+
     const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #3d4552;">Payment Confirmation</h2>
-        
-        <p>Dear ${invoice.customerName},</p>
-        
-        <p>Thank you! We've successfully received your ${paymentTypeText.toLowerCase()} payment.</p>
-        
-        <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6;">
-          <h3 style="margin: 0 0 10px 0; color: #1e40af;">Payment Details</h3>
-          <p><strong>Invoice Number:</strong> ${invoice.invoiceNumber}</p>
-          <p><strong>Amount Paid:</strong> $${paymentAmount.toFixed(2)}</p>
-          <p><strong>Payment Date:</strong> ${new Date().toLocaleDateString()}</p>
-          <p><strong>Payment Type:</strong> ${paymentTypeText}</p>
-        </div>
-        
-        <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <p><strong>Description:</strong> ${invoice.description}</p>
-        </div>
-        
-        ${invoice.invoiceType === 'milestone' ? `
-          <div style="background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
-            <h3 style="margin: 0 0 10px 0; color: #047857;">Project Progress</h3>
-            <p>Your project is progressing well! This milestone payment allows us to continue with the next phase of work.</p>
-            <p>You'll receive updates as we complete each stage of your project.</p>
-          </div>
-        ` : invoice.invoiceType === 'final' ? `
-          <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-            <h3 style="margin: 0 0 10px 0; color: #92400e;">Project Completion</h3>
-            <p>Congratulations! This final payment completes your project. We're excited to have worked with you.</p>
-            <p>Our team will be in touch regarding any final details and project handover.</p>
-          </div>
-        ` : ''}
-        
-        <p>If you have any questions about this payment or your project, please don't hesitate to contact us.</p>
-        
-        <p>Best regards,<br>The Kolmo Construction Team</p>
-        
-        <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-        <p style="color: #666; font-size: 12px;">
-          This is an automated payment confirmation. Please keep this email for your records.
-        </p>
-      </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payment Confirmation</title>
+</head>
+<body style="font-family: 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.6; color: #3d4f52; margin: 0; padding: 0;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
+        <tr>
+            <td style="padding: 20px 0;">
+                <table width="680" cellpadding="0" cellspacing="0" style="margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 8px 32px rgba(61, 69, 82, 0.1);">
+                    <!-- Gold Top Border -->
+                    <tr>
+                        <td style="height: 4px; background-color: #d8973c; border-radius: 12px 12px 0 0;"></td>
+                    </tr>
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #3d4f52 0%, #4a6670 100%); color: #ffffff; padding: 40px 30px; text-align: center;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 1.5px;">KOLMO</h1>
+                            <p style="margin: 8px 0 0 0; font-size: 16px; opacity: 0.9;">Construction Excellence</p>
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 35px;">
+                            <h2 style="color: #3d4f52; margin: 0 0 20px 0; font-size: 24px;">Payment Confirmed</h2>
+
+                            <p style="margin: 0 0 20px 0; color: #4a6670;">Dear ${invoice.customerName},</p>
+
+                            <p style="margin: 0 0 25px 0; color: #4a6670;">Your ${paymentTypeText.toLowerCase()} has been successfully processed.</p>
+
+                            <!-- Payment Details Box -->
+                            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #d8973c;">
+                                <table width="100%" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="padding: 8px 0; color: #4a6670; font-size: 14px;">Invoice Number</td>
+                                        <td style="padding: 8px 0; text-align: right; font-weight: 600; color: #3d4f52; font-family: monospace;">${invoice.invoiceNumber}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px 0; color: #4a6670; font-size: 14px;">Amount Paid</td>
+                                        <td style="padding: 8px 0; text-align: right; font-weight: 700; color: #d8973c; font-size: 18px; font-family: monospace;">$${paymentAmount.toFixed(2)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px 0; color: #4a6670; font-size: 14px;">Payment Date</td>
+                                        <td style="padding: 8px 0; text-align: right; font-weight: 600; color: #3d4f52;">${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px 0; color: #4a6670; font-size: 14px;">Payment Type</td>
+                                        <td style="padding: 8px 0; text-align: right; font-weight: 600; color: #3d4f52;">${paymentTypeText}</td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            ${invoice.invoiceType === 'milestone' ? `
+                            <!-- Milestone Progress -->
+                            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 25px 0;">
+                                <h3 style="margin: 0 0 10px 0; color: #3d4f52; font-size: 16px;">Project Progress</h3>
+                                <p style="margin: 0; color: #4a6670; font-size: 14px; line-height: 1.6;">Work continues on schedule. You'll receive updates as we complete each phase.</p>
+                            </div>
+                            ` : invoice.invoiceType === 'final' ? `
+                            <!-- Final Payment -->
+                            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 25px 0;">
+                                <h3 style="margin: 0 0 10px 0; color: #3d4f52; font-size: 16px;">Project Complete</h3>
+                                <p style="margin: 0; color: #4a6670; font-size: 14px; line-height: 1.6;">Your project is complete. Our team will contact you regarding final details.</p>
+                            </div>
+                            ` : ''}
+
+                            <p style="margin: 25px 0 0 0; color: #4a6670; font-size: 14px;">Questions? Contact us at <a href="mailto:projects@kolmo.io" style="color: #d8973c; text-decoration: none; font-weight: 600;">projects@kolmo.io</a></p>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 20px 35px; border-top: 1px solid #f5f5f5; text-align: center;">
+                            <p style="margin: 0; color: #4a6670; font-size: 12px;">
+                                Automated payment confirmation • Keep for your records
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
     `;
 
     await sendEmail({

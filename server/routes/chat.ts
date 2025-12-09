@@ -1,11 +1,21 @@
 import express, { Request, Response } from 'express';
 import { db } from '../db';
-import { chatMessages } from '@shared/schema';
+import { chatMessages, chatAttachments } from '@shared/schema';
 import { eq, asc, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import OpenAI from 'openai';
+import multer from 'multer';
+import { uploadToR2 } from '../r2-upload';
 
 const router = express.Router();
+
+// Configure multer for memory storage
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+});
 
 // Initialize OpenAI for embeddings
 const openai = new OpenAI({
@@ -17,6 +27,63 @@ const createChatMessageSchema = z.object({
   sessionId: z.string().min(1),
   role: z.enum(['user', 'assistant']),
   content: z.string().min(1),
+});
+
+// POST /api/chat/upload - Upload file attachments
+router.post('/upload', upload.array('files', 5), async (req: Request, res: Response) => {
+  try {
+    const files = req.files as Express.Multer.File[];
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: 'No files provided' });
+    }
+
+    const { messageId } = req.body;
+    if (!messageId) {
+      return res.status(400).json({ error: 'messageId is required' });
+    }
+
+    // Verify that the message exists
+    const [message] = await db.select()
+      .from(chatMessages)
+      .where(eq(chatMessages.id, messageId));
+
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    // Upload each file to R2 and save metadata
+    const attachments = await Promise.all(
+      files.map(async (file) => {
+        // Upload to R2
+        const { url, key } = await uploadToR2({
+          fileName: file.originalname,
+          buffer: file.buffer,
+          mimetype: file.mimetype,
+          path: 'chat-attachments/',
+        });
+
+        // Save metadata to database
+        const [attachment] = await db.insert(chatAttachments).values({
+          messageId,
+          fileName: file.originalname,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+          storageKey: key,
+          url,
+        }).returning();
+
+        return attachment;
+      })
+    );
+
+    res.status(201).json({ attachments });
+  } catch (error) {
+    console.error('Error uploading chat attachments:', error);
+    res.status(500).json({
+      error: 'Failed to upload attachments',
+      details: error instanceof Error ? error.message : String(error)
+    });
+  }
 });
 
 // POST /api/chat - Save chat message (without embedding)
@@ -88,6 +155,22 @@ router.post('/:messageId/verify', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/chat/:messageId/attachments - Get attachments for a message
+router.get('/:messageId/attachments', async (req: Request, res: Response) => {
+  try {
+    const { messageId } = req.params;
+
+    const attachments = await db.select()
+      .from(chatAttachments)
+      .where(eq(chatAttachments.messageId, messageId));
+
+    res.json({ attachments });
+  } catch (error) {
+    console.error('Error fetching chat attachments:', error);
+    res.status(500).json({ error: 'Failed to fetch attachments' });
+  }
+});
+
 // GET /api/chat/session/:sessionId - Get chat history for a session with pagination
 router.get('/session/:sessionId', async (req: Request, res: Response) => {
   try {
@@ -108,8 +191,31 @@ router.get('/session/:sessionId', async (req: Request, res: Response) => {
       .limit(limit)
       .offset(offset);
 
+    // Fetch attachments for all messages
+    const messageIds = messages.map(m => m.id);
+    const attachments = messageIds.length > 0
+      ? await db.select()
+          .from(chatAttachments)
+          .where(sql`${chatAttachments.messageId} = ANY(${messageIds})`)
+      : [];
+
+    // Group attachments by message ID
+    const attachmentsByMessage = attachments.reduce((acc, attachment) => {
+      if (!acc[attachment.messageId]) {
+        acc[attachment.messageId] = [];
+      }
+      acc[attachment.messageId].push(attachment);
+      return acc;
+    }, {} as Record<string, typeof attachments>);
+
+    // Add attachments to messages
+    const messagesWithAttachments = messages.map(message => ({
+      ...message,
+      attachments: attachmentsByMessage[message.id] || [],
+    }));
+
     res.json({
-      messages,
+      messages: messagesWithAttachments,
       pagination: {
         total: count,
         limit,

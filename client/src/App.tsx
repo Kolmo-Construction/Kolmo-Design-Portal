@@ -43,6 +43,7 @@ import CreateQuotePage from "@/pages/create-quote";
 import EditQuotePage from "@/pages/edit-quote";
 import AnalyticsPage from "@/pages/analytics";
 import AgentConsole from "@/pages/AgentConsole";
+import ApiKeyManagement from "@/pages/ApiKeyManagement";
 
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth-unified";
@@ -91,6 +92,7 @@ function Router() {
         <ProtectedRoute path="/invoices/:invoiceId/view" component={InvoiceDetailPage} />
         <ProtectedRoute path="/settings" component={Settings} adminOnly />
         <ProtectedRoute path="/user-management" component={UserManagement} adminOnly />
+        <ProtectedRoute path="/api-keys" component={ApiKeyManagement} adminOnly />
         <ProtectedRoute path="/admin/images" component={AdminImageGallery} adminOnly />
         <ProtectedRoute path="/admin/image-analysis-poc" component={ImageAnalysisPOCPage} adminOnly />
         <ProtectedRoute path="/admin/ai-report-review" component={AIReportReviewPage} adminOnly />

@@ -26,8 +26,13 @@ import {
   XCircle,
   ThumbsUp,
   Brain,
+  Paperclip,
+  X,
+  FileText,
+  Image as ImageIcon,
+  File,
 } from 'lucide-react';
-import { Project } from '@shared/schema';
+import { Project, ChatAttachment } from '@shared/schema';
 
 interface ChatMessage {
   id: string;
@@ -37,6 +42,7 @@ interface ChatMessage {
   timestamp: Date;
   isVerified?: boolean;
   sessionId?: string;
+  attachments?: ChatAttachment[];
 }
 
 interface ApprovedAction {
@@ -50,6 +56,10 @@ export default function AgentConsole() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>();
   const [approvedActions, setApprovedActions] = useState<ApprovedAction[]>([]);
   const [rejectedActions, setRejectedActions] = useState<ApprovedAction[]>([]);
+
+  // File upload state
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Pagination state
   const [hasMore, setHasMore] = useState(false);
@@ -91,6 +101,7 @@ export default function AgentConsole() {
           timestamp: new Date(msg.createdAt),
           isVerified: msg.isVerified,
           sessionId: msg.sessionId,
+          attachments: msg.attachments || [],
         }));
         setMessages(loadedMessages);
         setHasMore(response.pagination.hasMore);
@@ -158,11 +169,49 @@ export default function AgentConsole() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // File handling functions
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    console.log('[AgentConsole] Files selected:', files.length, files.map(f => f.name));
+    setSelectedFiles(prev => [...prev, ...files]);
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadFiles = async (messageId: string, files: File[]) => {
+    if (files.length === 0) return;
+
+    console.log('[AgentConsole] Uploading files:', files.length, 'for message:', messageId);
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+    formData.append('messageId', messageId);
+
+    try {
+      const result = await apiRequest('POST', '/api/chat/upload', formData);
+      console.log('[AgentConsole] Upload successful:', result);
+      return result;
+    } catch (error) {
+      console.error('[AgentConsole] Failed to upload files:', error);
+      throw error;
+    }
+  };
+
   const handleSendMessage = async () => {
-    if (!userPrompt.trim() || isConsulting) return;
+    if ((!userPrompt.trim() && selectedFiles.length === 0) || isConsulting) return;
 
     const currentPrompt = userPrompt;
+    const currentFiles = selectedFiles;
+    console.log('[AgentConsole] Sending message:', {
+      prompt: currentPrompt,
+      filesCount: currentFiles.length,
+      files: currentFiles.map(f => f.name)
+    });
     setUserPrompt('');
+    setSelectedFiles([]);
 
     // Declare thinkingMessageId outside try block to make it accessible in catch block
     const thinkingMessageId = `thinking-${Date.now()}`;
@@ -172,17 +221,28 @@ export default function AgentConsole() {
       const userMessageResponse = await apiRequest('POST', '/api/chat', {
         sessionId,
         role: 'user',
-        content: currentPrompt,
+        content: currentPrompt || '(File attachments)',
       });
+
+      // Upload files if any
+      if (currentFiles.length > 0) {
+        await uploadFiles(userMessageResponse.id, currentFiles);
+      }
+
+      // Fetch the complete message with attachments
+      const attachmentsResponse = currentFiles.length > 0
+        ? await apiRequest('GET', `/api/chat/${userMessageResponse.id}/attachments`)
+        : { attachments: [] };
 
       // Add user message to chat
       const userMessage: ChatMessage = {
         id: userMessageResponse.id,
         type: 'user',
-        content: currentPrompt,
+        content: currentPrompt || '(File attachments)',
         timestamp: new Date(userMessageResponse.createdAt),
         isVerified: false,
         sessionId,
+        attachments: attachmentsResponse.attachments || [],
       };
 
       setMessages((prev) => [...prev, userMessage]);
@@ -196,10 +256,11 @@ export default function AgentConsole() {
       };
       setMessages((prev) => [...prev, thinkingMessage]);
 
-      // Call agent API
+      // Call agent API with the message ID so it can access attachments
       const response = await apiRequest('POST', '/api/agent/consult', {
         userPrompt: currentPrompt,
         projectId: selectedProjectId ? Number(selectedProjectId) : undefined,
+        messageId: userMessageResponse.id,
       });
 
       // Save agent response to database
@@ -461,17 +522,60 @@ export default function AgentConsole() {
                     </div>
                   ) : (
                     <div>
-                      <div
-                        className={`p-4 rounded-lg ${
-                          message.type === 'user'
-                            ? 'bg-kolmo-primary text-white ml-auto'
-                            : 'bg-kolmo-muted text-kolmo-foreground'
-                        }`}
-                      >
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                        <p className="text-xs mt-2 opacity-70">
-                          {message.timestamp.toLocaleTimeString()}
-                        </p>
+                      <div>
+                        <div
+                          className={`p-4 rounded-lg ${
+                            message.type === 'user'
+                              ? 'bg-kolmo-primary text-white ml-auto'
+                              : 'bg-kolmo-muted text-kolmo-foreground'
+                          }`}
+                        >
+                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                          <p className="text-xs mt-2 opacity-70">
+                            {message.timestamp.toLocaleTimeString()}
+                          </p>
+                        </div>
+
+                        {/* Attachments Display */}
+                        {message.attachments && message.attachments.length > 0 && (
+                          <div className="mt-2 space-y-2">
+                            {message.attachments.map((attachment) => (
+                              <a
+                                key={attachment.id}
+                                href={attachment.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`flex items-center gap-2 p-2 rounded-lg border ${
+                                  message.type === 'user'
+                                    ? 'bg-white/10 border-white/20 text-white hover:bg-white/20'
+                                    : 'bg-white border-kolmo-muted hover:bg-kolmo-muted'
+                                }`}
+                              >
+                                {attachment.mimeType.startsWith('image/') ? (
+                                  <>
+                                    <ImageIcon className="h-4 w-4 flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-medium truncate">{attachment.fileName}</p>
+                                      <p className="text-xs opacity-70">
+                                        {(attachment.fileSize / 1024).toFixed(1)} KB
+                                      </p>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <FileText className="h-4 w-4 flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-medium truncate">{attachment.fileName}</p>
+                                      <p className="text-xs opacity-70">
+                                        {(attachment.fileSize / 1024).toFixed(1)} KB
+                                      </p>
+                                    </div>
+                                  </>
+                                )}
+                              </a>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       {/* Save to Memory Button - Only for agent messages */}
@@ -563,34 +667,82 @@ export default function AgentConsole() {
       {/* Input Area */}
       <Card>
         <CardContent className="pt-6">
+          {/* File Preview Area */}
+          {selectedFiles.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {selectedFiles.map((file, index) => (
+                <Badge
+                  key={index}
+                  variant="secondary"
+                  className="pr-1 py-1.5 flex items-center gap-2"
+                >
+                  {file.type.startsWith('image/') ? (
+                    <ImageIcon className="h-3 w-3" />
+                  ) : (
+                    <FileText className="h-3 w-3" />
+                  )}
+                  <span className="text-xs max-w-[200px] truncate">{file.name}</span>
+                  <button
+                    onClick={() => handleRemoveFile(index)}
+                    className="ml-1 hover:bg-slate-300 rounded-full p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+
           <div className="flex gap-3">
-            <Textarea
-              placeholder="Ask me anything about your projects..."
-              value={userPrompt}
-              onChange={(e) => setUserPrompt(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
-              className="min-h-[80px] resize-none"
-              disabled={isConsulting}
-            />
-            <Button
-              onClick={handleSendMessage}
-              disabled={!userPrompt.trim() || isConsulting}
-              className="h-auto bg-kolmo-accent hover:bg-kolmo-accent/90 text-white"
-            >
-              {isConsulting ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Send className="h-5 w-5" />
-              )}
-            </Button>
+            <div className="flex-1 space-y-2">
+              <Textarea
+                placeholder="Ask me anything about your projects..."
+                value={userPrompt}
+                onChange={(e) => setUserPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+                className="min-h-[80px] resize-none"
+                disabled={isConsulting}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,.pdf,.doc,.docx,.txt"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isConsulting}
+                className="h-10 w-10"
+              >
+                <Paperclip className="h-5 w-5" />
+              </Button>
+              <Button
+                onClick={handleSendMessage}
+                disabled={(!userPrompt.trim() && selectedFiles.length === 0) || isConsulting}
+                className="h-10 w-10 bg-kolmo-accent hover:bg-kolmo-accent/90 text-white"
+                size="icon"
+              >
+                {isConsulting ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
+              </Button>
+            </div>
           </div>
           <p className="text-xs text-kolmo-secondary mt-2">
-            Press Enter to send, Shift+Enter for new line
+            Press Enter to send, Shift+Enter for new line. Click the paperclip to attach files.
           </p>
         </CardContent>
       </Card>

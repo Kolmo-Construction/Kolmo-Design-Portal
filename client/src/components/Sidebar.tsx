@@ -1,15 +1,15 @@
 import { useAuth } from "@/hooks/use-auth-unified";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { 
-  HomeIcon, 
-  Building2, 
-  FileText, 
-  MessageSquare, 
-  ImageIcon, 
-  Calendar, 
-  CheckSquare, 
-  Settings, 
+import {
+  HomeIcon,
+  Building2,
+  FileText,
+  MessageSquare,
+  ImageIcon,
+  Calendar,
+  CheckSquare,
+  Settings,
   LogOut,
   HelpCircle,
   Phone,
@@ -17,7 +17,9 @@ import {
   FileTextIcon,
   Users,
   DollarSign,
-  Images
+  Images,
+  Bot,
+  Key
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -179,13 +181,39 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
                   <div
                     className={cn(
                       "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors cursor-pointer",
-                      location === "/project-management" 
-                        ? "bg-primary-50 text-primary-600" 
+                      location === "/project-management"
+                        ? "bg-primary-50 text-primary-600"
                         : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
                     )}
                   >
                     <Building2 className="h-5 w-5 mr-3" />
                     Project Management
+                  </div>
+                </Link>
+                <Link href="/agent" onClick={closeSidebarOnMobile}>
+                  <div
+                    className={cn(
+                      "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors cursor-pointer",
+                      location === "/agent"
+                        ? "bg-primary-50 text-primary-600"
+                        : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                    )}
+                  >
+                    <Bot className="h-5 w-5 mr-3" />
+                    AI Agent
+                  </div>
+                </Link>
+                <Link href="/api-keys" onClick={closeSidebarOnMobile}>
+                  <div
+                    className={cn(
+                      "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors cursor-pointer",
+                      location === "/api-keys"
+                        ? "bg-primary-50 text-primary-600"
+                        : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                    )}
+                  >
+                    <Key className="h-5 w-5 mr-3" />
+                    API Keys
                   </div>
                 </Link>
               </div>

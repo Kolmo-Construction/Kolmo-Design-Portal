@@ -10,7 +10,7 @@ const router = Router();
  */
 router.post('/consult', isAuthenticated, async (req: Request, res: Response) => {
   try {
-    const { userPrompt, projectId, context } = req.body;
+    const { userPrompt, projectId, context, messageId } = req.body;
 
     // Validate required fields
     if (!userPrompt || typeof userPrompt !== 'string') {
@@ -24,14 +24,16 @@ router.post('/consult', isAuthenticated, async (req: Request, res: Response) => 
     console.log('[Agent API] Consultation request:', {
       userPrompt: userPrompt.substring(0, 100) + '...',
       projectId,
-      hasContext: !!context
+      hasContext: !!context,
+      messageId: messageId || 'none'
     });
 
     // Call the agent service
     const result = await agentService.consult({
       userPrompt,
       projectId: projectId ? Number(projectId) : undefined,
-      context: context || {}
+      context: context || {},
+      messageId: messageId
     });
 
     // Return structured response

@@ -12,11 +12,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Download, FileText, MapPin, Calendar, DollarSign, Send, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, FileText, MapPin, Calendar, DollarSign, Send, Loader2, Mail, Phone, Building2 } from "lucide-react";
 import { formatDate, getInvoiceStatusLabel, getInvoiceStatusBadgeClasses } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth-unified";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+
+// Kolmo Brand Colors
+const colors = {
+  primary: '#3d4f52',    // Dark Slate - Text/Headers/Table Headers
+  accent: '#d8973c',     // Gold - Highlights/Total/Border
+  secondary: '#4a6670',  // Subtext
+  muted: '#f5f5f5',      // Backgrounds
+  base: '#ffffff',       // Paper Background
+};
 
 interface InvoiceDetailResponse {
   invoice: Invoice;
@@ -122,221 +131,324 @@ export default function InvoiceDetailPage() {
   const amount = Number(invoice.amount);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <Button 
-            onClick={() => setLocation('/financials')} 
-            variant="ghost" 
-            className="mb-4"
+    <div className="min-h-screen bg-gray-100 py-8 px-4">
+      {/* Action Buttons - Float above invoice */}
+      <div className="max-w-[210mm] mx-auto mb-6">
+        <div className="flex justify-between items-center">
+          <Button
+            onClick={() => setLocation('/financials')}
+            variant="ghost"
+            className="gap-2"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="h-4 w-4" />
             Back to Financials
           </Button>
-          
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">Invoice #{invoice.invoiceNumber}</h1>
-              <p className="text-slate-600 mt-1">Project: {project.name}</p>
-            </div>
-            
-            <div className="flex gap-3">
-              <Badge className={getInvoiceStatusBadgeClasses(invoice.status as any)}>
-                {getInvoiceStatusLabel(invoice.status as any)}
-              </Badge>
-              
-              {/* Only show the "Send" button if the invoice is in 'draft' status */}
-              {invoice.status === 'draft' && (
-                <Button onClick={() => sendInvoice()} disabled={isSending}>
-                  {isSending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="mr-2 h-4 w-4" />
-                      Send Invoice
-                    </>
-                  )}
-                </Button>
-              )}
 
-              <Button onClick={handleDownload} variant="outline" className="gap-2">
-                <Download className="h-4 w-4" />
-                Download PDF
-              </Button>
-            </div>
-          </div>
-        </div>
+          <div className="flex gap-3">
+            <Badge
+              className={getInvoiceStatusBadgeClasses(invoice.status as any)}
+              style={{
+                backgroundColor: invoice.status === 'paid' ? colors.accent : undefined
+              }}
+            >
+              {getInvoiceStatusLabel(invoice.status as any)}
+            </Badge>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Invoice Details */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Invoice Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Invoice Details
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-slate-500" />
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">Issue Date</p>
-                      <p className="text-sm text-slate-600">{formatDate(invoice.issueDate)}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-slate-500" />
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">Due Date</p>
-                      <p className="text-sm text-slate-600">{formatDate(invoice.dueDate)}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <DollarSign className="h-4 w-4 text-slate-500" />
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">Amount</p>
-                      <p className="text-lg font-semibold text-slate-900">
-                        ${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-4 w-4 text-slate-500" />
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">Status</p>
-                      <Badge className={getInvoiceStatusBadgeClasses(invoice.status as any)} variant="outline">
-                        {getInvoiceStatusLabel(invoice.status as any)}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-                
-                {invoice.description && (
+            {invoice.status === 'draft' && (
+              <Button
+                onClick={() => sendInvoice()}
+                disabled={isSending}
+                style={{ backgroundColor: colors.accent }}
+                className="hover:opacity-90"
+              >
+                {isSending ? (
                   <>
-                    <Separator />
-                    <div>
-                      <p className="text-sm font-medium text-slate-900 mb-2">Description</p>
-                      <p className="text-sm text-slate-600">{invoice.description}</p>
-                    </div>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Send Invoice
                   </>
                 )}
-              </CardContent>
-            </Card>
+              </Button>
+            )}
 
-            {/* Service Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Service Details</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="border rounded-lg">
-                  <div className="px-4 py-3 bg-slate-50 border-b">
-                    <div className="grid grid-cols-3 gap-4 text-sm font-medium text-slate-700">
-                      <span>Description</span>
-                      <span className="text-center">Quantity</span>
-                      <span className="text-right">Amount</span>
-                    </div>
-                  </div>
-                  <div className="px-4 py-4">
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <p className="font-medium text-slate-900">Construction Services</p>
-                        <p className="text-slate-600">Professional construction services for {project.name}</p>
-                        {invoice.description && (
-                          <p className="text-slate-500 mt-1 text-xs">{invoice.description}</p>
-                        )}
-                      </div>
-                      <div className="text-center text-slate-600">1</div>
-                      <div className="text-right font-medium text-slate-900">
-                        ${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="px-4 py-3 bg-slate-50 border-t">
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-semibold text-slate-900">Total</span>
-                      <span className="text-xl font-bold text-slate-900">
-                        ${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  </div>
+            <Button onClick={handleDownload} variant="outline" className="gap-2">
+              <Download className="h-4 w-4" />
+              Download PDF
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* A4 Paper-like Invoice Container */}
+      <div
+        className="max-w-[210mm] mx-auto bg-white shadow-2xl"
+        style={{
+          minHeight: '297mm',
+          backgroundColor: colors.base,
+        }}
+      >
+        {/* Gold Top Border */}
+        <div
+          className="h-3"
+          style={{ backgroundColor: colors.accent }}
+        />
+
+        {/* Main Invoice Content */}
+        <div className="p-12">
+          {/* Header Section */}
+          <div className="flex justify-between items-start mb-12">
+            {/* Left: Company Info */}
+            <div className="space-y-3">
+              {/* Logo */}
+              <div
+                className="w-16 h-16 flex items-center justify-center text-3xl font-bold text-white mb-4"
+                style={{ backgroundColor: colors.primary }}
+              >
+                K
+              </div>
+
+              <h1
+                className="text-2xl font-bold tracking-wide"
+                style={{ color: colors.primary }}
+              >
+                KOLMO Constructions
+              </h1>
+
+              <div
+                className="space-y-1.5 text-sm"
+                style={{ color: colors.secondary }}
+              >
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  <span>Miami, FL</span>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  <span>projects@kolmo.io</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Phone className="w-4 h-4" />
+                  <span>(305) 555-0123</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  <span className="font-semibold">License #: KOLMOC*000XX</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Invoice Details */}
+            <div className="text-right space-y-4">
+              <h2
+                className="text-4xl font-bold tracking-tight"
+                style={{ color: colors.primary }}
+              >
+                INVOICE
+              </h2>
+
+              <div
+                className="space-y-2 text-sm"
+                style={{ color: colors.secondary }}
+              >
+                <div className="flex justify-end items-center gap-2">
+                  <span className="font-semibold">Invoice #:</span>
+                  <span className="font-mono">{invoice.invoiceNumber}</span>
+                </div>
+                <div className="flex justify-end items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  <span className="font-semibold">Date:</span>
+                  <span>{formatDate(invoice.issueDate)}</span>
+                </div>
+                <div className="flex justify-end items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  <span className="font-semibold">Due Date:</span>
+                  <span className="font-semibold">{formatDate(invoice.dueDate)}</span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Project Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Project Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Project Name</p>
-                  <p className="text-sm text-slate-600">{project.name}</p>
-                </div>
-                
-                {project.description && (
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">Description</p>
-                    <p className="text-sm text-slate-600">{project.description}</p>
-                  </div>
-                )}
-                
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Project Address</p>
-                  <p className="text-sm text-slate-600">
-                    {project.address}<br />
-                    {project.city}, {project.state} {project.zipCode}
-                  </p>
-                </div>
-                
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Project ID</p>
-                  <p className="text-sm text-slate-600">#{project.id}</p>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Client Info - 2 Columns */}
+          <div className="grid grid-cols-2 gap-8 mb-12">
+            {/* Bill To */}
+            <div
+              className="p-6 rounded-lg"
+              style={{ backgroundColor: colors.muted }}
+            >
+              <h3
+                className="text-xs font-bold uppercase tracking-wider mb-3"
+                style={{ color: colors.primary }}
+              >
+                Bill To
+              </h3>
+              <div
+                className="space-y-1"
+                style={{ color: colors.secondary }}
+              >
+                <p className="font-semibold text-base">{project.name}</p>
+                <p className="text-sm">{project.address}</p>
+                <p className="text-sm">{project.city}, {project.state} {project.zipCode}</p>
+              </div>
+            </div>
 
-            {/* Company Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle>KOLMO</CardTitle>
-                <CardDescription>Construction Excellence</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-slate-600">
-                <p>Professional Construction Services</p>
-                <p>Licensed & Insured</p>
-                <p>contact@kolmo.io</p>
-              </CardContent>
-            </Card>
+            {/* Project Site */}
+            <div
+              className="p-6 rounded-lg"
+              style={{ backgroundColor: colors.muted }}
+            >
+              <h3
+                className="text-xs font-bold uppercase tracking-wider mb-3"
+                style={{ color: colors.primary }}
+              >
+                Project Site
+              </h3>
+              <div
+                className="space-y-1"
+                style={{ color: colors.secondary }}
+              >
+                <p className="flex items-center gap-2 text-sm">
+                  <Building2 className="w-4 h-4" />
+                  {project.address}
+                </p>
+                <p className="text-sm ml-6">{project.city}, {project.state} {project.zipCode}</p>
+              </div>
+            </div>
+          </div>
 
-            {/* Payment Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Payment Information</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-slate-600 space-y-2">
-                <p>Payment is due within 30 days of invoice date.</p>
-                <p>Please include invoice number #{invoice.invoiceNumber} with your payment.</p>
-                <p className="font-medium">Questions? Contact us at contact@kolmo.io</p>
-              </CardContent>
-            </Card>
+          {/* Line Items Table */}
+          <div className="mb-12">
+            <table className="w-full">
+              <thead>
+                <tr
+                  className="text-white text-left"
+                  style={{ backgroundColor: colors.primary }}
+                >
+                  <th className="py-4 px-4 text-sm font-semibold uppercase tracking-wide">
+                    Description
+                  </th>
+                  <th className="py-4 px-4 text-sm font-semibold uppercase tracking-wide text-center">
+                    Qty
+                  </th>
+                  <th className="py-4 px-4 text-sm font-semibold uppercase tracking-wide text-right">
+                    Amount
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style={{ backgroundColor: colors.base }}>
+                  <td
+                    className="py-4 px-4 text-sm"
+                    style={{ color: colors.primary }}
+                  >
+                    <p className="font-semibold">Construction Services</p>
+                    <p className="text-xs mt-1" style={{ color: colors.secondary }}>
+                      Professional construction services for {project.name}
+                    </p>
+                    {invoice.description && (
+                      <p className="text-xs mt-1" style={{ color: colors.secondary }}>
+                        {invoice.description}
+                      </p>
+                    )}
+                  </td>
+                  <td
+                    className="py-4 px-4 text-sm text-center"
+                    style={{ color: colors.secondary }}
+                  >
+                    1
+                  </td>
+                  <td
+                    className="py-4 px-4 text-sm text-right font-mono font-semibold"
+                    style={{ color: colors.primary }}
+                  >
+                    ${amount.toFixed(2)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Totals Section */}
+          <div className="flex justify-end mb-12">
+            <div
+              className="w-80 p-6 rounded-lg space-y-3"
+              style={{ backgroundColor: colors.muted }}
+            >
+              <div className="flex justify-between items-center">
+                <span
+                  className="text-sm font-semibold"
+                  style={{ color: colors.secondary }}
+                >
+                  Subtotal
+                </span>
+                <span
+                  className="font-mono text-sm"
+                  style={{ color: colors.primary }}
+                >
+                  ${amount.toFixed(2)}
+                </span>
+              </div>
+
+              <div
+                className="pt-3 border-t-2"
+                style={{ borderColor: colors.accent }}
+              >
+                <div className="flex justify-between items-center">
+                  <span
+                    className="text-xl font-bold"
+                    style={{ color: colors.accent }}
+                  >
+                    Total Due
+                  </span>
+                  <span
+                    className="font-mono text-2xl font-bold"
+                    style={{ color: colors.accent }}
+                  >
+                    ${amount.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div
+            className="pt-8 border-t flex justify-between items-end"
+            style={{ borderColor: colors.muted }}
+          >
+            <div className="max-w-md">
+              <h4
+                className="text-xs font-bold uppercase tracking-wider mb-2"
+                style={{ color: colors.primary }}
+              >
+                Payment Terms
+              </h4>
+              <p
+                className="text-xs leading-relaxed"
+                style={{ color: colors.secondary }}
+              >
+                Payment is due within 30 days of invoice date. Late payments subject to 1.5% monthly interest.
+                Please include invoice number #{invoice.invoiceNumber} with your payment.
+              </p>
+            </div>
+
+            <div className="text-right">
+              <p
+                className="text-sm font-semibold mb-1"
+                style={{ color: colors.primary }}
+              >
+                Thank you for your business
+              </p>
+              <p
+                className="text-xs"
+                style={{ color: colors.secondary }}
+              >
+                www.kolmo.io
+              </p>
+            </div>
           </div>
         </div>
       </div>

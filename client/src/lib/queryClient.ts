@@ -30,17 +30,22 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<any> {
-  console.log(`[apiRequest] ${method} ${url}`, data ? JSON.stringify(data) : 'no body');
-  
+  // Check if data is FormData (for file uploads)
+  const isFormData = data instanceof FormData;
+
+  console.log(`[apiRequest] ${method} ${url}`, isFormData ? 'FormData' : (data ? JSON.stringify(data) : 'no body'));
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
+    // Don't set Content-Type for FormData - browser will set it with boundary
+    headers: (data && !isFormData) ? { "Content-Type": "application/json" } : {},
+    // Don't stringify FormData - send it as-is
+    body: data ? (isFormData ? data as FormData : JSON.stringify(data)) : undefined,
     credentials: "include",
   });
 
   await throwIfResNotOk(res);
-  
+
   // Parse JSON response if it exists
   const contentType = res.headers.get('content-type');
   if (contentType && contentType.includes('application/json')) {
@@ -48,7 +53,7 @@ export async function apiRequest(
     console.log(`[apiRequest] Response:`, result);
     return result;
   }
-  
+
   return res;
 }
 

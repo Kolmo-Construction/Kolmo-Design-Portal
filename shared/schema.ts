@@ -133,6 +133,96 @@ export const users = pgTable("users", {
   stripeSubscriptionId: text("stripe_subscription_id"),
 });
 
+// API Keys table for mobile and external API authentication
+export const apiKeys = pgTable("api_keys", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+
+  // Security: Store hashed key, display prefix only
+  keyHash: text("key_hash").notNull().unique(), // bcrypt hash of full key
+  keyPrefix: text("key_prefix").notNull(), // First 8 chars for display (e.g., "kolmo_ab")
+
+  // Metadata
+  name: text("name").notNull(), // User-friendly name like "Mobile App - iPhone"
+  description: text("description"),
+
+  // Lifecycle management
+  isActive: boolean("is_active").default(true).notNull(),
+  expiresAt: timestamp("expires_at"), // Nullable for permanent keys
+  lastUsedAt: timestamp("last_used_at"),
+
+  // Audit trail
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Types for API keys
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type NewApiKey = typeof apiKeys.$inferInsert;
+
+// Time Entries table for time tracking with geofencing
+export const timeEntries = pgTable("time_entries", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+
+  // Time tracking
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time"), // Nullable for active entries
+  durationMinutes: integer("duration_minutes"), // Calculated on clock-out
+
+  // Geolocation
+  clockInLatitude: decimal("clock_in_latitude", { precision: 10, scale: 7 }).notNull(),
+  clockInLongitude: decimal("clock_in_longitude", { precision: 10, scale: 7 }).notNull(),
+  clockOutLatitude: decimal("clock_out_latitude", { precision: 10, scale: 7 }),
+  clockOutLongitude: decimal("clock_out_longitude", { precision: 10, scale: 7 }),
+
+  // Geofencing validation
+  clockInWithinGeofence: boolean("clock_in_within_geofence").notNull(),
+  clockInDistanceMeters: decimal("clock_in_distance_meters", { precision: 10, scale: 2 }),
+  clockOutWithinGeofence: boolean("clock_out_within_geofence"),
+  clockOutDistanceMeters: decimal("clock_out_distance_meters", { precision: 10, scale: 2 }),
+
+  // Optional context
+  notes: text("notes"),
+
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Types for time entries
+export type TimeEntry = typeof timeEntries.$inferSelect;
+export type NewTimeEntry = typeof timeEntries.$inferInsert;
+
+// Receipts table for storing scanned receipts with OCR data
+export const receipts = pgTable("receipts", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  uploadedBy: integer("uploaded_by").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  vendorName: text("vendor_name"),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
+  currency: text("currency").default("USD").notNull(),
+  receiptDate: timestamp("receipt_date"),
+  category: text("category"), // materials, labor, equipment, other
+  tags: text("tags").array().default(sql`ARRAY[]::text[]`),
+  notes: text("notes"),
+  imageUrl: text("image_url").notNull(),
+  imageKey: text("image_key").notNull(),
+  ocrData: jsonb("ocr_data"), // Full Taggun response
+  ocrConfidence: decimal("ocr_confidence", { precision: 5, scale: 2 }),
+  ocrProcessedAt: timestamp("ocr_processed_at"),
+  isVerified: boolean("is_verified").default(false).notNull(),
+  verifiedBy: integer("verified_by").references(() => users.id),
+  verifiedAt: timestamp("verified_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Types for receipts
+export type Receipt = typeof receipts.$inferSelect;
+export type NewReceipt = typeof receipts.$inferInsert;
+
 // Projects table for storing project details
 export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
@@ -780,6 +870,21 @@ export const chatMessages = pgTable('chat_messages', {
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type NewChatMessage = typeof chatMessages.$inferInsert;
 
+// Chat attachments table for file uploads in chat
+export const chatAttachments = pgTable('chat_attachments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  messageId: uuid('message_id').notNull().references(() => chatMessages.id, { onDelete: 'cascade' }),
+  fileName: text('file_name').notNull(),
+  fileSize: integer('file_size').notNull(), // Size in bytes
+  mimeType: text('mime_type').notNull(),
+  storageKey: text('storage_key').notNull(), // R2 storage key
+  url: text('url').notNull(), // Proxy URL to access the file
+  createdAt: timestamp('created_at', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
+});
+
+export type ChatAttachment = typeof chatAttachments.$inferSelect;
+export type NewChatAttachment = typeof chatAttachments.$inferInsert;
+
 
 
 
@@ -817,6 +922,7 @@ export const projectRelations = relations(projects, ({ many, one }) => ({
   tasks: many(tasks),
   dailyLogs: many(dailyLogs),
   punchListItems: many(punchListItems),
+  timeEntries: many(timeEntries),
   projectManager: one(users, {
       fields: [projects.projectManagerId],
       references: [users.id],
@@ -830,6 +936,7 @@ export const projectRelations = relations(projects, ({ many, one }) => ({
   milestones: many(milestones),
   selections: many(selections),
   projectVersions: many(projectVersions),
+  receipts: many(receipts),
 }));
 
 export const userRelations = relations(users, ({ many }) => ({
@@ -849,6 +956,9 @@ export const userRelations = relations(users, ({ many }) => ({
   taskFeedback: many(taskFeedback),
   createdQuotes: many(quotes),
   uploadedQuoteMedia: many(quoteMedia),
+  timeEntries: many(timeEntries),
+  uploadedReceipts: many(receipts, { relationName: 'Uploader' }),
+  verifiedReceipts: many(receipts, { relationName: 'Verifier' }),
 }));
 
 export const clientProjectRelations = relations(clientProjects, ({ one }) => ({
@@ -964,8 +1074,18 @@ export const quoteViewSessionRelations = relations(quoteViewSessions, ({ one }) 
   quote: one(quotes, { fields: [quoteViewSessions.quoteId], references: [quotes.id] }),
 }));
 
+// Time Entry relations
+export const timeEntriesRelations = relations(timeEntries, ({ one }) => ({
+  user: one(users, { fields: [timeEntries.userId], references: [users.id] }),
+  project: one(projects, { fields: [timeEntries.projectId], references: [projects.id] }),
+}));
 
-
+// Receipt relations
+export const receiptsRelations = relations(receipts, ({ one }) => ({
+  project: one(projects, { fields: [receipts.projectId], references: [projects.id] }),
+  uploader: one(users, { fields: [receipts.uploadedBy], references: [users.id], relationName: 'Uploader' }),
+  verifier: one(users, { fields: [receipts.verifiedBy], references: [users.id], relationName: 'Verifier' }),
+}));
 
 
 // --- Insert Schemas (with Zod validations) ---

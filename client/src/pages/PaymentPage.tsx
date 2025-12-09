@@ -6,7 +6,16 @@ import { PaymentForm } from '@/components/payment/PaymentForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle, Shield, Lock } from 'lucide-react';
+
+// Kolmo Brand Colors
+const colors = {
+  primary: '#3d4f52',    // Dark Slate - Text/Headers
+  accent: '#d8973c',     // Gold - Highlights/Total
+  secondary: '#4a6670',  // Subtext
+  muted: '#f5f5f5',      // Backgrounds
+  base: '#ffffff',       // Paper Background
+};
 
 // Load Stripe - initialize once and reuse
 const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
@@ -120,11 +129,11 @@ export default function PaymentPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Card className="w-full max-w-md mx-auto">
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <Card className="w-full max-w-md mx-auto shadow-lg">
           <CardContent className="flex flex-col items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600 mb-4" />
-            <p className="text-gray-600">Loading payment information...</p>
+            <Loader2 className="h-8 w-8 animate-spin mb-4" style={{ color: colors.accent }} />
+            <p style={{ color: colors.secondary }}>Loading payment information...</p>
           </CardContent>
         </Card>
       </div>
@@ -152,32 +161,40 @@ export default function PaymentPage() {
 
   if (paymentCompleted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Card className="w-full max-w-md mx-auto">
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <Card className="w-full max-w-md mx-auto shadow-lg border-t-4" style={{ borderTopColor: colors.accent }}>
           <CardHeader className="text-center">
-            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-            <CardTitle className="text-2xl">Payment Successful!</CardTitle>
-            <CardDescription>
+            <CheckCircle className="h-16 w-16 mx-auto mb-4" style={{ color: colors.accent }} />
+            <CardTitle className="text-2xl" style={{ color: colors.primary }}>
+              Payment Successful!
+            </CardTitle>
+            <CardDescription style={{ color: colors.secondary }}>
               Your payment has been processed successfully.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-4">
             {paymentInfo && (
-              <div className="bg-green-50 p-4 rounded-lg">
+              <div className="p-4 rounded-lg" style={{ backgroundColor: colors.muted }}>
                 {paymentInfo.invoiceNumber && (
-                  <p className="font-medium">Invoice #{paymentInfo.invoiceNumber}</p>
+                  <p className="font-medium" style={{ color: colors.primary }}>
+                    Invoice #{paymentInfo.invoiceNumber}
+                  </p>
                 )}
                 {paymentInfo.projectName && (
-                  <p className="text-sm text-gray-600">{paymentInfo.projectName}</p>
+                  <p className="text-sm" style={{ color: colors.secondary }}>
+                    {paymentInfo.projectName}
+                  </p>
                 )}
-                <p className="text-lg font-semibold text-green-600">
+                <p className="text-lg font-semibold mt-2" style={{ color: colors.accent }}>
                   ${paymentInfo.amount.toFixed(2)} paid
                 </p>
               </div>
             )}
             <div>
-              <p className="text-sm text-gray-600 mb-2">What happens next:</p>
-              <ul className="text-sm space-y-1 text-left">
+              <p className="text-sm mb-2" style={{ color: colors.secondary }}>
+                What happens next:
+              </p>
+              <ul className="text-sm space-y-1 text-left" style={{ color: colors.secondary }}>
                 <li>• You'll receive a confirmation email shortly</li>
                 <li>• Our team will be notified of your payment</li>
                 <li>• Project work will continue as scheduled</li>
@@ -207,44 +224,63 @@ export default function PaymentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
+          {/* Header with Gold Border */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {/* Logo */}
+            <div
+              className="w-16 h-16 flex items-center justify-center text-3xl font-bold text-white mx-auto mb-4"
+              style={{ backgroundColor: colors.primary }}
+            >
+              K
+            </div>
+            <h1 className="text-3xl font-bold mb-2" style={{ color: colors.primary }}>
               Complete Your Payment
             </h1>
-            <p className="text-gray-600">
-              Secure payment processing powered by Stripe
-            </p>
+            <div className="flex items-center justify-center gap-2" style={{ color: colors.secondary }}>
+              <Shield className="w-4 h-4" />
+              <p className="text-sm">
+                Secure payment processing powered by Stripe
+              </p>
+            </div>
           </div>
 
           {/* Payment Details Card */}
-          <Card className="mb-6">
+          <Card className="mb-6 shadow-lg border-t-4" style={{ borderTopColor: colors.accent }}>
             <CardHeader>
-              <CardTitle>Payment Details</CardTitle>
+              <CardTitle style={{ color: colors.primary }}>Payment Details</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               {paymentInfo.projectName && (
                 <div className="flex justify-between items-center py-2">
-                  <span className="text-gray-600">Project:</span>
-                  <span className="font-medium">{paymentInfo.projectName}</span>
+                  <span style={{ color: colors.secondary }}>Project:</span>
+                  <span className="font-medium" style={{ color: colors.primary }}>
+                    {paymentInfo.projectName}
+                  </span>
                 </div>
               )}
               {paymentInfo.invoiceNumber && (
                 <div className="flex justify-between items-center py-2">
-                  <span className="text-gray-600">Invoice:</span>
-                  <span className="font-medium">#{paymentInfo.invoiceNumber}</span>
+                  <span style={{ color: colors.secondary }}>Invoice:</span>
+                  <span className="font-medium font-mono" style={{ color: colors.primary }}>
+                    #{paymentInfo.invoiceNumber}
+                  </span>
                 </div>
               )}
               <div className="flex justify-between items-center py-2">
-                <span className="text-gray-600">Description:</span>
-                <span className="font-medium">{paymentInfo.description}</span>
+                <span style={{ color: colors.secondary }}>Description:</span>
+                <span className="font-medium" style={{ color: colors.primary }}>
+                  {paymentInfo.description}
+                </span>
               </div>
-              <div className="border-t pt-4 mt-4">
+              <div className="border-t-2 pt-4 mt-4" style={{ borderColor: colors.accent }}>
                 <div className="flex justify-between items-center">
-                  <span className="text-lg font-semibold">Total Amount:</span>
-                  <span className="text-2xl font-bold text-green-600">
+                  <span className="text-lg font-semibold" style={{ color: colors.primary }}>
+                    Total Amount:
+                  </span>
+                  <span className="text-2xl font-bold font-mono" style={{ color: colors.accent }}>
                     ${paymentInfo.amount?.toFixed?.(2) || '0.00'}
                   </span>
                 </div>
@@ -254,15 +290,21 @@ export default function PaymentPage() {
 
           {/* Stripe Payment Form */}
           {clientSecret && (
-            <Elements 
-              key={clientSecret} // Use key to prevent prop change warnings
-              stripe={stripePromise} 
-              options={{ 
+            <Elements
+              key={clientSecret}
+              stripe={stripePromise}
+              options={{
                 clientSecret: clientSecret,
                 appearance: {
                   theme: 'stripe',
                   variables: {
-                    colorPrimary: '#10b981', // Green theme to match the design
+                    colorPrimary: colors.accent, // Kolmo Gold
+                    colorBackground: colors.base,
+                    colorText: colors.primary,
+                    colorDanger: '#dc2626',
+                    fontFamily: 'system-ui, sans-serif',
+                    spacingUnit: '4px',
+                    borderRadius: '8px',
                   },
                 },
               }}
@@ -276,6 +318,20 @@ export default function PaymentPage() {
               />
             </Elements>
           )}
+
+          {/* Trust Badges */}
+          <div className="mt-6 text-center">
+            <div className="flex items-center justify-center gap-4 text-sm" style={{ color: colors.secondary }}>
+              <div className="flex items-center gap-1">
+                <Lock className="w-4 h-4" />
+                <span>SSL Encrypted</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Shield className="w-4 h-4" />
+                <span>PCI Compliant</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { Router } from "express"; // Keep Router for potential future use or oth
 
 // Import middleware
 import { isAuthenticated, isAdmin } from "@server/middleware/auth.middleware";
+import { validateApiKey } from "@server/middleware/apikey.middleware";
 import { validateProjectId } from "@server/middleware/validation.middleware";
 // Import Schemas/Types if needed for other routes defined in this file
 import { User } from "@shared/schema";
@@ -37,6 +38,9 @@ import taggunRouter from "./routes/taggun.routes"; // Taggun receipt scanning ro
 import { adminImagesRoutes } from "./routes/admin-images.routes"; // Admin image gallery router
 import driveIngestionRouter from "./routes/drive-ingestion.routes"; // Google Drive ingestion router
 import designProposalRouter from "./routes/design-proposal.routes"; // Design proposal router
+import apiKeyRouter from "./routes/apikey.routes"; // API key management router
+import timeTrackingRouter from "./routes/timetracking.routes"; // Time tracking router
+import receiptRouter from "./routes/receipt.routes"; // Receipt scanning router
 
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
 import chatRouter from "./routes/chat.routes"; // Stream Chat router
@@ -60,10 +64,30 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // This needs to run early to make req.user available
   setupAuth(app);
 
+  // --- API Key Validation Middleware ---
+  // Mount BEFORE other routes to allow API key auth as alternative to session auth
+  // This middleware extracts and validates API keys from headers, setting req.user if valid
+  app.use(validateApiKey);
+
   // --- Mount Auth-specific routes (Password Reset, etc.) ---
   // Note: setupAuth likely already added /login, /logout, /api/user etc.
   // This router is for additional auth flows like password reset.
   app.use("/api", authRouter); // Assuming authRouter handles routes like /api/password-reset-request
+
+  // --- Mount API Key Management Routes ---
+  // Routes for creating, listing, and revoking API keys
+  // These routes require session authentication (not API key auth) to manage keys
+  app.use("/api/api-keys", apiKeyRouter);
+
+  // --- Mount Time Tracking Routes ---
+  // Routes for mobile time tracking with geofencing validation
+  // Supports both API key and session authentication
+  app.use("/api/time", timeTrackingRouter);
+
+  // --- Mount Receipt Routes ---
+  // Routes for receipt uploads and OCR processing with Taggun
+  // Supports both API key and session authentication
+  app.use("/api", receiptRouter);
 
   // --- Development-only routes (Example) ---
   if (process.env.NODE_ENV === 'development') {

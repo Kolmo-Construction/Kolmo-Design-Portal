@@ -363,23 +363,71 @@ export async function sendQuoteAcceptanceEmail(email: string, customerName: stri
     <meta charset="UTF-8">
     <title>Quote Accepted</title>
 </head>
-<body style="font-family: 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.6; color: #3d4552;">
+<body style="font-family: 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.6; color: #3d4f52; margin: 0; padding: 0;">
     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
         <tr>
             <td style="padding: 20px 0;">
                 <table width="680" cellpadding="0" cellspacing="0" style="margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 8px 32px rgba(61, 69, 82, 0.1);">
+                    <!-- Gold Top Border -->
                     <tr>
-                        <td style="background: linear-gradient(135deg, #3d4552 0%, #4a6670 100%); color: #ffffff; padding: 40px 30px; text-align: center; border-bottom: 4px solid #db973c;">
-                            <h1 style="margin: 0; font-size: 28px; font-weight: 700;">Kolmo Construction</h1>
-                            <p style="margin: 8px 0 0 0; font-size: 16px; opacity: 0.9;">Quote Accepted</p>
+                        <td style="height: 4px; background-color: #d8973c; border-radius: 12px 12px 0 0;"></td>
+                    </tr>
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #3d4f52 0%, #4a6670 100%); color: #ffffff; padding: 40px 30px; text-align: center;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 1.5px;">KOLMO</h1>
+                            <p style="margin: 8px 0 0 0; font-size: 16px; opacity: 0.9;">Construction Excellence</p>
                         </td>
                     </tr>
+                    <!-- Content -->
                     <tr>
-                        <td style="padding: 45px 35px;">
-                            <h2 style="color: #1a1a1a; margin-top: 0;">Thank you, ${customerName}!</h2>
-                            <p>Your quote <strong>${quoteNumber}</strong> has been accepted. We'll be in touch shortly to discuss the next steps.</p>
-                            <p style="color: #999; font-size: 12px; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
-                                This is an automated message. Please do not reply to this email.
+                        <td style="padding: 40px 35px;">
+                            <h2 style="color: #3d4f52; margin: 0 0 20px 0; font-size: 24px;">Quote Accepted</h2>
+
+                            <p style="margin: 0 0 20px 0; color: #4a6670;">Dear ${customerName},</p>
+
+                            <p style="margin: 0 0 25px 0; color: #4a6670;">Your quote has been accepted. We're excited to begin work on your project.</p>
+
+                            <!-- Quote Info Box -->
+                            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #d8973c;">
+                                <table width="100%" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="padding: 8px 0; color: #4a6670; font-size: 14px;">Quote Number</td>
+                                        <td style="padding: 8px 0; text-align: right; font-weight: 600; color: #3d4f52; font-family: monospace;">${quoteNumber}</td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            <!-- Next Steps -->
+                            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 25px 0;">
+                                <h3 style="margin: 0 0 15px 0; color: #3d4f52; font-size: 16px;">Next Steps</h3>
+                                <table width="100%" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="padding: 6px 0; color: #4a6670; font-size: 14px;">
+                                            <span style="color: #d8973c; font-weight: bold;">•</span> Project manager will contact you within 2 business days
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 6px 0; color: #4a6670; font-size: 14px;">
+                                            <span style="color: #d8973c; font-weight: bold;">•</span> Scheduling and planning phase begins
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 6px 0; color: #4a6670; font-size: 14px;">
+                                            <span style="color: #d8973c; font-weight: bold;">•</span> You'll receive regular project updates
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            <p style="margin: 25px 0 0 0; color: #4a6670; font-size: 14px;">Questions? Contact us at <a href="mailto:projects@kolmo.io" style="color: #d8973c; text-decoration: none; font-weight: 600;">projects@kolmo.io</a></p>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 20px 35px; border-top: 1px solid #f5f5f5; text-align: center;">
+                            <p style="margin: 0; color: #4a6670; font-size: 12px;">
+                                Automated confirmation • We look forward to working with you
                             </p>
                         </td>
                     </tr>

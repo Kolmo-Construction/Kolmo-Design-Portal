@@ -12,6 +12,15 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { Loader2, CheckCircle, FileText, DollarSign } from 'lucide-react';
 
+// Kolmo Brand Colors
+const colors = {
+  primary: '#3d4f52',    // Dark Slate
+  accent: '#d8973c',     // Gold
+  secondary: '#4a6670',  // Subtext
+  muted: '#f5f5f5',      // Backgrounds
+  base: '#ffffff',       // Paper Background
+};
+
 // Make sure to call `loadStripe` outside of a component's render to avoid
 // recreating the `Stripe` object on every render.
 if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
@@ -195,35 +204,79 @@ export default function QuotePaymentPage() {
 
   if (paymentCompleted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Card className="w-full max-w-md mx-auto">
-          <CardHeader className="text-center">
-            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-            <CardTitle className="text-2xl">Payment Successful!</CardTitle>
-            <CardDescription>
-              Your project has been created and is ready to begin.
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <Card className="w-full max-w-lg mx-auto shadow-lg border-t-4" style={{ borderTopColor: colors.accent }}>
+          {/* Success Header */}
+          <CardHeader className="text-center pb-4">
+            <CheckCircle className="h-20 w-20 mx-auto mb-4" style={{ color: colors.accent }} />
+            <CardTitle className="text-3xl font-bold mb-2" style={{ color: colors.primary }}>
+              Payment Confirmed
+            </CardTitle>
+            <CardDescription className="text-base" style={{ color: colors.secondary }}>
+              Your project is ready to begin
             </CardDescription>
           </CardHeader>
-          <CardContent className="text-center space-y-4">
-            <div className="bg-green-50 p-4 rounded-lg">
-              <p className="font-medium">Quote #{quote.quoteNumber}</p>
-              <p className="text-sm text-gray-600">{quote.title}</p>
+
+          <CardContent className="space-y-6">
+            {/* Project Details */}
+            <div className="p-4 rounded-lg" style={{ backgroundColor: colors.muted }}>
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex-1">
+                  <p className="text-xs uppercase tracking-wider mb-1" style={{ color: colors.secondary }}>
+                    Quote Number
+                  </p>
+                  <p className="font-mono font-semibold" style={{ color: colors.primary }}>
+                    #{quote.quoteNumber}
+                  </p>
+                </div>
+              </div>
+              <p className="font-semibold mt-2" style={{ color: colors.primary }}>
+                {quote.title}
+              </p>
             </div>
+
+            {/* Next Steps */}
             <div>
-              <p className="text-sm text-gray-600 mb-2">What happens next:</p>
-              <ul className="text-sm space-y-1 text-left">
-                <li>• You'll receive a confirmation email shortly</li>
-                <li>• Our team will contact you within 2 business days</li>
-                <li>• Project planning and scheduling will begin</li>
-                <li>• You'll receive regular progress updates</li>
-              </ul>
+              <h3 className="font-semibold mb-3" style={{ color: colors.primary }}>
+                Next Steps
+              </h3>
+              <div className="space-y-2">
+                <div className="flex items-start gap-3">
+                  <div className="w-1.5 h-1.5 rounded-full mt-2" style={{ backgroundColor: colors.accent }} />
+                  <p className="text-sm" style={{ color: colors.secondary }}>
+                    Confirmation email sent to your inbox
+                  </p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-1.5 h-1.5 rounded-full mt-2" style={{ backgroundColor: colors.accent }} />
+                  <p className="text-sm" style={{ color: colors.secondary }}>
+                    Project manager will contact you within 2 business days
+                  </p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-1.5 h-1.5 rounded-full mt-2" style={{ backgroundColor: colors.accent }} />
+                  <p className="text-sm" style={{ color: colors.secondary }}>
+                    Scheduling and planning phase begins
+                  </p>
+                </div>
+              </div>
             </div>
-            <Button 
-              onClick={() => window.close()} 
+
+            {/* Action Button */}
+            <Button
+              onClick={() => window.close()}
               className="w-full"
+              style={{ backgroundColor: colors.primary }}
             >
-              Close Window
+              Close
             </Button>
+
+            {/* Footer */}
+            <div className="text-center pt-2 border-t" style={{ borderColor: colors.muted }}>
+              <p className="text-xs" style={{ color: colors.secondary }}>
+                Questions? Contact us at <span className="font-semibold">projects@kolmo.io</span>
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

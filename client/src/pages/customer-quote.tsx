@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, X, MessageSquare, Calendar, MapPin, Clock, Phone, Mail, Shield, Award, Star, FileText, DollarSign, Calculator, Wrench, Home, Hammer, Zap, Paintbrush, Users, Package, Truck, HardHat, Eye, EyeOff, CreditCard, Camera, Image as ImageIcon, Loader2 } from "lucide-react";
 import { initializeQuoteAnalytics, trackSectionView, trackDownload, trackResponse } from "@/lib/analytics";
 import QuoteAnalytics from "@/lib/quote-analytics";
@@ -122,12 +122,10 @@ const getCategoryIcon = (category: string) => {
 export default function CustomerQuotePage() {
   const { token } = useParams<{ token: string }>();
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
   const [showResponse, setShowResponse] = useState(false);
   const [showDeclineReason, setShowDeclineReason] = useState(false);
   const [quoteId, setQuoteId] = useState<number | null>(null);
-  const [showAcceptSummary, setShowAcceptSummary] = useState(false);
-  const [showAcceptSuccess, setShowAcceptSuccess] = useState(false);
-  const [acceptedProjectName, setAcceptedProjectName] = useState("");
   const [showDeclineConfirm, setShowDeclineConfirm] = useState(false);
   const [isAccepting, setIsAccepting] = useState(false);
   const [customerName, setCustomerName] = useState("");
@@ -247,9 +245,9 @@ export default function CustomerQuotePage() {
       setShowDeclineConfirm(false);
       setShowDeclineReason(false);
       setMessage("");
-      
-      // Refresh the quote data
-      window.location.reload();
+
+      // Refresh the quote data to show updated status
+      queryClient.invalidateQueries({ queryKey: [`/api/quotes/public/${token}`] });
     },
     onError: () => {
       toast({
@@ -262,6 +260,11 @@ export default function CustomerQuotePage() {
 
   const handleAccept = async () => {
     const quoteData = quote as QuoteResponse;
+
+    // Prevent multiple clicks
+    if (isAccepting || hasAccepted || hasDeclined) {
+      return;
+    }
 
     // Track button click
     if (analyticsRef.current) {
@@ -300,13 +303,31 @@ export default function CustomerQuotePage() {
       const data = await res.json();
 
       if (!res.ok) {
+        // Handle already accepted error gracefully
+        if (data.alreadyAccepted) {
+          await queryClient.invalidateQueries({ queryKey: [`/api/quotes/public/${token}`] });
+          toast({
+            title: "Already Accepted",
+            description: "This quote has already been accepted.",
+          });
+          return;
+        }
         throw new Error(data.error || 'Failed to accept quote');
       }
 
-      // Store project name and show success dialog
-      setAcceptedProjectName(data.project.name);
-      setShowAcceptSuccess(true);
-      setShowResponse(false);
+      // Refetch quote data to update UI with new status
+      await queryClient.invalidateQueries({ queryKey: [`/api/quotes/public/${token}`] });
+
+      // Show success toast
+      toast({
+        title: "🎉 Quote Accepted!",
+        description: "Your project has been created. We'll contact you within 24 hours with next steps.",
+      });
+
+      // Reset accepting state after a brief delay to show the accepted status
+      setTimeout(() => {
+        setIsAccepting(false);
+      }, 500);
 
     } catch (error) {
       console.error('Error accepting quote:', error);
@@ -315,7 +336,6 @@ export default function CustomerQuotePage() {
         description: error instanceof Error ? error.message : 'Failed to accept quote. Please try again.',
         variant: "destructive",
       });
-    } finally {
       setIsAccepting(false);
     }
   };
@@ -485,11 +505,11 @@ export default function CustomerQuotePage() {
                 <div className="flex items-center gap-3 mb-2">
                   <FileText className="h-6 w-6" />
                   <h2 className="text-2xl font-bold">Project Proposal</h2>
-                  <Badge 
+                  <Badge
                     variant={isExpired ? "destructive" : hasAccepted ? "default" : hasDeclined ? "destructive" : hasResponded ? "secondary" : "default"}
                     className="px-3 py-1 text-xs font-medium"
                     style={{
-                      backgroundColor: isExpired ? '#dc2626' : hasAccepted ? '#16a34a' : hasDeclined ? '#dc2626' : hasResponded ? '#6b7280' : '#db973c', 
+                      backgroundColor: isExpired ? '#dc2626' : hasAccepted ? '#10b981' : hasDeclined ? '#dc2626' : hasResponded ? '#6b7280' : '#db973c',
                       color: 'white'
                     }}
                   >
@@ -535,20 +555,20 @@ export default function CustomerQuotePage() {
           </div>
         </div>
 
-        {/* Response Required Section - Only show if not accepted and not expired */}
-        {!hasAccepted && !isExpired && (
+        {/* Response Required Section - Only show if not accepted, not declined, and not expired */}
+        {!hasAccepted && !hasDeclined && !isExpired && (
           <div id="section-call-to-action" className="rounded-2xl shadow-lg text-white p-6" style={{backgroundColor: '#4a6670'}}>
             <div className="text-center">
               <Clock className="h-12 w-12 mx-auto mb-4" style={{color: '#db973c'}} />
               <h3 className="text-2xl font-bold mb-2">Ready to Transform Your Space?</h3>
               <p className="text-white/80 mb-6 max-w-2xl mx-auto">
-                We're excited to bring your vision to life with our expert craftsmanship. 
+                We're excited to bring your vision to life with our expert craftsmanship.
                 Please review the details and let us know how you'd like to proceed.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
                   onClick={handleAccept}
-                  disabled={isAccepting}
+                  disabled={isAccepting || hasAccepted || hasDeclined}
                   className="px-8 py-3 text-lg font-semibold text-white"
                   style={{backgroundColor: isAccepting ? '#9a6c2d' : '#db973c'}}
                   onMouseEnter={e => !isAccepting && (e.currentTarget.style.backgroundColor = '#c8863a')}
@@ -567,9 +587,10 @@ export default function CustomerQuotePage() {
                     </>
                   )}
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={handleDecline}
+                  disabled={isAccepting || hasAccepted || hasDeclined}
                   className="px-8 py-3 text-white border-white/30"
                   style={{backgroundColor: 'rgba(255,255,255,0.1)'}}
                   onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)'}
@@ -589,7 +610,7 @@ export default function CustomerQuotePage() {
 
         {/* Quote Accepted Status */}
         {hasAccepted && (
-          <div className="rounded-2xl shadow-lg text-white p-6" style={{backgroundColor: '#16a34a'}}>
+          <div className="rounded-2xl shadow-lg text-white p-6" style={{backgroundColor: '#10b981'}}>
             <div className="text-center">
               <Check className="h-12 w-12 mx-auto mb-4" />
               <h3 className="text-2xl font-bold mb-2">Proposal Accepted!</h3>
@@ -613,36 +634,6 @@ export default function CustomerQuotePage() {
           </div>
         )}
 
-        {/* Quote Declined Status */}
-        {hasDeclined && (
-          <div className="rounded-2xl shadow-lg text-white p-6" style={{backgroundColor: '#dc2626'}}>
-            <div className="text-center">
-              <X className="h-12 w-12 mx-auto mb-4" />
-              <h3 className="text-2xl font-bold mb-2">Proposal Declined</h3>
-              <p className="text-white/80 mb-4 max-w-2xl mx-auto">
-                We understand this proposal wasn't the right fit for you at this time.
-              </p>
-              <div className="bg-white/10 rounded-xl p-4 max-w-md mx-auto">
-                <p className="text-sm text-white/90">
-                  <strong>Declined on:</strong> {formatDate(declinedResponse?.createdAt || '')}
-                </p>
-                {declinedResponse?.message && (
-                  <div className="mt-2">
-                    <p className="text-sm text-white/90">
-                      <strong>Reason:</strong>
-                    </p>
-                    <p className="text-sm text-white/80 mt-1">
-                      "{declinedResponse.message}"
-                    </p>
-                  </div>
-                )}
-              </div>
-              <p className="text-white/70 text-sm mt-4">
-                Feel free to contact us if you'd like to discuss alternative options.
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* Project Information */}
         <div id="section-project-details" className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
@@ -1277,197 +1268,125 @@ export default function CustomerQuotePage() {
         </div>
       </div>
 
-      {/* Decline Confirmation Modal */}
+      {/* Mobile-Friendly Bottom Sheet for Decline */}
       {showDeclineConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="max-w-md w-full">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-6 w-6 text-blue-600" />
-                Help Us Improve
-              </CardTitle>
-              <CardDescription>
-                We understand this proposal isn't the right fit. Would you mind sharing why? Your feedback helps us serve you better in the future.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-50 bg-black/60 animate-in fade-in duration-200"
+            onClick={() => setShowDeclineConfirm(false)}
+          />
+
+          {/* Bottom Sheet */}
+          <div className="fixed inset-x-0 bottom-0 z-50 animate-in slide-in-from-bottom duration-300">
+            <div className="bg-white rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto">
+              {/* Drag Handle */}
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="w-12 h-1.5 rounded-full" style={{backgroundColor: '#e5e7eb'}} />
+              </div>
+
+              {/* Header */}
+              <div className="px-6 py-4 border-b" style={{borderColor: '#e5e7eb'}}>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg" style={{backgroundColor: '#f5f5f5'}}>
+                    <img src={kolmoLogo} alt="Kolmo" className="h-8 w-8 object-contain" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold" style={{color: '#1a1a1a'}}>
+                      Decline Quote
+                    </h3>
+                    <p className="text-xs" style={{color: '#4a6670'}}>
+                      We value your feedback
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowDeclineConfirm(false)}
+                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                    aria-label="Close"
+                  >
+                    <X className="h-5 w-5" style={{color: '#4a6670'}} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="px-6 py-6">
                 {/* Customer Info Summary */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="text-sm font-medium text-gray-700 mb-2">Declining Quote For:</div>
-                  <div className="font-semibold">{quoteData?.customerName || customerName}</div>
-                  <div className="text-sm text-gray-600">{quoteData?.customerEmail || customerEmail}</div>
+                <div className="rounded-lg p-4 mb-4" style={{backgroundColor: '#f5f5f5'}}>
+                  <div className="text-xs font-medium mb-1" style={{color: '#4a6670'}}>Declining for:</div>
+                  <div className="font-semibold" style={{color: '#1a1a1a'}}>{quoteData?.customerName || customerName}</div>
+                  <div className="text-sm" style={{color: '#4a6670'}}>{quoteData?.customerEmail || customerEmail}</div>
                 </div>
 
                 {/* Optional Feedback */}
-                <div>
-                  <Label htmlFor="feedback" className="text-sm font-medium">
-                    What made this proposal not quite right? <span className="text-gray-500">(Optional)</span>
+                <div className="mb-4">
+                  <Label htmlFor="feedback" className="text-sm font-medium mb-2 block" style={{color: '#1a1a1a'}}>
+                    Help us improve <span style={{color: '#4a6670'}}>(Optional)</span>
                   </Label>
                   <Textarea
                     id="feedback"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="e.g., Budget concerns, timeline doesn't work, different scope needed..."
-                    className="min-h-[80px] mt-2"
+                    className="min-h-[100px] text-base"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    This helps us create better proposals for you and future customers
+                  <p className="text-xs mt-2" style={{color: '#4a6670'}}>
+                    Your feedback helps us create better proposals
                   </p>
                 </div>
 
-                {/* Relationship Preservation */}
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="text-sm font-medium text-blue-800 mb-1">We'd love to work with you in the future</div>
-                  <div className="text-sm text-blue-700">
-                    Feel free to reach out if your needs change or you'd like to discuss alternative options.
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-            <div className="flex justify-between p-6 pt-0">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowDeclineConfirm(false)}
-              >
-                Back to Quote
-              </Button>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={handleDeclineWithoutFeedback}
-                  disabled={respondMutation.isPending}
-                >
-                  Skip Feedback
-                </Button>
-                <Button
-                  onClick={handleDeclineWithFeedback}
-                  disabled={respondMutation.isPending}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  {message.trim() ? 'Send Feedback' : 'Decline Quote'}
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Accept Summary Modal */}
-      {/* Beautiful Success Dialog - Shown after acceptance */}
-      {showAcceptSuccess && (
-        <div className="fixed inset-0 bg-gradient-to-br from-[#3d4552]/95 to-[#4a6670]/95 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="max-w-2xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-500">
-            {/* Header with Kolmo branding */}
-            <div className="bg-gradient-to-r from-[#3d4552] to-[#4a6670] px-8 py-10 text-center">
-              <div className="mb-6">
-                <img src={kolmoLogo} alt="Kolmo" className="h-16 mx-auto filter brightness-0 invert" />
-              </div>
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-[#db973c] rounded-full mb-6 shadow-lg">
-                <Check className="h-10 w-10 text-white" strokeWidth={3} />
-              </div>
-              <h2 className="text-3xl font-bold text-white mb-2">
-                Quote Accepted Successfully!
-              </h2>
-              <p className="text-white/90 text-lg">
-                Welcome to the Kolmo family
-              </p>
-            </div>
-
-            {/* Content */}
-            <div className="px-8 py-8">
-              {/* Project Name */}
-              <div className="text-center mb-8">
-                <div className="text-sm text-gray-500 uppercase tracking-wide mb-2">Your Project</div>
-                <h3 className="text-2xl font-bold text-[#3d4552] mb-6">
-                  {acceptedProjectName}
-                </h3>
-              </div>
-
-              {/* Info Cards */}
-              <div className="space-y-4 mb-8">
-                {/* What Happens Next */}
-                <div className="bg-gradient-to-r from-[#db973c]/10 to-[#db973c]/5 border-l-4 border-[#db973c] rounded-lg p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-[#db973c] rounded-full flex items-center justify-center">
-                        <span className="text-white font-bold">1</span>
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-[#3d4552] mb-2">Project Setup</h4>
-                      <p className="text-gray-600 text-sm leading-relaxed">
-                        Your project has been created and our team has been notified. We're preparing everything for your construction journey.
-                      </p>
-                    </div>
-                  </div>
+                {/* Reassurance */}
+                <div className="rounded-lg p-4 mb-6" style={{backgroundColor: 'rgba(219, 151, 60, 0.1)', borderLeft: '3px solid #db973c'}}>
+                  <p className="text-sm" style={{color: '#4a6670'}}>
+                    We'd love to work with you in the future. Feel free to reach out if your needs change.
+                  </p>
                 </div>
 
-                <div className="bg-gradient-to-r from-blue-50 to-blue-50/50 border-l-4 border-blue-500 rounded-lg p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                        <span className="text-white font-bold">2</span>
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-[#3d4552] mb-2">We'll Contact You Soon</h4>
-                      <p className="text-gray-600 text-sm leading-relaxed">
-                        A member of our team will reach out within 24 hours to discuss project timeline, payment details, and answer any questions you may have.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-r from-green-50 to-green-50/50 border-l-4 border-green-500 rounded-lg p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
-                        <span className="text-white font-bold">3</span>
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-[#3d4552] mb-2">Track Your Progress</h4>
-                      <p className="text-gray-600 text-sm leading-relaxed">
-                        You'll receive an email with access to your personalized project portal where you can track progress, view updates, and communicate with your team.
-                      </p>
-                    </div>
-                  </div>
+                {/* Action Buttons - Stacked on mobile for easier tapping */}
+                <div className="space-y-3">
+                  <Button
+                    onClick={handleDeclineWithFeedback}
+                    disabled={respondMutation.isPending}
+                    className="w-full text-white py-6 text-base"
+                    style={{backgroundColor: '#4a6670'}}
+                    onMouseEnter={e => !respondMutation.isPending && (e.currentTarget.style.backgroundColor = '#5a757f')}
+                    onMouseLeave={e => !respondMutation.isPending && (e.currentTarget.style.backgroundColor = '#4a6670')}
+                  >
+                    {respondMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : message.trim() ? (
+                      'Send Feedback & Decline'
+                    ) : (
+                      'Decline Quote'
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleDeclineWithoutFeedback}
+                    disabled={respondMutation.isPending}
+                    variant="outline"
+                    className="w-full py-6 text-base"
+                  >
+                    Skip Feedback
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setShowDeclineConfirm(false)}
+                    disabled={respondMutation.isPending}
+                    className="w-full py-6 text-base"
+                  >
+                    Cancel
+                  </Button>
                 </div>
               </div>
 
-              {/* Contact Info */}
-              <div className="bg-gray-50 rounded-lg p-6 mb-6">
-                <div className="text-center">
-                  <p className="text-sm text-gray-600 mb-3">Questions? We're here to help!</p>
-                  <div className="flex items-center justify-center gap-6 text-sm">
-                    <div className="flex items-center gap-2 text-gray-700">
-                      <Mail className="h-4 w-4 text-[#db973c]" />
-                      <span>support@kolmo.com</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-700">
-                      <Phone className="h-4 w-4 text-[#db973c]" />
-                      <span>(555) 123-4567</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Close Button */}
-              <div className="text-center">
-                <Button
-                  onClick={() => {
-                    setShowAcceptSuccess(false);
-                    window.location.reload();
-                  }}
-                  className="bg-gradient-to-r from-[#3d4552] to-[#4a6670] hover:from-[#4a6670] hover:to-[#3d4552] text-white px-8 py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                >
-                  Close
-                </Button>
-              </div>
+              {/* Safe area padding for mobile devices */}
+              <div className="h-8" />
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Response Dialog */}

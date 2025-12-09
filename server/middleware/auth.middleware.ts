@@ -11,13 +11,23 @@ export interface AuthenticatedRequest extends Request {
 
 
 /**
- * Express middleware to check if a user is authenticated via Passport.
+ * Express middleware to check if a user is authenticated via Passport or API key.
  * Sends a 401 Unauthorized response if not authenticated.
+ *
+ * This middleware checks for API key auth first (set by validateApiKey middleware),
+ * then falls back to session-based auth for backward compatibility.
  */
 export async function isAuthenticated(req: Request, res: Response, next: NextFunction) {
     const requestPath = `${req.method} ${req.originalUrl}`;
     logger(`[isAuthenticated] Checking auth for: ${requestPath}`, 'AuthMiddleware');
 
+    // Check if authenticated via API key (set by validateApiKey middleware)
+    if ((req as any).authMethod === 'apikey' && req.user) {
+        logger(`[isAuthenticated] User authenticated via API key: ID ${req.user.id}`, 'AuthMiddleware');
+        return next();
+    }
+
+    // Fall back to session authentication
     // Only log session details in debug mode to reduce noise
     if (process.env.NODE_ENV === 'development') {
         logger(`[isAuthenticated] Session ID: ${req.sessionID}`, 'AuthMiddleware');
@@ -48,7 +58,7 @@ export async function isAuthenticated(req: Request, res: Response, next: NextFun
     if (req.isAuthenticated() && req.user) {
         // Type assertion to use AuthenticatedRequest features if needed downstream
         const authReq = req as AuthenticatedRequest;
-        logger(`[isAuthenticated] User IS authenticated: ID ${authReq.user?.id}`, 'AuthMiddleware');
+        logger(`[isAuthenticated] User IS authenticated via session: ID ${authReq.user?.id}`, 'AuthMiddleware');
         return next(); // User is authenticated, proceed to the next middleware/handler
     } else {
         logger(`[isAuthenticated] User IS NOT authenticated for: ${requestPath}. Sending 401.`, 'AuthMiddleware');
