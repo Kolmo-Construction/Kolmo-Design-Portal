@@ -274,29 +274,15 @@ export function setupAuth(app: Express) {
       // Check if user is already authenticated with this session
       if (req.isAuthenticated() && req.user) {
         console.log(`[Magic Link] User already authenticated in session: ${req.user.id}`);
-        
-        // For authenticated users, return their session data directly
-        // This handles the case where the token was already consumed but the user is still logged in
-        const { password, magicLinkToken, magicLinkExpiry, ...userWithoutSensitiveData } = req.user;
-        
+
         // Handle redirect logic for authenticated users
         if (!req.user.isActivated) {
-          console.log(`[Magic Link] Authenticated user needs profile setup`);
-          return res.status(200).json({
-            redirect: "/setup-profile",
-            user: {
-              id: req.user.id,
-              email: req.user.email,
-              firstName: req.user.firstName,
-              lastName: req.user.lastName,
-              role: req.user.role,
-              isActivated: req.user.isActivated
-            }
-          });
+          console.log(`[Magic Link] Authenticated user needs profile setup - redirecting`);
+          return res.redirect('/setup-profile');
         }
-        
-        console.log(`[Magic Link] Returning authenticated user data`);
-        return res.status(200).json({ user: userWithoutSensitiveData });
+
+        console.log(`[Magic Link] User already authenticated - redirecting to home`);
+        return res.redirect('/');
       }
 
       // Updated to use storage.users
@@ -328,25 +314,13 @@ export function setupAuth(app: Express) {
 
         // If the user hasn't set up their account yet, redirect to profile setup
         if (!user.isActivated) {
-          return res.status(200).json({
-            redirect: "/setup-profile",
-            user: {
-              id: user.id,
-              email: user.email,
-              firstName: user.firstName,
-              lastName: user.lastName,
-              role: user.role,
-              isActivated: user.isActivated
-            }
-          });
+          console.log(`[Magic Link] New user - redirecting to profile setup`);
+          return res.redirect('/setup-profile');
         }
 
         // Regular login for users who have already set up their account
-        const { password, magicLinkToken, magicLinkExpiry, ...userWithoutSensitiveData } = user;
-        return res.status(200).json({ 
-          message: "Magic link verified successfully",
-          user: userWithoutSensitiveData 
-        });
+        console.log(`[Magic Link] Login successful - redirecting to home`);
+        return res.redirect('/');
       });
     } catch (err) {
       next(err);
