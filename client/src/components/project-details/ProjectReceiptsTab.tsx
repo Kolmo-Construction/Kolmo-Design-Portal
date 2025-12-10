@@ -64,11 +64,10 @@ export function ProjectReceiptsTab({ project }: ProjectReceiptsTabProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch OCR service configuration (Gemini/Taggun) - No longer needed, using Gemini by default
-  const { data: ocrConfig } = useQuery<OCRConfig>({
-    queryKey: ['/api/taggun/status'],
-    enabled: false, // Disabled - using Gemini
-  });
+  // Using Gemini for receipt scanning - no config check needed
+  // OCR is always available with Gemini
+  const isConfigured = true; // Gemini is always configured
+  const isGeminiActive = true; // Always using Gemini
 
   // Fetch project receipts using new Gemini endpoint
   const { data: receiptsData, isLoading: isLoadingReceipts } = useQuery({
@@ -132,8 +131,7 @@ export function ProjectReceiptsTab({ project }: ProjectReceiptsTabProps) {
     scanReceiptMutation.mutate(selectedFile);
   };
 
-  const isGeminiActive = ocrConfig?.activeService === 'gemini';
-  const isConfigured = ocrConfig?.gemini?.configured || ocrConfig?.taggun?.configured;
+  // Removed old ocrConfig-based checks - now using constants defined above
 
   if (!isConfigured) {
     return (
