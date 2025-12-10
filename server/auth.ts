@@ -68,6 +68,51 @@ function getMagicLinkExpiry(months = 5): Date {
 }
 
 /**
+ * Generate a user-friendly unique username
+ * Tries: email prefix, email prefix + number, firstName.lastName, firstName.lastName + number
+ */
+async function generateUniqueUsername(email: string, firstName: string, lastName: string): Promise<string> {
+  const emailPrefix = email.split('@')[0];
+
+  // Try email prefix first (e.g., "pascal.matta")
+  let username = emailPrefix;
+  let existing = await storage.users.getUserByUsername(username);
+
+  if (!existing) {
+    return username;
+  }
+
+  // Try email prefix with sequential numbers (pascal.matta2, pascal.matta3, etc.)
+  for (let i = 2; i <= 10; i++) {
+    username = `${emailPrefix}${i}`;
+    existing = await storage.users.getUserByUsername(username);
+    if (!existing) {
+      return username;
+    }
+  }
+
+  // Try firstName.lastName format
+  const nameUsername = `${firstName.toLowerCase()}.${lastName.toLowerCase()}`;
+  existing = await storage.users.getUserByUsername(nameUsername);
+
+  if (!existing) {
+    return nameUsername;
+  }
+
+  // Try firstName.lastName with sequential numbers
+  for (let i = 2; i <= 10; i++) {
+    username = `${nameUsername}${i}`;
+    existing = await storage.users.getUserByUsername(username);
+    if (!existing) {
+      return username;
+    }
+  }
+
+  // Last resort: use random suffix (should rarely happen)
+  return `${emailPrefix}_${randomBytes(3).toString('hex')}`;
+}
+
+/**
  * Creates a magic link token for a user and sends an email with the link
  * @param email Email address to send the magic link to
  * @returns Boolean indicating if the email was sent successfully
@@ -367,8 +412,9 @@ export function setupAuth(app: Express) {
         // Create a temporary password - user will set real password during activation
         const temporaryPassword = await hashPassword(randomBytes(16).toString("hex"));
 
-        // Generate a username based on email (this can be changed by user during activation)
-        const username = email.split('@')[0] + '_' + randomBytes(4).toString('hex');
+        // Generate a user-friendly unique username
+        const username = await generateUniqueUsername(email, firstName, lastName);
+        console.log(`[Admin create magic link] Generated username: ${username}`);
 
         // Create new user with magic link token - Updated to use storage.users
         user = await storage.users.createUser({
