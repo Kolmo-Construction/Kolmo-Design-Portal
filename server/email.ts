@@ -119,7 +119,7 @@ interface EmailOptions {
   attachments?: any;
 }
 
-const DEFAULT_FROM_EMAIL = 'projects@kolmo.io';
+const DEFAULT_FROM_EMAIL = 'projects@kolmo.design';
 const DEFAULT_FROM_NAME = "Kolmo Construction";
 
 /**
@@ -460,7 +460,7 @@ export async function sendQuoteAcceptanceEmail(email: string, customerName: stri
                                 </table>
                             </div>
 
-                            <p style="margin: 25px 0 0 0; color: #4a6670; font-size: 14px;">Questions? Contact us at <a href="mailto:projects@kolmo.io" style="color: #d8973c; text-decoration: none; font-weight: 600;">projects@kolmo.io</a></p>
+                            <p style="margin: 25px 0 0 0; color: #4a6670; font-size: 14px;">Questions? Contact us at <a href="mailto:projects@kolmo.design" style="color: #d8973c; text-decoration: none; font-weight: 600;">projects@kolmo.design</a></p>
                         </td>
                     </tr>
                     <!-- Footer -->
