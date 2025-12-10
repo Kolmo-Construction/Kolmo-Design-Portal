@@ -20,7 +20,7 @@ export function getBaseUrl(): string {
   }
 
   // Development environment
-  return 'http://localhost:5000';
+  return 'http://localhost:3000';
 }
 
 /**
