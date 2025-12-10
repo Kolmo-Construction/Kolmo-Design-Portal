@@ -347,12 +347,22 @@ export function setupAuth(app: Express) {
       const expiry = getMagicLinkExpiry();
 
       if (user) {
-        // Update existing user with new magic link token and other fields
+        console.log(`[Admin create magic link] Existing user found with email: ${email}, updating...`);
+
+        // Update existing user with new magic link token
         user = await storage.users.updateUserMagicLinkToken(user.id, token, expiry);
-        // Also update role and accessScope if provided
-        if (role !== user.role || accessScope !== user.accessScope) {
-          user = await storage.users.updateUser(user.id, { role, accessScope });
-        }
+
+        // Update ALL user fields including name, role, accessScope, and reactivation status
+        user = await storage.users.updateUser(user.id, {
+          firstName,
+          lastName,
+          role,
+          accessScope,
+          phoneNumber: phoneNumber || user.phoneNumber,
+          isActivated: false // Reset activation status so they need to set up profile again
+        });
+
+        console.log(`[Admin create magic link] Updated user ${user.id} - isActivated: ${user.isActivated}`);
       } else {
         // Create a temporary password - user will set real password during activation
         const temporaryPassword = await hashPassword(randomBytes(16).toString("hex"));
