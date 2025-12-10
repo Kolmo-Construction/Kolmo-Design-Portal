@@ -64,24 +64,25 @@ export function ProjectReceiptsTab({ project }: ProjectReceiptsTabProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch OCR service configuration (Gemini/Taggun)
+  // Fetch OCR service configuration (Gemini/Taggun) - No longer needed, using Gemini by default
   const { data: ocrConfig } = useQuery<OCRConfig>({
     queryKey: ['/api/taggun/status'],
+    enabled: false, // Disabled - using Gemini
   });
 
-  // Fetch project receipts
+  // Fetch project receipts using new Gemini endpoint
   const { data: receiptsData, isLoading: isLoadingReceipts } = useQuery({
-    queryKey: [`/api/taggun/receipts/${project.id}`],
+    queryKey: [`/api/projects/${project.id}/receipts`],
     enabled: !!project.id,
   });
 
-  // Scan receipt mutation
+  // Upload and scan receipt mutation using new Gemini endpoint
   const scanReceiptMutation = useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
-      formData.append('receipt', file);
+      formData.append('file', file); // Changed from 'receipt' to 'file'
 
-      const response = await fetch(`/api/taggun/projects/${project.id}/scan`, {
+      const response = await fetch(`/api/projects/${project.id}/receipts`, {
         method: 'POST',
         body: formData,
         credentials: 'include',
@@ -100,7 +101,7 @@ export function ProjectReceiptsTab({ project }: ProjectReceiptsTabProps) {
         description: `Successfully scanned receipt from ${data.receipt.merchant} for $${data.receipt.amount}`,
       });
       setSelectedFile(null);
-      queryClient.invalidateQueries({ queryKey: [`/api/taggun/receipts/${project.id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${project.id}/receipts`] });
     },
     onError: (error: any) => {
       toast({
