@@ -37,7 +37,7 @@ export function generateUrl(path: string): string {
  * Generate magic link URLs
  */
 export function generateMagicLinkUrl(token: string): string {
-  return generateUrl(`/auth/magic-link/${token}`);
+  return generateUrl(`/api/auth/magic-link/${token}`);
 }
 
 /**
