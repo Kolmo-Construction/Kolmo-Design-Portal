@@ -314,17 +314,17 @@ export function ProjectReceiptsTab({ project }: ProjectReceiptsTabProps) {
                     <span className="font-medium">Gemini 2.0 Flash</span>
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {ocrConfig?.gemini?.message || "Using Google's Gemini AI for receipt scanning"}
+                    Using Google's Gemini AI for receipt scanning
                   </p>
                 </div>
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <Badge variant={ocrConfig?.taggun?.connected ? "default" : "destructive"}>
-                  {ocrConfig?.taggun?.connected ? "Connected" : "Disconnected"}
+                <Badge variant="default">
+                  Connected
                 </Badge>
                 <span className="text-sm text-muted-foreground">
-                  {ocrConfig?.message}
+                  Gemini receipt scanning active
                 </span>
               </div>
             )}
