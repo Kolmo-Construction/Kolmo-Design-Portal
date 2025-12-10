@@ -361,7 +361,7 @@ export function setupAuth(app: Express) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const { email, firstName, lastName, role = "client", projectIds = [], phoneNumber } = req.body;
+      const { email, firstName, lastName, role = "client", accessScope = "both", projectIds = [], phoneNumber } = req.body;
 
       if (!email || !firstName || !lastName) {
         return res.status(400).json({ message: "Email, first name, and last name are required" });
@@ -373,8 +373,12 @@ export function setupAuth(app: Express) {
       const expiry = getMagicLinkExpiry();
 
       if (user) {
-        // Update existing user with new magic link token - Updated to use storage.users
+        // Update existing user with new magic link token and other fields
         user = await storage.users.updateUserMagicLinkToken(user.id, token, expiry);
+        // Also update role and accessScope if provided
+        if (role !== user.role || accessScope !== user.accessScope) {
+          user = await storage.users.updateUser(user.id, { role, accessScope });
+        }
       } else {
         // Create a temporary password - user will set real password during activation
         const temporaryPassword = await hashPassword(randomBytes(16).toString("hex"));
@@ -390,6 +394,7 @@ export function setupAuth(app: Express) {
           username,
           password: temporaryPassword,
           role,
+          accessScope, // Include accessScope field
           magicLinkToken: token,
           magicLinkExpiry: expiry,
           isActivated: false,
