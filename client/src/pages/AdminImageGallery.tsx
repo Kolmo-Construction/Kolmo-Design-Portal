@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { AdminImageUploader } from '@/components/admin/AdminImageUploader';
 import { AdminImageGalleryView } from '@/components/admin/AdminImageGalleryView';
 import { DriveIngestionDialog } from '@/components/admin/DriveIngestionDialog';
@@ -17,7 +18,8 @@ import {
   Filter,
   Images,
   TrendingUp,
-  Cloud
+  Cloud,
+  ArrowLeft
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth-unified';
 
@@ -30,6 +32,7 @@ interface ImageStats {
 
 export default function AdminImageGallery() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -80,11 +83,21 @@ export default function AdminImageGallery() {
     <div className="container mx-auto px-6 py-24 space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Image Gallery</h1>
-          <p className="text-muted-foreground">
-            Upload and manage project images with tags and metadata
-          </p>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setLocation('/')}
+            className="flex-shrink-0"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">Image Gallery</h1>
+            <p className="text-muted-foreground">
+              Upload and manage project images with tags and metadata
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button
