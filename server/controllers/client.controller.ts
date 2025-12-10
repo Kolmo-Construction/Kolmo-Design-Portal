@@ -40,10 +40,11 @@ export const getClientInvoices = async (
       console.log(`[getClientInvoices] Executing SQL query for user ${userId}`);
       const result = await db.execute(sql`
         SELECT i.*, p.name as project_name
-        FROM invoices i 
+        FROM invoices i
         INNER JOIN projects p ON i.project_id = p.id
         INNER JOIN client_projects cp ON p.id = cp.project_id
         WHERE cp.client_id = ${userId}
+          AND i.status != 'draft'
         ORDER BY i.issue_date DESC
       `);
       
@@ -203,7 +204,7 @@ export const getClientDashboard = async (
         );
         const allInvoices = await Promise.all(invoicePromises);
         pendingInvoices = allInvoices.flat()
-          .filter((inv: any) => inv.status === 'pending' || inv.status === 'draft')
+          .filter((inv: any) => inv.status === 'pending')
           .slice(0, 5);
       } catch (error) {
         console.log('Invoices not available');
