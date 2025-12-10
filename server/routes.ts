@@ -134,6 +134,26 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
     return getClientInvoices(req, res, next);
   });
 
+  // Admin endpoint to get projects for a specific client (Web-only)
+  app.get("/api/admin/client-projects/:clientId", isAuthenticated, requireWebAccess, isAdmin, async (req: any, res: any) => {
+    try {
+      const { storage } = await import("./storage");
+      const clientId = req.params.clientId;
+
+      if (!clientId) {
+        return res.status(400).json({ message: "Client ID is required" });
+      }
+
+      console.log(`[Admin] Fetching projects for client: ${clientId}`);
+      const projects = await storage.projects.getProjectsForUser(clientId);
+
+      res.json(projects);
+    } catch (error) {
+      console.error(`Error fetching projects for client ${req.params.clientId}:`, error);
+      res.status(500).json({ message: "Failed to fetch client projects" });
+    }
+  });
+
   // Get all project managers for assignment dropdowns (Web-only)
   app.get("/api/project-managers", isAuthenticated, requireWebAccess, isAdmin, async (req: any, res: any) => {
     try {
