@@ -2,9 +2,25 @@ import { google } from 'googleapis';
 import { getBaseUrl } from '@server/domain.config';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
+import { Resend } from 'resend';
 
 let connectionSettings: any;
 let smtpTransporter: Transporter | null = null;
+let resendClient: Resend | null = null;
+
+// Check if Resend is configured (recommended for production)
+function isResendConfigured(): boolean {
+  return !!process.env.RESEND_API_KEY;
+}
+
+// Get or create Resend client
+function getResendClient(): Resend {
+  if (!resendClient) {
+    resendClient = new Resend(process.env.RESEND_API_KEY);
+    console.log('Resend client initialized');
+  }
+  return resendClient;
+}
 
 // Check if Gmail SMTP is configured (standard method)
 function isGmailSMTPConfigured(): boolean {
@@ -73,21 +89,24 @@ async function getGmailClient() {
 
 /**
  * Check if the email service is configured properly
- * Returns true if either Gmail SMTP or Replit connectors are configured
+ * Returns true if Resend, Gmail SMTP, or Replit connectors are configured
  */
 export function isEmailServiceConfigured(): boolean {
+  const resendConfigured = isResendConfigured();
   const smtpConfigured = isGmailSMTPConfigured();
   const replitConfigured = !!process.env.REPLIT_CONNECTORS_HOSTNAME;
 
-  if (smtpConfigured) {
+  if (resendConfigured) {
+    console.log('✅ Email service: Resend configured');
+  } else if (smtpConfigured) {
     console.log('Email service: Gmail SMTP configured');
   } else if (replitConfigured) {
     console.log('Email service: Replit Gmail connector configured');
   } else {
-    console.log('Email service: NOT configured');
+    console.log('❌ Email service: NOT configured');
   }
 
-  return smtpConfigured || replitConfigured;
+  return resendConfigured || smtpConfigured || replitConfigured;
 }
 
 interface EmailOptions {
@@ -159,7 +178,28 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
         .trim();
     }
 
-    // Try Gmail SMTP first (simpler and more reliable)
+    // Try Resend first (best for production, HTTP-based, no SMTP blocking)
+    if (isResendConfigured()) {
+      console.log(`Sending email to ${options.to} via Resend...`);
+
+      const resend = getResendClient();
+      const result = await resend.emails.send({
+        from: `${fromName} <${fromEmail}>`,
+        to: options.to,
+        subject: options.subject,
+        html: options.html || textContent,
+      });
+
+      if (result.error) {
+        throw new Error(`Resend error: ${result.error.message}`);
+      }
+
+      console.log(`✅ Email sent successfully via Resend to ${options.to}`);
+      console.log('Email ID:', result.data?.id);
+      return true;
+    }
+
+    // Fall back to Gmail SMTP (may be blocked on cloud platforms)
     if (isGmailSMTPConfigured()) {
       console.log(`Sending email to ${options.to} via Gmail SMTP...`);
 
@@ -177,7 +217,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       return true;
     }
 
-    // Fall back to Gmail API (Replit connector)
+    // Final fallback to Gmail API (Replit connector)
     console.log(`Sending email to ${options.to} via Gmail API...`);
     const gmail = await getGmailClient();
 
