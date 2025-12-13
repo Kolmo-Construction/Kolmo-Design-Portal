@@ -893,9 +893,55 @@ export const chatAttachments = pgTable('chat_attachments', {
 export type ChatAttachment = typeof chatAttachments.$inferSelect;
 export type NewChatAttachment = typeof chatAttachments.$inferInsert;
 
+// Conversation facts table for semantic memory with embeddings
+export const conversationFacts = pgTable('conversation_facts', {
+  // Primary Identity
+  id: serial('id').primaryKey(),
+  sessionId: text('session_id').notNull(),
+  projectId: integer('project_id').references(() => projects.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
 
+  // Fact Content
+  factType: text('fact_type').notNull(), // 'task', 'decision', 'milestone', 'financial', 'schedule', 'material', 'risk', 'constraint'
+  factContent: jsonb('fact_content').notNull(), // Structured data about the fact
+  factSummary: text('fact_summary').notNull(), // Human-readable summary for semantic search
 
+  // Embedding for semantic search
+  embedding: vector('embedding', { dimensions: 1536 }), // OpenAI ada-002 dimensions
 
+  // 1. LIFECYCLE & VERSIONING (Handling Change)
+  isActive: boolean('is_active').notNull().default(true),
+  supersededBy: integer('superseded_by').references((): any => conversationFacts.id, { onDelete: 'set null' }),
+  validUntil: timestamp('valid_until', { withTimezone: true }), // For time-bound facts
+  version: integer('version').notNull().default(1),
+
+  // 2. TRUST & ATTRIBUTION (Quality Control)
+  authorRole: text('author_role').notNull().$type<'user' | 'assistant' | 'system'>(), // user, assistant, system
+  confidenceScore: decimal('confidence_score', { precision: 3, scale: 2 }), // 0.00 to 1.00
+  verificationStatus: text('verification_status').notNull().default('pending_approval')
+    .$type<'pending_approval' | 'verified' | 'rejected' | 'needs_review'>(),
+  verifiedBy: integer('verified_by').references(() => users.id, { onDelete: 'set null' }),
+  verifiedAt: timestamp('verified_at', { withTimezone: true }),
+
+  // 3. FINANCIAL METADATA (First-Class Citizen)
+  financialAmount: decimal('financial_amount', { precision: 12, scale: 2 }), // Null if not a financial fact
+  currency: text('currency').default('USD'),
+  financialCategory: text('financial_category'), // Cost codes: 'Materials', 'Labor', '03-Concrete', '16-Electrical'
+  financialType: text('financial_type').$type<'estimate' | 'quote' | 'change_order' | 'hard_cost' | 'invoice' | 'payment' | 'budget' | null>(),
+
+  // 4. PRIORITY & ATTENTION
+  priority: text('priority').notNull().default('normal').$type<'critical' | 'high' | 'normal' | 'low'>(),
+  requiresAction: boolean('requires_action').notNull().default(false),
+  actionDeadline: timestamp('action_deadline', { withTimezone: true }),
+
+  // Metadata & Audit Trail
+  sourceMessageId: text('source_message_id'), // Reference to original chat message
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type ConversationFact = typeof conversationFacts.$inferSelect;
+export type NewConversationFact = typeof conversationFacts.$inferInsert;
 
 // --- RAG Relations ---
 export const projectVersionRelations = relations(projectVersions, ({ one, many }) => ({
