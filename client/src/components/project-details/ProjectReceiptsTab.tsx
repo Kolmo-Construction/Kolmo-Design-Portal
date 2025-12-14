@@ -50,11 +50,11 @@ interface OCRConfig {
 interface ProcessedReceipt {
   id: string;
   projectId: number;
-  amount: number;
+  amount?: number;
   merchant: string;
   date: string;
   category: string;
-  confidence: number;
+  confidence?: number;
   status: 'pending' | 'processed' | 'error';
 }
 
@@ -279,12 +279,12 @@ export function ProjectReceiptsTab({ project }: ProjectReceiptsTabProps) {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold">${receipt.amount.toFixed(2)}</div>
+                      <div className="font-bold">${receipt.amount?.toFixed(2) ?? '0.00'}</div>
                       <div className="flex items-center gap-1 text-sm">
                         <div className="w-16">
-                          <Progress value={receipt.confidence * 100} className="h-2" />
+                          <Progress value={(receipt.confidence ?? 0) * 100} className="h-2" />
                         </div>
-                        <span className="text-muted-foreground">{Math.round(receipt.confidence * 100)}%</span>
+                        <span className="text-muted-foreground">{Math.round((receipt.confidence ?? 0) * 100)}%</span>
                       </div>
                     </div>
                   </div>

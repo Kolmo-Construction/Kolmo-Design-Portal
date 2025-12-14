@@ -122,8 +122,8 @@ export function CreateUserForm({
             <Select
               onValueChange={(value: UserRole) => {
                 field.onChange(value);
-                // Clear projectIds if role is not client
-                if (value !== "client") {
+                // Clear projectIds if role cannot be assigned to projects
+                if (value !== "client" && value !== "contractor") {
                   form.setValue("projectIds", []);
                 }
                 // Set default access scope based on role
@@ -150,7 +150,7 @@ export function CreateUserForm({
               </SelectContent>
             </Select>
             <FormDescription>
-              The user's role determines their level of access.
+              Clients and contractors can be assigned to specific projects.
             </FormDescription>
             <FormMessage />
           </FormItem>
@@ -213,8 +213,8 @@ export function CreateUserForm({
         />
       )}
 
-      {/* Conditional Project Assignment for Clients */}
-      {selectedRole === "client" && (
+      {/* Conditional Project Assignment for Clients and Contractors */}
+      {(selectedRole === "client" || selectedRole === "contractor") && (
         <FormField
           control={form.control}
           name="projectIds"
@@ -223,7 +223,9 @@ export function CreateUserForm({
               <div className="mb-4">
                 <FormLabel className="text-base">Assign Projects</FormLabel>
                 <FormDescription>
-                  Select which projects this client can access upon creation.
+                  {selectedRole === "contractor"
+                    ? "Select which projects this contractor can work on and view."
+                    : "Select which projects this client can access."}
                 </FormDescription>
               </div>
               <ScrollArea className="h-40 w-full rounded-md border p-4">

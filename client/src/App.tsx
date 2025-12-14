@@ -23,6 +23,7 @@ import Schedule from "@/pages/schedule";
 import Selections from "@/pages/selections";
 import Settings from "@/pages/settings";
 import SetupProfile from "@/pages/setup-profile";
+import SetupComplete from "@/pages/setup-complete";
 import UserManagement from "@/pages/UserManagement";
 import DevTools from "@/pages/dev-tools";
 import Quotes from "@/pages/quotes";
@@ -44,6 +45,7 @@ import EditQuotePage from "@/pages/edit-quote";
 import AnalyticsPage from "@/pages/analytics";
 import AgentConsole from "@/pages/AgentConsole";
 import ApiKeyManagement from "@/pages/ApiKeyManagement";
+import TimeTracking from "@/pages/TimeTracking";
 
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth-unified";
@@ -67,6 +69,7 @@ function Router() {
           {() => <AuthPage isPasswordReset={true} />}
         </Route>
         <ProtectedRoute path="/setup-profile" component={SetupProfile} />
+        <ProtectedRoute path="/setup-complete" component={SetupComplete} />
         <ProtectedRoute path="/" component={Dashboard} adminOnly />
         <ProtectedRoute path="/client-portal" component={ClientPortalPage} />
         <ProtectedRoute path="/project-manager" component={ProjectManagerDashboard} projectManagerOnly />
@@ -93,6 +96,7 @@ function Router() {
         <ProtectedRoute path="/settings" component={Settings} adminOnly />
         <ProtectedRoute path="/user-management" component={UserManagement} adminOnly />
         <ProtectedRoute path="/api-keys" component={ApiKeyManagement} adminOnly />
+        <ProtectedRoute path="/time-tracking" component={TimeTracking} adminOnly />
         <ProtectedRoute path="/admin/images" component={AdminImageGallery} adminOnly />
         <ProtectedRoute path="/admin/image-analysis-poc" component={ImageAnalysisPOCPage} adminOnly />
         <ProtectedRoute path="/admin/ai-report-review" component={AIReportReviewPage} adminOnly />

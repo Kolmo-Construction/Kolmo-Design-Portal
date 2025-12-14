@@ -509,7 +509,7 @@ export default function CustomerQuotePage() {
                     variant={isExpired ? "destructive" : hasAccepted ? "default" : hasDeclined ? "destructive" : hasResponded ? "secondary" : "default"}
                     className="px-3 py-1 text-xs font-medium"
                     style={{
-                      backgroundColor: isExpired ? '#dc2626' : hasAccepted ? '#10b981' : hasDeclined ? '#dc2626' : hasResponded ? '#6b7280' : '#db973c',
+                      backgroundColor: isExpired ? '#dc2626' : hasAccepted ? '#d8973c' : hasDeclined ? '#dc2626' : hasResponded ? '#6b7280' : '#db973c',
                       color: 'white'
                     }}
                   >
@@ -610,58 +610,93 @@ export default function CustomerQuotePage() {
 
         {/* Quote Accepted Status */}
         {hasAccepted && (
-          <div className="rounded-2xl shadow-lg text-white p-6" style={{backgroundColor: '#10b981'}}>
+          <div className="rounded-2xl shadow-lg border-2 p-8" style={{
+            borderColor: '#3d4f52',
+            background: 'linear-gradient(135deg, #f8f9fa 0%, #3d4f5208 100%)'
+          }}>
             <div className="text-center">
-              <Check className="h-12 w-12 mx-auto mb-4" />
-              <h3 className="text-2xl font-bold mb-2">Proposal Accepted!</h3>
-              <p className="text-white/80 mb-4 max-w-2xl mx-auto">
+              {/* Primary-colored icon badge with accent highlight */}
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 relative" style={{
+                backgroundColor: '#3d4f52',
+                boxShadow: '0 0 0 4px #d8973c40'
+              }}>
+                <Check className="h-10 w-10 text-white" />
+                <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full" style={{backgroundColor: '#d8973c'}}>
+                  <span className="text-white text-xs font-bold flex items-center justify-center h-full">✓</span>
+                </div>
+              </div>
+              <h3 className="text-3xl font-bold mb-3" style={{color: '#3d4f52'}}>
+                Proposal Accepted!
+              </h3>
+              <p className="text-lg mb-6 max-w-2xl mx-auto" style={{color: '#4a6670'}}>
                 Thank you for accepting our proposal. We're excited to get started on your project!
               </p>
-              <div className="bg-white/10 rounded-xl p-4 max-w-md mx-auto">
-                <p className="text-sm text-white/90">
+              <div className="rounded-xl p-5 max-w-md mx-auto border-2" style={{
+                backgroundColor: 'white',
+                borderColor: '#d8973c',
+                boxShadow: '0 4px 6px -1px rgba(61, 79, 82, 0.1)'
+              }}>
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <div className="w-2 h-2 rounded-full" style={{backgroundColor: '#d8973c'}}></div>
+                  <span className="text-xs font-bold uppercase tracking-wide" style={{color: '#3d4f52'}}>
+                    Acceptance Details
+                  </span>
+                  <div className="w-2 h-2 rounded-full" style={{backgroundColor: '#d8973c'}}></div>
+                </div>
+                <p className="text-sm font-medium" style={{color: '#3d4f52'}}>
                   <strong>Accepted on:</strong> {formatDate(acceptedResponse?.createdAt || '')}
                 </p>
                 {acceptedResponse?.customerName && (
-                  <p className="text-sm text-white/90 mt-1">
+                  <p className="text-sm font-medium mt-2" style={{color: '#3d4f52'}}>
                     <strong>By:</strong> {acceptedResponse.customerName}
                   </p>
                 )}
               </div>
-              <p className="text-white/70 text-sm mt-4">
-                Our team will be in touch shortly to schedule your project kickoff.
-              </p>
+              <div className="mt-6 pt-6 border-t" style={{borderColor: '#3d4f5220'}}>
+                <p className="text-sm font-medium" style={{color: '#4a6670'}}>
+                  Our team will be in touch shortly to schedule your project kickoff.
+                </p>
+              </div>
             </div>
           </div>
         )}
 
 
         {/* Project Information */}
-        <div id="section-project-details" className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
-            <h3 className="text-xl font-bold" style={{color: '#1a1a1a'}}>Project Details</h3>
+        <div id="section-project-details" className="bg-white rounded-2xl shadow-lg border-2 overflow-hidden" style={{borderColor: '#3d4f52'}}>
+          <div className="px-6 py-4 border-b-2 flex items-center gap-3" style={{
+            backgroundColor: '#3d4f52',
+            borderBottomColor: '#d8973c'
+          }}>
+            <FileText className="h-5 w-5 text-white" />
+            <h3 className="text-xl font-bold text-white">Project Details</h3>
           </div>
           <div className="p-6">
             <div className="mb-6">
-              <h4 className="text-2xl font-bold mb-2" style={{color: '#1a1a1a'}}>{quoteData.title}</h4>
-              <div className="flex items-center gap-2 font-medium mb-4" style={{color: '#db973c'}}>
+              <h4 className="text-2xl font-bold mb-2" style={{color: '#3d4f52'}}>{quoteData.title}</h4>
+              <div className="flex items-center gap-2 font-medium mb-4 px-3 py-2 rounded-lg inline-flex" style={{
+                color: '#d8973c',
+                backgroundColor: '#d8973c15',
+                border: '1px solid #d8973c40'
+              }}>
                 <Home className="h-5 w-5" />
                 <span>{quoteData.projectType}</span>
               </div>
               {quoteData.description && (
                 <div className="prose prose-slate max-w-none leading-relaxed" style={{color: '#4a6670'}}>
-                  <ReactMarkdown 
+                  <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      h1: ({node, ...props}) => <h1 className="text-2xl font-bold mb-4" style={{color: '#1a1a1a'}} {...props} />,
-                      h2: ({node, ...props}) => <h2 className="text-xl font-semibold mb-3" style={{color: '#1a1a1a'}} {...props} />,
-                      h3: ({node, ...props}) => <h3 className="text-lg font-medium mb-2" style={{color: '#1a1a1a'}} {...props} />,
+                      h1: ({node, ...props}) => <h1 className="text-2xl font-bold mb-4" style={{color: '#3d4f52'}} {...props} />,
+                      h2: ({node, ...props}) => <h2 className="text-xl font-semibold mb-3" style={{color: '#3d4f52'}} {...props} />,
+                      h3: ({node, ...props}) => <h3 className="text-lg font-medium mb-2" style={{color: '#3d4f52'}} {...props} />,
                       p: ({node, ...props}) => <p className="mb-3 leading-relaxed" style={{color: '#4a6670'}} {...props} />,
                       ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-3 space-y-1" {...props} />,
                       ol: ({node, ...props}) => <ol className="list-decimal pl-6 mb-3 space-y-1" {...props} />,
                       li: ({node, ...props}) => <li style={{color: '#4a6670'}} {...props} />,
-                      strong: ({node, ...props}) => <strong className="font-semibold" style={{color: '#1a1a1a'}} {...props} />,
-                      hr: ({node, ...props}) => <hr className="my-6 border-gray-200" {...props} />,
-                      blockquote: ({node, ...props}) => <blockquote className="border-l-4 pl-4 italic" style={{borderColor: '#db973c', color: '#4a6670'}} {...props} />,
+                      strong: ({node, ...props}) => <strong className="font-semibold" style={{color: '#3d4f52'}} {...props} />,
+                      hr: ({node, ...props}) => <hr className="my-6" style={{borderColor: '#3d4f5230'}} {...props} />,
+                      blockquote: ({node, ...props}) => <blockquote className="border-l-4 pl-4 italic" style={{borderColor: '#d8973c', color: '#4a6670'}} {...props} />,
                     }}
                   >
                     {quoteData.description}
@@ -702,13 +737,16 @@ export default function CustomerQuotePage() {
 
         {/* Project Breakdown */}
         {quoteData.lineItems && quoteData.lineItems.length > 0 && (
-          <div id="section-investment-breakdown" className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
+          <div id="section-investment-breakdown" className="bg-white rounded-2xl shadow-lg border-2 overflow-hidden" style={{borderColor: '#3d4f52'}}>
+            <div className="px-6 py-4 border-b-2" style={{
+              backgroundColor: '#3d4f52',
+              borderBottomColor: '#d8973c'
+            }}>
               <div className="flex items-center gap-3">
-                <Calculator className="h-6 w-6" style={{color: '#db973c'}} />
+                <Calculator className="h-6 w-6 text-white" />
                 <div>
-                  <h3 className="text-xl font-bold" style={{color: '#1a1a1a'}}>Investment Breakdown</h3>
-                  <p style={{color: '#4a6670'}}>Transparent pricing for every component</p>
+                  <h3 className="text-xl font-bold text-white">Investment Breakdown</h3>
+                  <p className="text-white/80 text-sm">Transparent pricing for every component</p>
                 </div>
               </div>
             </div>
@@ -772,14 +810,17 @@ export default function CustomerQuotePage() {
           const hasBeforeAfterPairs = beforeImages.length > 0 || afterImages.length > 0;
           
           return hasBeforeAfterPairs ? (
-            <div id="section-project-transformation" className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-              <div className="px-4 sm:px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
+            <div id="section-project-transformation" className="bg-white rounded-2xl shadow-lg border-2 overflow-hidden" style={{borderColor: '#3d4f52'}}>
+              <div className="px-4 sm:px-6 py-4 border-b-2" style={{
+                backgroundColor: '#3d4f52',
+                borderBottomColor: '#d8973c'
+              }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Eye className="h-5 w-5 sm:h-6 sm:w-6" style={{color: '#db973c'}} />
+                    <Eye className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                     <div>
-                      <h3 className="text-lg sm:text-xl font-bold" style={{color: '#1a1a1a'}}>Project Transformation</h3>
-                      <p className="text-sm sm:text-base" style={{color: '#4a6670'}}>Interactive before & after comparison{beforeImages.length > 1 || afterImages.length > 1 ? ` - ${Math.max(beforeImages.length, afterImages.length)} pair${Math.max(beforeImages.length, afterImages.length) > 1 ? 's' : ''}` : ''}</p>
+                      <h3 className="text-lg sm:text-xl font-bold text-white">Project Transformation</h3>
+                      <p className="text-sm sm:text-base text-white/80">Interactive before & after comparison{beforeImages.length > 1 || afterImages.length > 1 ? ` - ${Math.max(beforeImages.length, afterImages.length)} pair${Math.max(beforeImages.length, afterImages.length) > 1 ? 's' : ''}` : ''}</p>
                     </div>
                   </div>
                   <Button
@@ -1051,13 +1092,16 @@ export default function CustomerQuotePage() {
         </div>
 
         {/* Payment Schedule */}
-        <div id="section-payment-schedule" className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
+        <div id="section-payment-schedule" className="bg-white rounded-2xl shadow-lg border-2 overflow-hidden" style={{borderColor: '#3d4f52'}}>
+          <div className="px-6 py-4 border-b-2" style={{
+            backgroundColor: '#3d4f52',
+            borderBottomColor: '#d8973c'
+          }}>
             <div className="flex items-center gap-3">
-              <DollarSign className="h-6 w-6" style={{color: '#db973c'}} />
+              <DollarSign className="h-6 w-6 text-white" />
               <div>
-                <h3 className="text-xl font-bold" style={{color: '#1a1a1a'}}>Payment Schedule</h3>
-                <p style={{color: '#4a6670'}}>Flexible payment structure to fit your budget</p>
+                <h3 className="text-xl font-bold text-white">Payment Schedule</h3>
+                <p className="text-white/80 text-sm">Flexible payment structure to fit your budget</p>
               </div>
             </div>
           </div>

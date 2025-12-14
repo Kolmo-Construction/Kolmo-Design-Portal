@@ -77,6 +77,12 @@ export const getQueryFn: <T>(options: {
     return await res.json();
   };
 
+// Mutation helpers
+export const postMutationFn = (url: string) => (data: unknown) => apiRequest("POST", url, data);
+export const patchMutationFn = (url: string) => (data: unknown) => apiRequest("PATCH", url, data);
+export const putMutationFn = (url: string) => (data: unknown) => apiRequest("PUT", url, data);
+export const deleteMutationFn = (url: string) => () => apiRequest("DELETE", url);
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

@@ -6,6 +6,9 @@ const ALLOWED_MIME_TYPES = [
     'image/jpeg',
     'image/png',
     'image/gif',
+    'image/webp',
+    'image/heic',
+    'image/heif',
     'application/pdf',
     'application/msword', // .doc
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
@@ -13,6 +16,7 @@ const ALLOWED_MIME_TYPES = [
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
     'text/plain',
     'application/zip', // Allow zip files
+    'application/json', // Allow JSON metadata files from mobile app
     // Add other allowed types as needed
 ];
 

@@ -114,7 +114,7 @@ export function CreateUserDialog({
     }
   }, [isOpen, userToEdit, form]);
 
-  // Fetch projects for assignment dropdown (only when dialog is open and role is client)
+  // Fetch projects for assignment dropdown (when dialog is open and role is client or contractor)
   const selectedRole = form.watch("role");
   const {
     data: projects = [],
@@ -122,12 +122,14 @@ export function CreateUserDialog({
   } = useQuery<Project[], Error>({
     queryKey: ["/api/projects"], // Use a consistent key
     queryFn: getQueryFn({ on401: "throw" }),
-    enabled: isOpen && selectedRole === 'client', // Only fetch when needed
+    enabled: isOpen && (selectedRole === 'client' || selectedRole === 'contractor'), // Fetch for clients and contractors
   });
 
   const onSubmit = (data: NewUserFormValues) => {
-    // Clear projectIds if role is not client before submitting
-    const submissionData = data.role === 'client' ? data : { ...data, projectIds: [] };
+    // Clear projectIds if role cannot be assigned to projects
+    const submissionData = (data.role === 'client' || data.role === 'contractor')
+      ? data
+      : { ...data, projectIds: [] };
 
     createOrUpdateMutation.mutate(submissionData, {
       onSuccess: async (response) => {
@@ -227,7 +229,7 @@ export function CreateUserDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       {/* Prevent auto-closing via overlay click when showing link */}
-      <DialogContent className="sm:max-w-md" onInteractOutside={(e) => { if(createdMagicLink) e.preventDefault(); }}>
+      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col" onInteractOutside={(e) => { if(createdMagicLink) e.preventDefault(); }}>
         <DialogHeader>
           <DialogTitle>
             {createdMagicLink ? "Magic Link Created" : isEditMode ? "Edit User" : "Create New User"}
@@ -293,7 +295,8 @@ export function CreateUserDialog({
         ) : (
           // Create User Form Section
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
+              <div className="space-y-4 pt-4 overflow-y-auto flex-1 px-1">
               <CreateUserForm
                 form={form}
                 projects={projects}
@@ -310,8 +313,9 @@ export function CreateUserDialog({
                   </AlertDescription>
                 </Alert>
               )}
+              </div>
 
-              <DialogFooter className="pt-4">
+              <DialogFooter className="pt-4 flex-shrink-0">
                 <div className="flex w-full justify-between items-center">
                   {/* Delete button on the left (only in edit mode) */}
                   {isEditMode && userToEdit && onDeleteUser && (

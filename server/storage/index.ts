@@ -47,6 +47,7 @@ export interface StorageAggregate {
     // Permission helper functions
     projectManagerHasProjectAccess: (userId: number, projectId: number) => Promise<boolean>;
     clientHasProjectAccess: (userId: number, projectId: number) => Promise<boolean>;
+    contractorHasProjectAccess: (userId: number, projectId: number) => Promise<boolean>;
 }
 
 // Create PostgreSQL session store
@@ -85,10 +86,25 @@ const clientHasProjectAccess = async (userId: number, projectId: number): Promis
             where: eq(schema.projects.id, projectId),
             with: { clientProjects: { columns: { clientId: true } } }
         });
-        
+
         return project?.clientProjects?.some(c => c.clientId === userId) || false;
     } catch (error) {
         console.error(`Error checking client access for user ${userId} to project ${projectId}:`, error);
+        return false;
+    }
+};
+
+const contractorHasProjectAccess = async (userId: number, projectId: number): Promise<boolean> => {
+    try {
+        // Contractors are also stored in clientProjects table (it's a user-project junction table)
+        const project = await db.query.projects.findFirst({
+            where: eq(schema.projects.id, projectId),
+            with: { clientProjects: { columns: { clientId: true } } }
+        });
+
+        return project?.clientProjects?.some(c => c.clientId === userId) || false;
+    } catch (error) {
+        console.error(`Error checking contractor access for user ${userId} to project ${projectId}:`, error);
         return false;
     }
 };
@@ -114,6 +130,7 @@ export const storage: StorageAggregate = {
     sessionStore,
     projectManagerHasProjectAccess,
     clientHasProjectAccess,
+    contractorHasProjectAccess,
 };
 
 // Optionally re-export individual repositories if needed elsewhere

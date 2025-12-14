@@ -108,9 +108,9 @@ export default function UserManagement() {
       <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
-      <main className="lg:ml-64 p-4 lg:p-8 pt-24 overflow-auto h-full">
+      <main className="lg:ml-64 p-4 lg:p-8 overflow-auto h-full">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-6 mt-20">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">User Management</h1>
             <p className="text-slate-600">

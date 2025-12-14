@@ -22,7 +22,7 @@ import {
 
 export interface AgentAction {
   type: 'SUGGEST_ACTION' | 'RESPONSE';
-  action?: 'CREATE_TASK' | 'UPDATE_TASK' | 'CREATE_MILESTONE' | 'SEND_INVOICE' | 'UPDATE_PROJECT_STATUS';
+  action?: 'CREATE_TASK' | 'UPDATE_TASK' | 'CREATE_MILESTONE' | 'SEND_INVOICE' | 'UPDATE_PROJECT_STATUS' | 'CREATE_INVOICE' | 'RECORD_PAYMENT';
   payload?: Record<string, any>;
   message?: string;
   reasoning?: string;
@@ -76,6 +76,22 @@ const ACTION_METADATA = {
     textColor: 'text-indigo-700',
     bgColor: 'bg-indigo-50',
   },
+  CREATE_INVOICE: {
+    label: 'Create Invoice',
+    description: 'Generate a new invoice',
+    icon: DollarSign,
+    color: 'bg-emerald-500',
+    textColor: 'text-emerald-700',
+    bgColor: 'bg-emerald-50',
+  },
+  RECORD_PAYMENT: {
+    label: 'Record Payment',
+    description: 'Log a payment received',
+    icon: DollarSign,
+    color: 'bg-teal-500',
+    textColor: 'text-teal-700',
+    bgColor: 'bg-teal-50',
+  },
 };
 
 export function AgentActionCard({
@@ -99,6 +115,30 @@ export function AgentActionCard({
   }
 
   const metadata = ACTION_METADATA[action.action];
+
+  // If action type is not recognized, render as a simple message card
+  if (!metadata) {
+    return (
+      <Card className="border-gray-200">
+        <CardContent className="pt-6">
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-gray-700">
+              Unknown Action: {action.action}
+            </p>
+            <p className="text-sm text-gray-600">
+              {action.message || action.reasoning || 'No details provided'}
+            </p>
+            {action.payload && Object.keys(action.payload).length > 0 && (
+              <pre className="text-xs bg-gray-50 p-2 rounded mt-2 overflow-auto">
+                {JSON.stringify(action.payload, null, 2)}
+              </pre>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const Icon = metadata.icon;
 
   const handleApprove = async () => {

@@ -17,6 +17,12 @@ interface ClientDashboardResponse {
     totalTasks: number;
     avgProgress: number;
   };
+  financialStats: {
+    totalBudget: number;
+    totalInvoiced: number;
+    remaining: number;
+    percentageUsed: number;
+  };
 }
 
 export const getClientInvoices = async (
@@ -215,9 +221,32 @@ export const getClientDashboard = async (
     const totalProjects = enhancedProjects.length;
     const totalTasks = enhancedProjects.reduce((sum: number, p: any) => sum + (p.totalTasks || 0), 0);
     const completedTasks = enhancedProjects.reduce((sum: number, p: any) => sum + (p.completedTasks || 0), 0);
-    const avgProgress = totalProjects > 0 
-      ? enhancedProjects.reduce((sum: number, p: any) => sum + (p.progress || 0), 0) / totalProjects 
+    const avgProgress = totalProjects > 0
+      ? enhancedProjects.reduce((sum: number, p: any) => sum + (p.progress || 0), 0) / totalProjects
       : 0;
+
+    // Calculate financial statistics
+    const totalBudget = enhancedProjects.reduce((sum: number, p: any) => {
+      const budget = parseFloat(p.totalBudget || '0');
+      return sum + budget;
+    }, 0);
+
+    // Calculate total invoiced amount from all invoices for client's projects
+    let totalInvoiced = 0;
+    if (projectIds.length > 0) {
+      try {
+        const invoicePromises = projectIds.map(id =>
+          storage.invoices?.getInvoicesForProject(id).catch(() => [])
+        );
+        const allInvoices = await Promise.all(invoicePromises);
+        totalInvoiced = allInvoices.flat().reduce((sum: number, inv: any) => {
+          const amount = parseFloat(inv.totalAmount || '0');
+          return sum + amount;
+        }, 0);
+      } catch (error) {
+        console.log('Could not calculate total invoiced amount');
+      }
+    }
 
     const dashboardData: ClientDashboardResponse = {
       projects: enhancedProjects,
@@ -229,6 +258,12 @@ export const getClientDashboard = async (
         completedTasks,
         totalTasks,
         avgProgress: Math.round(avgProgress)
+      },
+      financialStats: {
+        totalBudget,
+        totalInvoiced,
+        remaining: totalBudget - totalInvoiced,
+        percentageUsed: totalBudget > 0 ? (totalInvoiced / totalBudget) * 100 : 0
       }
     };
 

@@ -231,24 +231,32 @@ export function setupAuth(app: Express) {
     new LocalStrategy({ usernameField: 'username' }, async (username, password, done) => {
       try {
         console.log('[LocalStrategy] Login attempt for username:', username);
-        
+
         // Updated to use storage.users
         const user = await storage.users.getUserByUsername(username);
         console.log('[LocalStrategy] User lookup result:', user ? `Found user ID ${user.id}` : 'No user found');
-        
+
         if (!user) {
           console.log('[LocalStrategy] Authentication failed: User not found');
           return done(null, false, { message: 'Invalid username or password' });
         }
-        
+
+        // Check if user has a password set (for magic-link only users)
+        if (!user.password) {
+          console.log('[LocalStrategy] Authentication failed: User has no password (magic link only)');
+          return done(null, false, {
+            message: 'This account uses email login only. Please login using the magic link sent to your email.'
+          });
+        }
+
         const passwordMatch = await comparePasswords(password, user.password);
         console.log('[LocalStrategy] Password comparison result:', passwordMatch);
-        
+
         if (!passwordMatch) {
           console.log('[LocalStrategy] Authentication failed: Invalid password');
           return done(null, false, { message: 'Invalid username or password' });
         }
-        
+
         console.log('[LocalStrategy] Authentication successful for user:', user.id);
         return done(null, user);
       } catch (err) {
@@ -432,16 +440,16 @@ export function setupAuth(app: Express) {
         });
       }
 
-      // If this is a client user and there are project IDs, associate them with projects
-      if (role === "client" && projectIds.length > 0 && Array.isArray(projectIds)) {
+      // If this is a client or contractor user and there are project IDs, associate them with projects
+      if ((role === "client" || role === "contractor") && projectIds.length > 0 && Array.isArray(projectIds)) {
         try {
-          // Create client-project associations - Updated to use storage.projects
+          // Create user-project associations - Updated to use storage.projects
           for (const projectId of projectIds) {
             await storage.projects.assignClientToProject(user.id, projectId);
           }
-          console.log(`Assigned client ${user.id} to ${projectIds.length} projects`);
+          console.log(`Assigned ${role} ${user.id} to ${projectIds.length} projects`);
         } catch (error) {
-          console.error("Error assigning client to projects:", error);
+          console.error(`Error assigning ${role} to projects:`, error);
           // Continue with the response even if project assignment fails
         }
       }
@@ -498,28 +506,45 @@ export function setupAuth(app: Express) {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      const { username, password, firstName, lastName, phone } = req.body;
+      const { username, password, firstName, lastName, phone, setupPassword } = req.body;
 
-      if (!username || !password || !firstName || !lastName) {
-        return res.status(400).json({ message: "Username, password, first name, and last name are required" });
+      // First name and last name are always required
+      if (!firstName || !lastName) {
+        return res.status(400).json({ message: "First name and last name are required" });
       }
 
-      // Check if username is already taken by another user - Updated to use storage.users
-      const existingUser = await storage.users.getUserByUsername(username);
-      if (existingUser && existingUser.id !== req.user.id) {
-        return res.status(400).json({ message: "Username already exists" });
+      // If user opted to setup password, validate username and password
+      if (setupPassword || username || password) {
+        if (!username || !password) {
+          return res.status(400).json({
+            message: "Both username and password are required if setting up password login"
+          });
+        }
+
+        // Check if username is already taken by another user
+        const existingUser = await storage.users.getUserByUsername(username);
+        if (existingUser && existingUser.id !== req.user.id) {
+          return res.status(400).json({ message: "Username already exists" });
+        }
       }
 
-      // Update the user's profile - Updated to use storage.users
-      const hashedPassword = await hashPassword(password);
-      const updatedUser = await storage.users.updateUser(req.user.id, {
-        username,
-        password: hashedPassword,
+      // Prepare update data
+      const updateData: any = {
         firstName,
         lastName,
         phone,
         isActivated: true
-      });
+      };
+
+      // Only add username and password if provided
+      if (username && password) {
+        const hashedPassword = await hashPassword(password);
+        updateData.username = username;
+        updateData.password = hashedPassword;
+      }
+
+      // Update the user's profile
+      const updatedUser = await storage.users.updateUser(req.user.id, updateData);
 
       // Remove sensitive information from response
       const { password: _, magicLinkToken, magicLinkExpiry, ...userWithoutSensitiveData } = updatedUser;
@@ -738,8 +763,8 @@ export function setupAuth(app: Express) {
         isActivated: isActivated !== undefined ? isActivated : userToUpdate.isActivated,
       });
 
-      // Handle project assignments for clients
-      if (role === "client" && projectIds !== undefined && Array.isArray(projectIds)) {
+      // Handle project assignments for clients and contractors
+      if ((role === "client" || role === "contractor") && projectIds !== undefined && Array.isArray(projectIds)) {
         try {
           const { db } = await import("@server/db");
           const { clientProjects } = await import("@shared/schema");
@@ -752,9 +777,9 @@ export function setupAuth(app: Express) {
           for (const projectId of projectIds) {
             await storage.projects.assignClientToProject(userId, projectId);
           }
-          console.log(`Updated client ${userId} project assignments to ${projectIds.length} projects`);
+          console.log(`Updated ${role} ${userId} project assignments to ${projectIds.length} projects`);
         } catch (error) {
-          console.error("Error updating project assignments:", error);
+          console.error(`Error updating ${role} project assignments:`, error);
           // Continue with response even if project assignment update fails
         }
       }

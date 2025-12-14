@@ -152,6 +152,19 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
 
   const expenseSummary = expenseSummaryResponse?.summary;
 
+  // Fetch labor costs for the project
+  const {
+    data: laborCostsResponse,
+    isLoading: isLoadingLaborCosts,
+    error: laborCostsError,
+  } = useQuery<{ success: boolean; laborCosts: { totalLaborCost: number; totalHours: number; entryCount: number } }>({
+    queryKey: [`/api/time/project/${projectId}/labor-costs`],
+    queryFn: getQueryFn({ on401: "throw" }),
+    enabled: !!projectId,
+  });
+
+  const laborCosts = laborCostsResponse?.laborCosts;
+
   // Billing mutation for completed milestones
   const billMilestoneMutation = useMutation({
     mutationFn: async (milestoneId: number) => {
@@ -285,8 +298,11 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
       .filter(inv => inv.status === 'paid')
       .reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
 
-    // Calculate total expenses from receipts
-    const totalExpenses = expenseSummary?.totalAmount || 0;
+    // Calculate total expenses from receipts and labor
+    const receiptExpenses = expenseSummary?.totalAmount || 0;
+    const totalLaborCost = laborCosts?.totalLaborCost || 0;
+    const totalExpenses = receiptExpenses + totalLaborCost;
+
     const verifiedExpenses = receipts
       .filter(r => r.isVerified)
       .reduce((sum, r) => sum + parseFloat(r.totalAmount || '0'), 0);
@@ -294,7 +310,7 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
     const remainingToInvoice = Math.max(0, totalBillableAmount - totalInvoiced);
     const remainingToPay = Math.max(0, totalInvoiced - totalPaid);
 
-    // Calculate remaining budget after expenses
+    // Calculate remaining budget after expenses (including labor)
     const netPosition = totalPaid - totalExpenses;
     const remainingBudget = projectBudget - totalExpenses;
 
@@ -307,6 +323,8 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
       remainingToInvoice,
       remainingToPay,
       totalExpenses,
+      receiptExpenses,
+      totalLaborCost,
       verifiedExpenses,
       netPosition,
       remainingBudget,
@@ -322,12 +340,14 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
     remainingToInvoice,
     remainingToPay,
     totalExpenses,
+    receiptExpenses,
+    totalLaborCost,
     verifiedExpenses,
     netPosition,
     remainingBudget,
   } = calculateFinancialSummary();
 
-  if (isLoadingMilestones || isLoadingInvoices || isLoadingProject || isLoadingReceipts || isLoadingExpenseSummary) {
+  if (isLoadingMilestones || isLoadingInvoices || isLoadingProject || isLoadingReceipts || isLoadingExpenseSummary || isLoadingLaborCosts) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-32 w-full" />
@@ -338,7 +358,7 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
     );
   }
 
-  if (milestonesError || invoicesError || projectError || receiptsError || expenseSummaryError) {
+  if (milestonesError || invoicesError || projectError || receiptsError || expenseSummaryError || laborCostsError) {
     return (
       <Alert>
         <AlertTriangle className="h-4 w-4" />
@@ -383,9 +403,24 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
             <div className="text-center p-4 bg-red-50 rounded-lg border">
               <div className="text-2xl font-bold text-red-700">${totalExpenses.toFixed(2)}</div>
               <div className="text-sm text-red-600">Total Expenses</div>
+              <div className="text-xs text-red-500 mt-2 space-y-1">
+                <div className="flex justify-between">
+                  <span>Receipts:</span>
+                  <span className="font-medium">${receiptExpenses.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Labor:</span>
+                  <span className="font-medium">${totalLaborCost.toFixed(2)}</span>
+                </div>
+                {laborCosts && laborCosts.totalHours > 0 && (
+                  <div className="text-[10px] text-red-400 mt-1">
+                    {laborCosts.totalHours.toFixed(1)}h × {laborCosts.entryCount} {laborCosts.entryCount === 1 ? 'entry' : 'entries'}
+                  </div>
+                )}
+              </div>
               {expenseSummary && expenseSummary.unverified > 0 && (
-                <div className="text-xs text-red-500 mt-1">
-                  {expenseSummary.unverified} pending verification
+                <div className="text-xs text-red-500 mt-2 pt-2 border-t border-red-200">
+                  {expenseSummary.unverified} receipt{expenseSummary.unverified !== 1 ? 's' : ''} pending verification
                 </div>
               )}
             </div>

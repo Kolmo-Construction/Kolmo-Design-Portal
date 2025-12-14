@@ -274,6 +274,121 @@ Now analyze the receipt and respond with ONLY the JSON (no markdown, no code blo
   }
 
   /**
+   * Analyze construction photo and generate caption + insights
+   */
+  async analyzeConstructionPhoto(imageUrl: string, projectContext?: string): Promise<{
+    caption: string;
+    detectedElements: string[];
+    workStatus: string;
+    suggestedTags: string[];
+  }> {
+    if (!this.isConfigured()) {
+      return {
+        caption: 'Construction site photo',
+        detectedElements: [],
+        workStatus: 'Photo uploaded',
+        suggestedTags: [],
+      };
+    }
+
+    try {
+      // Fetch image from URL
+      const response = await fetch(imageUrl);
+      const arrayBuffer = await response.arrayBuffer();
+      const imageBuffer = Buffer.from(arrayBuffer);
+      const base64Image = imageBuffer.toString('base64');
+
+      // Determine mime type from URL
+      const ext = imageUrl.split('.').pop()?.toLowerCase() || 'jpg';
+      const mimeType = this.getContentType(`file.${ext}`);
+
+      const contextPrompt = projectContext
+        ? `This photo is from: ${projectContext}\n\n`
+        : '';
+
+      const prompt = `${contextPrompt}Analyze this construction site photo and provide:
+
+1. A detailed 2-3 sentence caption describing what you see (focus on work completed, materials visible, equipment, safety)
+2. List of detected elements (materials, equipment, work areas, specific features)
+3. Work status assessment (what stage/type of work is shown)
+4. 3-5 suggested tags for categorization
+
+Respond in JSON format:
+{
+  "caption": "...",
+  "detectedElements": ["...", "...", "..."],
+  "workStatus": "...",
+  "suggestedTags": ["...", "...", "..."]
+}`;
+
+      const model = genAI.getGenerativeModel({ model: this.MODEL });
+
+      const result = await model.generateContent([
+        { text: prompt },
+        {
+          inlineData: {
+            mimeType,
+            data: base64Image,
+          },
+        },
+      ]);
+
+      const text = result.response.text();
+
+      // Parse JSON response (handle markdown code blocks)
+      const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/\{[\s\S]*\}/);
+      const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text;
+      const analysis = JSON.parse(jsonText);
+
+      return {
+        caption: analysis.caption || 'Construction site photo',
+        detectedElements: analysis.detectedElements || [],
+        workStatus: analysis.workStatus || 'Work in progress',
+        suggestedTags: analysis.suggestedTags || [],
+      };
+    } catch (error) {
+      console.error('[GeminiReceipt] Error analyzing construction photo:', error);
+      return {
+        caption: 'Construction site photo',
+        detectedElements: [],
+        workStatus: 'Photo uploaded',
+        suggestedTags: [],
+      };
+    }
+  }
+
+  /**
+   * Generate project status update from multiple photos
+   */
+  async generateProjectUpdate(
+    photos: Array<{ url: string; caption?: string }>,
+    projectDetails: { name: string; description?: string }
+  ): Promise<string> {
+    if (!this.isConfigured() || photos.length === 0) {
+      return `${photos.length} photos uploaded for ${projectDetails.name}`;
+    }
+
+    try {
+      const prompt = `Based on ${photos.length} construction photos for project "${projectDetails.name}", generate a brief project status update (2-3 sentences).
+
+Photos show:
+${photos.map((p, i) => `${i + 1}. ${p.caption || 'Construction photo'}`).join('\n')}
+
+${projectDetails.description ? `Project context: ${projectDetails.description}` : ''}
+
+Generate a concise status update suitable for project reporting. Focus on what work has been completed or is in progress.`;
+
+      const model = genAI.getGenerativeModel({ model: this.MODEL });
+      const result = await model.generateContent(prompt);
+
+      return result.response.text().trim();
+    } catch (error) {
+      console.error('[GeminiReceipt] Error generating project update:', error);
+      return `${photos.length} new photos uploaded showing project progress for ${projectDetails.name}`;
+    }
+  }
+
+  /**
    * Get content type from filename
    */
   private getContentType(filename: string): string {
@@ -284,10 +399,14 @@ Now analyze the receipt and respond with ONLY the JSON (no markdown, no code blo
         return 'image/jpeg';
       case 'png':
         return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'gif':
+        return 'image/gif';
       case 'pdf':
         return 'application/pdf';
       default:
-        return 'application/octet-stream';
+        return 'image/jpeg'; // Default to jpeg for unknown image types
     }
   }
 }

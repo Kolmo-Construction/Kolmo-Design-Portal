@@ -216,9 +216,70 @@ export async function getProjectPermissions(
     };
   }
   
+  // Check if user is contractor for this project
+  const isContractor = await storage.contractorHasProjectAccess(userId, projectId);
+
+  if (userRole.toLowerCase() === 'contractor' && isContractor) {
+    // Contractors have limited permissions - focused on field work
+    return {
+      canViewProject: true,
+      canEditProject: false,
+      canDeleteProject: false,
+      canManageProjectSettings: false,
+      canViewProjectAnalytics: false,
+      canCreateTasks: false,
+      canEditTasks: false,
+      canDeleteTasks: false,
+      canAssignTasks: false,
+      canViewTaskDependencies: true,
+      canManageTaskDependencies: false,
+      canPublishTasks: false,
+      canImportTasks: false,
+      canUploadDocuments: false, // Contractors can't upload documents
+      canDeleteDocuments: false,
+      canViewDocuments: true, // Can view project documents
+      canManageDocumentCategories: false,
+      canCreateProgressUpdates: true, // Can create updates from field
+      canEditProgressUpdates: false, // Can't edit updates
+      canDeleteProgressUpdates: false,
+      canSendMessages: false,
+      canViewMessages: false,
+      canManageProjectChat: false,
+      canViewInvoices: false, // Contractors can't view invoices
+      canCreateInvoices: false,
+      canEditInvoices: false,
+      canSendInvoices: false,
+      canViewPayments: false,
+      canProcessPayments: false,
+      canViewClients: false,
+      canCommunicateWithClients: false,
+      canManageClientAccess: false,
+      canCreateMilestones: false,
+      canEditMilestones: false,
+      canDeleteMilestones: false,
+      canCompleteMilestones: false,
+      canBillMilestones: false,
+      canCreatePunchListItems: false,
+      canEditPunchListItems: false,
+      canDeletePunchListItems: false,
+      canCompletePunchListItems: false,
+      canCreateDailyLogs: true, // Can create daily logs from field
+      canEditDailyLogs: false,
+      canViewDailyLogs: true,
+      canUploadMedia: true, // Can upload photos/images from field
+      canDeleteMedia: false, // Can't delete media
+      canViewMedia: true,
+      canAssignTeamMembers: false,
+      canViewTeamPerformance: false,
+      canGenerateReports: false,
+      canViewProjectMetrics: false,
+      canExportData: false,
+    };
+  }
+
   // Check if user is client for this project
   const isClient = await storage.clientHasProjectAccess(userId, projectId);
-  
+
   if (userRole.toLowerCase() === 'client' && isClient) {
     // Clients have limited permissions
     return {
@@ -276,7 +337,7 @@ export async function getProjectPermissions(
       canExportData: false,
     };
   }
-  
+
   // No access by default
   return {
     canViewProject: false,

@@ -121,7 +121,7 @@ export const users = pgTable("users", {
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   phone: text("phone"),
-  role: text("role").notNull().default("client"), // client, admin, projectManager
+  role: text("role").notNull().default("client"), // client, admin, projectManager, contractor
   accessScope: text("access_scope").notNull().default("both"), // Platform access: 'web', 'mobile', or 'both'
 
   // Labor cost tracking

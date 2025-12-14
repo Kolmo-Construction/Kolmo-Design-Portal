@@ -163,6 +163,12 @@ interface ClientDashboardData {
     totalTasks: number;
     avgProgress: number;
   };
+  financialStats: {
+    totalBudget: number;
+    totalInvoiced: number;
+    remaining: number;
+    percentageUsed: number;
+  };
 }
 
 export default function ClientPortal() {
@@ -292,18 +298,55 @@ export default function ClientPortal() {
       </div>
 
       <div className="container mx-auto px-6 py-12">
-        {/* Simplified Progress Overview */}
+        {/* Budget Tracker */}
         <div className="mb-8">
-          <Card className="border-accent/20 shadow-lg">
+          <Card className="border-primary/20 shadow-lg">
             <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">Your Progress</h2>
-                <span className="text-3xl font-bold text-accent">{Math.round(progressPercentage)}%</span>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="bg-primary/10 rounded-full p-2">
+                  <DollarSign className="h-5 w-5 text-primary" />
+                </div>
+                <h2 className="text-xl font-semibold">Budget Tracker</h2>
               </div>
-              <Progress value={progressPercentage} className="h-3 mb-3" />
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>{stats.completedTasks} of {stats.totalTasks} tasks completed</span>
-                <span>{stats.totalTasks - stats.completedTasks} remaining</span>
+
+              <div className="space-y-4">
+                {/* Budget Overview */}
+                <div className="flex justify-between items-baseline">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Budget</p>
+                    <p className="text-2xl font-bold text-primary">
+                      ${(dashboardData?.financialStats?.totalBudget || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">Invoiced to Date</p>
+                    <p className="text-2xl font-bold text-accent">
+                      ${(dashboardData?.financialStats?.totalInvoiced || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div>
+                  <div className="flex justify-between text-sm text-muted-foreground mb-2">
+                    <span>Budget Used: {Math.round(dashboardData?.financialStats?.percentageUsed || 0)}%</span>
+                    <span>Remaining: ${(dashboardData?.financialStats?.remaining || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <Progress
+                    value={dashboardData?.financialStats?.percentageUsed || 0}
+                    className="h-3"
+                  />
+                </div>
+
+                {/* Budget Status Alert */}
+                {(dashboardData?.financialStats?.percentageUsed || 0) > 90 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-amber-800">
+                      You've used over 90% of your budget. Please review upcoming expenses.
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

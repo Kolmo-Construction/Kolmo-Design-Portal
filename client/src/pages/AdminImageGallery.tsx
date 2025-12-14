@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { AdminImageUploader } from '@/components/admin/AdminImageUploader';
 import { AdminImageGalleryView } from '@/components/admin/AdminImageGalleryView';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 import {
   Upload,
   Grid3X3,
@@ -19,7 +20,9 @@ import {
   Images,
   TrendingUp,
   Cloud,
-  ArrowLeft
+  ArrowLeft,
+  RefreshCw,
+  MapPin
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth-unified';
 
@@ -32,6 +35,7 @@ interface ImageStats {
 
 export default function AdminImageGallery() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -47,12 +51,52 @@ export default function AdminImageGallery() {
     enabled: hasAccess,
   });
 
+  // Process unassigned photos mutation
+  const processUnassignedMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/admin/images/process-unassigned', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.matched === 0) {
+        toast({
+          title: 'No Photos to Process',
+          description: data.message || 'All photos are already assigned to projects',
+        });
+      } else {
+        toast({
+          title: 'Processing Complete',
+          description: `Matched ${data.matched} photos to projects${data.analyzed ? `, analyzed ${data.analyzed} with AI` : ''}${data.progressUpdatesCreated ? `, created ${data.progressUpdatesCreated} progress updates` : ''}`,
+        });
+      }
+      setRefreshTrigger(prev => prev + 1);
+    },
+    onError: (error: any) => {
+      console.error('Photo processing error:', error);
+      toast({
+        title: 'Processing Failed',
+        description: error.message || 'Failed to process unassigned photos',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const handleUploadComplete = () => {
     setRefreshTrigger(prev => prev + 1);
   };
 
   const handleDriveIngestComplete = () => {
     setRefreshTrigger(prev => prev + 1);
+  };
+
+  const handleProcessUnassigned = () => {
+    processUnassignedMutation.mutate();
   };
 
   const formatFileSize = (bytes: number) => {
@@ -100,6 +144,19 @@ export default function AdminImageGallery() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleProcessUnassigned}
+            disabled={processUnassignedMutation.isPending}
+            className="flex items-center gap-2"
+          >
+            {processUnassignedMutation.isPending ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : (
+              <MapPin className="h-4 w-4" />
+            )}
+            Process Unassigned
+          </Button>
           <Button
             variant="outline"
             onClick={() => setDriveDialogOpen(true)}

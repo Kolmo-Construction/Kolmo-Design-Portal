@@ -305,6 +305,239 @@ class TimeTrackingService {
     }, 0);
     return Math.round((totalMinutes / 60) * 100) / 100; // Round to 2 decimal places
   }
+
+  /**
+   * Create a manual time entry (admin/PM only)
+   */
+  async createManualEntry(params: {
+    userId: number;
+    projectId: number;
+    startTime: Date;
+    endTime: Date;
+    notes?: string;
+    createdBy: number;
+  }): Promise<TimeTrackingResult> {
+    try {
+      const { userId, projectId, startTime, endTime, notes, createdBy } = params;
+
+      // Validate times
+      if (endTime <= startTime) {
+        return {
+          success: false,
+          error: 'End time must be after start time',
+        };
+      }
+
+      // Get project details for labor cost calculation
+      const project = await this.getProjectDetails(projectId);
+      if (!project) {
+        return {
+          success: false,
+          error: 'Project not found',
+        };
+      }
+
+      // Get user's hourly rate
+      const user = await db.query.users.findFirst({
+        where: eq(schema.users.id, userId),
+      });
+
+      // Calculate duration
+      const durationMs = endTime.getTime() - startTime.getTime();
+      const durationMinutes = Math.floor(durationMs / (1000 * 60));
+
+      // Calculate labor cost
+      let laborCost: string | null = null;
+      if (user?.hourlyRate) {
+        const hours = durationMinutes / 60;
+        laborCost = (hours * parseFloat(user.hourlyRate)).toFixed(2);
+      }
+
+      // Create time entry (manual entries don't have geofence data)
+      const [timeEntry] = await db
+        .insert(schema.timeEntries)
+        .values({
+          userId,
+          projectId,
+          startTime,
+          endTime,
+          durationMinutes,
+          laborCost,
+          clockInLatitude: '0', // Manual entries don't have GPS
+          clockInLongitude: '0',
+          clockInWithinGeofence: false,
+          notes: notes || `Manual entry created by user ${createdBy}`,
+        })
+        .returning();
+
+      return {
+        success: true,
+        timeEntry,
+      };
+    } catch (error) {
+      console.error('Error creating manual time entry:', error);
+      return {
+        success: false,
+        error: 'Failed to create manual time entry',
+      };
+    }
+  }
+
+  /**
+   * Update a time entry (admin/PM only)
+   */
+  async updateTimeEntry(
+    entryId: number,
+    updates: {
+      startTime?: Date;
+      endTime?: Date;
+      notes?: string;
+      userId?: number;
+      projectId?: number;
+    }
+  ): Promise<TimeTrackingResult> {
+    try {
+      // Get existing entry
+      const existingEntry = await db.query.timeEntries.findFirst({
+        where: eq(schema.timeEntries.id, entryId),
+      });
+
+      if (!existingEntry) {
+        return {
+          success: false,
+          error: 'Time entry not found',
+        };
+      }
+
+      // Prepare update values
+      const updateValues: any = {};
+
+      if (updates.startTime) {
+        updateValues.startTime = updates.startTime;
+      }
+      if (updates.endTime) {
+        updateValues.endTime = updates.endTime;
+      }
+      if (updates.notes !== undefined) {
+        updateValues.notes = updates.notes;
+      }
+      if (updates.userId) {
+        updateValues.userId = updates.userId;
+      }
+      if (updates.projectId) {
+        updateValues.projectId = updates.projectId;
+      }
+
+      // Recalculate duration and cost if times changed
+      const startTime = updates.startTime || existingEntry.startTime;
+      const endTime = updates.endTime || existingEntry.endTime;
+
+      if (endTime && startTime) {
+        if (endTime <= startTime) {
+          return {
+            success: false,
+            error: 'End time must be after start time',
+          };
+        }
+
+        const durationMs = endTime.getTime() - startTime.getTime();
+        updateValues.durationMinutes = Math.floor(durationMs / (1000 * 60));
+
+        // Recalculate labor cost
+        const userId = updates.userId || existingEntry.userId;
+        const user = await db.query.users.findFirst({
+          where: eq(schema.users.id, userId),
+        });
+
+        if (user?.hourlyRate) {
+          const hours = updateValues.durationMinutes / 60;
+          updateValues.laborCost = (hours * parseFloat(user.hourlyRate)).toFixed(2);
+        }
+      }
+
+      // Update entry
+      const [updatedEntry] = await db
+        .update(schema.timeEntries)
+        .set(updateValues)
+        .where(eq(schema.timeEntries.id, entryId))
+        .returning();
+
+      return {
+        success: true,
+        timeEntry: updatedEntry,
+      };
+    } catch (error) {
+      console.error('Error updating time entry:', error);
+      return {
+        success: false,
+        error: 'Failed to update time entry',
+      };
+    }
+  }
+
+  /**
+   * Delete a time entry (admin/PM only)
+   */
+  async deleteTimeEntry(entryId: number): Promise<{ success: boolean; error?: string }> {
+    try {
+      const result = await db
+        .delete(schema.timeEntries)
+        .where(eq(schema.timeEntries.id, entryId))
+        .returning();
+
+      if (result.length === 0) {
+        return {
+          success: false,
+          error: 'Time entry not found',
+        };
+      }
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      console.error('Error deleting time entry:', error);
+      return {
+        success: false,
+        error: 'Failed to delete time entry',
+      };
+    }
+  }
+
+  /**
+   * Get total labor costs for a project
+   * Returns the sum of all labor costs from time entries
+   */
+  async getProjectLaborCosts(projectId: number): Promise<{
+    totalLaborCost: number;
+    totalHours: number;
+    entryCount: number;
+  }> {
+    try {
+      const entries = await this.getProjectEntries(projectId, {});
+
+      const totalLaborCost = entries.reduce((sum, entry) => {
+        return sum + (entry.laborCost ? parseFloat(String(entry.laborCost)) : 0);
+      }, 0);
+
+      const totalMinutes = entries.reduce((sum, entry) => {
+        return sum + (entry.durationMinutes || 0);
+      }, 0);
+
+      return {
+        totalLaborCost: Math.round(totalLaborCost * 100) / 100, // Round to 2 decimals
+        totalHours: Math.round((totalMinutes / 60) * 100) / 100,
+        entryCount: entries.length,
+      };
+    } catch (error) {
+      console.error('Error calculating project labor costs:', error);
+      return {
+        totalLaborCost: 0,
+        totalHours: 0,
+        entryCount: 0,
+      };
+    }
+  }
 }
 
 // Export singleton instance

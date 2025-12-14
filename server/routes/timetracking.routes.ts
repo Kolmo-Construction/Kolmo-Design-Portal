@@ -42,4 +42,31 @@ router.get('/active', isAuthenticated, timeTrackingController.getActiveEntry);
  */
 router.get('/entries', isAuthenticated, timeTrackingController.getEntries);
 
+/**
+ * POST /api/time/manual-entry
+ * Create a manual time entry (Admin/PM only)
+ * Requires: userId, projectId, startTime, endTime
+ * Optional: notes
+ */
+router.post('/manual-entry', isAuthenticated, timeTrackingController.createManualEntry);
+
+/**
+ * PATCH /api/time/entries/:id
+ * Update a time entry (Admin/PM only)
+ */
+router.patch('/entries/:id', isAuthenticated, timeTrackingController.updateEntry);
+
+/**
+ * DELETE /api/time/entries/:id
+ * Delete a time entry (Admin/PM only)
+ */
+router.delete('/entries/:id', isAuthenticated, timeTrackingController.deleteEntry);
+
+/**
+ * GET /api/time/project/:projectId/labor-costs
+ * Get total labor costs for a project
+ * Returns: totalLaborCost, totalHours, entryCount
+ */
+router.get('/project/:projectId/labor-costs', isAuthenticated, timeTrackingController.getProjectLaborCosts);
+
 export default router;

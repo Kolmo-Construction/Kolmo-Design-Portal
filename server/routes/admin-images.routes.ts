@@ -17,6 +17,13 @@ router.use(isAuthenticated);
 router.get('/stats', (req, res) => adminImagesController.getImageStats(req as AuthenticatedRequest, res));
 
 /**
+ * POST /api/admin/images/process-unassigned
+ * Process unassigned photos and match them to projects using geofencing
+ * Admin/PM only - scans all photos without project_id and attempts to match based on GPS
+ */
+router.post('/process-unassigned', (req, res) => adminImagesController.processUnassignedPhotos(req as AuthenticatedRequest, res));
+
+/**
  * POST /api/admin/images
  * Upload multiple images with metadata and tagging
  */

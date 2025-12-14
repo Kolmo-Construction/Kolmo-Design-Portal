@@ -45,20 +45,12 @@ export function ClientProjectsView({ client }: ClientProjectsViewProps) {
   } = useQuery<Project[], Error>({
     // Use client ID in query key for uniqueness and dependency tracking
     queryKey: ["/api/admin/client-projects", client.id],
-    // --- MODIFIED: Use a custom queryFn ---
+    // Custom queryFn to include client ID in URL
     queryFn: async () => {
-        // Construct the correct URL with the client ID
         const url = `/api/admin/client-projects/${client.id}`;
-
-        const res = await apiRequest("GET", url); // Use apiRequest helper
-        // Ensure response is OK before parsing
-        if (!res.ok) {
-           const errorText = await res.text();
-           throw new Error(`Failed to fetch client projects: ${res.status} ${errorText}`);
-        }
-        return await res.json();
+        // apiRequest already handles errors and returns parsed JSON
+        return await apiRequest("GET", url);
     },
-    // --------------------------------------
     enabled: !!client?.id, // Only run if client ID is valid
   });
 

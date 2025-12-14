@@ -26,17 +26,47 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-// Setup profile form schema
+// Setup profile form schema - password is optional for magic-link users
 const setupProfileSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  confirmPassword: z.string().min(1, "Please confirm your password"),
+  username: z.string().optional(),
+  password: z.string().optional(),
+  confirmPassword: z.string().optional(),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   phone: z.string().optional(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
+  setupPassword: z.boolean().optional(), // Checkbox to enable password setup
+}).superRefine((data, ctx) => {
+  // Only validate password fields if user opted to set up password
+  if (data.setupPassword) {
+    if (!data.username || data.username.length < 3) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Username must be at least 3 characters",
+        path: ["username"],
+      });
+    }
+    if (!data.password || data.password.length < 8) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Password must be at least 8 characters",
+        path: ["password"],
+      });
+    }
+    if (!data.confirmPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Please confirm your password",
+        path: ["confirmPassword"],
+      });
+    }
+    if (data.password && data.confirmPassword && data.password !== data.confirmPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Passwords don't match",
+        path: ["confirmPassword"],
+      });
+    }
+  }
 });
 
 type SetupProfileFormValues = z.infer<typeof setupProfileSchema>;
@@ -49,6 +79,7 @@ export default function SetupProfile() {
     confirm: false
   });
   const [setupSuccess, setSetupSuccess] = useState(false);
+  const [wantsPasswordSetup, setWantsPasswordSetup] = useState(false);
 
   // If the user is already activated, redirect to home
   useEffect(() => {
@@ -72,15 +103,24 @@ export default function SetupProfile() {
       firstName: user.firstName || "",
       lastName: user.lastName || "",
       phone: user.phone || "",
+      setupPassword: false,
     },
   });
 
   const onSubmit = (values: SetupProfileFormValues) => {
     setupProfileMutation.mutate(values, {
-      onSuccess: () => {
+      onSuccess: (data) => {
         setSetupSuccess(true);
         setTimeout(() => {
-          navigate("/");
+          // Check user's access scope to determine redirect
+          const userAccessScope = data.user.accessScope || 'both';
+          if (userAccessScope === 'mobile') {
+            // Mobile-only users should use the mobile app
+            navigate("/setup-complete");
+          } else {
+            // Web or both access users go to web portal
+            navigate("/");
+          }
         }, 2000);
       }
     });
@@ -136,31 +176,14 @@ export default function SetupProfile() {
               
               <FormField
                 control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Choose a username" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      This will be used to log in to your account
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
                 name="phone"
                 render={({ field }) => {
                   return (
                     <FormItem>
                       <FormLabel>Phone Number (Optional)</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="(123) 456-7890" 
+                        <Input
+                          placeholder="(123) 456-7890"
                           onChange={field.onChange}
                           onBlur={field.onBlur}
                           name={field.name}
@@ -173,6 +196,65 @@ export default function SetupProfile() {
                   );
                 }}
               />
+
+              {/* Login Method Information */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800 mb-2">
+                  <strong>Quick Login:</strong> You can login anytime using just your email address - no password needed!
+                </p>
+                <p className="text-xs text-blue-600">
+                  We'll send you a login link via email whenever you want to access your account.
+                </p>
+              </div>
+
+              {/* Optional Password Setup Checkbox */}
+              <FormField
+                control={form.control}
+                name="setupPassword"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 mt-1"
+                        checked={field.value}
+                        onChange={(e) => {
+                          field.onChange(e.target.checked);
+                          setWantsPasswordSetup(e.target.checked);
+                        }}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="text-base font-medium cursor-pointer">
+                        Also set up password login (optional)
+                      </FormLabel>
+                      <FormDescription>
+                        Add a username and password as an alternative way to login. Only recommended if you prefer traditional login.
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              {/* Conditionally show username and password fields */}
+              {wantsPasswordSetup && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Username</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Choose a username" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          This will be used to log in with password
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
               
               <FormField
                 control={form.control}
@@ -242,7 +324,9 @@ export default function SetupProfile() {
                   </FormItem>
                 )}
               />
-              
+                </>
+              )}
+
               {setupProfileMutation.isError && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />

@@ -1,11 +1,24 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation, UseMutationResult } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { User } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 type AuthState = "loading" | "authenticated" | "unauthenticated" | "error";
+
+type ProfileSetupData = {
+  username: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+};
+
+type ProfileSetupResponse = {
+  message: string;
+  user: Omit<User, "password" | "magicLinkToken" | "magicLinkExpiry">;
+};
 
 interface AuthContextType {
   user: User | null;
@@ -14,6 +27,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refetchUser: () => void;
+  setupProfileMutation: UseMutationResult<ProfileSetupResponse, Error, ProfileSetupData>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -119,7 +133,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Clear all cached data
       queryClient.clear();
       setAuthState("unauthenticated");
-      
+
       toast({
         title: "Logged out",
         description: "You have been successfully logged out",
@@ -129,7 +143,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Even if server logout fails, clear local state
       queryClient.clear();
       setAuthState("unauthenticated");
-      
+
       toast({
         title: "Logout completed",
         description: "Local session cleared",
@@ -137,7 +151,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
     },
   });
 
-
+  // Setup profile mutation (for magic link users completing their profile)
+  const setupProfileMutation = useMutation({
+    mutationFn: async (data: ProfileSetupData) => {
+      return await apiRequest("POST", "/api/auth/setup-profile", data);
+    },
+    onSuccess: (data: ProfileSetupResponse) => {
+      queryClient.setQueryData(["/api/user"], data.user);
+      setAuthState("authenticated");
+      toast({
+        title: "Profile setup completed",
+        description: "Your account has been activated successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Profile setup failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
 
   const login = async (username: string, password: string): Promise<void> => {
     await loginMutation.mutateAsync({ username, password });
@@ -154,6 +188,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     logout,
     refetchUser,
+    setupProfileMutation,
   };
 
   return (

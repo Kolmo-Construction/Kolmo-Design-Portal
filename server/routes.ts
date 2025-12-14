@@ -96,6 +96,18 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // Supports both API key and session authentication
   app.use("/api", receiptRouter);
 
+  // --- Mount Mobile API Routes (Kolmo Mobile App) ---
+  // Mobile-specific route prefix for backward compatibility
+  // These routes are accessible via API key authentication (no requireWebAccess)
+  app.use("/api/kolmo/projects", isAuthenticated, projectRouter);
+  app.use("/api/kolmo/time", timeTrackingRouter);
+  app.use("/api/kolmo", receiptRouter);
+
+  // --- Mount Admin Images Routes (Mobile-accessible) ---
+  // CRITICAL: Registered EARLY to avoid broad /api middleware with requireWebAccess
+  // Mobile app uploads images via API key, authentication checked within routes
+  app.use("/api/admin/images", adminImagesRoutes);
+
   // --- Mount User Management Routes ---
   // Routes for user management and hourly rate configuration
   // Admin only
@@ -288,6 +300,20 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
     milestoneRoutes
   );
 
+  // =========================================================================
+  // MOBILE-ACCESSIBLE ROUTES (Must be registered before broad "/api" middleware)
+  // =========================================================================
+
+  // Note: Admin Images routes already registered earlier (line ~109) to ensure proper middleware order
+
+  // Mount Taggun receipt scanning routes
+  // Note: Used by receipt upload which may be mobile, do not protect here
+  app.use("/api/taggun", taggunRouter);
+
+  // =========================================================================
+  // WEB-ONLY ROUTES (Can use broad "/api" middleware)
+  // =========================================================================
+
   // Task billing routes for complete-and-bill functionality (Web-only)
   // Note: If taskBillingRouter doesn't have isAuthenticated, add it
   app.use("/api", isAuthenticated, requireWebAccess, taskBillingRouter);
@@ -344,18 +370,11 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   app.use("/api/webhooks", webhookRoutes);
 
   // Mount Global Finance routes (admin only, Web-only)
+  // Note: This uses broad "/api" prefix, so specific routes must be registered before this
   app.use("/api", requireWebAccess, globalFinanceRoutes);
-
-  // Mount Taggun receipt scanning routes
-  // Note: Used by receipt upload which may be mobile, do not protect here
-  app.use("/api/taggun", taggunRouter);
 
   // Mount Client Portal routes (Web-only)
   app.use("/api/client", isAuthenticated, requireWebAccess, clientRouter);
-
-  // Mount Admin Images routes
-  // Note: Mobile app uploads images, authentication checked within routes
-  app.use("/api/admin/images", adminImagesRoutes);
 
   // Mount Google Drive Ingestion routes (admin only, Web-only)
   app.use("/api/drive-ingestion", isAuthenticated, requireWebAccess, driveIngestionRouter);
