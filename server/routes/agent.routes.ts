@@ -115,4 +115,72 @@ router.get('/health', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Get agent workflow visualization and debug information
+ * Returns:
+ * - Mermaid diagram of the workflow graph
+ * - List of available tools
+ * - Database schema
+ *
+ * Useful for debugging and understanding the agent's capabilities
+ */
+router.get('/graph', isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    // Check if agent service is initialized
+    if (!agentService.isInitialized()) {
+      return res.status(503).json({
+        success: false,
+        error: 'Agent service not initialized',
+        message: agentService.getInitError() || 'Please configure API keys'
+      });
+    }
+
+    console.log('[Agent API] Graph visualization requested');
+
+    // Fetch all three components in parallel
+    const [mermaidDiagram, tools, schema] = await Promise.all([
+      agentService.getGraphDiagram(),
+      Promise.resolve(agentService.getRegisteredTools()),
+      agentService.getSchema()
+    ]);
+
+    // Format as plain text for easy viewing and copying
+    const textOutput = `
+# Kolmo AI Agent - Workflow Visualization & Debug Info
+Generated: ${new Date().toISOString()}
+
+## 1. WORKFLOW GRAPH (Mermaid)
+${'```'}mermaid
+${mermaidDiagram}
+${'```'}
+
+## 2. AVAILABLE TOOLS (${tools.length} total)
+${tools.map((tool, index) => `
+### ${index + 1}. ${tool.name}
+**Description:** ${tool.description}
+**Parameters:** ${JSON.stringify(tool.parameters, null, 2)}
+`).join('\n')}
+
+## 3. DATABASE SCHEMA
+${schema}
+
+---
+End of Agent Debug Information
+`.trim();
+
+    // Return as plain text with proper content type
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.status(200).send(textOutput);
+
+  } catch (error) {
+    console.error('[Agent API] Graph visualization error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate agent visualization',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;

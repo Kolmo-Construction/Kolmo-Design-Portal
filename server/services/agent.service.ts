@@ -10,6 +10,7 @@ import { storage } from "../storage";
 import type { InsertTask, InsertInvoice, InsertMilestone } from "@shared/schema";
 import { semanticSearchService } from "./semantic-search.service";
 import { factExtractionService } from "./fact-extraction.service";
+import { tavilySearchService } from "./tavily-search.service";
 
 // --- Types (Frontend compatibility) ---
 export interface AgentAction {
@@ -39,6 +40,8 @@ class AgentService {
   private app: any = null;
   private model: ChatOpenAI | null = null;
   private tools: any[] = [];
+  private projectTools: any[] = [];
+  private leadsTools: any[] = [];
   private initialized: boolean = false;
   private initError: string | null = null;
 
@@ -77,8 +80,10 @@ class AgentService {
         console.log('[AgentService] Initialized with OpenAI');
       }
 
-      // 2. Define Tools
-      this.tools = this.createTools();
+      // 2. Define Tools (separate sets for each agent)
+      this.projectTools = this.createProjectTools();
+      this.leadsTools = this.createLeadsTools();
+      this.tools = this.projectTools; // Default to project tools
 
       // 3. Build LangGraph Workflow
       this.app = this.buildWorkflow();
@@ -121,9 +126,9 @@ class AgentService {
   }
 
   /**
-   * Create all tools for the agent
+   * Create tools specific to Project Management agent
    */
-  private createTools() {
+  private createProjectTools() {
     // TOOL A: Read Database
     const readDatabaseTool = tool(
       async ({ query }) => {
@@ -622,20 +627,249 @@ The user will confirm before execution.`,
   }
 
   /**
-   * Build the LangGraph workflow
+   * Create tools specific to Leads/Sales agent
+   */
+  private createLeadsTools() {
+    // SHARED TOOL: Read Database (same as project agent)
+    const readDatabaseTool = tool(
+      async ({ query }) => {
+        try {
+          const trimmedQuery = query.trim().toLowerCase();
+          if (!trimmedQuery.startsWith("select")) {
+            return "Error: Only SELECT queries are allowed for safety.";
+          }
+
+          const result = await db.execute(drizzleSql.raw(query));
+          console.log('[AgentService] Query executed:', query);
+
+          return JSON.stringify(result.rows, null, 2);
+        } catch (e: any) {
+          console.error('[AgentService] Database query error:', e);
+          return `Database Error: ${e.message}`;
+        }
+      },
+      {
+        name: "read_database",
+        description: `Execute a SQL SELECT query to retrieve information from the construction project database.
+Use this to find leads, customers, and related information.`,
+        schema: z.object({
+          query: z.string().describe("The SQL SELECT query to execute. Must be a valid SELECT statement."),
+        }),
+      }
+    );
+
+    // SHARED TOOL: Propose Action (same as project agent)
+    const proposeActionTool = tool(
+      async ({ action, payload, reasoning }) => {
+        console.log('[AgentService] Action proposed:', action);
+        return `Action ${action} proposed successfully with reasoning: ${reasoning}. Waiting for user confirmation to proceed.`;
+      },
+      {
+        name: "propose_action",
+        description: `Suggest an action for lead management.
+Use this FIRST to propose an action and explain it to the user.
+The user will confirm before execution.`,
+        schema: z.object({
+          action: z.enum(['SEARCH_LEADS', 'SAVE_LEAD', 'UPDATE_LEAD', 'CONVERT_LEAD'])
+            .describe("The type of action to perform"),
+          payload: z.record(z.any()).describe("The data required for the action"),
+          reasoning: z.string().describe("Clear explanation of why this action is being suggested"),
+        }),
+      }
+    );
+
+    // NEW TOOL: Search for leads using Tavily
+    const searchLeadsTool = tool(
+      async ({ location, keywords, sites }) => {
+        try {
+          const keywordArray = keywords.split(',').map((k: string) => k.trim());
+          const siteArray = sites ? sites.split(',').map((s: string) => s.trim()) : undefined;
+
+          const results = await tavilySearchService.searchLeads({
+            location,
+            keywords: keywordArray,
+            sites: siteArray,
+          });
+
+          if (!results.success) {
+            return JSON.stringify({
+              success: false,
+              error: results.error || 'Search failed',
+            });
+          }
+
+          // Save promising leads to database
+          const savedLeads = [];
+          for (const result of results.results.slice(0, 5)) { // Top 5 only
+            const lead = await storage.leads.createLead({
+              name: 'Unknown User',
+              contactInfo: result.url,
+              source: 'web_search',
+              sourceUrl: result.url,
+              contentSnippet: result.content.substring(0, 500),
+              location,
+              confidenceScore: Math.round(result.score * 100),
+              interestTags: keywordArray,
+            });
+            savedLeads.push(lead);
+          }
+
+          return JSON.stringify({
+            success: true,
+            message: `Found ${results.results.length} potential leads, saved top ${savedLeads.length}`,
+            results: results.results,
+            savedLeadIds: savedLeads.map(l => l.id),
+          }, null, 2);
+        } catch (error: any) {
+          return JSON.stringify({
+            success: false,
+            error: error.message,
+          });
+        }
+      },
+      {
+        name: 'search_leads',
+        description: 'Search for potential construction leads on Reddit, Nextdoor, Houzz, or other sites using Tavily API',
+        schema: z.object({
+          location: z.string().describe('City, neighborhood, or region (e.g., "Seattle", "Capitol Hill")'),
+          keywords: z.string().describe('Comma-separated keywords (e.g., "remodel, contractor, kitchen")'),
+          sites: z.string().optional().describe('Optional: comma-separated site filters (e.g., "reddit.com, nextdoor.com")'),
+        }),
+      }
+    );
+
+    // NEW TOOL: Save/update lead manually
+    const saveLeadTool = tool(
+      async ({ name, contactInfo, source, contentSnippet, location, tags }) => {
+        try {
+          const lead = await storage.leads.createLead({
+            name,
+            contactInfo,
+            source: source || 'manual',
+            contentSnippet,
+            location,
+            interestTags: tags ? tags.split(',').map((t: string) => t.trim()) : [],
+            confidenceScore: 50,
+          });
+
+          return JSON.stringify({
+            success: true,
+            message: `Lead "${name}" saved successfully`,
+            leadId: lead.id,
+            lead,
+          }, null, 2);
+        } catch (error: any) {
+          return JSON.stringify({
+            success: false,
+            error: error.message,
+          });
+        }
+      },
+      {
+        name: 'save_lead',
+        description: 'Manually save a lead to the database',
+        schema: z.object({
+          name: z.string().describe('Lead name or username'),
+          contactInfo: z.string().describe('Email, phone, or profile URL'),
+          source: z.enum(['manual', 'web_search', 'social_media', 'thumbtack', 'homedepot', 'nextdoor', 'referral']).optional(),
+          contentSnippet: z.string().describe('Original message or post content'),
+          location: z.string().optional().describe('City, neighborhood, or region'),
+          tags: z.string().optional().describe('Comma-separated interest tags'),
+        }),
+      }
+    );
+
+    // NEW TOOL: Get recent leads
+    const getLeadsTool = tool(
+      async ({ status, limit }) => {
+        try {
+          const leads = status
+            ? await storage.leads.getLeadsByStatus(status)
+            : await storage.leads.getRecentLeads(limit || 20);
+
+          return JSON.stringify({
+            success: true,
+            count: leads.length,
+            leads: leads.map(l => ({
+              id: l.id,
+              name: l.name,
+              contactInfo: l.contactInfo,
+              source: l.source,
+              status: l.status,
+              confidenceScore: l.confidenceScore,
+              location: l.location,
+              detectedAt: l.detectedAt,
+            })),
+          }, null, 2);
+        } catch (error: any) {
+          return JSON.stringify({
+            success: false,
+            error: error.message,
+          });
+        }
+      },
+      {
+        name: 'get_leads',
+        description: 'Retrieve recent leads from the database',
+        schema: z.object({
+          status: z.enum(['new', 'contacted', 'qualified', 'converted', 'archived']).optional(),
+          limit: z.number().optional().describe('Max number of leads to return (default: 20)'),
+        }),
+      }
+    );
+
+    return [
+      readDatabaseTool,
+      proposeActionTool,
+      searchLeadsTool,
+      saveLeadTool,
+      getLeadsTool,
+    ];
+  }
+
+  /**
+   * Build the LangGraph workflow with router pattern
    */
   private buildWorkflow() {
     if (!this.model) {
       throw new Error('Model not initialized');
     }
 
-    const modelWithTools = this.model.bindTools(this.tools);
-
     const workflow = new StateGraph(MessagesAnnotation)
+      // Router node: Classifies intent and sets tools
+      .addNode("router", async (state) => {
+        const lastMessage = state.messages[state.messages.length - 1];
+        const userPrompt = lastMessage.content.toString();
+
+        // Classify intent
+        const agentType = await this.classifyIntent(userPrompt);
+
+        // Set appropriate tools for the selected agent
+        if (agentType === 'leads') {
+          this.tools = this.leadsTools;
+          console.log('[Router] Routing to LeadsAgent');
+        } else {
+          this.tools = this.projectTools;
+          console.log('[Router] Routing to ProjectAgent');
+        }
+
+        // Store agent type in state metadata (for system prompt)
+        return {
+          messages: [
+            new SystemMessage(`[ROUTER] Selected agent: ${agentType.toUpperCase()}`)
+          ]
+        };
+      })
+
+      // Agent node: LLM reasoning with context-specific tools
       .addNode("agent", async (state) => {
+        // Bind current tools to model
+        const modelWithTools = this.model!.bindTools(this.tools);
         const result = await modelWithTools.invoke(state.messages);
         return { messages: [result] };
       })
+
+      // Tools node: Execute tool calls
       .addNode("tools", async (state) => {
         const lastMessage = state.messages[state.messages.length - 1] as any;
         const toolCalls = lastMessage.tool_calls || [];
@@ -646,7 +880,6 @@ The user will confirm before execution.`,
           if (tool) {
             try {
               const args = typeof call.args === 'string' ? JSON.parse(call.args) : call.args;
-
               const output = await tool.invoke({ ...call, args });
 
               results.push(new ToolMessage({
@@ -659,14 +892,17 @@ The user will confirm before execution.`,
               results.push(new ToolMessage({
                 tool_call_id: call.id,
                 name: call.name,
-                content: `Error: Execution failed with message "${error instanceof Error ? error.message : 'Unknown error'}". Please correct your query or stop if you are unsure.`,
+                content: `Error: Execution failed with message "${error instanceof Error ? error.message : 'Unknown error'}"`,
               }));
             }
           }
         }
         return { messages: results };
       })
-      .addEdge("__start__", "agent")
+
+      // Edges
+      .addEdge("__start__", "router")
+      .addEdge("router", "agent")
       .addConditionalEdges("agent", (state) => {
         const lastMessage = state.messages[state.messages.length - 1] as any;
         if (lastMessage.tool_calls?.length > 0) {
@@ -848,18 +1084,11 @@ Available Tables: projects, tasks, invoices, milestones, daily_logs, users, clie
   /**
    * Main consultation method
    */
-  async consult(request: AgentConsultRequest): Promise<AgentConsultResponse> {
-    console.log('[AgentService] Processing consultation:', request.userPrompt);
-
-    if (!this.initialized || !this.model || !this.app) {
-      throw new Error(this.initError || 'Agent service not initialized');
-    }
-
-    try {
-      const schema = await this.getSchemaInfo();
-      const context = await this.buildContext(request);
-
-      const systemPrompt = `You are Kolmo AI, an intelligent assistant for Kolmo Construction project management.
+  /**
+   * System prompt for Project Management agent
+   */
+  private buildProjectSystemPrompt(context: string, schema: string): string {
+    return `You are Kolmo AI, an intelligent assistant for Kolmo Construction project management.
 
 CAPABILITIES:
 - READ database via 'read_database' tool (SELECT queries only)
@@ -920,6 +1149,76 @@ You: [read_database] → [propose_action with ALL 5 tasks listed] → "I propose
 User: "yes"
 You: [execute_bulk_create_tasks with array of 5 tasks] → "Done! Created 5 tasks: #124, #125, #126, #127, #128"
 `;
+  }
+
+  /**
+   * System prompt for Leads/Sales agent
+   */
+  private buildLeadsSystemPrompt(context: string, schema: string): string {
+    return `You are Kolmo Leads AI, an intelligent assistant for discovering and qualifying construction leads.
+
+CAPABILITIES:
+- SEARCH for leads via 'search_leads' tool (Reddit, Nextdoor, Houzz, public social media)
+- SAVE leads via 'save_lead' tool
+- GET leads via 'get_leads' tool
+- READ database via 'read_database' tool
+- PROPOSE actions via 'propose_action' tool
+
+WORKFLOW FOR LEAD DISCOVERY:
+1. Ask user for location and keywords (e.g., "Seattle kitchen remodel")
+2. Use 'search_leads' to find potential leads
+3. Review results and suggest which leads look most promising
+4. Use 'save_lead' to store high-quality leads
+
+LEAD QUALIFICATION CRITERIA:
+- Has clear construction need (remodel, addition, deck, etc.)
+- Mentions location/neighborhood
+- Recent post (within last week is best)
+- Asks for recommendations or bids
+- Shows decision-making authority
+
+COMMUNICATION STYLE:
+- Be friendly and consultative (sales tone, not robotic)
+- Focus on lead quality over quantity
+- Suggest personalized outreach strategies
+- Highlight urgency indicators (timeline mentions, immediate need)
+
+AVAILABLE TOOLS:
+- search_leads: Search Reddit, Nextdoor, Houzz for leads
+- save_lead: Manually save a lead to database
+- get_leads: Retrieve recent leads by status
+- read_database: Query database for context
+
+CURRENT CONTEXT:
+${context}
+
+DATABASE SCHEMA (LEADS TABLE):
+Table: leads
+Columns: id, name, contact_info, source, source_url, content_snippet, interest_tags, status, draft_response, confidence_score, location, detected_at
+
+${schema}
+
+Be proactive, persuasive, and focus on lead generation.`;
+  }
+
+  async consult(request: AgentConsultRequest): Promise<AgentConsultResponse> {
+    console.log('[AgentService] Processing consultation:', request.userPrompt);
+
+    if (!this.initialized || !this.model || !this.app) {
+      throw new Error(this.initError || 'Agent service not initialized');
+    }
+
+    try {
+      const schema = await this.getSchemaInfo();
+      const context = await this.buildContext(request);
+
+      // Classify intent to determine agent type
+      const agentType = await this.classifyIntent(request.userPrompt);
+
+      // Build appropriate system prompt
+      const systemPrompt = agentType === 'leads'
+        ? this.buildLeadsSystemPrompt(context, schema)
+        : this.buildProjectSystemPrompt(context, schema);
 
       const result = await this.app.invoke({
         messages: [
@@ -990,6 +1289,115 @@ You: [execute_bulk_create_tasks with array of 5 tasks] → "Done! Created 5 task
 
   async getSchema(): Promise<string> {
     return await this.getSchemaInfo();
+  }
+
+  /**
+   * Get the workflow graph as a Mermaid diagram
+   * @returns Mermaid diagram string representation of the agent workflow
+   */
+  async getGraphDiagram(): Promise<string> {
+    if (!this.initialized || !this.app) {
+      throw new Error(this.initError || 'Agent service not initialized');
+    }
+
+    try {
+      // Use getGraphAsync (preferred async method)
+      const graph = await this.app.getGraphAsync();
+
+      // Generate Mermaid diagram with customization
+      return graph.drawMermaid({
+        withStyles: true,
+        curveStyle: 'linear',
+        wrapLabelNWords: 9
+      });
+    } catch (error) {
+      console.error('[AgentService] Failed to generate graph diagram:', error);
+      throw new Error('Failed to generate workflow graph');
+    }
+  }
+
+  /**
+   * Get list of all registered tools with their details
+   * @returns Array of tool information objects
+   */
+  getRegisteredTools(): Array<{ name: string; description: string; parameters: any }> {
+    if (!this.initialized) {
+      throw new Error(this.initError || 'Agent service not initialized');
+    }
+
+    return this.tools.map(tool => ({
+      name: tool.name,
+      description: tool.description || 'No description available',
+      parameters: tool.schema ? {
+        type: 'object',
+        properties: tool.schema._def?.schema?.shape || {},
+        description: tool.schema.description || ''
+      } : {}
+    }));
+  }
+
+  /**
+   * Classify user intent using LLM to route to appropriate agent
+   * @param userPrompt - The user's input message
+   * @returns 'project' or 'leads'
+   */
+  private async classifyIntent(userPrompt: string): Promise<'project' | 'leads'> {
+    try {
+      if (!this.model) {
+        // Fallback to keyword matching if model unavailable
+        return this.classifyIntentKeywords(userPrompt);
+      }
+
+      const classificationPrompt = `You are a query classifier for a construction management system.
+
+Classify the following user query into one of two categories:
+- "project": Questions about existing projects, tasks, invoices, milestones, payments, schedules, or construction management
+- "leads": Questions about finding new customers, searching for leads, monitoring social media, discovering prospects, or sales/marketing
+
+User Query: "${userPrompt}"
+
+Respond with ONLY one word: either "project" or "leads"`;
+
+      const response = await this.model.invoke([
+        { role: 'user', content: classificationPrompt }
+      ]);
+
+      const classification = response.content.toString().trim().toLowerCase();
+
+      if (classification.includes('leads')) {
+        console.log('[AgentService] Intent classified as: LEADS');
+        return 'leads';
+      } else {
+        console.log('[AgentService] Intent classified as: PROJECT');
+        return 'project';
+      }
+    } catch (error) {
+      console.error('[AgentService] Classification error, defaulting to keyword matching:', error);
+      return this.classifyIntentKeywords(userPrompt);
+    }
+  }
+
+  /**
+   * Fallback keyword-based classification
+   */
+  private classifyIntentKeywords(userPrompt: string): 'project' | 'leads' {
+    const lowerPrompt = userPrompt.toLowerCase();
+
+    const leadKeywords = [
+      'lead', 'leads', 'find customer', 'search', 'reddit', 'facebook',
+      'thumbtack', 'nextdoor', 'houzz', 'social media', 'prospect',
+      'new customer', 'sales', 'marketing', 'discover', 'monitor'
+    ];
+
+    const hasLeadKeyword = leadKeywords.some(keyword => lowerPrompt.includes(keyword));
+
+    if (hasLeadKeyword) {
+      console.log('[AgentService] Intent classified (keywords) as: LEADS');
+      return 'leads';
+    }
+
+    console.log('[AgentService] Intent classified (keywords) as: PROJECT');
+    return 'project';
   }
 }
 

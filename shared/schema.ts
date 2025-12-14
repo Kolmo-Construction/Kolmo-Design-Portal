@@ -25,6 +25,25 @@ export const progressUpdateStatusEnum = pgEnum('progress_update_status', ['draft
 // Define progress update visibility enum
 export const progressUpdateVisibilityEnum = pgEnum('progress_update_visibility', ['admin_only', 'published']);
 
+// Lead management enums
+export const leadStatusEnum = pgEnum('lead_status', [
+  'new',        // Just discovered, not yet contacted
+  'contacted',  // Initial contact made
+  'qualified',  // Meets criteria, worth pursuing
+  'converted',  // Became a quote or project
+  'archived'    // Not interested or invalid
+]);
+
+export const leadSourceEnum = pgEnum('lead_source', [
+  'manual',       // Manually entered
+  'web_search',   // Reddit, Houzz, Public Web (Tavily)
+  'social_media', // Facebook, Instagram, Twitter
+  'thumbtack',    // Email ingestion from Thumbtack
+  'homedepot',    // Email ingestion from Home Depot Pro Referral
+  'nextdoor',     // Email or search
+  'referral'      // Word of mouth
+]);
+
 // Zoho tokens table for OAuth persistence
 export const zohoTokens = pgTable("zoho_tokens", {
   id: serial("id").primaryKey(),
@@ -732,6 +751,30 @@ export const quotes = pgTable("quotes", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Leads table - Raw prospects before they become quotes
+export const leads = pgTable("leads", {
+  id: serial("id").primaryKey(),
+  name: text("name").default("Unknown User").notNull(),
+  contactInfo: text("contact_info"), // Email, phone, or profile URL
+  source: leadSourceEnum("source").notNull().default("manual"),
+  sourceUrl: text("source_url"), // Original post/page URL
+  contentSnippet: text("content_snippet"), // Original message/post text
+  interestTags: text("interest_tags").array(), // ["remodel", "seattle", "deck"]
+  status: leadStatusEnum("status").default("new").notNull(),
+  draftResponse: text("draft_response"), // AI's suggested reply
+  confidenceScore: integer("confidence_score"), // 0-100 lead quality score
+  location: text("location"), // City, state, or neighborhood
+  detectedAt: timestamp("detected_at").defaultNow().notNull(),
+  contactedAt: timestamp("contacted_at"),
+  convertedToQuoteId: integer("converted_to_quote_id").references(() => quotes.id),
+  notes: text("notes"), // Internal notes
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type Lead = typeof leads.$inferSelect;
+export type InsertLead = typeof leads.$inferInsert;
+
 // Quote line items table
 export const quoteLineItems = pgTable("quote_line_items", {
   id: serial("id").primaryKey(),
@@ -1139,6 +1182,14 @@ export const receiptsRelations = relations(receipts, ({ one }) => ({
   project: one(projects, { fields: [receipts.projectId], references: [projects.id] }),
   uploader: one(users, { fields: [receipts.uploadedBy], references: [users.id], relationName: 'Uploader' }),
   verifier: one(users, { fields: [receipts.verifiedBy], references: [users.id], relationName: 'Verifier' }),
+}));
+
+// Lead relations
+export const leadsRelations = relations(leads, ({ one }) => ({
+  convertedToQuote: one(quotes, {
+    fields: [leads.convertedToQuoteId],
+    references: [quotes.id],
+  }),
 }));
 
 

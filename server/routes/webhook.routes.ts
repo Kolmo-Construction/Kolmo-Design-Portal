@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { stripeService } from '../services/stripe.service';
 import { paymentService } from '../services/payment.service';
+import { emailParserService, ParsedEmail } from '../services/email-parser.service';
+import { storage } from '../storage';
 
 const router = Router();
 
@@ -50,6 +52,65 @@ router.post('/stripe', async (req, res, next) => {
     res.json({ received: true });
   } catch (error) {
     console.error('[Webhook] Error processing webhook:', error);
+    next(error);
+  }
+});
+
+/**
+ * Email ingestion webhook for lead discovery
+ * Receives emails forwarded from kolmo.constructions@gmail.com or projects@kolmo.io
+ *
+ * Expected format (SendGrid Inbound Parse or similar):
+ * POST /api/webhooks/leads/email-ingest
+ * {
+ *   "from": "notifications@thumbtack.com",
+ *   "subject": "New lead from John Smith for Kitchen Remodel in Seattle",
+ *   "text": "Full email body...",
+ *   "headers": { ... }
+ * }
+ */
+router.post('/leads/email-ingest', async (req, res, next) => {
+  try {
+    console.log('[Webhook] Lead email received');
+
+    // Parse incoming email (format may vary by provider)
+    const parsedEmail: ParsedEmail = {
+      from: req.body.from || req.body.envelope?.from || '',
+      subject: req.body.subject || '',
+      body: req.body.text || req.body.html || '',
+      receivedAt: new Date(),
+    };
+
+    if (!parsedEmail.from || !parsedEmail.body) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    // Extract lead information
+    const leadData = emailParserService.parseEmail(parsedEmail);
+
+    if (!leadData) {
+      console.log('[Webhook] Could not parse lead from email');
+      return res.json({ received: true, action: 'ignored' });
+    }
+
+    // Save to database
+    const lead = await storage.leads.createLead({
+      ...leadData,
+      detectedAt: parsedEmail.receivedAt,
+    });
+
+    console.log(`[Webhook] Created lead #${lead.id} from ${leadData.source}`);
+
+    // TODO: Trigger LeadsAgent to analyze and draft response
+    // await agentService.analyzeNewLead(lead.id);
+
+    res.json({
+      received: true,
+      action: 'created_lead',
+      leadId: lead.id
+    });
+  } catch (error) {
+    console.error('[Webhook] Error processing lead email:', error);
     next(error);
   }
 });
