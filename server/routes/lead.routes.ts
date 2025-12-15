@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { isAuthenticated } from '../middleware/auth.middleware';
 import { storage } from '../storage';
+import { emailParserService } from '../services/email-parser.service';
 
 const router = Router();
 
@@ -99,6 +100,58 @@ router.post('/:id/convert', isAuthenticated, async (req: Request, res: Response)
     await storage.leads.markAsConverted(parseInt(req.params.id), quoteId);
     res.json({ success: true, message: 'Lead converted to quote' });
   } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Parse email and create lead
+ * POST /api/leads/parse-email
+ * Body: { from, subject, body }
+ */
+router.post('/parse-email', isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { from, subject, body } = req.body;
+
+    if (!body) {
+      return res.status(400).json({ error: 'Email body is required' });
+    }
+
+    // Parse the email
+    const parsedLead = emailParserService.parseEmail({
+      from: from || '',
+      subject: subject || '',
+      body,
+      receivedAt: new Date()
+    });
+
+    if (!parsedLead) {
+      return res.status(400).json({
+        error: 'Could not parse email. Email source not recognized.',
+        suggestion: 'Make sure the email is from Thumbtack, Home Depot, or Nextdoor'
+      });
+    }
+
+    // Create lead in database
+    const lead = await storage.leads.createLead({
+      name: parsedLead.name,
+      contactInfo: parsedLead.contactInfo,
+      source: parsedLead.source,
+      sourceUrl: parsedLead.sourceUrl,
+      contentSnippet: parsedLead.contentSnippet,
+      location: parsedLead.location,
+      confidenceScore: parsedLead.confidenceScore,
+      interestTags: parsedLead.interestTags,
+      status: 'new'
+    });
+
+    res.json({
+      success: true,
+      message: `Lead created successfully from ${parsedLead.source}`,
+      lead
+    });
+  } catch (error: any) {
+    console.error('[Leads API] Error parsing email:', error);
     res.status(500).json({ error: error.message });
   }
 });

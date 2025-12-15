@@ -698,9 +698,9 @@ The user will confirm before execution.`,
             });
           }
 
-          // Save promising leads to database
+          // Save promising leads to database (limited to top 2 to maintain quality)
           const savedLeads = [];
-          for (const result of results.results.slice(0, 5)) { // Top 5 only
+          for (const result of results.results.slice(0, 2)) { // Top 2 only
             const lead = await storage.leads.createLead({
               name: 'Unknown User',
               contactInfo: result.url,
@@ -716,8 +716,8 @@ The user will confirm before execution.`,
 
           return JSON.stringify({
             success: true,
-            message: `Found ${results.results.length} potential leads, saved top ${savedLeads.length}`,
-            results: results.results,
+            message: `Found ${results.results.length} potential leads, saved top ${savedLeads.length} highest quality`,
+            results: results.results.slice(0, 5), // Show top 5 in response, but only save 2
             savedLeadIds: savedLeads.map(l => l.id),
           }, null, 2);
         } catch (error: any) {
@@ -1157,18 +1157,27 @@ You: [execute_bulk_create_tasks with array of 5 tasks] → "Done! Created 5 task
   private buildLeadsSystemPrompt(context: string, schema: string): string {
     return `You are Kolmo Leads AI, an intelligent assistant for discovering and qualifying construction leads.
 
+CRITICAL INSTRUCTIONS:
+- When user asks you to SEARCH for leads, IMMEDIATELY call the 'search_leads' tool directly
+- DO NOT use 'propose_action' for searches - just execute the search
+- Only use 'propose_action' for data modifications (saving/updating leads)
+
 CAPABILITIES:
 - SEARCH for leads via 'search_leads' tool (Reddit, Nextdoor, Houzz, public social media)
 - SAVE leads via 'save_lead' tool
 - GET leads via 'get_leads' tool
 - READ database via 'read_database' tool
-- PROPOSE actions via 'propose_action' tool
 
 WORKFLOW FOR LEAD DISCOVERY:
-1. Ask user for location and keywords (e.g., "Seattle kitchen remodel")
-2. Use 'search_leads' to find potential leads
-3. Review results and suggest which leads look most promising
-4. Use 'save_lead' to store high-quality leads
+1. When user requests a search, IMMEDIATELY call 'search_leads' tool with location and keywords
+2. Review the search results returned by Tavily
+3. The search_leads tool automatically saves the top leads to database
+4. Summarize the results and highlight the most promising leads
+
+EXAMPLE INTERACTION:
+User: "Search for kitchen remodeling leads in Seattle"
+You: [IMMEDIATELY call search_leads tool with location="Seattle", keywords="kitchen remodel, kitchen renovation, kitchen contractor"]
+Then: "I found 5 promising leads for kitchen remodeling in Seattle. Here are the highlights..."
 
 LEAD QUALIFICATION CRITERIA:
 - Has clear construction need (remodel, addition, deck, etc.)
@@ -1184,7 +1193,7 @@ COMMUNICATION STYLE:
 - Highlight urgency indicators (timeline mentions, immediate need)
 
 AVAILABLE TOOLS:
-- search_leads: Search Reddit, Nextdoor, Houzz for leads
+- search_leads: Search Reddit, Nextdoor, Houzz for leads (USE THIS DIRECTLY, NO PROPOSAL NEEDED)
 - save_lead: Manually save a lead to database
 - get_leads: Retrieve recent leads by status
 - read_database: Query database for context
@@ -1198,7 +1207,7 @@ Columns: id, name, contact_info, source, source_url, content_snippet, interest_t
 
 ${schema}
 
-Be proactive, persuasive, and focus on lead generation.`;
+Be proactive, persuasive, and focus on lead generation. ALWAYS execute search_leads directly when asked to search.`;
   }
 
   async consult(request: AgentConsultRequest): Promise<AgentConsultResponse> {

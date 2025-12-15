@@ -50,8 +50,19 @@ class TavilySearchService {
     }
 
     try {
-      // Build search query with location and keywords
-      const query = `${params.location} ${params.keywords.join(' ')} contractor recommend`;
+      // Build search query focusing on people LOOKING FOR contractors (not contractors promoting themselves)
+      const lookingForPhrases = [
+        'looking for',
+        'need',
+        'recommendations',
+        'recommend',
+        'seeking',
+        'anyone know',
+        'suggestions for'
+      ];
+
+      const phrase = lookingForPhrases[Math.floor(Math.random() * lookingForPhrases.length)];
+      const query = `${params.location} ${phrase} ${params.keywords.join(' ')} contractor`;
 
       // Site-specific search operators (dorks)
       const siteFilter = params.sites?.map(site => `site:${site}`).join(' OR ');
@@ -67,9 +78,19 @@ class TavilySearchService {
           search_depth: 'advanced',
           include_answer: false,
           include_raw_content: false,
-          max_results: 10,
+          max_results: 15,
           include_domains: params.sites,
-          exclude_domains: ['youtube.com', 'linkedin.com'], // Avoid noise
+          exclude_domains: [
+            'youtube.com',
+            'linkedin.com',
+            'facebook.com/pages', // Exclude business pages
+            'instagram.com',
+            'yelp.com', // Exclude review sites
+            'angi.com',
+            'homeadvisor.com',
+            'thumbtack.com/pro', // Exclude contractor profiles
+            'houzz.com/pro' // Exclude pro profiles
+          ],
         },
         {
           headers: { 'Content-Type': 'application/json' },
@@ -77,7 +98,7 @@ class TavilySearchService {
         }
       );
 
-      const results: TavilySearchResult[] = response.data.results.map((r: any) => ({
+      let results: TavilySearchResult[] = response.data.results.map((r: any) => ({
         title: r.title,
         url: r.url,
         content: r.content,
@@ -85,7 +106,73 @@ class TavilySearchService {
         publishedDate: r.published_date,
       }));
 
-      console.log(`[TavilySearch] Found ${results.length} results`);
+      // Filter out low-quality results
+      results = results.filter(result => {
+        const content = result.content.toLowerCase();
+        const title = result.title.toLowerCase();
+        const combined = `${title} ${content}`;
+
+        // Exclude if it's from a contractor promoting themselves
+        const contractorKeywords = [
+          'we offer',
+          'our services',
+          'we specialize',
+          'years of experience',
+          'licensed and insured',
+          'free estimate',
+          'call us',
+          'contact us',
+          'visit our website',
+          'our company',
+          'we provide',
+          'our team'
+        ];
+        if (contractorKeywords.some(keyword => combined.includes(keyword))) {
+          console.log(`[TavilySearch] Filtered out contractor promotion: ${result.title}`);
+          return false;
+        }
+
+        // Exclude if it's just general discussion without specific need
+        const vagueKeywords = [
+          'just curious',
+          'wondering if',
+          'what do you think',
+          'anyone else',
+          'discussion',
+          'thoughts on'
+        ];
+        if (vagueKeywords.some(keyword => combined.includes(keyword)) &&
+            !combined.includes('looking for') &&
+            !combined.includes('need') &&
+            !combined.includes('recommend')) {
+          console.log(`[TavilySearch] Filtered out vague discussion: ${result.title}`);
+          return false;
+        }
+
+        // Require at least one strong lead indicator
+        const leadIndicators = [
+          'looking for',
+          'need a',
+          'need help',
+          'recommendations',
+          'recommend',
+          'anyone know',
+          'suggestions',
+          'hiring',
+          'seeking',
+          'quote',
+          'estimate',
+          'budget'
+        ];
+        if (!leadIndicators.some(indicator => combined.includes(indicator))) {
+          console.log(`[TavilySearch] Filtered out - no lead indicators: ${result.title}`);
+          return false;
+        }
+
+        return true;
+      });
+
+      console.log(`[TavilySearch] Found ${results.length} quality results after filtering`);
 
       return {
         success: true,

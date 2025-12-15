@@ -46,6 +46,7 @@ import AnalyticsPage from "@/pages/analytics";
 import AgentConsole from "@/pages/AgentConsole";
 import ApiKeyManagement from "@/pages/ApiKeyManagement";
 import TimeTracking from "@/pages/TimeTracking";
+import LeadsPage from "@/pages/leads";
 
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth-unified";
@@ -103,6 +104,7 @@ function Router() {
         <ProtectedRoute path="/design-proposals" component={DesignProposalsPage} adminOnly />
         <ProtectedRoute path="/analytics" component={AnalyticsPage} adminOnly />
         <ProtectedRoute path="/agent" component={AgentConsole} adminOnly />
+        <ProtectedRoute path="/leads" component={LeadsPage} adminOnly />
 
         {/* Public design proposal route */}
         <Route path="/design-proposal/:token" component={PublicDesignProposalPage} />

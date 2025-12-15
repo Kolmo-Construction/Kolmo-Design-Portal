@@ -1,4 +1,4 @@
-import { db } from '../index';
+import { db } from '../../db';
 import { leads, Lead, InsertLead } from '@shared/schema';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
 

@@ -20,7 +20,8 @@ import {
   Images,
   Bot,
   Key,
-  Clock
+  Clock,
+  Target
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -203,6 +204,19 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
                   >
                     <Bot className="h-5 w-5 mr-3" />
                     AI Agent
+                  </div>
+                </Link>
+                <Link href="/leads" onClick={closeSidebarOnMobile}>
+                  <div
+                    className={cn(
+                      "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors cursor-pointer",
+                      location === "/leads"
+                        ? "bg-primary-50 text-primary-600"
+                        : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                    )}
+                  >
+                    <Target className="h-5 w-5 mr-3" />
+                    Sales Leads
                   </div>
                 </Link>
                 <Link href="/api-keys" onClick={closeSidebarOnMobile}>
