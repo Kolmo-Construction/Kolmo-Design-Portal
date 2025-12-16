@@ -48,6 +48,7 @@ import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
 import chatRouter from "./routes/chat.routes"; // Stream Chat router
 import agentRouter from "./routes/agent.routes"; // AI Agent router
 import leadRouter from "./routes/lead.routes"; // Lead management router
+import interviewRouter from "./routes/interview.routes"; // AI Interview Mode router
 // Import other routers as needed (milestones, selections, admin, etc.)
 // import milestoneRouter from "@server/routes/milestone.routes";
 // import selectionRouter from "@server/routes/selection.routes";
@@ -369,6 +370,9 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // Mount Lead routes (authenticated users only)
   app.use("/api/leads", isAuthenticated, leadRouter);
+
+  // Mount Interview routes (PM/Admin only - role check in router)
+  app.use("/api/interview", interviewRouter);
 
   // Mount Webhook routes (no authentication - Stripe handles verification)
   app.use("/api/webhooks", webhookRoutes);

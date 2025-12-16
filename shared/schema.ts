@@ -44,6 +44,9 @@ export const leadSourceEnum = pgEnum('lead_source', [
   'referral'      // Word of mouth
 ]);
 
+// Interview session status enum
+export const interviewStatusEnum = pgEnum('interview_status', ['active', 'completed', 'abandoned']);
+
 // Zoho tokens table for OAuth persistence
 export const zohoTokens = pgTable("zoho_tokens", {
   id: serial("id").primaryKey(),
@@ -156,6 +159,55 @@ export const users = pgTable("users", {
   stripeCustomerId: text("stripe_customer_id").unique(),
   stripeSubscriptionId: text("stripe_subscription_id"),
 });
+
+// Interview sessions table - AI-powered conversational quote collection
+export const interviewSessions = pgTable("interview_sessions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  leadId: integer("lead_id").references(() => leads.id, { onDelete: 'set null' }),
+
+  status: interviewStatusEnum("status").notNull().default("active"),
+  currentField: text("current_field"),
+
+  // Quote draft data collected during interview
+  quoteDraft: jsonb("quote_draft").$type<{
+    customerName?: string;
+    customerEmail?: string;
+    customerPhone?: string;
+    customerAddress?: string;
+    projectType?: string;
+    location?: string;
+    scopeDescription?: string;
+    estimatedBudget?: string;
+    downPaymentPercentage?: number;
+    estimatedStartDate?: string;
+    estimatedCompletionDate?: string;
+    validUntil?: string;
+    lineItems?: Array<{
+      category: string;
+      description: string;
+      quantity: number;
+      unit: string;
+      unitPrice: number;
+    }>;
+  }>().notNull().default(sql`'{}'::jsonb`),
+
+  // Conversation transcript
+  transcript: jsonb("transcript").$type<Array<{
+    role: 'assistant' | 'user';
+    content: string;
+    timestamp: string;
+    audioUri?: string;
+    extractedData?: Record<string, any>;
+  }>>().notNull().default(sql`'[]'::jsonb`),
+
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type InterviewSession = typeof interviewSessions.$inferSelect;
+export type NewInterviewSession = typeof interviewSessions.$inferInsert;
 
 // API Keys table for mobile and external API authentication
 export const apiKeys = pgTable("api_keys", {
@@ -1056,6 +1108,7 @@ export const userRelations = relations(users, ({ many }) => ({
   timeEntries: many(timeEntries),
   uploadedReceipts: many(receipts, { relationName: 'Uploader' }),
   verifiedReceipts: many(receipts, { relationName: 'Verifier' }),
+  interviewSessions: many(interviewSessions),
 }));
 
 export const clientProjectRelations = relations(clientProjects, ({ one }) => ({
@@ -1192,6 +1245,17 @@ export const leadsRelations = relations(leads, ({ one }) => ({
   }),
 }));
 
+// Interview sessions relations
+export const interviewSessionRelations = relations(interviewSessions, ({ one }) => ({
+  user: one(users, {
+    fields: [interviewSessions.userId],
+    references: [users.id],
+  }),
+  lead: one(leads, {
+    fields: [interviewSessions.leadId],
+    references: [leads.id],
+  }),
+}));
 
 // --- Insert Schemas (with Zod validations) ---
 
@@ -1200,6 +1264,14 @@ export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
   id: true,
   createdAt: true,
   embedding: true,
+});
+
+// Interview sessions insert schema
+export const insertInterviewSessionSchema = createInsertSchema(interviewSessions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  completedAt: true,
 });
 
 // Create insert schemas for each table

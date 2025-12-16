@@ -24,6 +24,7 @@ import { IApiKeyRepository, apiKeyRepository } from './repositories/apikey.repos
 import { ITimeEntryRepository, timeEntryRepository } from './repositories/timeentry.repository';
 import { IReceiptRepository, receiptRepository } from './repositories/receipt.repository';
 import { ILeadRepository, leadRepository } from './repositories/lead.repository';
+import { IInterviewRepository, interviewRepository } from './repositories/interview.repository';
 // *** END ADDED ***
 
 // Define the shape of the aggregated storage object
@@ -45,6 +46,7 @@ export interface StorageAggregate {
     timeEntries: ITimeEntryRepository;
     receipts: IReceiptRepository;
     leads: ILeadRepository;
+    interviewSessions: IInterviewRepository;
     sessionStore: session.Store;
     // Permission helper functions
     projectManagerHasProjectAccess: (userId: number, projectId: number) => Promise<boolean>;
@@ -130,6 +132,7 @@ export const storage: StorageAggregate = {
     timeEntries: timeEntryRepository,
     receipts: receiptRepository,
     leads: leadRepository,
+    interviewSessions: interviewRepository,
     sessionStore,
     projectManagerHasProjectAccess,
     clientHasProjectAccess,
@@ -152,5 +155,6 @@ export {
     apiKeyRepository,
     timeEntryRepository,
     receiptRepository,
-    leadRepository
+    leadRepository,
+    interviewRepository
 };
