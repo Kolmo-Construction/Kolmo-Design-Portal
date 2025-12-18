@@ -353,6 +353,13 @@ export const documents = pgTable("documents", {
   fileSize: integer("file_size").notNull(), // in bytes
   category: text("category").notNull(), // contracts, plans, permits, invoices, etc.
   uploadedById: integer("uploaded_by_id").references(() => users.id),
+
+  // Approval workflow
+  status: text("status").default("approved").notNull().$type<'draft' | 'pending_review' | 'approved' | 'rejected'>(),
+  visibility: text("visibility").default("admin_only").notNull().$type<'admin_only' | 'published'>(),
+  reviewedById: integer("reviewed_by_id").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -386,7 +393,10 @@ export const invoices = pgTable("invoices", {
   // Payment terms
   lateFeePercentage: decimal("late_fee_percentage", { precision: 5, scale: 2 }).default("0.00"),
   gracePeriodDays: integer("grace_period_days").default(5),
-  
+
+  // Visibility control
+  visibility: text("visibility").default("admin_only").notNull().$type<'admin_only' | 'published'>(),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -537,6 +547,11 @@ export const adminImages = pgTable("admin_images", {
   category: text("category").default("general"), // general, progress, materials, before_after, etc.
   
   uploadedById: integer("uploaded_by_id").notNull().references(() => users.id),
+  // Approval workflow
+  status: text("status").default("approved").notNull().$type<'draft' | 'pending_review' | 'approved' | 'rejected'>(),
+  visibility: text("visibility").default("admin_only").notNull().$type<'admin_only' | 'published'>(),
+  reviewedById: integer("reviewed_by_id").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -629,7 +644,10 @@ export const milestones = pgTable("milestones", {
   // Billing tracking
   invoiceId: integer("invoice_id"), // Link to generated invoice when billed
   billedAt: timestamp("billed_at"),
-  
+
+  // Visibility control
+  visibility: text("visibility").default("admin_only").notNull().$type<'admin_only' | 'published'>(),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -703,6 +721,11 @@ export const dailyLogs = pgTable("daily_logs", {
   issuesEncountered: text("issues_encountered"),
   safetyObservations: text("safety_observations"),
   createdById: integer("created_by_id").notNull().references(() => users.id),
+  // Approval workflow
+  status: text("status").default("approved").notNull().$type<'draft' | 'pending_review' | 'approved' | 'rejected'>(),
+  visibility: text("visibility").default("admin_only").notNull().$type<'admin_only' | 'published'>(),
+  reviewedById: integer("reviewed_by_id").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -731,6 +754,8 @@ export const punchListItems = pgTable("punch_list_items", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   resolvedAt: timestamp("resolved_at"),
+  // Visibility control
+  visibility: text("visibility").default("admin_only").notNull().$type<'admin_only' | 'published'>(),
 });
 
 // --- Quotes System Tables ---

@@ -33,6 +33,7 @@ import { projectPaymentRoutes } from "./routes/project-payment.routes"; // Proje
 import globalFinanceRoutes from "./routes/global-finance.routes"; // Global finance API routes
 import taskBillingRouter from "./routes/task-billing.routes"; // Task billing router for complete-and-bill functionality
 import { milestoneRoutes } from "./routes/milestone.routes"; // Milestone management router
+import { unifiedContentRoutes } from "./routes/unified-content.routes"; // Unified content API router
 import clientRouter from "./routes/client.routes"; // Client portal router
 import billingValidationRouter from "./routes/billing-validation.routes"; // Billing validation router
 import taggunRouter from "./routes/taggun.routes"; // Taggun receipt scanning router
@@ -49,6 +50,7 @@ import chatRouter from "./routes/chat.routes"; // Stream Chat router
 import agentRouter from "./routes/agent.routes"; // AI Agent router
 import leadRouter from "./routes/lead.routes"; // Lead management router
 import interviewRouter from "./routes/interview.routes"; // AI Interview Mode router
+import ttsRouter from "./routes/tts.routes"; // Text-to-Speech router
 // Import other routers as needed (milestones, selections, admin, etc.)
 // import milestoneRouter from "@server/routes/milestone.routes";
 // import selectionRouter from "@server/routes/selection.routes";
@@ -302,6 +304,15 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
     milestoneRoutes
   );
 
+  // Unified content API - fetch all content types for a project (Web-only)
+  app.use(
+    "/api/projects/:projectId/unified-content",
+    isAuthenticated,
+    requireWebAccess,
+    validateProjectId,
+    unifiedContentRoutes
+  );
+
   // =========================================================================
   // MOBILE-ACCESSIBLE ROUTES (Must be registered before broad "/api" middleware)
   // =========================================================================
@@ -373,6 +384,9 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // Mount Interview routes (PM/Admin only - role check in router)
   app.use("/api/interview", interviewRouter);
+
+  // Mount TTS routes (authenticated users only)
+  app.use("/api/tts", ttsRouter);
 
   // Mount Webhook routes (no authentication - Stripe handles verification)
   app.use("/api/webhooks", webhookRoutes);

@@ -40,6 +40,22 @@ const audioUpload = multer({
   },
 });
 
+// Configure multer for image uploads
+const imageUpload = multer({
+  storage: multer.memoryStorage(), // Store in memory for R2 upload
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept image files
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  },
+});
+
 /**
  * POST /api/interview/start
  * Start a new interview session or resume existing active session
@@ -50,10 +66,10 @@ router.post(
   hasRole(['admin', 'project_manager']),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { leadId } = req.body;
+      const { leadId, initialData } = req.body;
       const userId = req.user!.id;
 
-      const result = await interviewService.startSession(userId, leadId);
+      const result = await interviewService.startSession(userId, leadId, initialData);
 
       res.json({
         success: true,
@@ -266,6 +282,62 @@ router.post(
       res.status(500).json({
         success: false,
         error: error.message || 'Failed to abandon session',
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/interview/:sessionId/upload-image
+ * Upload and analyze an image during the interview
+ */
+router.post(
+  '/:sessionId/upload-image',
+  isAuthenticated,
+  hasRole(['admin', 'project_manager']),
+  imageUpload.single('image'),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { sessionId } = req.params;
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          error: 'Image file is required',
+        });
+      }
+
+      console.log('[InterviewRoutes] Processing image upload for session:', sessionId);
+      console.log('[InterviewRoutes] File info:', {
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+      });
+
+      const result = await interviewService.uploadAndAnalyzeImage(
+        parseInt(sessionId),
+        req.file.buffer,
+        req.file.originalname
+      );
+
+      console.log('[InterviewRoutes] Image upload successful');
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error: any) {
+      console.error('[InterviewRoutes] Error uploading image:', error);
+      console.error('[InterviewRoutes] Error stack:', error.stack);
+      console.error('[InterviewRoutes] Error details:', {
+        message: error.message,
+        name: error.name,
+        code: error.code,
+      });
+
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to upload and analyze image',
       });
     }
   }

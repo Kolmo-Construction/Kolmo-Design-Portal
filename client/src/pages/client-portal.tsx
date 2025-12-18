@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { ClientNavigation } from '@/components/ClientNavigation';
 import { DashboardRecentUpdates } from '@/components/client/DashboardRecentUpdates';
+import { ProjectPhotoGallery } from '@/components/client/ProjectPhotoGallery';
 import { getQueryFn } from '@/lib/queryClient';
 import type { Task } from '@shared/schema';
 
@@ -231,110 +232,84 @@ export default function ClientPortal() {
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
       <ClientNavigation />
       
-      {/* Hero Section */}
-      <div className="bg-primary text-primary-foreground">
-        <div className="container mx-auto px-6 pt-24 pb-16">
-          <div className="max-w-4xl">
-            <h1 className="text-4xl font-bold mb-4">
+      {/* Hero Section - Simplified */}
+      <div className="bg-gradient-to-r from-primary to-primary/90 text-primary-foreground">
+        <div className="container mx-auto px-6 pt-24 pb-12">
+          <div className="max-w-6xl mx-auto">
+            <h1 className="text-3xl md:text-4xl font-bold mb-3">
               Welcome back, {user.firstName}
             </h1>
-            <p className="text-xl opacity-90 mb-8">
-              Track your project progress and stay connected with your construction team.
+            <p className="text-lg opacity-90 mb-10">
+              Track your project progress and stay connected with your team.
             </p>
-            
-            {/* Progress Dial Circles */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mt-8">
-              <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-lg p-6 flex flex-col items-center">
-                <DialCircle
-                  value={stats.totalProjects}
-                  maxValue={10}
-                  size="md"
-                  color="accent"
-                  showPercentage={false}
-                  label="Active Projects"
-                  className="text-primary-foreground"
-                />
+
+            {/* Stats Overview - Compact Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 text-center">
+                <div className="text-3xl font-bold mb-1">{stats.totalProjects}</div>
+                <div className="text-sm opacity-90">Active Projects</div>
               </div>
-              
-              <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-lg p-6 flex flex-col items-center">
-                <DialCircle
-                  value={stats.completedTasks}
-                  maxValue={stats.totalTasks || 1}
-                  size="md"
-                  color="success"
-                  label="Tasks Completed"
-                  sublabel={`${stats.completedTasks}/${stats.totalTasks}`}
-                  className="text-primary-foreground"
-                />
+
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 text-center">
+                <div className="text-3xl font-bold mb-1">{stats.completedTasks}</div>
+                <div className="text-sm opacity-90">Tasks Done</div>
               </div>
-              
-              <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-lg p-6 flex flex-col items-center">
-                <DialCircle
-                  value={progressPercentage}
-                  maxValue={100}
-                  size="md"
-                  color="primary"
-                  showPercentage={true}
-                  label="Overall Progress"
-                  className="text-primary-foreground"
-                />
+
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 text-center">
+                <div className="text-3xl font-bold mb-1">{Math.round(progressPercentage)}%</div>
+                <div className="text-sm opacity-90">Progress</div>
               </div>
-              
-              <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-lg p-6 flex flex-col items-center">
-                <DialCircle
-                  value={stats.totalTasks - stats.completedTasks}
-                  maxValue={stats.totalTasks || 1}
-                  size="md"
-                  color="warning"
-                  showPercentage={false}
-                  label="Tasks Remaining"
-                  sublabel={`${stats.totalTasks - stats.completedTasks} left`}
-                  className="text-primary-foreground"
-                />
+
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 text-center">
+                <div className="text-3xl font-bold mb-1">{stats.totalTasks - stats.completedTasks}</div>
+                <div className="text-sm opacity-90">Remaining</div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-6 py-12">
-        {/* Budget Tracker */}
-        <div className="mb-8">
-          <Card className="border-primary/20 shadow-lg">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="bg-primary/10 rounded-full p-2">
-                  <DollarSign className="h-5 w-5 text-primary" />
+      <div className="container mx-auto px-6 py-10 max-w-7xl">
+        {/* Main Content Grid - 2 Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+          {/* Left Column - Budget & Quick Actions */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Budget Tracker */}
+            <Card className="border-primary/20 shadow-lg">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="bg-primary/10 rounded-full p-2">
+                    <DollarSign className="h-4 w-4 text-primary" />
+                  </div>
+                  <CardTitle className="text-lg">Budget Tracker</CardTitle>
                 </div>
-                <h2 className="text-xl font-semibold">Budget Tracker</h2>
-              </div>
-
-              <div className="space-y-4">
+              </CardHeader>
+              <CardContent className="space-y-4">
                 {/* Budget Overview */}
-                <div className="flex justify-between items-baseline">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Budget</p>
-                    <p className="text-2xl font-bold text-primary">
-                      ${(dashboardData?.financialStats?.totalBudget || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-baseline">
+                    <p className="text-xs text-muted-foreground">Total Budget</p>
+                    <p className="text-xl font-bold text-primary">
+                      ${(dashboardData?.financialStats?.totalBudget || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Invoiced to Date</p>
-                    <p className="text-2xl font-bold text-accent">
-                      ${(dashboardData?.financialStats?.totalInvoiced || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <div className="flex justify-between items-baseline">
+                    <p className="text-xs text-muted-foreground">Invoiced</p>
+                    <p className="text-xl font-bold text-accent">
+                      ${(dashboardData?.financialStats?.totalInvoiced || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                     </p>
                   </div>
                 </div>
 
                 {/* Progress Bar */}
                 <div>
-                  <div className="flex justify-between text-sm text-muted-foreground mb-2">
-                    <span>Budget Used: {Math.round(dashboardData?.financialStats?.percentageUsed || 0)}%</span>
-                    <span>Remaining: ${(dashboardData?.financialStats?.remaining || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <div className="flex justify-between text-xs text-muted-foreground mb-2">
+                    <span>{Math.round(dashboardData?.financialStats?.percentageUsed || 0)}% used</span>
+                    <span>${(dashboardData?.financialStats?.remaining || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })} left</span>
                   </div>
                   <Progress
                     value={dashboardData?.financialStats?.percentageUsed || 0}
-                    className="h-3"
+                    className="h-2.5"
                   />
                 </div>
 
@@ -342,24 +317,62 @@ export default function ClientPortal() {
                 {(dashboardData?.financialStats?.percentageUsed || 0) > 90 && (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
                     <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                    <p className="text-sm text-amber-800">
-                      You've used over 90% of your budget. Please review upcoming expenses.
+                    <p className="text-xs text-amber-800">
+                      Budget over 90% used. Review upcoming expenses.
                     </p>
                   </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
 
-        {/* Recent Updates from All Projects */}
-        <div className="mb-12">
-          <DashboardRecentUpdates />
-        </div>
+            {/* Quick Actions - Compact */}
+            <Card className="border-muted shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Link to="/messages">
+                  <Button variant="outline" className="w-full justify-start" size="sm">
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Messages
+                    {dashboardData?.unreadMessages.length ? (
+                      <Badge className="ml-auto bg-destructive text-destructive-foreground text-xs">{dashboardData.unreadMessages.length}</Badge>
+                    ) : null}
+                  </Button>
+                </Link>
+                <Link to="/documents">
+                  <Button variant="outline" className="w-full justify-start" size="sm">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Documents
+                  </Button>
+                </Link>
+                <Link to="/invoices">
+                  <Button variant="outline" className="w-full justify-start" size="sm">
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Invoices
+                    {dashboardData?.pendingInvoices.length ? (
+                      <Badge className="ml-auto bg-amber-500 text-white text-xs">{dashboardData.pendingInvoices.length}</Badge>
+                    ) : null}
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
 
-        {/* Project Timeline */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold mb-6 text-primary">Project Timeline</h2>
+          {/* Right Column - Updates & Projects */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Recent Updates */}
+            <DashboardRecentUpdates />
+
+            {/* Project Photos */}
+            <ProjectPhotoGallery />
+
+            {/* Project Timeline */}
+            <div>
+              <h2 className="text-2xl font-bold mb-4 text-primary flex items-center gap-2">
+                <Building className="h-6 w-6" />
+                Your Projects
+              </h2>
           
           {dashboardData?.projects.length === 0 ? (
             <Card className="border-muted">
@@ -417,72 +430,8 @@ export default function ClientPortal() {
               </div>
             ))
           )}
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="border-primary/20 hover:border-primary/40 transition-all duration-300 shadow-lg hover:shadow-xl bg-gradient-to-br from-background to-muted/20">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="bg-primary/10 rounded-full p-4 w-fit mx-auto mb-4">
-                  <MessageSquare className="h-8 w-8 text-primary" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2 text-primary">Team Messages</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Stay connected with your project team
-                </p>
-                <Link to="/messages">
-                  <Button className="w-full bg-primary hover:bg-primary/90 shadow-md">
-                    View Messages
-                    {dashboardData?.unreadMessages.length ? (
-                      <Badge className="ml-2 bg-destructive text-destructive-foreground">{dashboardData.unreadMessages.length}</Badge>
-                    ) : null}
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-accent/20 hover:border-accent/40 transition-all duration-300 shadow-lg hover:shadow-xl bg-gradient-to-br from-background to-muted/20">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="bg-accent/10 rounded-full p-4 w-fit mx-auto mb-4">
-                  <FileText className="h-8 w-8 text-accent" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2 text-accent">Project Documents</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Access contracts, plans, and reports
-                </p>
-                <Link to="/documents">
-                  <Button className="w-full bg-accent hover:bg-accent/90 shadow-md">
-                    View Documents
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-green-500/20 hover:border-green-500/40 transition-all duration-300 shadow-lg hover:shadow-xl bg-gradient-to-br from-background to-muted/20">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="bg-green-500/10 rounded-full p-4 w-fit mx-auto mb-4">
-                  <DollarSign className="h-8 w-8 text-green-600" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2 text-green-700">Invoices & Payments</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Review billing and payment status
-                </p>
-                <Link to="/invoices">
-                  <Button className="w-full bg-green-600 hover:bg-green-700 text-white shadow-md">
-                    View Invoices
-                    {dashboardData?.pendingInvoices.length ? (
-                      <Badge className="ml-2 bg-destructive text-destructive-foreground">{dashboardData.pendingInvoices.length}</Badge>
-                    ) : null}
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
     </div>

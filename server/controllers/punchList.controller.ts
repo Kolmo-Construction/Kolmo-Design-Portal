@@ -1,13 +1,14 @@
 // server/controllers/punchList.controller.ts
 import { Request, Response, NextFunction } from 'express'; // Added NextFunction
 import { IPunchListRepository } from '../storage/repositories/punchList.repository';
-import { InsertPunchListItem, User } from '@shared/schema'; // Use @shared alias
+import { InsertPunchListItem, User, punchListItems } from '@shared/schema'; // Use @shared alias
 import { HttpError } from '../errors';
 import { IMediaRepository } from '../storage/repositories/media.repository';
 import { log as logger } from '../vite';
 import { storage } from '../storage';
 // *** ADDED: Import R2 upload function (adjust path if necessary) ***
 import { uploadToR2 } from '../r2-upload';
+import { approvalWorkflowService } from '../services/approval-workflow.service';
 
 // Define request type interfaces
 interface TypedRequestParams<T> extends Request {
@@ -53,11 +54,18 @@ export class PunchListController {
     // --- Get Methods (Unchanged) ---
     async getPunchListItemsForProject(req: TypedRequestParams<{ projectId: string }>, res: Response, next: NextFunction): Promise<void> {
         const projectId = Number(req.params.projectId);
+        const user = req.user as User;
         if (isNaN(projectId)) {
             return next(new HttpError(400, 'Invalid project ID parameter.'));
         }
         try {
-            const punchListItems = await this.punchListRepo.getPunchListItemsForProject(projectId);
+            let punchListItems = await this.punchListRepo.getPunchListItemsForProject(projectId);
+
+            // Filter by visibility for client users
+            if (user?.role === 'client') {
+                punchListItems = punchListItems.filter(item => item.visibility === 'published');
+            }
+
             res.status(200).json(punchListItems);
         } catch (error) {
             logger(`Error fetching punch list items for project ${projectId}: ${error instanceof Error ? error.message : error}`, 'PunchListController');
@@ -311,6 +319,136 @@ export class PunchListController {
     async deletePunchListItemMedia(req: TypedRequestParams<{ itemId: string; mediaId: string }> & AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
          // Implementation for deleting *specific* media items if needed
          next(new HttpError(501, 'Deleting specific media not implemented yet.'));
+    }
+
+    /**
+     * Approve a punch list item (and optionally publish it)
+     */
+    async approvePunchListItem(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { itemId } = req.params;
+            const itemIdNum = parseInt(itemId, 10);
+            const user = req.user as User;
+            const { publish = false } = req.body;
+
+            if (isNaN(itemIdNum)) {
+                throw new HttpError(400, 'Invalid punch list item ID parameter.');
+            }
+            if (!user?.id) {
+                throw new HttpError(401, 'Authentication required.');
+            }
+            if (user.role !== 'admin') {
+                throw new HttpError(403, 'Admin access required.');
+            }
+
+            const approvedItem = await approvalWorkflowService.approve(
+                punchListItems,
+                itemIdNum,
+                user.id,
+                publish
+            );
+
+            res.status(200).json(approvedItem);
+        } catch (error) {
+            logger.error('[PunchListController] Error in approvePunchListItem:', error);
+            next(error);
+        }
+    }
+
+    /**
+     * Reject a punch list item
+     */
+    async rejectPunchListItem(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { itemId } = req.params;
+            const itemIdNum = parseInt(itemId, 10);
+            const user = req.user as User;
+            const { reason } = req.body;
+
+            if (isNaN(itemIdNum)) {
+                throw new HttpError(400, 'Invalid punch list item ID parameter.');
+            }
+            if (!user?.id) {
+                throw new HttpError(401, 'Authentication required.');
+            }
+            if (user.role !== 'admin') {
+                throw new HttpError(403, 'Admin access required.');
+            }
+
+            const rejectedItem = await approvalWorkflowService.reject(
+                punchListItems,
+                itemIdNum,
+                user.id,
+                reason
+            );
+
+            res.status(200).json(rejectedItem);
+        } catch (error) {
+            logger.error('[PunchListController] Error in rejectPunchListItem:', error);
+            next(error);
+        }
+    }
+
+    /**
+     * Publish a punch list item (make it visible to clients)
+     */
+    async publishPunchListItem(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { itemId } = req.params;
+            const itemIdNum = parseInt(itemId, 10);
+            const user = req.user as User;
+
+            if (isNaN(itemIdNum)) {
+                throw new HttpError(400, 'Invalid punch list item ID parameter.');
+            }
+            if (!user?.id) {
+                throw new HttpError(401, 'Authentication required.');
+            }
+            if (user.role !== 'admin') {
+                throw new HttpError(403, 'Admin access required.');
+            }
+
+            const publishedItem = await approvalWorkflowService.publish(
+                punchListItems,
+                itemIdNum
+            );
+
+            res.status(200).json(publishedItem);
+        } catch (error) {
+            logger.error('[PunchListController] Error in publishPunchListItem:', error);
+            next(error);
+        }
+    }
+
+    /**
+     * Unpublish a punch list item (hide it from clients)
+     */
+    async unpublishPunchListItem(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { itemId } = req.params;
+            const itemIdNum = parseInt(itemId, 10);
+            const user = req.user as User;
+
+            if (isNaN(itemIdNum)) {
+                throw new HttpError(400, 'Invalid punch list item ID parameter.');
+            }
+            if (!user?.id) {
+                throw new HttpError(401, 'Authentication required.');
+            }
+            if (user.role !== 'admin') {
+                throw new HttpError(403, 'Admin access required.');
+            }
+
+            const unpublishedItem = await approvalWorkflowService.unpublish(
+                punchListItems,
+                itemIdNum
+            );
+
+            res.status(200).json(unpublishedItem);
+        } catch (error) {
+            logger.error('[PunchListController] Error in unpublishPunchListItem:', error);
+            next(error);
+        }
     }
 }
 

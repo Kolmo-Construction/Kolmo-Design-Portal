@@ -39,7 +39,8 @@ import {
   Tag,
   Images,
   Brain,
-  Receipt
+  Receipt,
+  CheckCircle
 } from "lucide-react";
 import { ProjectOverviewCard } from "@/components/project-details/ProjectOverviewCard";
 import { ProjectUpdatesTab } from "@/components/project-details/ProjectUpdatesTab";
@@ -53,6 +54,7 @@ import { ProjectPunchListTab } from "@/components/project-details/ProjectPunchLi
 import { ProjectReceiptsTab } from "@/components/project-details/ProjectReceiptsTab";
 import { ProjectImagesTab } from "@/components/project-details/ProjectImagesTab";
 import { ProjectLaborTab } from "@/components/project-details/ProjectLaborTab";
+import { UnifiedContentReviewTab } from "@/components/project-details/UnifiedContentReviewTab";
 import { GenerateAIReportDialog } from "@/components/admin/GenerateAIReportDialog";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth-unified";
@@ -161,12 +163,12 @@ export default function ProjectDetails() {
             
             <div className="flex flex-wrap gap-2">
               {user?.role === 'admin' && (
-                <Link href={`/project-details/${projectId}`}>
+                <a href="/client-portal" target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" size="sm" className="gap-2 border-kolmo-accent text-kolmo-accent hover:bg-kolmo-accent hover:text-white">
                     <User className="h-4 w-4" />
                     View Client Portal
                   </Button>
-                </Link>
+                </a>
               )}
 
               {user?.role !== 'client' && (
@@ -273,7 +275,7 @@ export default function ProjectDetails() {
           <div className="overflow-x-auto mb-6">
             <TabsList className={cn(
               "grid grid-flow-col auto-cols-max w-max sm:w-full gap-1 bg-white border border-kolmo-primary/10 p-1",
-              user?.role === 'client' ? 'sm:grid-cols-7' : 'sm:grid-cols-11'
+              user?.role === 'client' ? 'sm:grid-cols-7' : 'sm:grid-cols-12'
             )}>
               <TabsTrigger value="updates" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
                 <TrendingUp className="h-4 w-4 mr-2" />
@@ -323,10 +325,16 @@ export default function ProjectDetails() {
                 Schedule
               </TabsTrigger>
               {user?.role === 'admin' && (
-                <TabsTrigger value="receipts" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
-                  <Receipt className="h-4 w-4 mr-2" />
-                  Receipts
-                </TabsTrigger>
+                <>
+                  <TabsTrigger value="receipts" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
+                    <Receipt className="h-4 w-4 mr-2" />
+                    Receipts
+                  </TabsTrigger>
+                  <TabsTrigger value="review" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Review & Publish
+                  </TabsTrigger>
+                </>
               )}
             </TabsList>
           </div>
@@ -373,9 +381,14 @@ export default function ProjectDetails() {
               {activeTab === 'schedule' && <ProjectScheduleTab projectId={projectId} />}
             </TabsContent>
             {user?.role === 'admin' && (
-              <TabsContent value="receipts" className="mt-0 p-6">
-                {activeTab === 'receipts' && <ProjectReceiptsTab project={project} />}
-              </TabsContent>
+              <>
+                <TabsContent value="receipts" className="mt-0 p-6">
+                  {activeTab === 'receipts' && <ProjectReceiptsTab project={project} />}
+                </TabsContent>
+                <TabsContent value="review" className="mt-0 p-6">
+                  {activeTab === 'review' && <UnifiedContentReviewTab projectId={projectId} />}
+                </TabsContent>
+              </>
             )}
           </div>
         </Tabs>

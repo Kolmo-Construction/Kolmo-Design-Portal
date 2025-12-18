@@ -4,7 +4,8 @@ import { z } from 'zod';
 // Import the aggregated storage object and the specific repo interface
 import { storage, StorageAggregate } from '../storage/index'; // Adjusted import
 import { HttpError } from '../errors';
-import { insertDailyLogSchema, User } from '../../shared/schema'; // Corrected path to shared/schema
+import { insertDailyLogSchema, User, dailyLogs } from '../../shared/schema'; // Corrected path to shared/schema
+import { approvalWorkflowService } from '../services/approval-workflow.service';
 
 // Define Zod schema for validation that OMITS fields set by the backend
 const createDailyLogInputSchema = z.object({
@@ -59,9 +60,15 @@ export class DailyLogController {
     async getDailyLogsForProject(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const projectId = parseInt(req.params.projectId, 10);
+            const user = req.user as User;
             console.log(`[DailyLogController] Fetching logs for project ID: ${projectId}`);
 
-            const logs = await this.dailyLogsRepo.getDailyLogsForProject(projectId);
+            let logs = await this.dailyLogsRepo.getDailyLogsForProject(projectId);
+
+            // Filter by visibility for client users
+            if (user?.role === 'client') {
+                logs = logs.filter(log => log.visibility === 'published');
+            }
 
             console.log(`[DailyLogController] Found ${logs.length} logs for project ID: ${projectId}`);
             res.status(200).json(logs);
@@ -170,6 +177,136 @@ export class DailyLogController {
         } catch (error) {
              console.error('[DailyLogController] Error in deleteDailyLog:', error);
              next(error instanceof HttpError ? error : new HttpError(500, 'Failed to delete daily log.', error instanceof Error ? error.message : String(error)));
+        }
+    }
+
+    /**
+     * Approve a daily log (and optionally publish it)
+     */
+    async approveDailyLog(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { dailyLogId } = req.params;
+            const dailyLogIdNum = parseInt(dailyLogId, 10);
+            const user = req.user as User;
+            const { publish = false } = req.body;
+
+            if (isNaN(dailyLogIdNum)) {
+                throw new HttpError(400, 'Invalid daily log ID parameter.');
+            }
+            if (!user?.id) {
+                throw new HttpError(401, 'Authentication required.');
+            }
+            if (user.role !== 'admin') {
+                throw new HttpError(403, 'Admin access required.');
+            }
+
+            const approvedLog = await approvalWorkflowService.approve(
+                dailyLogs,
+                dailyLogIdNum,
+                user.id,
+                publish
+            );
+
+            res.status(200).json(approvedLog);
+        } catch (error) {
+            console.error('[DailyLogController] Error in approveDailyLog:', error);
+            next(error instanceof HttpError ? error : new HttpError(500, 'Failed to approve daily log.'));
+        }
+    }
+
+    /**
+     * Reject a daily log
+     */
+    async rejectDailyLog(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { dailyLogId } = req.params;
+            const dailyLogIdNum = parseInt(dailyLogId, 10);
+            const user = req.user as User;
+            const { reason } = req.body;
+
+            if (isNaN(dailyLogIdNum)) {
+                throw new HttpError(400, 'Invalid daily log ID parameter.');
+            }
+            if (!user?.id) {
+                throw new HttpError(401, 'Authentication required.');
+            }
+            if (user.role !== 'admin') {
+                throw new HttpError(403, 'Admin access required.');
+            }
+
+            const rejectedLog = await approvalWorkflowService.reject(
+                dailyLogs,
+                dailyLogIdNum,
+                user.id,
+                reason
+            );
+
+            res.status(200).json(rejectedLog);
+        } catch (error) {
+            console.error('[DailyLogController] Error in rejectDailyLog:', error);
+            next(error instanceof HttpError ? error : new HttpError(500, 'Failed to reject daily log.'));
+        }
+    }
+
+    /**
+     * Publish a daily log (make it visible to clients)
+     */
+    async publishDailyLog(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { dailyLogId } = req.params;
+            const dailyLogIdNum = parseInt(dailyLogId, 10);
+            const user = req.user as User;
+
+            if (isNaN(dailyLogIdNum)) {
+                throw new HttpError(400, 'Invalid daily log ID parameter.');
+            }
+            if (!user?.id) {
+                throw new HttpError(401, 'Authentication required.');
+            }
+            if (user.role !== 'admin') {
+                throw new HttpError(403, 'Admin access required.');
+            }
+
+            const publishedLog = await approvalWorkflowService.publish(
+                dailyLogs,
+                dailyLogIdNum
+            );
+
+            res.status(200).json(publishedLog);
+        } catch (error) {
+            console.error('[DailyLogController] Error in publishDailyLog:', error);
+            next(error instanceof HttpError ? error : new HttpError(500, 'Failed to publish daily log.'));
+        }
+    }
+
+    /**
+     * Unpublish a daily log (hide it from clients)
+     */
+    async unpublishDailyLog(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { dailyLogId } = req.params;
+            const dailyLogIdNum = parseInt(dailyLogId, 10);
+            const user = req.user as User;
+
+            if (isNaN(dailyLogIdNum)) {
+                throw new HttpError(400, 'Invalid daily log ID parameter.');
+            }
+            if (!user?.id) {
+                throw new HttpError(401, 'Authentication required.');
+            }
+            if (user.role !== 'admin') {
+                throw new HttpError(403, 'Admin access required.');
+            }
+
+            const unpublishedLog = await approvalWorkflowService.unpublish(
+                dailyLogs,
+                dailyLogIdNum
+            );
+
+            res.status(200).json(unpublishedLog);
+        } catch (error) {
+            console.error('[DailyLogController] Error in unpublishDailyLog:', error);
+            next(error instanceof HttpError ? error : new HttpError(500, 'Failed to unpublish daily log.'));
         }
     }
 

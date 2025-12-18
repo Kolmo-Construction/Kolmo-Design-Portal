@@ -30,6 +30,12 @@ router.post('/process-unassigned', (req, res) => adminImagesController.processUn
 router.post('/', upload.array('image', 10), (req, res) => adminImagesController.uploadImages(req as AuthenticatedRequest, res));
 
 /**
+ * GET /api/admin/images/:id
+ * Get a single image by ID (must be before / route)
+ */
+router.get('/:id', (req, res) => adminImagesController.getImageById(req as AuthenticatedRequest, res));
+
+/**
  * GET /api/admin/images
  * Get all admin images with filtering and pagination
  * Query params: page, limit, category, projectId, tags, search

@@ -232,8 +232,14 @@ export function setupAuth(app: Express) {
       try {
         console.log('[LocalStrategy] Login attempt for username:', username);
 
-        // Updated to use storage.users
-        const user = await storage.users.getUserByUsername(username);
+        // Try to find user by username first, then by email
+        let user = await storage.users.getUserByUsername(username);
+
+        if (!user && username.includes('@')) {
+          console.log('[LocalStrategy] Username not found, trying email lookup...');
+          user = await storage.users.getUserByEmail(username);
+        }
+
         console.log('[LocalStrategy] User lookup result:', user ? `Found user ID ${user.id}` : 'No user found');
 
         if (!user) {

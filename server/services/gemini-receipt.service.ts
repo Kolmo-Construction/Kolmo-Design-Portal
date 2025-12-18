@@ -275,12 +275,20 @@ Now analyze the receipt and respond with ONLY the JSON (no markdown, no code blo
 
   /**
    * Analyze construction photo and generate caption + insights
+   * @param imageSource - Either a URL string or a Buffer containing the image
+   * @param projectContext - Optional project context for better analysis
    */
-  async analyzeConstructionPhoto(imageUrl: string, projectContext?: string): Promise<{
+  async analyzeConstructionPhoto(imageSource: string | Buffer, projectContext?: string, filename?: string): Promise<{
     caption: string;
     detectedElements: string[];
     workStatus: string;
     suggestedTags: string[];
+    extractedInfo?: {
+      projectType?: string;
+      dimensions?: string;
+      materials?: string;
+      scopeSummary?: string;
+    };
   }> {
     if (!this.isConfigured()) {
       return {
@@ -292,33 +300,78 @@ Now analyze the receipt and respond with ONLY the JSON (no markdown, no code blo
     }
 
     try {
-      // Fetch image from URL
-      const response = await fetch(imageUrl);
-      const arrayBuffer = await response.arrayBuffer();
-      const imageBuffer = Buffer.from(arrayBuffer);
+      let imageBuffer: Buffer;
+      let mimeType: string;
+
+      // Handle both URL and Buffer inputs
+      if (Buffer.isBuffer(imageSource)) {
+        imageBuffer = imageSource;
+        // Determine mime type from filename if provided
+        mimeType = filename ? this.getContentType(filename) : 'image/jpeg';
+      } else {
+        // Fetch image from URL
+        const response = await fetch(imageSource);
+        const arrayBuffer = await response.arrayBuffer();
+        imageBuffer = Buffer.from(arrayBuffer);
+        // Determine mime type from URL
+        const ext = imageSource.split('.').pop()?.toLowerCase() || 'jpg';
+        mimeType = this.getContentType(`file.${ext}`);
+      }
+
       const base64Image = imageBuffer.toString('base64');
 
-      // Determine mime type from URL
-      const ext = imageUrl.split('.').pop()?.toLowerCase() || 'jpg';
-      const mimeType = this.getContentType(`file.${ext}`);
-
       const contextPrompt = projectContext
-        ? `This photo is from: ${projectContext}\n\n`
+        ? `PROJECT CONTEXT: ${projectContext}\n\n`
         : '';
 
-      const prompt = `${contextPrompt}Analyze this construction site photo and provide:
+      const prompt = `${contextPrompt}You are an expert construction analyst. Analyze this construction/renovation site photo in detail and extract ALL relevant information.
 
-1. A detailed 2-3 sentence caption describing what you see (focus on work completed, materials visible, equipment, safety)
-2. List of detected elements (materials, equipment, work areas, specific features)
-3. Work status assessment (what stage/type of work is shown)
-4. 3-5 suggested tags for categorization
+CRITICAL: Estimate dimensions and measurements whenever possible - this is ESSENTIAL for quotes!
+
+FOCUS AREAS:
+- Identify the EXACT type of work (e.g., kitchen remodel, deck construction, bathroom renovation, landscaping)
+- ESTIMATE DIMENSIONS: Size of deck, room dimensions, square footage, linear footage
+- Describe current state: what's visible, what's completed, what's in progress
+- Note materials, finishes, and quality indicators
+- Identify any equipment, tools, or safety measures visible
+- Assess the scope and complexity of work shown
+- Note specific features, fixtures, or design elements
+- Identify any potential issues or areas of concern
+
+PROVIDE:
+1. **Caption**: A detailed 2-3 sentence professional description. MUST include:
+   - EXACT project type (be specific: "deck construction", "kitchen remodel", NOT just "renovation")
+   - ESTIMATED DIMENSIONS (e.g., "approximately 12x16 feet", "roughly 200 sq ft")
+   - Current condition and materials visible
+   - Notable features
+
+2. **Detected Elements**: Comprehensive list including dimensions (15-20 items)
+   Examples: "12x16 deck frame", "pressure-treated lumber", "composite decking", "metal post brackets", "approximately 200 sq ft", "granite countertops", "custom cabinets"
+
+3. **Work Status**: Brief assessment of the project stage
+   Examples: "Pre-construction - existing conditions", "Demolition in progress", "Framing complete", "Finish work in progress", "Near completion"
+
+4. **Suggested Tags**: 5-7 relevant categorization tags
+   Examples: "deck", "construction", "outdoor", "12x16", "pressure-treated", "new-build"
+
+5. **Extracted Info**: Quote-relevant structured data
+   - projectType: Specific type (e.g., "deck construction", "kitchen remodel")
+   - dimensions: Estimated size (e.g., "12x16 feet", "200 square feet")
+   - materials: Primary materials visible
+   - scopeSummary: Brief scope description
 
 Respond in JSON format:
 {
-  "caption": "...",
-  "detectedElements": ["...", "...", "..."],
-  "workStatus": "...",
-  "suggestedTags": ["...", "...", "..."]
+  "caption": "Detailed professional caption with dimensions...",
+  "detectedElements": ["12x16 deck frame", "element2", "element3", ...],
+  "workStatus": "Current stage assessment",
+  "suggestedTags": ["tag1", "tag2", "tag3", ...],
+  "extractedInfo": {
+    "projectType": "deck construction",
+    "dimensions": "12x16 feet",
+    "materials": "pressure-treated lumber, composite decking",
+    "scopeSummary": "New deck construction with composite decking"
+  }
 }`;
 
       const model = genAI.getGenerativeModel({ model: this.MODEL });
@@ -345,6 +398,7 @@ Respond in JSON format:
         detectedElements: analysis.detectedElements || [],
         workStatus: analysis.workStatus || 'Work in progress',
         suggestedTags: analysis.suggestedTags || [],
+        extractedInfo: analysis.extractedInfo || {},
       };
     } catch (error) {
       console.error('[GeminiReceipt] Error analyzing construction photo:', error);
@@ -353,6 +407,7 @@ Respond in JSON format:
         detectedElements: [],
         workStatus: 'Photo uploaded',
         suggestedTags: [],
+        extractedInfo: {},
       };
     }
   }

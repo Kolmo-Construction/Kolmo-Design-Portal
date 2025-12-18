@@ -14,8 +14,10 @@ import {
   Building,
   Loader2,
   Eye,
+  AlertCircle,
 } from 'lucide-react';
 import { Link } from 'wouter';
+import { UpdateDetailView } from '@/components/shared/UpdateDetailView';
 
 interface ProgressUpdate {
   id: number;
@@ -48,13 +50,16 @@ export function DashboardRecentUpdates() {
   const queryClient = useQueryClient();
   const [selectedUpdate, setSelectedUpdate] = useState<ProgressUpdate | null>(null);
 
-  // Fetch user's projects
-  const { data: projectsData } = useQuery({
-    queryKey: ['/api/client-dashboard'],
+  // Fetch user's projects from the correct endpoint
+  const { data: projectsData, isLoading: projectsLoading, isError: projectsError } = useQuery({
+    queryKey: ['/api/client/dashboard'],
     queryFn: async () => {
-      const res = await fetch('/api/client-dashboard', {
+      const res = await fetch('/api/client/dashboard', {
         credentials: 'include',
       });
+      if (!res.ok) {
+        throw new Error('Failed to fetch dashboard data');
+      }
       return res.json();
     },
   });
@@ -138,12 +143,40 @@ export function DashboardRecentUpdates() {
     });
   };
 
-  if (isLoading) {
+  if (projectsLoading || isLoading) {
     return (
       <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Recent Project Updates
+          </CardTitle>
+        </CardHeader>
         <CardContent className="py-8">
           <div className="flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-kolmo-accent" />
+            <span className="ml-3 text-sm text-muted-foreground">Loading updates...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (projectsError) {
+    return (
+      <Card className="border-destructive/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Recent Project Updates
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-6">
+            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-3 opacity-50" />
+            <p className="text-sm text-destructive">
+              Unable to load project updates. Please refresh the page.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -256,72 +289,21 @@ export function DashboardRecentUpdates() {
       <Dialog open={!!selectedUpdate} onOpenChange={() => setSelectedUpdate(null)}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           {selectedUpdate && (
-            <>
-              <DialogHeader>
-                <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  {selectedUpdate.generatedByAI && (
-                    <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-                      <Brain className="h-4 w-4 mr-1" />
-                      AI-Generated Report
-                    </Badge>
-                  )}
-                  {selectedUpdate.project && (
-                    <Badge variant="outline">
-                      <Building className="h-4 w-4 mr-1" />
-                      {selectedUpdate.project.name}
-                    </Badge>
-                  )}
-                </div>
-                <DialogTitle>{selectedUpdate.title}</DialogTitle>
-                <p className="text-sm text-muted-foreground">
-                  {formatDate(selectedUpdate.createdAt)}
-                </p>
-              </DialogHeader>
-
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-semibold mb-2">Update Details</h4>
-                  <div className="bg-muted p-4 rounded-lg whitespace-pre-wrap text-sm">
-                    {selectedUpdate.description}
-                  </div>
-                </div>
-
-                {selectedUpdate.generatedByAI &&
-                  selectedUpdate.rawLLMResponse?.progressEstimate &&
-                  Object.keys(selectedUpdate.rawLLMResponse.progressEstimate).length > 0 && (
-                    <div>
-                      <h4 className="font-semibold mb-2">Progress Breakdown</h4>
-                      <div className="space-y-2">
-                        {Object.entries(selectedUpdate.rawLLMResponse.progressEstimate).map(
-                          ([phase, percentage]) => (
-                            <div key={phase}>
-                              <div className="flex justify-between text-sm mb-1">
-                                <span className="capitalize">{phase}</span>
-                                <span className="font-medium">{percentage}%</span>
-                              </div>
-                              <div className="w-full bg-gray-200 rounded-full h-2">
-                                <div
-                                  className="bg-kolmo-accent h-2 rounded-full transition-all"
-                                  style={{ width: `${percentage}%` }}
-                                />
-                              </div>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                {selectedUpdate.project && (
-                  <Link to={`/project-details/${selectedUpdate.project.id}`}>
-                    <Button className="w-full">
-                      <Building className="h-4 w-4 mr-2" />
-                      View Full Project Details
-                    </Button>
-                  </Link>
-                )}
-              </div>
-            </>
+            <UpdateDetailView
+              update={{
+                id: selectedUpdate.id,
+                title: selectedUpdate.title,
+                description: selectedUpdate.description,
+                createdAt: selectedUpdate.createdAt,
+                generatedByAI: selectedUpdate.generatedByAI,
+                projectName: selectedUpdate.project?.name,
+                projectId: selectedUpdate.project?.id,
+                rawLLMResponse: selectedUpdate.rawLLMResponse,
+              }}
+              showProjectLink={true}
+              showStatusWarning={false}
+              formatDate={formatDate}
+            />
           )}
         </DialogContent>
       </Dialog>

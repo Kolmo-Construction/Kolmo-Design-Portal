@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { storage } from '../storage';
-import { insertMilestoneSchema, updateMilestoneSchema } from '@shared/schema';
+import { insertMilestoneSchema, updateMilestoneSchema, milestones } from '@shared/schema';
 import { HttpError } from '../errors';
 import { isAuthenticated } from '../middleware/auth.middleware';
 import { requireProjectPermission } from '../middleware/enhanced-permissions.middleware';
 import { PaymentService } from '../services/payment.service';
+import { approvalWorkflowService } from '../services/approval-workflow.service';
 
 const router = Router({ mergeParams: true });
 const paymentService = new PaymentService();
@@ -23,7 +24,13 @@ router.get('/', isAuthenticated, requireProjectPermission('canViewProject'), asy
       throw new HttpError(404, 'Project not found');
     }
 
-    const milestones = await storage.milestones.getMilestonesByProjectId(projectId);
+    let milestones = await storage.milestones.getMilestonesByProjectId(projectId);
+
+    // Filter by visibility for client users
+    if (req.user?.role === 'client') {
+      milestones = milestones.filter(milestone => milestone.visibility === 'published');
+    }
+
     res.json(milestones);
   } catch (error) {
     next(error);
@@ -248,6 +255,136 @@ router.delete('/api/projects/:projectId/milestones/:milestoneId', isAuthenticate
 
     await storage.milestones.deleteMilestone(milestoneId);
     res.json({ message: 'Milestone deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Approve milestone (and optionally publish it)
+router.put('/:milestoneId/approve', isAuthenticated, async (req, res, next) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const milestoneId = parseInt(req.params.milestoneId);
+    const { publish = false } = req.body;
+
+    if (isNaN(projectId) || isNaN(milestoneId)) {
+      throw new HttpError(400, 'Invalid project ID or milestone ID');
+    }
+
+    if (req.user?.role !== 'admin') {
+      throw new HttpError(403, 'Admin access required');
+    }
+
+    // Verify milestone exists and belongs to project
+    const milestone = await storage.milestones.getMilestoneById(milestoneId);
+    if (!milestone || milestone.projectId !== projectId) {
+      throw new HttpError(404, 'Milestone not found');
+    }
+
+    const approvedMilestone = await approvalWorkflowService.approve(
+      milestones,
+      milestoneId,
+      req.user.id,
+      publish
+    );
+
+    res.status(200).json(approvedMilestone);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Reject milestone
+router.put('/:milestoneId/reject', isAuthenticated, async (req, res, next) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const milestoneId = parseInt(req.params.milestoneId);
+    const { reason } = req.body;
+
+    if (isNaN(projectId) || isNaN(milestoneId)) {
+      throw new HttpError(400, 'Invalid project ID or milestone ID');
+    }
+
+    if (req.user?.role !== 'admin') {
+      throw new HttpError(403, 'Admin access required');
+    }
+
+    // Verify milestone exists and belongs to project
+    const milestone = await storage.milestones.getMilestoneById(milestoneId);
+    if (!milestone || milestone.projectId !== projectId) {
+      throw new HttpError(404, 'Milestone not found');
+    }
+
+    const rejectedMilestone = await approvalWorkflowService.reject(
+      milestones,
+      milestoneId,
+      req.user.id,
+      reason
+    );
+
+    res.status(200).json(rejectedMilestone);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Publish milestone (make it visible to clients)
+router.put('/:milestoneId/publish', isAuthenticated, async (req, res, next) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const milestoneId = parseInt(req.params.milestoneId);
+
+    if (isNaN(projectId) || isNaN(milestoneId)) {
+      throw new HttpError(400, 'Invalid project ID or milestone ID');
+    }
+
+    if (req.user?.role !== 'admin') {
+      throw new HttpError(403, 'Admin access required');
+    }
+
+    // Verify milestone exists and belongs to project
+    const milestone = await storage.milestones.getMilestoneById(milestoneId);
+    if (!milestone || milestone.projectId !== projectId) {
+      throw new HttpError(404, 'Milestone not found');
+    }
+
+    const publishedMilestone = await approvalWorkflowService.publish(
+      milestones,
+      milestoneId
+    );
+
+    res.status(200).json(publishedMilestone);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Unpublish milestone (hide it from clients)
+router.put('/:milestoneId/unpublish', isAuthenticated, async (req, res, next) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const milestoneId = parseInt(req.params.milestoneId);
+
+    if (isNaN(projectId) || isNaN(milestoneId)) {
+      throw new HttpError(400, 'Invalid project ID or milestone ID');
+    }
+
+    if (req.user?.role !== 'admin') {
+      throw new HttpError(403, 'Admin access required');
+    }
+
+    // Verify milestone exists and belongs to project
+    const milestone = await storage.milestones.getMilestoneById(milestoneId);
+    if (!milestone || milestone.projectId !== projectId) {
+      throw new HttpError(404, 'Milestone not found');
+    }
+
+    const unpublishedMilestone = await approvalWorkflowService.unpublish(
+      milestones,
+      milestoneId
+    );
+
+    res.status(200).json(unpublishedMilestone);
   } catch (error) {
     next(error);
   }

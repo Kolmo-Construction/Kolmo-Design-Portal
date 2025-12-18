@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import { 
-  getClientDashboard, 
-  getClientInvoices, 
+import {
+  getClientDashboard,
+  getClientInvoices,
   getClientChatToken,
   getClientProjects,
+  getClientProjectImages,
   updateClientProfile,
   updateClientPassword
 } from '@server/controllers/client.controller';
@@ -13,6 +14,9 @@ const router = Router();
 // GET /api/client/dashboard - Get client dashboard data
 // Authentication is handled at the router mount level in routes.ts
 router.get('/dashboard', getClientDashboard);
+
+// GET /api/client/project-images - Get project images for client
+router.get('/project-images', getClientProjectImages);
 
 // GET /api/client/invoices - Get client invoices
 // Authentication is handled at the router mount level in routes.ts

@@ -111,6 +111,51 @@ export const getClientInvoices = async (
   }
 };
 
+export const getClientProjectImages = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({ message: 'Authentication required' });
+      return;
+    }
+
+    // Get client's projects
+    const projects = await storage.projects.getProjectsForUser(userId.toString());
+    const projectIds = projects.map((p: any) => p.id);
+
+    if (projectIds.length === 0) {
+      res.json({ images: [] });
+      return;
+    }
+
+    // Fetch admin images for client's projects
+    const imagesResult = await db.execute(sql`
+      SELECT
+        ai.*,
+        p.name as project_name,
+        u.first_name as uploaded_by_name
+      FROM admin_images ai
+      LEFT JOIN projects p ON ai.project_id = p.id
+      LEFT JOIN users u ON ai.uploaded_by_id = u.id
+      WHERE ai.project_id IN (${sql.join(projectIds.map(id => sql`${id}`), sql`, `)})
+      ORDER BY ai.created_at DESC
+      LIMIT 50
+    `);
+
+    const images = (imagesResult as any).rows || [];
+
+    res.json({ images });
+  } catch (error) {
+    console.error('Error fetching client project images:', error);
+    next(error);
+  }
+};
+
 export const getClientDashboard = async (
   req: Request,
   res: Response,
@@ -118,7 +163,7 @@ export const getClientDashboard = async (
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
-    
+
     if (!userId) {
       res.status(401).json({ message: 'Authentication required' });
       return;
@@ -173,11 +218,15 @@ export const getClientDashboard = async (
     let recentUpdates: any[] = [];
     if (projectIds.length > 0) {
       try {
-        const updatePromises = projectIds.map(id => 
+        const updatePromises = projectIds.map(id =>
           storage.progressUpdates?.getProgressUpdatesForProject(id).catch(() => [])
         );
         const allUpdates = await Promise.all(updatePromises);
+
+        // IMPORTANT: Filter to only show published updates to clients
+        // Clients should NOT see draft, pending_review, or admin_only content
         recentUpdates = allUpdates.flat()
+          .filter((update: any) => !update.visibility || update.visibility === 'published')
           .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .slice(0, 10);
       } catch (error) {

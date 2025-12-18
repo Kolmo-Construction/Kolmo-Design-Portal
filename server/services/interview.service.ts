@@ -12,6 +12,8 @@ import { interviewRepository } from '../storage/repositories/interview.repositor
 import { InterviewSession } from '@shared/schema';
 import { storage } from '../storage';
 import { interviewGraph } from './interview-graph';
+import { uploadToR2 } from '../r2-upload';
+import { geminiReceiptService } from './gemini-receipt.service';
 
 // Question catalog - maps fields to natural language questions
 const QUESTION_CATALOG: Record<string, {
@@ -136,7 +138,7 @@ class InterviewService {
   /**
    * Start a new interview session
    */
-  async startSession(userId: number, leadId?: number): Promise<{
+  async startSession(userId: number, leadId?: number, initialData?: Record<string, any>): Promise<{
     sessionId: number;
     question: string;
     currentField: string;
@@ -158,26 +160,43 @@ class InterviewService {
       };
     }
 
+    // Prepare initial quote draft with location data if provided
+    const quoteDraft: Record<string, any> = {};
+    if (initialData?.customerAddress) {
+      quoteDraft.customerAddress = initialData.customerAddress;
+      quoteDraft.latitude = initialData.latitude;
+      quoteDraft.longitude = initialData.longitude;
+    }
+
     // Create new session
     const session = await interviewRepository.createSession({
       userId,
       leadId: leadId || null,
       status: 'active',
       currentField: FIELD_ORDER[0],
-      quoteDraft: {},
+      quoteDraft,
       transcript: [],
     });
 
     const firstQuestion = QUESTION_CATALOG[FIELD_ORDER[0]].question;
 
+    // Prepare greeting message
+    let greetingMessage = "Hi! I'll help you create a quote. Let's get started.";
+    if (initialData?.customerAddress) {
+      greetingMessage += ` I've automatically captured your location as: ${initialData.customerAddress}. I'll confirm this with you when we get to the project address.`;
+    } else {
+      greetingMessage += " I'll ask you for the project address during our conversation.";
+    }
+    greetingMessage += ` ${firstQuestion}`;
+
     // Add assistant greeting to transcript
     await interviewRepository.appendToTranscript(session.id, {
       role: 'assistant',
-      content: `Hi! I'll help you create a quote. Let's get started. ${firstQuestion}`,
+      content: greetingMessage,
       timestamp: new Date().toISOString(),
     });
 
-    const progress = this.calculateProgress({});
+    const progress = this.calculateProgress(quoteDraft);
 
     return {
       sessionId: session.id,
@@ -248,6 +267,13 @@ class InterviewService {
           content: entry.content,
         }));
 
+        // NEW: Build image context from uploaded images
+        const imageContext = (quoteDraft.images || []).map((img: any) => ({
+          caption: img.caption || '',
+          detectedElements: img.detectedElements || [],
+          extractedInfo: img.extractedData || {},
+        }));
+
         // Process turn with graph
         const graphResult = await interviewGraph.processTurn({
           userInput: input,
@@ -256,13 +282,26 @@ class InterviewService {
           conversationHistory,
           collectingLineItems: session.currentField === '_collectLineItems',
           currentField: session.currentField || undefined,
+          // NEW: Pass image context to the graph
+          imageContext: imageContext.length > 0 ? imageContext : undefined,
+          hasVoiceInput: !!audioUri,
         });
 
         console.log('[InterviewService] Graph result:', {
           intent: graphResult.userIntent,
           extractedFields: Object.keys(graphResult.extractedData),
           reasoning: graphResult.reasoning,
+          hasGeneratedQuestion: !!graphResult.nextQuestion,
         });
+
+        // NEW: Check if this was a meta-question (user asking about interview progress)
+        // If so, use the meta-response as the next question
+        let metaResponse: string | null = null;
+        if (graphResult.userIntent === 'ASK') {
+          // The graph might have generated a meta-response for questions like "what do you need?"
+          // We'll check for this later when processing the graph result again
+          metaResponse = graphResult.nextQuestion;
+        }
 
         // Handle line item collection
         if (session.currentField === '_collectLineItems') {
@@ -332,6 +371,10 @@ class InterviewService {
       ...extractedData,
     };
 
+    // Check if we extracted anything at all
+    const extractedFieldCount = Object.keys(extractedData).length;
+    const wasOnField = session.currentField;
+
     // Find next missing field
     const nextField = session.currentField === '_collectLineItems' && this.isLineItemCollectionComplete(input)
       ? null  // Done with line items
@@ -343,7 +386,64 @@ class InterviewService {
     const isComplete = nextField === null;
 
     let responseQuestion: string | null = null;
-    if (!isComplete && nextField) {
+
+    // NEW: Try to use graph-generated question first
+    let graphGeneratedQuestion: string | null = null;
+    if (interviewGraph.isInitialized()) {
+      try {
+        const transcript = session.transcript as any[];
+        const conversationHistory = transcript.map((entry: any) => ({
+          role: entry.role === 'assistant' ? 'assistant' : 'user',
+          content: entry.content,
+        }));
+        const imageContext = (updatedQuoteDraft.images || []).map((img: any) => ({
+          caption: img.caption || '',
+          detectedElements: img.detectedElements || [],
+          extractedInfo: img.extractedData || {},
+        }));
+
+        const graphResult = await interviewGraph.processTurn({
+          userInput: input,
+          currentDraft: updatedQuoteDraft,
+          requiredFields: FIELD_ORDER.filter(f => f !== '_collectLineItems'),
+          conversationHistory,
+          collectingLineItems: session.currentField === '_collectLineItems',
+          currentField: nextField || undefined,
+          imageContext: imageContext.length > 0 ? imageContext : undefined,
+          hasVoiceInput: !!audioUri,
+        });
+
+        graphGeneratedQuestion = graphResult.nextQuestion;
+        console.log('[InterviewService] Graph generated question:', graphGeneratedQuestion);
+      } catch (error) {
+        console.error('[InterviewService] Failed to generate question via graph:', error);
+      }
+    }
+
+    // Use graph-generated question if available (includes meta-responses), otherwise fall back to old logic
+    if (graphGeneratedQuestion) {
+      responseQuestion = graphGeneratedQuestion;
+      console.log('[InterviewService] Using graph-generated question:', responseQuestion);
+    } else if (extractedFieldCount === 0 && wasOnField && wasOnField !== '_collectLineItems') {
+      // Nothing extracted - ask for clarification
+      const isVoiceInput = !!audioUri;
+      const validationMessage = await this.generateValidationFeedback(
+        input,
+        wasOnField,
+        QUESTION_CATALOG[wasOnField],
+        isVoiceInput
+      );
+      responseQuestion = `${validationMessage} ${QUESTION_CATALOG[wasOnField].question}`;
+    } else if (extractedFieldCount > 0) {
+      // Something was extracted! Generate smart acknowledgment
+      responseQuestion = await this.generateSmartResponse(
+        extractedData,
+        updatedQuoteDraft,
+        nextField,
+        isComplete
+      );
+    } else if (!isComplete && nextField) {
+      // Standard next question
       responseQuestion = QUESTION_CATALOG[nextField].question;
     } else if (isComplete) {
       responseQuestion = null; // Signal completion
@@ -391,6 +491,7 @@ class InterviewService {
 
   /**
    * Extract structured data from user input using LLM
+   * ENHANCED: Extract ALL possible fields from the message, not just current field
    */
   private async extractDataFromInput(
     input: string,
@@ -399,30 +500,58 @@ class InterviewService {
   ): Promise<Record<string, any>> {
     if (!this.model) throw new Error('Model not initialized');
 
-    const systemPrompt = `You are a helpful assistant extracting structured data from natural language responses during a quote interview.
+    const systemPrompt = `You are an intelligent assistant extracting quote information from natural conversation.
 
-CURRENT FIELD: ${currentField}
-CURRENT QUESTION: ${QUESTION_CATALOG[currentField]?.question || 'Unknown field'}
+USER MESSAGE: "${input}"
 
-EXISTING DATA:
+CURRENTLY ASKING ABOUT: ${currentField} - ${QUESTION_CATALOG[currentField]?.question || 'Unknown'}
+
+ALREADY HAVE:
 ${JSON.stringify(existingData, null, 2)}
 
-USER RESPONSE: "${input}"
+YOUR TASK: Extract ALL quote-related information from the user's message, not just what you asked for.
 
-INSTRUCTIONS:
-1. Extract the value for ${currentField} from the user's response
-2. Also extract any other fields mentioned that aren't in EXISTING DATA yet
-3. Return ONLY a JSON object with the extracted fields
-4. Use null for fields you cannot extract with confidence
-5. For dates, use ISO format (YYYY-MM-DD)
-6. For percentages, use numbers (e.g., 40 not "40%")
-7. For currency, use strings without symbols (e.g., "5000" not "$5,000")
+FIELDS YOU CAN EXTRACT:
+- customerName: Full name (first and last)
+- customerEmail: Email address
+- customerPhone: Phone number
+- customerAddress: Project or customer address
+- projectType: Type of project - BE FLEXIBLE! Extract from variations like:
+  * "deck buildout" → "deck construction"
+  * "this project is a deck" → "deck construction"
+  * "kitchen remodel", "kitchen renovation", "kitchen upgrade" → "kitchen remodel"
+  * "bathroom redo" → "bathroom renovation"
+  * Normalize to standard types: "deck construction", "kitchen remodel", "bathroom renovation", "flooring installation", etc.
+- location: Specific location of work (e.g., "backyard", "master bathroom")
+- scopeDescription: Detailed description of the work
+- estimatedBudget: Budget amount (extract numbers, keep as string with $ if present)
+- downPaymentPercentage: Down payment % (0-100)
+- estimatedStartDate: Start date (YYYY-MM-DD or natural format)
+- estimatedCompletionDate: Completion date (YYYY-MM-DD or natural format)
+- validUntil: Quote validity period
 
-EXAMPLE OUTPUT:
-{
-  "${currentField}": "extracted value",
-  "otherField": "value if mentioned"
-}
+EXAMPLES OF FLEXIBLE EXTRACTION:
+
+Input: "The customer is John Smith, project is at 123 Main St, we're doing a kitchen remodel"
+Output: {"customerName":"John Smith","customerAddress":"123 Main St","projectType":"kitchen remodel"}
+
+Input: "This is for a deck buildout in the backyard, budget around $15000"
+Output: {"projectType":"deck construction","location":"backyard","estimatedBudget":"$15000"}
+
+Input: "This project is a deck" (normalize to standard type)
+Output: {"projectType":"deck construction"}
+
+Input: "Bathroom redo for Mrs. Johnson, about $8k"
+Output: {"projectType":"bathroom renovation","estimatedBudget":"$8k"}
+
+Input: "jane@email.com and her phone is 555-1234, address is 456 Oak Ave"
+Output: {"customerEmail":"jane@email.com","customerPhone":"555-1234","customerAddress":"456 Oak Ave"}
+
+RULES:
+1. Extract EVERYTHING mentioned, even if it's not the field you asked about
+2. Don't overwrite fields that are already in ALREADY HAVE unless user is correcting them
+3. Use null only for fields you're completely unsure about
+4. Be flexible with formats - extract the intent
 
 RESPOND WITH VALID JSON ONLY - NO MARKDOWN, NO EXPLANATIONS.`;
 
@@ -610,6 +739,17 @@ If the user didn't provide enough info, ask them by returning null.`;
     if (!nextField) {
       return "Great! I have all the information I need. Your quote is ready for review.";
     }
+
+    // Check if field already has a value - if so, ask for confirmation instead
+    if (quoteDraft[nextField]) {
+      // Special handling for customerAddress (auto-captured from location)
+      if (nextField === 'customerAddress') {
+        return `I've detected your location as: ${quoteDraft[nextField]}. Is this the correct project address, or would you like to provide a different one?`;
+      }
+      // For other fields, ask for confirmation
+      return `I have ${nextField} as: ${quoteDraft[nextField]}. Is this correct, or would you like to change it?`;
+    }
+
     return QUESTION_CATALOG[nextField].question;
   }
 
@@ -726,7 +866,15 @@ Generate notes for this project:`;
     const transcript = session.transcript as any[];
 
     // Generate AI-powered project notes from conversation
-    const projectNotes = await this.generateProjectNotes(transcript, quoteDraft);
+    let projectNotes = await this.generateProjectNotes(transcript, quoteDraft);
+
+    // Append image analysis to project notes if images exist
+    if (quoteDraft.images && quoteDraft.images.length > 0) {
+      const imageNotes = '\n\n📸 SITE IMAGES:\n' + quoteDraft.images.map((img: any, idx: number) =>
+        `${idx + 1}. ${img.caption}\n   Detected: ${img.detectedElements?.join(', ') || 'N/A'}\n   Status: ${img.workStatus || 'N/A'}`
+      ).join('\n');
+      projectNotes = (projectNotes || '') + imageNotes;
+    }
 
     // Create quote from interview data
     const quoteData: any = {
@@ -746,6 +894,9 @@ Generate notes for this project:`;
       downPaymentPercentage: quoteDraft.downPaymentPercentage || 40,
       milestonePaymentPercentage: 40,
       finalPaymentPercentage: 20,
+      // Add first image as before image if available
+      beforeImageUrl: quoteDraft.images?.[0]?.url || null,
+      beforeImageCaption: quoteDraft.images?.[0]?.caption || 'Site Image',
     };
 
     console.log('[InterviewService] Generated project notes:', projectNotes);
@@ -779,6 +930,434 @@ Generate notes for this project:`;
     }
 
     return quote;
+  }
+
+  /**
+   * Upload and analyze image during interview
+   */
+  async uploadAndAnalyzeImage(
+    sessionId: number,
+    imageBuffer: Buffer,
+    filename: string
+  ): Promise<{
+    imageUrl: string;
+    analysis: {
+      caption: string;
+      detectedElements: string[];
+      workStatus: string;
+      suggestedTags: string[];
+    };
+    message: string;
+  }> {
+    try {
+      console.log(`[InterviewService] Uploading image for session ${sessionId}`);
+
+      // Get session to get context
+      const session = await interviewRepository.getSessionById(sessionId);
+      if (!session) {
+        throw new Error('Session not found');
+      }
+
+      const quoteDraft = session.quoteDraft as Record<string, any>;
+
+      // Upload image to R2
+      console.log(`[InterviewService] Uploading to R2...`);
+      const { url: imageUrl } = await uploadToR2({
+        fileName: filename,
+        buffer: imageBuffer,
+        mimetype: this.getMimeType(filename),
+        path: `interview/${sessionId}/`,
+      });
+      console.log(`[InterviewService] R2 upload successful: ${imageUrl}`);
+
+      // Build context for Gemini (even if some fields are empty)
+      const projectContext = [
+        quoteDraft.projectType && `Project Type: ${quoteDraft.projectType}`,
+        quoteDraft.location && `Location: ${quoteDraft.location}`,
+        quoteDraft.scopeDescription && `Scope: ${quoteDraft.scopeDescription}`,
+        quoteDraft.customerAddress && `Address: ${quoteDraft.customerAddress}`,
+      ].filter(Boolean).join('. ');
+
+      // Analyze image with Gemini - pass buffer directly to avoid URL fetch issues
+      console.log(`[InterviewService] Analyzing image with Gemini...`);
+      console.log(`[InterviewService] Project context: ${projectContext || 'None yet - analyzing without context'}`);
+
+      const analysis = await geminiReceiptService.analyzeConstructionPhoto(
+        imageBuffer,
+        projectContext || 'Construction project quote interview - initial image upload',
+        filename
+      );
+
+      console.log(`[InterviewService] Image analysis complete:`, analysis);
+
+      // Extract quote-relevant information from image analysis
+      const imageExtractedData: Record<string, any> = {};
+      if (analysis.extractedInfo) {
+        // Only populate fields that are currently empty
+        if (analysis.extractedInfo.projectType && !quoteDraft.projectType) {
+          imageExtractedData.projectType = analysis.extractedInfo.projectType;
+          quoteDraft.projectType = analysis.extractedInfo.projectType;
+        }
+
+        // Add dimensions and materials to scope description if not already set
+        if (!quoteDraft.scopeDescription && analysis.extractedInfo.scopeSummary) {
+          let scopeParts = [analysis.extractedInfo.scopeSummary];
+          if (analysis.extractedInfo.dimensions) {
+            scopeParts.push(`Dimensions: ${analysis.extractedInfo.dimensions}`);
+          }
+          if (analysis.extractedInfo.materials) {
+            scopeParts.push(`Materials: ${analysis.extractedInfo.materials}`);
+          }
+          imageExtractedData.scopeDescription = scopeParts.join('. ');
+          quoteDraft.scopeDescription = imageExtractedData.scopeDescription;
+        } else if (quoteDraft.scopeDescription && analysis.extractedInfo.dimensions) {
+          // Append dimensions to existing scope if we found them
+          if (!quoteDraft.scopeDescription.includes(analysis.extractedInfo.dimensions)) {
+            quoteDraft.scopeDescription += ` Dimensions: ${analysis.extractedInfo.dimensions}.`;
+            imageExtractedData.scopeDescription = quoteDraft.scopeDescription;
+          }
+        }
+      }
+
+      console.log('[InterviewService] Extracted from image:', imageExtractedData);
+
+      // Store image and analysis in quote draft
+      if (!quoteDraft.images) {
+        quoteDraft.images = [];
+      }
+
+      quoteDraft.images.push({
+        url: imageUrl,
+        filename,
+        uploadedAt: new Date().toISOString(),
+        caption: analysis.caption,
+        detectedElements: analysis.detectedElements,
+        workStatus: analysis.workStatus,
+        tags: analysis.suggestedTags,
+        extractedData: imageExtractedData, // Store what was extracted
+      });
+
+      // Update session with new image data
+      await interviewRepository.updateSession(sessionId, {
+        quoteDraft,
+      });
+
+      // Add to transcript
+      await interviewRepository.appendToTranscript(sessionId, {
+        role: 'user',
+        content: `[Image uploaded: ${filename}]`,
+        timestamp: new Date().toISOString(),
+        imageUrl,
+      });
+
+      // NEW: Generate a conversational acknowledgment + next question using the graph
+      let acknowledgment = '';
+      let nextQuestion = '';
+
+      if (interviewGraph.isInitialized()) {
+        try {
+          // Get updated session after image upload
+          const updatedSession = await interviewRepository.getSessionById(sessionId);
+          const transcript = updatedSession?.transcript as any[] || [];
+          const conversationHistory = transcript.map((entry: any) => ({
+            role: entry.role === 'assistant' ? 'assistant' : 'user',
+            content: entry.content,
+          }));
+
+          // Build image context including the newly uploaded image
+          const imageContext = (quoteDraft.images || []).map((img: any) => ({
+            caption: img.caption || '',
+            detectedElements: img.detectedElements || [],
+            extractedInfo: img.extractedData || {},
+          }));
+
+          // Generate context-aware acknowledgment
+          const systemPrompt = `You are a friendly construction quote assistant. A user just uploaded an image during the interview.
+
+IMAGE ANALYSIS:
+${analysis.caption}
+
+DETECTED ELEMENTS:
+${analysis.detectedElements.join(', ')}
+
+EXTRACTED DATA FROM IMAGE:
+${JSON.stringify(imageExtractedData, null, 2)}
+
+CURRENT QUOTE DRAFT:
+${JSON.stringify(quoteDraft, null, 2)}
+
+YOUR TASK:
+Generate a warm, conversational acknowledgment (2-3 sentences) that:
+1. Acknowledges the image was received
+2. Mentions what you can see (be specific - reference dimensions, materials, project type)
+3. Naturally transitions to asking for the next piece of information you need
+
+Be conversational and reference the visual details!
+
+EXAMPLES:
+
+Image: Deck construction, 12x16 feet
+Have: Nothing yet
+Response: "Perfect! I can see you're planning a deck - it looks like it's about 12x16 feet. That's a great size! What's the customer's name for this project?"
+
+Image: Kitchen remodel, granite countertops visible
+Have: customerName="John Smith"
+Response: "Great photo, John! I can see you're working on a kitchen remodel with granite countertops. Can you tell me more about the scope of work - what specific updates are planned?"
+
+Image: Bathroom renovation, tiled floor
+Have: projectType, customerName, need estimatedBudget
+Response: "Thanks for the image! I can see the bathroom renovation with new tiling - looks professional. What's the estimated budget for this project?"
+
+NOW: Generate the acknowledgment and next question:`;
+
+          const response = await this.model!.invoke([new SystemMessage(systemPrompt)]);
+          const generatedResponse = response.content.toString().trim();
+          acknowledgment = generatedResponse;
+        } catch (error) {
+          console.error('[InterviewService] Failed to generate context-aware acknowledgment:', error);
+          // Fallback to simple acknowledgment
+          acknowledgment = `Perfect! I've analyzed your image. ${analysis.caption}`;
+        }
+      } else {
+        // Fallback if graph not initialized
+        acknowledgment = `Perfect! I've analyzed your image. ${analysis.caption}`;
+      }
+
+      // If no acknowledgment was generated, use fallback
+      if (!acknowledgment) {
+        acknowledgment = `Great! I can see ${analysis.caption}`;
+        if (Object.keys(imageExtractedData).length > 0) {
+          const extractedParts: string[] = [];
+          if (imageExtractedData.projectType) {
+            extractedParts.push(`the project type: ${imageExtractedData.projectType}`);
+          }
+          if (analysis.extractedInfo?.dimensions) {
+            extractedParts.push(`dimensions: ${analysis.extractedInfo.dimensions}`);
+          }
+          if (extractedParts.length > 0) {
+            acknowledgment += ` I've captured ${extractedParts.join(' and ')}.`;
+          }
+        }
+      }
+
+      await interviewRepository.appendToTranscript(sessionId, {
+        role: 'assistant',
+        content: acknowledgment,
+        timestamp: new Date().toISOString(),
+      });
+
+      return {
+        imageUrl,
+        analysis,
+        message: acknowledgment,
+      };
+    } catch (error: any) {
+      console.error(`[InterviewService] Error in uploadAndAnalyzeImage:`, error);
+      console.error(`[InterviewService] Error details:`, {
+        message: error.message,
+        stack: error.stack,
+        sessionId,
+        filename,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Generate smart conversational response acknowledging what was captured
+   * and asking for what's still needed
+   */
+  private async generateSmartResponse(
+    extractedData: Record<string, any>,
+    fullQuoteDraft: Record<string, any>,
+    nextMissingField: string | null,
+    isComplete: boolean
+  ): Promise<string> {
+    if (!this.model) {
+      // Fallback to simple response
+      if (isComplete) {
+        return "Great! I have all the information I need.";
+      }
+      return nextMissingField ? QUESTION_CATALOG[nextMissingField].question : "What else can you tell me?";
+    }
+
+    // Build extracted fields summary
+    const extractedFields = Object.keys(extractedData).map(key => {
+      const fieldConfig = QUESTION_CATALOG[key];
+      return `- ${key}: ${extractedData[key]} ${fieldConfig ? `(${fieldConfig.category})` : ''}`;
+    }).join('\n');
+
+    // Build still missing fields
+    const missingFields = FIELD_ORDER.filter(field => {
+      if (field === '_collectLineItems') {
+        return !(fullQuoteDraft.lineItems && fullQuoteDraft.lineItems.length > 0);
+      }
+      return !fullQuoteDraft[field];
+    });
+
+    const missingFieldsList = missingFields.map(field => {
+      const config = QUESTION_CATALOG[field];
+      return `- ${field}: ${config?.question || field}`;
+    }).join('\n');
+
+    const systemPrompt = `You are a friendly quote collection assistant. Generate a conversational response.
+
+WHAT THE USER JUST PROVIDED:
+${extractedFields}
+
+STILL MISSING (${missingFields.length} fields):
+${missingFieldsList || 'None - all fields collected!'}
+
+NEXT FIELD TO ASK ABOUT: ${nextMissingField || 'None - complete!'}
+
+YOUR TASK:
+1. Acknowledge what they provided (be specific! mention the actual values)
+2. ${isComplete ? 'Let them know you have everything!' : `Ask for the NEXT missing field: ${QUESTION_CATALOG[nextMissingField!]?.question || ''}`}
+
+STYLE:
+- Warm and conversational (like talking to a friend)
+- Specific acknowledgment (mention actual values: "Got it, kitchen remodel at 123 Main St!")
+- Natural transition to next question
+- 2-3 sentences max
+
+EXAMPLES:
+
+Extracted: {"customerName":"John Smith","customerAddress":"123 Main St"}
+Still missing: customerEmail, projectType...
+Response: "Perfect! I've got John Smith at 123 Main St. Now, what's John's email address?"
+
+Extracted: {"projectType":"deck","location":"backyard","estimatedBudget":"$15000"}
+Still missing: customerName...
+Response: "Great! A deck in the backyard for around $15,000 - sounds like a nice project! Let's start with the customer's full name."
+
+Extracted: {"scopeDescription":"Replace all kitchen cabinets"}
+Still missing: estimatedBudget...
+Response: "Got it - replacing all the kitchen cabinets. What's the estimated total budget for this project?"
+
+Generate your response:`;
+
+    try {
+      const response = await this.model.invoke([new SystemMessage(systemPrompt)]);
+      let reply = response.content.toString().trim();
+
+      // Remove quotes if LLM wrapped response in quotes
+      reply = reply.replace(/^["']|["']$/g, '');
+
+      return reply;
+    } catch (error) {
+      console.error('[InterviewService] Smart response generation failed:', error);
+
+      // Fallback
+      const extractedCount = Object.keys(extractedData).length;
+      let fallback = `Thanks! I captured ${extractedCount} piece${extractedCount > 1 ? 's' : ''} of information. `;
+
+      if (isComplete) {
+        fallback += "I have everything I need!";
+      } else if (nextMissingField) {
+        fallback += QUESTION_CATALOG[nextMissingField].question;
+      }
+
+      return fallback;
+    }
+  }
+
+  /**
+   * Generate validation feedback when extraction fails
+   */
+  private async generateValidationFeedback(
+    userInput: string,
+    fieldName: string,
+    fieldConfig: { question: string; category: string; validation?: (value: any) => boolean },
+    isVoiceInput: boolean
+  ): Promise<string> {
+    if (!this.model) {
+      return isVoiceInput
+        ? "I'm sorry, I didn't quite catch that."
+        : "Invalid format.";
+    }
+
+    const promptStyle = isVoiceInput
+      ? 'conversational and natural, as if speaking to someone'
+      : 'extremely brief (5-10 words max), like a text message';
+
+    const systemPrompt = `You are helping someone fill out a quote form. They just gave an answer that doesn't match what you asked for.
+
+FIELD: ${fieldName}
+QUESTION ASKED: ${fieldConfig.question}
+THEIR ANSWER: "${userInput}"
+
+WHY IT'S WRONG: Analyze why their answer doesn't fit the question. Common issues:
+- Answered a different question
+- Wrong format (e.g., gave text when you need a date/number)
+- Too vague or unclear
+- Missing required information
+- Invalid data (e.g., impossible date, negative number where positive needed)
+
+TASK: Explain briefly WHY their answer doesn't work. Be ${promptStyle}.
+
+${isVoiceInput ? `
+VOICE RESPONSE STYLE:
+- Sound natural and friendly
+- Use conversational language
+- 1-2 sentences max
+- Example: "I need the customer's full name, but you gave me a phone number. Can you tell me their name?"
+- Example: "Hmm, that doesn't sound like an email address. Could you give me their email?"
+` : `
+TEXT RESPONSE STYLE:
+- Extremely brief (5-10 words)
+- Direct and clear
+- Example: "Need name, not phone"
+- Example: "Invalid email format"
+- Example: "Need specific date"
+`}
+
+Respond with ONLY the validation message, nothing else.`;
+
+    try {
+      const response = await this.model.invoke([
+        new SystemMessage(systemPrompt),
+        new HumanMessage(`Field: ${fieldName}\nQuestion: ${fieldConfig.question}\nUser answer: "${userInput}"`),
+      ]);
+
+      let feedback = response.content.toString().trim();
+
+      // Remove quotes if present
+      feedback = feedback.replace(/^["']|["']$/g, '');
+
+      // Ensure it ends with appropriate punctuation
+      if (isVoiceInput && !feedback.match(/[.!?]$/)) {
+        feedback += '.';
+      }
+
+      return feedback;
+    } catch (error) {
+      console.error('[InterviewService] Failed to generate validation feedback:', error);
+
+      // Fallback messages
+      return isVoiceInput
+        ? "I'm sorry, I couldn't understand your answer. Could you try again?"
+        : "Invalid format. Please try again.";
+    }
+  }
+
+  /**
+   * Get MIME type from filename
+   */
+  private getMimeType(filename: string): string {
+    const ext = filename.toLowerCase().split('.').pop();
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'heic':
+        return 'image/heic';
+      default:
+        return 'image/jpeg';
+    }
   }
 }
 

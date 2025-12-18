@@ -1,12 +1,13 @@
 // server/controllers/admin-images.controller.ts
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { adminImages } from '../../shared/schema';
+import { adminImages, User } from '../../shared/schema';
 import { uploadToR2 } from '../r2-upload';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { calculateDistance } from '../services/geofencing.service';
 import { geminiReceiptService } from '../services/gemini-receipt.service';
+import { approvalWorkflowService } from '../services/approval-workflow.service';
 
 // Geofence radius for mobile image uploads
 // Note: More lenient than time tracking (100m) since contractors may take photos from nearby
@@ -449,6 +450,43 @@ export class AdminImagesController {
   /**
    * Get all admin images with filtering and pagination
    */
+  /**
+   * GET /api/admin/images/:id
+   * Get a single image by ID
+   */
+  async getImageById(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const imageId = parseInt(id);
+
+      if (isNaN(imageId)) {
+        return res.status(400).json({ message: 'Invalid image ID' });
+      }
+
+      const [image] = await db
+        .select()
+        .from(adminImages)
+        .where(eq(adminImages.id, imageId))
+        .limit(1);
+
+      if (!image) {
+        return res.status(404).json({ message: 'Image not found' });
+      }
+
+      res.json(image);
+    } catch (error) {
+      console.error('Error fetching image by ID:', error);
+      res.status(500).json({
+        message: 'Failed to fetch image',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * GET /api/admin/images
+   * Get all admin images with filtering and pagination
+   */
   async getImages(req: AuthenticatedRequest, res: Response) {
     try {
       const userId = req.user!.id;
@@ -485,6 +523,11 @@ export class AdminImagesController {
 
       // Build query conditions
       const conditions = [];
+
+      // Filter by visibility for client users
+      if (userRole === 'client') {
+        conditions.push(eq(adminImages.visibility, 'published'));
+      }
 
       // Admin gallery should ONLY show unassigned photos by default
       // Once assigned to a project, photos appear in project progress updates instead
@@ -703,9 +746,163 @@ export class AdminImagesController {
 
     } catch (error) {
       console.error('Error fetching image statistics:', error);
-      res.status(500).json({ 
-        message: 'Failed to fetch statistics', 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      res.status(500).json({
+        message: 'Failed to fetch statistics',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Approve an admin image (and optionally publish it)
+   */
+  async approveImage(req: Request, res: Response): Promise<void> {
+    try {
+      const { imageId } = req.params;
+      const imageIdNum = parseInt(imageId, 10);
+      const user = req.user as User;
+      const { publish = false } = req.body;
+
+      if (isNaN(imageIdNum)) {
+        res.status(400).json({ message: 'Invalid image ID parameter.' });
+        return;
+      }
+      if (!user?.id) {
+        res.status(401).json({ message: 'Authentication required.' });
+        return;
+      }
+      if (user.role !== 'admin') {
+        res.status(403).json({ message: 'Admin access required.' });
+        return;
+      }
+
+      const approvedImage = await approvalWorkflowService.approve(
+        adminImages,
+        imageIdNum,
+        user.id,
+        publish
+      );
+
+      res.status(200).json(approvedImage);
+    } catch (error) {
+      console.error('Error approving image:', error);
+      res.status(500).json({
+        message: 'Failed to approve image',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Reject an admin image
+   */
+  async rejectImage(req: Request, res: Response): Promise<void> {
+    try {
+      const { imageId } = req.params;
+      const imageIdNum = parseInt(imageId, 10);
+      const user = req.user as User;
+      const { reason } = req.body;
+
+      if (isNaN(imageIdNum)) {
+        res.status(400).json({ message: 'Invalid image ID parameter.' });
+        return;
+      }
+      if (!user?.id) {
+        res.status(401).json({ message: 'Authentication required.' });
+        return;
+      }
+      if (user.role !== 'admin') {
+        res.status(403).json({ message: 'Admin access required.' });
+        return;
+      }
+
+      const rejectedImage = await approvalWorkflowService.reject(
+        adminImages,
+        imageIdNum,
+        user.id,
+        reason
+      );
+
+      res.status(200).json(rejectedImage);
+    } catch (error) {
+      console.error('Error rejecting image:', error);
+      res.status(500).json({
+        message: 'Failed to reject image',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Publish an admin image (make it visible to clients)
+   */
+  async publishImage(req: Request, res: Response): Promise<void> {
+    try {
+      const { imageId } = req.params;
+      const imageIdNum = parseInt(imageId, 10);
+      const user = req.user as User;
+
+      if (isNaN(imageIdNum)) {
+        res.status(400).json({ message: 'Invalid image ID parameter.' });
+        return;
+      }
+      if (!user?.id) {
+        res.status(401).json({ message: 'Authentication required.' });
+        return;
+      }
+      if (user.role !== 'admin') {
+        res.status(403).json({ message: 'Admin access required.' });
+        return;
+      }
+
+      const publishedImage = await approvalWorkflowService.publish(
+        adminImages,
+        imageIdNum
+      );
+
+      res.status(200).json(publishedImage);
+    } catch (error) {
+      console.error('Error publishing image:', error);
+      res.status(500).json({
+        message: 'Failed to publish image',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Unpublish an admin image (hide it from clients)
+   */
+  async unpublishImage(req: Request, res: Response): Promise<void> {
+    try {
+      const { imageId } = req.params;
+      const imageIdNum = parseInt(imageId, 10);
+      const user = req.user as User;
+
+      if (isNaN(imageIdNum)) {
+        res.status(400).json({ message: 'Invalid image ID parameter.' });
+        return;
+      }
+      if (!user?.id) {
+        res.status(401).json({ message: 'Authentication required.' });
+        return;
+      }
+      if (user.role !== 'admin') {
+        res.status(403).json({ message: 'Admin access required.' });
+        return;
+      }
+
+      const unpublishedImage = await approvalWorkflowService.unpublish(
+        adminImages,
+        imageIdNum
+      );
+
+      res.status(200).json(unpublishedImage);
+    } catch (error) {
+      console.error('Error unpublishing image:', error);
+      res.status(500).json({
+        message: 'Failed to unpublish image',
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   }

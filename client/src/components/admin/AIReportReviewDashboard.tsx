@@ -20,6 +20,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { UpdateDetailView } from '@/components/shared/UpdateDetailView';
 
 interface AIProgressUpdate {
   id: number;
@@ -60,6 +61,8 @@ export function AIReportReviewDashboard({ projectId }: AIReportReviewDashboardPr
   const [activeTab, setActiveTab] = useState<string>('draft');
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewImages, setPreviewImages] = useState<any[]>([]);
 
   // Fetch AI-generated progress updates
   const { data: updates, isLoading } = useQuery({
@@ -188,6 +191,39 @@ export function AIReportReviewDashboard({ projectId }: AIReportReviewDashboardPr
     if (selectedReport) {
       rejectMutation.mutate({ updateId: selectedReport.id, reason: rejectionReason });
     }
+  };
+
+  const handlePreview = async () => {
+    if (!selectedReport) return;
+
+    // Fetch images if the report has imageIds in metadata
+    if (selectedReport.aiAnalysisMetadata?.imageIds && selectedReport.aiAnalysisMetadata.imageIds.length > 0) {
+      try {
+        const imageIds = selectedReport.aiAnalysisMetadata.imageIds;
+
+        // Fetch all images in parallel
+        const imagePromises = imageIds.map(async (imageId) => {
+          const response = await fetch(`/api/admin/images/${imageId}`, {
+            credentials: 'include',
+          });
+          if (response.ok) {
+            return response.json();
+          }
+          return null;
+        });
+
+        const fetchedImages = await Promise.all(imagePromises);
+        const validImages = fetchedImages.filter((img) => img !== null);
+        setPreviewImages(validImages);
+      } catch (error) {
+        console.error('Error fetching preview images:', error);
+        setPreviewImages([]);
+      }
+    } else {
+      setPreviewImages([]);
+    }
+
+    setShowPreview(true);
   };
 
   const getStatusBadge = (status: string) => {
@@ -459,6 +495,16 @@ export function AIReportReviewDashboard({ projectId }: AIReportReviewDashboardPr
               </div>
 
               <DialogFooter className="flex gap-2">
+                {/* Preview Button - Available for all statuses */}
+                <Button
+                  variant="outline"
+                  onClick={handlePreview}
+                  className="mr-auto"
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  Preview as Client
+                </Button>
+
                 {/* Show different actions based on status */}
                 {selectedReport.status === 'draft' && (
                   <>
@@ -560,6 +606,43 @@ export function AIReportReviewDashboard({ projectId }: AIReportReviewDashboardPr
               Reject Report
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Client Portal Preview */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          {selectedReport && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Eye className="h-5 w-5 text-primary" />
+                  Client Portal Preview
+                </DialogTitle>
+                <p className="text-sm text-muted-foreground">
+                  This is how the client will see this update in their portal
+                </p>
+              </DialogHeader>
+
+              <UpdateDetailView
+                update={{
+                  id: selectedReport.id,
+                  title: selectedReport.title,
+                  description: selectedReport.description,
+                  createdAt: selectedReport.createdAt,
+                  generatedByAI: selectedReport.generatedByAI,
+                  status: selectedReport.status,
+                  visibility: selectedReport.visibility,
+                  projectName: updates?.find((u: AIProgressUpdate) => u.projectId === selectedReport.projectId)?.projectId?.toString(),
+                  projectId: selectedReport.projectId,
+                  rawLLMResponse: selectedReport.rawLLMResponse,
+                }}
+                images={previewImages}
+                showProjectLink={false}
+                showStatusWarning={true}
+              />
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

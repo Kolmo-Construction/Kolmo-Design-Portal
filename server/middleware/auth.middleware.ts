@@ -111,6 +111,13 @@ export function requireWebAccess(req: AuthenticatedRequest, res: Response, next:
         return;
     }
 
+    // Admins always have full access regardless of access_scope
+    if (req.user.role === 'admin') {
+        logger(`[requireWebAccess] User ID ${req.user.id} is admin. Bypassing access scope check.`, 'AuthMiddleware');
+        next();
+        return;
+    }
+
     const accessScope = req.user.accessScope || 'both'; // Default to 'both' for backward compatibility
 
     if (accessScope === 'mobile') {
@@ -137,6 +144,13 @@ export function requireMobileAccess(req: AuthenticatedRequest, res: Response, ne
     if (!req.user) {
         logger(`[requireMobileAccess] Error: req.user is missing. Ensure isAuthenticated runs first.`, 'AuthMiddleware');
         res.status(401).json({ message: "Authentication required" });
+        return;
+    }
+
+    // Admins always have full access regardless of access_scope
+    if (req.user.role === 'admin') {
+        logger(`[requireMobileAccess] User ID ${req.user.id} is admin. Bypassing access scope check.`, 'AuthMiddleware');
+        next();
         return;
     }
 

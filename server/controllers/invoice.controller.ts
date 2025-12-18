@@ -8,8 +8,10 @@ import {
   insertInvoiceSchema,
   insertPaymentSchema,
   User, // Keep User type for req.user casting
+  invoices,
 } from '../../shared/schema';
 import { HttpError } from '../errors';
+import { approvalWorkflowService } from '../services/approval-workflow.service';
 // import Big from 'big.js'; // Keep if using Big.js
 
 // --- Zod Schemas for API Input Validation (Unchanged) ---
@@ -52,11 +54,18 @@ export const getInvoicesForProject = async (
   try {
     const { projectId } = req.params;
     const projectIdNum = parseInt(projectId, 10);
+    const user = req.user as User;
 
     if (isNaN(projectIdNum)) { throw new HttpError(400, 'Invalid project ID parameter.'); }
 
     // Use the nested repository: storage.invoices
-    const invoices = await storage.invoices.getInvoicesForProject(projectIdNum);
+    let invoices = await storage.invoices.getInvoicesForProject(projectIdNum);
+
+    // Filter by visibility for client users
+    if (user?.role === 'client') {
+      invoices = invoices.filter(invoice => invoice.visibility === 'published');
+    }
+
     res.status(200).json(invoices);
   } catch (error) {
     next(error);
@@ -406,4 +415,146 @@ export const recordPayment = async (
     } catch(error) {
         next(error);
     }
+};
+
+/**
+ * Approve an invoice (and optionally publish it)
+ */
+export const approveInvoice = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { invoiceId } = req.params;
+    const invoiceIdNum = parseInt(invoiceId, 10);
+    const user = req.user as User;
+    const { publish = false } = req.body;
+
+    if (isNaN(invoiceIdNum)) {
+      throw new HttpError(400, 'Invalid invoice ID parameter.');
+    }
+    if (!user?.id) {
+      throw new HttpError(401, 'Authentication required.');
+    }
+    if (user.role !== 'admin') {
+      throw new HttpError(403, 'Admin access required.');
+    }
+
+    const approvedInvoice = await approvalWorkflowService.approve(
+      invoices,
+      invoiceIdNum,
+      user.id,
+      publish
+    );
+
+    res.status(200).json(approvedInvoice);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Reject an invoice
+ */
+export const rejectInvoice = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { invoiceId } = req.params;
+    const invoiceIdNum = parseInt(invoiceId, 10);
+    const user = req.user as User;
+    const { reason } = req.body;
+
+    if (isNaN(invoiceIdNum)) {
+      throw new HttpError(400, 'Invalid invoice ID parameter.');
+    }
+    if (!user?.id) {
+      throw new HttpError(401, 'Authentication required.');
+    }
+    if (user.role !== 'admin') {
+      throw new HttpError(403, 'Admin access required.');
+    }
+
+    const rejectedInvoice = await approvalWorkflowService.reject(
+      invoices,
+      invoiceIdNum,
+      user.id,
+      reason
+    );
+
+    res.status(200).json(rejectedInvoice);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Publish an invoice (make it visible to clients)
+ */
+export const publishInvoice = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { invoiceId } = req.params;
+    const invoiceIdNum = parseInt(invoiceId, 10);
+    const user = req.user as User;
+
+    if (isNaN(invoiceIdNum)) {
+      throw new HttpError(400, 'Invalid invoice ID parameter.');
+    }
+    if (!user?.id) {
+      throw new HttpError(401, 'Authentication required.');
+    }
+    if (user.role !== 'admin') {
+      throw new HttpError(403, 'Admin access required.');
+    }
+
+    const publishedInvoice = await approvalWorkflowService.publish(
+      invoices,
+      invoiceIdNum
+    );
+
+    res.status(200).json(publishedInvoice);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Unpublish an invoice (hide it from clients)
+ */
+export const unpublishInvoice = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { invoiceId } = req.params;
+    const invoiceIdNum = parseInt(invoiceId, 10);
+    const user = req.user as User;
+
+    if (isNaN(invoiceIdNum)) {
+      throw new HttpError(400, 'Invalid invoice ID parameter.');
+    }
+    if (!user?.id) {
+      throw new HttpError(401, 'Authentication required.');
+    }
+    if (user.role !== 'admin') {
+      throw new HttpError(403, 'Admin access required.');
+    }
+
+    const unpublishedInvoice = await approvalWorkflowService.unpublish(
+      invoices,
+      invoiceIdNum
+    );
+
+    res.status(200).json(unpublishedInvoice);
+  } catch (error) {
+    next(error);
+  }
 };

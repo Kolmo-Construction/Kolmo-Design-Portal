@@ -6,10 +6,11 @@ import { z } from 'zod';
 import { storage } from '../storage/index';
 // Import DocumentWithUploader directly from repository
 import { DocumentWithUploader } from '../storage/repositories/document.repository';
-import { insertDocumentSchema, User } from '../../shared/schema'; // Keep User type and ensure it's correctly typed/imported
+import { insertDocumentSchema, User, documents } from '../../shared/schema'; // Keep User type and ensure it's correctly typed/imported
 import { HttpError } from '../errors';
 // R2 functions are separate from the storage repository
 import { uploadToR2, deleteFromR2, getR2DownloadUrl } from '../r2-upload';
+import { approvalWorkflowService } from '../services/approval-workflow.service';
 
 // --- Zod Schema for potential additional form fields (Unchanged) ---
 const documentUploadMetaSchema = z.object({
@@ -29,6 +30,7 @@ export const getDocumentsForProject = async (
   try {
     const { projectId } = req.params;
     const projectIdNum = parseInt(projectId, 10);
+    const user = req.user as User;
 
     if (isNaN(projectIdNum)) {
       throw new HttpError(400, 'Invalid project ID parameter.');
@@ -41,7 +43,13 @@ export const getDocumentsForProject = async (
     // OR call checkProjectAccess helper if available and appropriate here.
 
     // Use the nested repository: storage.documents
-    const documents = await storage.documents.getDocumentsForProject(projectIdNum);
+    let documents = await storage.documents.getDocumentsForProject(projectIdNum);
+
+    // Filter by visibility for client users
+    if (user?.role === 'client') {
+      documents = documents.filter(doc => doc.visibility === 'published');
+    }
+
     res.status(200).json(documents);
   } catch (error) {
     next(error);
@@ -329,6 +337,148 @@ export const getAllAccessibleDocuments = async (
     // The DocumentWithUploader type mapping is also handled within the repository.
 
     res.status(200).json(documents);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Approve a document (and optionally publish it)
+ */
+export const approveDocument = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { documentId } = req.params;
+    const documentIdNum = parseInt(documentId, 10);
+    const user = req.user as User;
+    const { publish = false } = req.body;
+
+    if (isNaN(documentIdNum)) {
+      throw new HttpError(400, 'Invalid document ID parameter.');
+    }
+    if (!user?.id) {
+      throw new HttpError(401, 'Authentication required.');
+    }
+    if (user.role !== 'admin') {
+      throw new HttpError(403, 'Admin access required.');
+    }
+
+    const approvedDocument = await approvalWorkflowService.approve(
+      documents,
+      documentIdNum,
+      user.id,
+      publish
+    );
+
+    res.status(200).json(approvedDocument);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Reject a document
+ */
+export const rejectDocument = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { documentId } = req.params;
+    const documentIdNum = parseInt(documentId, 10);
+    const user = req.user as User;
+    const { reason } = req.body;
+
+    if (isNaN(documentIdNum)) {
+      throw new HttpError(400, 'Invalid document ID parameter.');
+    }
+    if (!user?.id) {
+      throw new HttpError(401, 'Authentication required.');
+    }
+    if (user.role !== 'admin') {
+      throw new HttpError(403, 'Admin access required.');
+    }
+
+    const rejectedDocument = await approvalWorkflowService.reject(
+      documents,
+      documentIdNum,
+      user.id,
+      reason
+    );
+
+    res.status(200).json(rejectedDocument);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Publish a document (make it visible to clients)
+ */
+export const publishDocument = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { documentId } = req.params;
+    const documentIdNum = parseInt(documentId, 10);
+    const user = req.user as User;
+
+    if (isNaN(documentIdNum)) {
+      throw new HttpError(400, 'Invalid document ID parameter.');
+    }
+    if (!user?.id) {
+      throw new HttpError(401, 'Authentication required.');
+    }
+    if (user.role !== 'admin') {
+      throw new HttpError(403, 'Admin access required.');
+    }
+
+    const publishedDocument = await approvalWorkflowService.publish(
+      documents,
+      documentIdNum
+    );
+
+    res.status(200).json(publishedDocument);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Unpublish a document (hide it from clients)
+ */
+export const unpublishDocument = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { documentId } = req.params;
+    const documentIdNum = parseInt(documentId, 10);
+    const user = req.user as User;
+
+    if (isNaN(documentIdNum)) {
+      throw new HttpError(400, 'Invalid document ID parameter.');
+    }
+    if (!user?.id) {
+      throw new HttpError(401, 'Authentication required.');
+    }
+    if (user.role !== 'admin') {
+      throw new HttpError(403, 'Admin access required.');
+    }
+
+    const unpublishedDocument = await approvalWorkflowService.unpublish(
+      documents,
+      documentIdNum
+    );
+
+    res.status(200).json(unpublishedDocument);
   } catch (error) {
     next(error);
   }

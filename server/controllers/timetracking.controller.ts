@@ -133,7 +133,14 @@ export class TimeTrackingController {
   async clockOut(req: Request, res: Response): Promise<void> {
     try {
       const user = (req as any).user;
+      console.log('[TimeTracking] Clock-out request received:', {
+        userId: user?.id,
+        body: req.body,
+        timestamp: new Date().toISOString()
+      });
+
       if (!user) {
+        console.log('[TimeTracking] Clock-out FAILED: No user authenticated');
         res.status(401).json({ success: false, message: 'Unauthorized' });
         return;
       }
@@ -141,6 +148,7 @@ export class TimeTrackingController {
       // Validate request body
       const validationResult = clockOutSchema.safeParse(req.body);
       if (!validationResult.success) {
+        console.log('[TimeTracking] Clock-out FAILED: Validation error:', validationResult.error.errors);
         res.status(400).json({
           success: false,
           message: 'Invalid request data',
@@ -150,6 +158,7 @@ export class TimeTrackingController {
       }
 
       const { latitude, longitude, notes } = validationResult.data;
+      console.log('[TimeTracking] Clock-out validated data:', { userId: user.id, latitude, longitude });
 
       // Call service
       const result = await timeTrackingService.clockOut({
@@ -160,12 +169,20 @@ export class TimeTrackingController {
       });
 
       if (!result.success) {
+        console.log('[TimeTracking] Clock-out FAILED:', result.error);
         res.status(400).json({
           success: false,
           message: result.error || 'Failed to clock out',
         });
         return;
       }
+
+      console.log('[TimeTracking] Clock-out SUCCESS:', {
+        timeEntryId: result.timeEntry?.id,
+        durationMinutes: result.timeEntry?.durationMinutes,
+        withinGeofence: result.geofenceValidation?.withinGeofence,
+        distance: result.geofenceValidation?.distanceMeters
+      });
 
       res.status(200).json({
         success: true,
@@ -179,7 +196,7 @@ export class TimeTrackingController {
           : undefined,
       });
     } catch (error) {
-      console.error('Error in clockOut controller:', error);
+      console.error('[TimeTracking] Clock-out EXCEPTION:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error while clocking out',
