@@ -4,9 +4,11 @@ import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { PaymentForm } from '@/components/payment/PaymentForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { Loader2, AlertCircle, CheckCircle, Shield, Lock } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Kolmo Brand Colors
 const colors = {
@@ -36,7 +38,8 @@ export default function PaymentPage() {
   const [, params] = useRoute('/payment/:clientSecret');
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  
+  const queryClient = useQueryClient();
+
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -104,11 +107,23 @@ export default function PaymentPage() {
       });
 
       setPaymentCompleted(true);
-      
+
+      // Invalidate all invoice and project queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/client/invoices'] });
+      queryClient.invalidateQueries({ predicate: (query) =>
+        query.queryKey[0]?.toString().includes('/api/projects')
+      });
+
       toast({
         title: "Payment Successful!",
         description: "Your payment has been processed successfully.",
       });
+
+      // Redirect to invoices page after 3 seconds
+      setTimeout(() => {
+        setLocation('/invoices');
+      }, 3000);
     } catch (error: any) {
       console.error('Error processing payment success:', error);
       toast({
@@ -201,6 +216,16 @@ export default function PaymentPage() {
                 <li>• You'll receive regular progress updates</li>
               </ul>
             </div>
+            <Button
+              onClick={() => setLocation('/invoices')}
+              className="w-full mt-4"
+              style={{ backgroundColor: colors.accent }}
+            >
+              Return to Invoices
+            </Button>
+            <p className="text-xs" style={{ color: colors.secondary }}>
+              Redirecting automatically in 3 seconds...
+            </p>
           </CardContent>
         </Card>
       </div>

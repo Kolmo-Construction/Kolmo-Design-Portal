@@ -54,4 +54,16 @@ router.put('/:id', (req, res) => adminImagesController.updateImage(req as Authen
  */
 router.delete('/:id', (req, res) => adminImagesController.deleteImage(req as AuthenticatedRequest, res));
 
+/**
+ * POST /api/admin/images/:id/publish
+ * Publish an image (make it visible to clients)
+ */
+router.post('/:id/publish', (req, res) => adminImagesController.publishImage(req as AuthenticatedRequest, res));
+
+/**
+ * POST /api/admin/images/:id/unpublish
+ * Unpublish an image (hide it from clients)
+ */
+router.post('/:id/unpublish', (req, res) => adminImagesController.unpublishImage(req as AuthenticatedRequest, res));
+
 export { router as adminImagesRoutes };

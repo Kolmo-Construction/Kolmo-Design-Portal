@@ -389,6 +389,33 @@ export default function Financials() {
                           }>
                             {invoice.status}
                           </Badge>
+                          {invoice.status !== "paid" && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const response = await fetch(`/api/invoices/${invoice.id}/create-payment-intent`, {
+                                    method: 'POST',
+                                    credentials: 'include',
+                                  });
+
+                                  if (!response.ok) {
+                                    throw new Error('Failed to create payment intent');
+                                  }
+
+                                  const data = await response.json();
+                                  window.location.href = data.paymentLink;
+                                } catch (error) {
+                                  console.error('Error creating payment:', error);
+                                  alert('Failed to initiate payment. Please try again.');
+                                }
+                              }}
+                            >
+                              <CreditCard className="h-4 w-4 mr-2" />
+                              Pay Now
+                            </Button>
+                          )}
                           <Button variant="outline" size="sm">
                             <Download className="h-4 w-4 mr-2" />
                             Download

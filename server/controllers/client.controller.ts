@@ -32,27 +32,39 @@ export const getClientInvoices = async (
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
-    
+    const userRole = req.user?.role;
+
     if (!userId) {
       res.status(401).json({ message: 'Authentication required' });
       return;
     }
 
-    console.log(`[getClientInvoices] Fetching invoices for user ID: ${userId}`);
+    console.log(`[getClientInvoices] Fetching invoices for user ID: ${userId}, role: ${userRole}`);
 
     // Use direct SQL query as workaround for repository schema issues
     let allInvoices: any[] = [];
     try {
       console.log(`[getClientInvoices] Executing SQL query for user ${userId}`);
-      const result = await db.execute(sql`
-        SELECT i.*, p.name as project_name
-        FROM invoices i
-        INNER JOIN projects p ON i.project_id = p.id
-        INNER JOIN client_projects cp ON p.id = cp.project_id
-        WHERE cp.client_id = ${userId}
-          AND i.status != 'draft'
-        ORDER BY i.issue_date DESC
-      `);
+
+      // Admins see all invoices, clients see only their published invoices
+      const result = userRole === 'admin'
+        ? await db.execute(sql`
+            SELECT i.*, p.name as project_name
+            FROM invoices i
+            INNER JOIN projects p ON i.project_id = p.id
+            WHERE i.status != 'draft'
+            ORDER BY i.issue_date DESC
+          `)
+        : await db.execute(sql`
+            SELECT i.*, p.name as project_name
+            FROM invoices i
+            INNER JOIN projects p ON i.project_id = p.id
+            INNER JOIN client_projects cp ON p.id = cp.project_id
+            WHERE cp.client_id = ${userId}
+              AND i.status != 'draft'
+              AND i.visibility = 'published'
+            ORDER BY i.issue_date DESC
+          `);
       
       console.log(`[getClientInvoices] Raw query result:`, { 
         isArray: Array.isArray(result), 
@@ -163,14 +175,21 @@ export const getClientDashboard = async (
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
+    const userRole = req.user?.role;
 
     if (!userId) {
       res.status(401).json({ message: 'Authentication required' });
       return;
     }
 
-    // Get client's assigned projects with related data
-    const projects = await storage.projects.getProjectsForUser(userId.toString());
+    // Get projects based on user role
+    // Admins can see all projects, clients see only their assigned projects
+    let projects;
+    if (userRole === 'admin') {
+      projects = await storage.projects.getAllProjects();
+    } else {
+      projects = await storage.projects.getProjectsForUser(userId.toString());
+    }
     
     // Enhance projects with real task counts and timeline data
     const enhancedProjects = await Promise.all(projects.map(async (project: any) => {

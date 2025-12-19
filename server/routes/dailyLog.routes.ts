@@ -46,6 +46,24 @@ router.delete(
     dailyLogController.deleteDailyLog // Correct: Access method on the instance
 );
 
+// POST /api/projects/:projectId/daily-logs/:logId/publish
+// Publish a daily log (make it visible to clients)
+router.post(
+    "/:logId/publish",
+    isAuthenticated,
+    validateResourceId('logId'),
+    dailyLogController.publishDailyLog
+);
+
+// POST /api/projects/:projectId/daily-logs/:logId/unpublish
+// Unpublish a daily log (hide it from clients)
+router.post(
+    "/:logId/unpublish",
+    isAuthenticated,
+    validateResourceId('logId'),
+    dailyLogController.unpublishDailyLog
+);
+
 // --- Optional Photo Routes (Example Structure) ---
 
 // POST /api/projects/:projectId/daily-logs/:logId/photos

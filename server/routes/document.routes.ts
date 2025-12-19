@@ -30,8 +30,13 @@ projectDocumentRouter.delete("/:documentId", isAuthenticated, requireProjectPerm
 // Update document category (project managers can manage document organization)
 // projectDocumentRouter.put("/:documentId/category", isAuthenticated, requireProjectPermission('canManageDocumentCategories'), documentController.updateDocumentCategory);
 
+// POST /api/projects/:projectId/documents/:documentId/publish
+// Publish a document (make it visible to clients)
+projectDocumentRouter.post("/:documentId/publish", isAuthenticated, requireProjectPermission('canUploadDocuments'), documentController.publishDocument);
 
-
+// POST /api/projects/:projectId/documents/:documentId/unpublish
+// Unpublish a document (hide it from clients)
+projectDocumentRouter.post("/:documentId/unpublish", isAuthenticated, requireProjectPermission('canUploadDocuments'), documentController.unpublishDocument);
 
 // --- Global Document Routes ---
 

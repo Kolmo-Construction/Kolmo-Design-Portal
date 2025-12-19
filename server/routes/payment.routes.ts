@@ -246,6 +246,102 @@ router.post('/payment-success', async (req, res, next) => {
 });
 
 /**
+ * Create payment intent for an existing invoice
+ * Allows customers to pay any published invoice
+ */
+router.post('/invoices/:invoiceId/create-payment-intent', async (req, res, next) => {
+  try {
+    if (!stripe) {
+      throw new HttpError(503, 'Payment processing temporarily unavailable');
+    }
+
+    const invoiceId = parseInt(req.params.invoiceId);
+
+    if (isNaN(invoiceId)) {
+      throw new HttpError(400, 'Invalid invoice ID');
+    }
+
+    // Get the invoice
+    const invoice = await storage.invoices.getInvoiceById(invoiceId);
+
+    if (!invoice) {
+      throw new HttpError(404, 'Invoice not found');
+    }
+
+    // Check if invoice is already paid
+    if (invoice.status === 'paid') {
+      throw new HttpError(400, 'Invoice has already been paid');
+    }
+
+    // Get project info for description
+    let projectName = 'Project';
+    if (invoice.projectId) {
+      const project = await storage.projects.getProjectById(invoice.projectId);
+      if (project) {
+        projectName = project.name;
+      }
+    }
+
+    // Create or retrieve existing payment intent
+    let paymentIntent;
+
+    if (invoice.stripePaymentIntentId) {
+      // Retrieve existing payment intent
+      try {
+        paymentIntent = await stripe.paymentIntents.retrieve(invoice.stripePaymentIntentId);
+
+        // If payment intent is already succeeded, create a new one
+        if (paymentIntent.status === 'succeeded') {
+          throw new Error('Payment intent already succeeded, creating new one');
+        }
+      } catch (error) {
+        // If retrieval fails, create a new payment intent
+        paymentIntent = null;
+      }
+    }
+
+    if (!paymentIntent) {
+      // Create new payment intent
+      paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(parseFloat(invoice.amount.toString()) * 100), // Convert to cents
+        currency: 'usd',
+        description: `${invoice.invoiceNumber} - ${projectName}`,
+        metadata: {
+          invoiceId: invoice.id.toString(),
+          projectId: invoice.projectId?.toString() || '',
+          invoiceNumber: invoice.invoiceNumber,
+        },
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      });
+
+      // Update invoice with payment intent ID
+      await storage.invoices.updateInvoice(invoice.id, {
+        stripePaymentIntentId: paymentIntent.id,
+      });
+    }
+
+    // Generate payment link (client secret in URL)
+    const paymentLink = `/payment/${paymentIntent.client_secret}`;
+
+    // Update invoice with payment link
+    await storage.invoices.updateInvoice(invoice.id, {
+      paymentLink,
+    });
+
+    res.json({
+      clientSecret: paymentIntent.client_secret,
+      paymentLink,
+      amount: parseFloat(invoice.amount.toString()),
+      invoiceNumber: invoice.invoiceNumber,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * Create payment intent for milestone payments
  */
 router.post('/projects/:id/milestone-payment', async (req, res, next) => {

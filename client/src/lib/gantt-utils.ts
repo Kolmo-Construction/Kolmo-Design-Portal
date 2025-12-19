@@ -155,31 +155,40 @@ export function formatTasksForGanttReact(
       endDate.setDate(endDate.getDate() + 1);
     }
 
-    // Progress Calculation & Validation based on status
+    // Progress Calculation & Validation
+    // Use the actual progress field if available, otherwise fall back to status-based defaults
     let progress = 0;
-    switch (apiTask.status?.toLowerCase()) {
-      case 'done':
-      case 'completed': 
-        progress = 100; 
-        break;
-      case 'in_progress':
-      case 'in progress':
-        progress = 50; 
-        break;
-      case 'todo':
-      case 'pending':
-        progress = 0; 
-        break;
-      case 'blocked':
-        progress = 25; // Show minimal progress to indicate it was started but blocked
-        break;
-      case 'cancelled':
-        progress = 0;
-        break;
-      default: 
-        progress = 0; 
-        break;
+
+    if (typeof apiTask.progress === 'number' && apiTask.progress >= 0 && apiTask.progress <= 100) {
+      // Use the actual progress value from the database
+      progress = apiTask.progress;
+    } else {
+      // Fall back to status-based progress if no progress field exists
+      switch (apiTask.status?.toLowerCase()) {
+        case 'done':
+        case 'completed':
+          progress = 100;
+          break;
+        case 'in_progress':
+        case 'in progress':
+          progress = 50;
+          break;
+        case 'todo':
+        case 'pending':
+          progress = 0;
+          break;
+        case 'blocked':
+          progress = 25; // Show minimal progress to indicate it was started but blocked
+          break;
+        case 'cancelled':
+          progress = 0;
+          break;
+        default:
+          progress = 0;
+          break;
+      }
     }
+
     if (typeof progress !== 'number' || isNaN(progress) || progress < 0 || progress > 100) {
       console.warn(`[gantt-utils-react] Task ID ${taskIdStr} ('${apiTask.title}') has invalid progress value (${progress}). Defaulting to 0.`);
       progress = 0;

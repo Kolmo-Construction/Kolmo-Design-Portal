@@ -56,6 +56,20 @@ router.delete('/:itemId',
     punchListController.deletePunchListItem
 );
 
+// POST /api/projects/:projectId/punch-list/:itemId/publish - Publish a punch list item (make it visible to clients)
+router.post('/:itemId/publish',
+    validateResourceId('itemId'),
+    requireProjectPermission('canEditPunchListItems'),
+    punchListController.publishPunchListItem
+);
+
+// POST /api/projects/:projectId/punch-list/:itemId/unpublish - Unpublish a punch list item (hide it from clients)
+router.post('/:itemId/unpublish',
+    validateResourceId('itemId'),
+    requireProjectPermission('canEditPunchListItems'),
+    punchListController.unpublishPunchListItem
+);
+
 // PATCH /api/projects/:projectId/punch-list/:itemId/complete - Complete a punch list item (Project Manager access)
 // Note: This functionality would be implemented in the controller when needed
 // router.patch('/:itemId/complete',

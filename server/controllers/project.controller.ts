@@ -235,7 +235,7 @@ export const deleteProject = async (
   }
 };
 
-// Recalculate project progress based on task completion
+// Recalculate project progress based on weighted task completion
 export const recalculateProjectProgress = async (
   req: Request,
   res: Response,
@@ -243,34 +243,52 @@ export const recalculateProjectProgress = async (
 ): Promise<void> => {
   try {
     const projectId = parseInt(req.params.id, 10);
-    
+
     // Get all tasks for the project
     const tasks = await storage.tasks.getTasksForProject(projectId);
-    
+
     let progressPercentage = 0;
+    let totalEstimatedHours = 0;
+    let completedHours = 0;
+
     if (tasks.length > 0) {
-      // Calculate progress based on completed tasks
-      const completedTasks = tasks.filter(task => 
-        task.status === 'done' || task.status === 'completed'
-      ).length;
-      
-      progressPercentage = Math.round((completedTasks / tasks.length) * 100);
+      // Calculate weighted progress based on task progress and estimated hours
+      for (const task of tasks) {
+        const estimatedHours = task.estimatedHours ? parseFloat(task.estimatedHours.toString()) : 0;
+        const taskProgress = task.progress || 0; // Default to 0 if not set
+
+        totalEstimatedHours += estimatedHours;
+        completedHours += (estimatedHours * taskProgress) / 100;
+      }
+
+      // Calculate overall progress percentage
+      if (totalEstimatedHours > 0) {
+        progressPercentage = Math.round((completedHours / totalEstimatedHours) * 100);
+      } else {
+        // Fallback to simple task count if no estimated hours
+        const completedTasks = tasks.filter(task =>
+          task.status === 'done' || task.status === 'completed'
+        ).length;
+        progressPercentage = Math.round((completedTasks / tasks.length) * 100);
+      }
     }
-    
+
     // Update the project progress
     const updatedProject = await storage.projects.updateProjectDetailsAndClients(projectId, { progress: progressPercentage });
-    
+
     if (!updatedProject) {
       throw new HttpError(404, 'Project not found.');
     }
-    
-    res.status(200).json({ 
-      message: 'Project progress recalculated successfully',
+
+    res.status(200).json({
+      message: 'Project progress recalculated successfully (weighted by estimated hours)',
       progress: progressPercentage,
+      totalEstimatedHours,
+      completedHours: Math.round(completedHours * 100) / 100, // Round to 2 decimals
       completedTasks: tasks.filter(task => task.status === 'done' || task.status === 'completed').length,
       totalTasks: tasks.length
     });
-    
+
   } catch(error) {
     next(error);
   }

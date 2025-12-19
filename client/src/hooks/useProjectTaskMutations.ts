@@ -105,6 +105,8 @@ export function useProjectTaskMutations(projectId: number): UseProjectTaskMutati
             queryClient.setQueryData<Task[]>(tasksQueryKey, (oldTasks = []) =>
                 oldTasks.map(task => task.id === updatedTask.id ? updatedTask : task)
             );
+            // Invalidate project query to refresh overall project progress
+            queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
         },
         onError: (err: Error, variables) => {
             console.error(`Error updating progress for task ${variables.taskId}:`, err);

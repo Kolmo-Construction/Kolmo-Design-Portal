@@ -7,10 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { DialCircle } from '@/components/ui/dial-circle';
-import { 
-  Building, 
-  MessageSquare, 
-  FileText, 
+import {
+  Building,
+  MessageSquare,
+  FileText,
   Calendar,
   Clock,
   DollarSign,
@@ -22,11 +22,11 @@ import {
   TrendingUp,
   Activity,
   BarChart3,
-  Timer
+  Timer,
+  Image
 } from 'lucide-react';
 import { ClientNavigation } from '@/components/ClientNavigation';
 import { DashboardRecentUpdates } from '@/components/client/DashboardRecentUpdates';
-import { ProjectPhotoGallery } from '@/components/client/ProjectPhotoGallery';
 import { getQueryFn } from '@/lib/queryClient';
 import type { Task } from '@shared/schema';
 
@@ -177,7 +177,7 @@ export default function ClientPortal() {
 
   const { data: dashboardData, isLoading } = useQuery<ClientDashboardData>({
     queryKey: ['/api/client/dashboard'],
-    enabled: !!user && user.role === 'client'
+    enabled: !!user && (user.role === 'client' || user.role === 'admin')
   });
 
   if (authState === 'loading' || isLoading) {
@@ -346,6 +346,12 @@ export default function ClientPortal() {
                     Documents
                   </Button>
                 </Link>
+                <Link to="/photos">
+                  <Button variant="outline" className="w-full justify-start" size="sm">
+                    <Image className="h-4 w-4 mr-2" />
+                    Photos
+                  </Button>
+                </Link>
                 <Link to="/invoices">
                   <Button variant="outline" className="w-full justify-start" size="sm">
                     <DollarSign className="h-4 w-4 mr-2" />
@@ -363,9 +369,6 @@ export default function ClientPortal() {
           <div className="lg:col-span-2 space-y-8">
             {/* Recent Updates */}
             <DashboardRecentUpdates />
-
-            {/* Project Photos */}
-            <ProjectPhotoGallery />
 
             {/* Project Timeline */}
             <div>

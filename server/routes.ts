@@ -150,6 +150,12 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
     return getClientInvoices(req, res, next);
   });
 
+  // Universal invoice access - routes to client or admin based on role (Web-only)
+  app.get("/api/invoices", isAuthenticated, requireWebAccess, async (req: any, res: any, next: any) => {
+    const { getClientInvoices } = await import("./controllers/client.controller");
+    return getClientInvoices(req, res, next);
+  });
+
   // Admin endpoint to get projects for a specific client (Web-only)
   app.get("/api/admin/client-projects/:clientId", isAuthenticated, requireWebAccess, isAdmin, async (req: any, res: any) => {
     try {

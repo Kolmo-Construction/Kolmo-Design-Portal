@@ -100,7 +100,9 @@ export function EditTaskDialog({
       startDate: undefined,
       dueDate: undefined,
       estimatedHours: undefined,
+      completedHours: undefined,
       actualHours: undefined,
+      progress: 0,
       isBillable: false,
       billingPercentage: undefined,
       billableAmount: undefined,
@@ -130,7 +132,11 @@ export function EditTaskDialog({
         dueDate: taskData.dueDate ? new Date(taskData.dueDate) : undefined,
         // Ensure numbers are handled correctly (convert from potential string/decimal)
         estimatedHours: taskData.estimatedHours ? parseFloat(taskData.estimatedHours.toString()) : undefined,
+        completedHours: taskData.progress && taskData.estimatedHours
+          ? (parseFloat(taskData.estimatedHours.toString()) * taskData.progress / 100)
+          : undefined,
         actualHours: taskData.actualHours ? parseFloat(taskData.actualHours.toString()) : undefined,
+        progress: taskData.progress ?? 0,
         // Add billing fields
         isBillable: taskData.isBillable ?? false,
         billingPercentage: taskData.billingPercentage ? parseFloat(taskData.billingPercentage.toString()) : undefined,
@@ -176,6 +182,8 @@ export function EditTaskDialog({
       // Invalidate the specific task query and the list query
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`, variables.taskId] });
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
+      // Invalidate project query to refresh overall project progress
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
       setIsOpen(false); // Close dialog on success
     },
     onError: (err) => {
@@ -197,22 +205,25 @@ export function EditTaskDialog({
     if (!taskToEdit) return; // Should not happen if dialog is open correctly
 
     console.log("Submitting update:", values);
-    
+
+    // Remove completedHours from submission (it's just for UI calculation)
+    const { completedHours, ...submissionData } = values as any;
+
     // Check if this is a billable task being completed
     const isBeingCompleted = values.status === 'done' && taskToEdit.status !== 'done';
     const isBillableTask = taskToEdit.isBillable || values.isBillable;
-    
+
     if (isBeingCompleted && isBillableTask) {
       // Use the billing endpoint for billable task completion
       console.log("Using billing endpoint for billable task completion");
-      completeAndBillMutation.mutate({ 
-        taskId: taskToEdit.id, 
-        actualHours: values.actualHours || undefined 
+      completeAndBillMutation.mutate({
+        taskId: taskToEdit.id,
+        actualHours: values.actualHours || undefined
       });
       setIsOpen(false); // Close dialog immediately for billing flow
     } else {
       // Use regular update for non-billable tasks or non-completion updates
-      updateTaskMutation.mutate({ taskId: taskToEdit.id, taskData: values });
+      updateTaskMutation.mutate({ taskId: taskToEdit.id, taskData: submissionData });
     }
   };
   
@@ -471,6 +482,12 @@ export function EditTaskDialog({
                             onChange={(e) => {
                                 const value = e.target.value;
                                 field.onChange(value === '' ? undefined : parseFloat(value));
+                                // Recalculate progress when estimated hours change
+                                const completedHours = form.getValues('completedHours');
+                                if (value && completedHours) {
+                                  const progress = Math.round((completedHours / parseFloat(value)) * 100);
+                                  form.setValue('progress', Math.min(100, progress));
+                                }
                             }}
                         />
                         </FormControl>
@@ -479,7 +496,50 @@ export function EditTaskDialog({
                     )}
                 />
 
-                 {/* Actual Hours (often only relevant in Edit mode) */}
+                {/* Completed Hours - Auto-calculates progress */}
+                <FormField
+                    control={form.control}
+                    name="completedHours"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Completed Hours</FormLabel>
+                        <FormControl>
+                        <Input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            placeholder="Hours completed so far"
+                            {...field}
+                            value={field.value ?? ''}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                const completedHours = value === '' ? undefined : parseFloat(value);
+                                field.onChange(completedHours);
+
+                                // Auto-calculate progress percentage
+                                const estimatedHours = form.getValues('estimatedHours');
+                                if (completedHours && estimatedHours) {
+                                  const progress = Math.round((completedHours / estimatedHours) * 100);
+                                  form.setValue('progress', Math.min(100, progress));
+                                } else if (!completedHours) {
+                                  form.setValue('progress', 0);
+                                }
+                            }}
+                        />
+                        </FormControl>
+                        <FormDescription>
+                          {form.watch('estimatedHours') && form.watch('completedHours') && (
+                            <span className="text-sm text-muted-foreground">
+                              Progress: {form.watch('progress')}% ({form.watch('completedHours')} / {form.watch('estimatedHours')} hours)
+                            </span>
+                          )}
+                        </FormDescription>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+
+                 {/* Actual Hours (final hours when task is complete) */}
                  <FormField
                     control={form.control}
                     name="actualHours"

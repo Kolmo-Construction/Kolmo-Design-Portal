@@ -17,7 +17,7 @@ export const feedbackTypeEnum = pgEnum('feedback_type', ['edit', 'approve', 'rej
 export const invoiceStatusEnum = pgEnum('invoice_status', ['draft', 'pending', 'partially_paid', 'paid', 'overdue', 'cancelled']);
 
 // Define invoice type enum
-export const invoiceTypeEnum = pgEnum('invoice_type', ['down_payment', 'milestone', 'final', 'change_order', 'regular']);
+export const invoiceTypeEnum = pgEnum('invoice_type', ['down_payment', 'milestone', 'final', 'change_order', 'regular', 'task_completion', 'additional_work', 'expense']);
 
 // Define progress update status enum (for LLM-generated reports workflow)
 export const progressUpdateStatusEnum = pgEnum('progress_update_status', ['draft', 'pending_review', 'approved', 'rejected']);
@@ -371,6 +371,7 @@ export const invoices = pgTable("invoices", {
   projectId: integer("project_id").references(() => projects.id),
   quoteId: integer("quote_id").references(() => quotes.id), // Link to originating quote
   milestoneId: integer("milestone_id"), // Link to milestone that generated this invoice
+  taskId: integer("task_id"), // Link to task that generated this invoice (for billable tasks)
   invoiceNumber: text("invoice_number").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
@@ -680,6 +681,7 @@ export const tasks = pgTable("tasks", {
   assigneeId: integer("assignee_id").references(() => users.id, { onDelete: 'set null' }), // Set assignee to null if user deleted
   estimatedHours: decimal("estimated_hours", { precision: 5, scale: 2 }), // DECIMAL column
   actualHours: decimal("actual_hours", { precision: 5, scale: 2 }), // DECIMAL column
+  progress: integer("progress").default(0).notNull(), // Task completion percentage (0-100)
   publishedAt: timestamp("published_at"), // When the task was published to clients (null = not published)
   
   // Billing configuration

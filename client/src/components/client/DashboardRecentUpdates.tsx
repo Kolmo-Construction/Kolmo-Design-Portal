@@ -49,6 +49,7 @@ interface Project {
 export function DashboardRecentUpdates() {
   const queryClient = useQueryClient();
   const [selectedUpdate, setSelectedUpdate] = useState<ProgressUpdate | null>(null);
+  const [selectedUpdateImages, setSelectedUpdateImages] = useState<any[]>([]);
 
   // Fetch user's projects from the correct endpoint
   const { data: projectsData, isLoading: projectsLoading, isError: projectsError } = useQuery({
@@ -86,10 +87,13 @@ export function DashboardRecentUpdates() {
       const allUpdates: ProgressUpdate[] = [];
       responses.forEach((response, index) => {
         const projectUpdates = response.updates || [];
+        const currentProject = projects[index];
         projectUpdates.forEach((update: ProgressUpdate) => {
+          // Use the update's projectId to find the correct project
+          const correctProject = projects.find(p => p.id === update.projectId) || currentProject;
           allUpdates.push({
             ...update,
-            project: projects[index],
+            project: correctProject,
           });
         });
       });
@@ -119,8 +123,28 @@ export function DashboardRecentUpdates() {
   const updates = allUpdatesData || [];
   const newUpdatesCount = updates.filter((u: ProgressUpdate) => u.isNew).length;
 
-  const handleViewUpdate = (update: ProgressUpdate) => {
+  const handleViewUpdate = async (update: ProgressUpdate) => {
     setSelectedUpdate(update);
+
+    // Fetch images if this is an AI-generated update with image IDs
+    if (update.generatedByAI && update.aiAnalysisMetadata?.imageIds && update.aiAnalysisMetadata.imageIds.length > 0) {
+      try {
+        // Fetch images from the admin images endpoint
+        const imageIds = update.aiAnalysisMetadata.imageIds;
+        const imagePromises = imageIds.map(id =>
+          fetch(`/api/admin/images/${id}`, { credentials: 'include' })
+            .then(res => res.ok ? res.json() : null)
+        );
+        const images = (await Promise.all(imagePromises)).filter(img => img !== null);
+        setSelectedUpdateImages(images);
+      } catch (error) {
+        console.error('Error fetching update images:', error);
+        setSelectedUpdateImages([]);
+      }
+    } else {
+      setSelectedUpdateImages([]);
+    }
+
     if (update.isNew && update.project) {
       markReadMutation.mutate({ projectId: update.project.id, updateId: update.id });
     }
@@ -264,19 +288,6 @@ export function DashboardRecentUpdates() {
                     <span className="text-xs text-muted-foreground whitespace-nowrap">
                       {formatDate(update.createdAt)}
                     </span>
-                    {update.project && (
-                      <Link to={`/project-details/${update.project.id}`}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 text-xs"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Eye className="h-3 w-3 mr-1" />
-                          View Project
-                        </Button>
-                      </Link>
-                    )}
                   </div>
                 </div>
               </div>
@@ -286,7 +297,10 @@ export function DashboardRecentUpdates() {
       </Card>
 
       {/* Detail Dialog */}
-      <Dialog open={!!selectedUpdate} onOpenChange={() => setSelectedUpdate(null)}>
+      <Dialog open={!!selectedUpdate} onOpenChange={() => {
+        setSelectedUpdate(null);
+        setSelectedUpdateImages([]);
+      }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           {selectedUpdate && (
             <UpdateDetailView
@@ -300,7 +314,8 @@ export function DashboardRecentUpdates() {
                 projectId: selectedUpdate.project?.id,
                 rawLLMResponse: selectedUpdate.rawLLMResponse,
               }}
-              showProjectLink={true}
+              images={selectedUpdateImages}
+              showProjectLink={false}
               showStatusWarning={false}
               formatDate={formatDate}
             />

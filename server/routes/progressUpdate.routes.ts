@@ -8,7 +8,7 @@ import type { AuthenticatedRequest } from "../middleware/auth.middleware";
 // Import checkProjectAccess or specific permission middleware if applying at route level
 import { progressUpdates, progressUpdateViews } from "@shared/schema";
 import { db } from "../db";
-import { eq, and, sql, notInArray } from "drizzle-orm";
+import { eq, and, sql, notInArray, inArray } from "drizzle-orm";
 
 // Use mergeParams: true to access :projectId from the parent router mount point
 const router = Router({ mergeParams: true });
@@ -481,7 +481,7 @@ router.get("/with-read-status", isAuthenticated, async (req: AuthenticatedReques
       .where(
         and(
           eq(progressUpdateViews.userId, userId),
-          sql`${progressUpdateViews.progressUpdateId} = ANY(${updateIds})`
+          inArray(progressUpdateViews.progressUpdateId, updateIds)
         )
       );
 

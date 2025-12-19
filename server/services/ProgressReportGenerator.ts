@@ -60,15 +60,21 @@ export class ProgressReportGenerator {
     // 2. Get images to analyze
     let images: any[];
     if (imageIds && imageIds.length > 0) {
-      // Use specific images provided
-      images = await this.getImagesByIds(imageIds);
+      // Use specific images provided, but filter out already-processed ones
+      const requestedImages = await this.getImagesByIds(imageIds);
+      const processedImageUrls = await this.getProcessedImageUrls(projectId);
+      images = requestedImages.filter(img => !processedImageUrls.has(img.imageUrl));
+
+      if (images.length < requestedImages.length) {
+        console.log(`[ProgressReportGenerator] Filtered out ${requestedImages.length - images.length} already-processed images`);
+      }
     } else {
       // Get unanalyzed images for this project
       images = await this.getUnanalyzedImages(projectId);
     }
 
     if (images.length === 0) {
-      throw new Error('No images available for analysis');
+      throw new Error('No unprocessed images available for analysis');
     }
 
     console.log(`[ProgressReportGenerator] Found ${images.length} images to analyze`);
@@ -142,6 +148,24 @@ export class ProgressReportGenerator {
   }
 
   /**
+   * Get URLs of all images that have been processed in AI updates
+   */
+  private async getProcessedImageUrls(projectId: number): Promise<Set<string>> {
+    const linkedImageUrls = await db
+      .select({ mediaUrl: updateMedia.mediaUrl })
+      .from(updateMedia)
+      .innerJoin(progressUpdates, eq(updateMedia.updateId, progressUpdates.id))
+      .where(
+        and(
+          eq(progressUpdates.projectId, projectId),
+          eq(progressUpdates.generatedByAI, true)
+        )
+      );
+
+    return new Set(linkedImageUrls.map(img => img.mediaUrl));
+  }
+
+  /**
    * Get unanalyzed images for a project
    * Images are considered unanalyzed if they haven't been linked to an AI-generated update
    */
@@ -153,27 +177,17 @@ export class ProgressReportGenerator {
       .where(
         and(
           eq(adminImages.projectId, projectId),
-          eq(adminImages.category, 'progress')
+          eq(adminImages.category, 'progress'),
+          eq(adminImages.visibility, 'published') // Only process published images
         )
       )
       .orderBy(desc(adminImages.createdAt));
 
-    // Get images that are already linked to AI-generated updates
-    const linkedImages = await db
-      .select({ imageId: updateMedia.id })
-      .from(updateMedia)
-      .innerJoin(progressUpdates, eq(updateMedia.updateId, progressUpdates.id))
-      .where(
-        and(
-          eq(progressUpdates.projectId, projectId),
-          eq(progressUpdates.generatedByAI, true)
-        )
-      );
-
-    const linkedImageIds = new Set(linkedImages.map(img => img.imageId));
+    // Get URLs of images that are already processed
+    const processedUrls = await this.getProcessedImageUrls(projectId);
 
     // Return images not yet linked to an AI update
-    return allImages.filter(img => !linkedImageIds.has(img.id));
+    return allImages.filter(img => !processedUrls.has(img.imageUrl));
   }
 
   /**

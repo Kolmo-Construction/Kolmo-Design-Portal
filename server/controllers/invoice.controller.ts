@@ -108,12 +108,26 @@ export const getClientInvoices = async (
     if (!user?.id) { throw new HttpError(401, 'Authentication required.'); }
 
     let invoices;
-    
+
     if (user.role === 'admin') {
       // Admins can see all invoices
       invoices = await storage.invoices.getAllInvoices();
+    } else if (user.role === 'client') {
+      // Clients can only see published invoices from their projects
+      const userProjects = await storage.projects.getProjectsForUser(user.id.toString());
+      const projectIds = userProjects.map(p => p.id);
+
+      // Get all invoices for client's projects
+      const allProjectInvoices = await Promise.all(
+        projectIds.map(projectId => storage.invoices.getInvoicesForProject(projectId))
+      );
+
+      // Flatten and filter to only published invoices
+      invoices = allProjectInvoices
+        .flat()
+        .filter(invoice => invoice.visibility === 'published');
     } else {
-      // For now, return empty array for non-admin users until client filtering is implemented
+      // Other roles get empty array
       invoices = [];
     }
 

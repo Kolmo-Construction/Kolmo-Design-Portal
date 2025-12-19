@@ -16,10 +16,15 @@ import {
   AlertTriangle,
   FileText,
   TrendingUp,
-  Download
+  Download,
+  Wrench,
+  Star,
+  Edit3,
+  Plus
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { CreateInvoiceDialog } from "./CreateInvoiceDialog";
 
 interface ProjectFinanceTabProps {
   projectId: number;
@@ -59,6 +64,7 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [loadingMilestoneId, setLoadingMilestoneId] = useState<number | null>(null);
+  const [createInvoiceDialogOpen, setCreateInvoiceDialogOpen] = useState(false);
 
   const handleViewInvoice = (invoiceId: number) => {
     window.open(`/invoices/${invoiceId}/view`, '_blank');
@@ -261,6 +267,54 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
     }
   };
 
+  const getInvoiceTypeBadge = (invoice: Invoice) => {
+    const type = invoice.invoiceType || 'regular';
+    switch (type) {
+      case 'task_completion':
+        return (
+          <Badge variant="outline" className="gap-1 bg-blue-50 text-blue-700 border-blue-200">
+            <Wrench className="h-3 w-3" />
+            Task
+          </Badge>
+        );
+      case 'milestone':
+        return (
+          <Badge variant="outline" className="gap-1 bg-purple-50 text-purple-700 border-purple-200">
+            <Star className="h-3 w-3" />
+            Milestone
+          </Badge>
+        );
+      case 'change_order':
+        return (
+          <Badge variant="outline" className="gap-1 bg-orange-50 text-orange-700 border-orange-200">
+            <Edit3 className="h-3 w-3" />
+            Change Order
+          </Badge>
+        );
+      case 'additional_work':
+        return (
+          <Badge variant="outline" className="gap-1 bg-cyan-50 text-cyan-700 border-cyan-200">
+            <Plus className="h-3 w-3" />
+            Additional Work
+          </Badge>
+        );
+      case 'expense':
+        return (
+          <Badge variant="outline" className="gap-1 bg-gray-50 text-gray-700 border-gray-200">
+            <ReceiptIcon className="h-3 w-3" />
+            Expense
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline" className="gap-1 bg-slate-50 text-slate-700 border-slate-200">
+            <FileText className="h-3 w-3" />
+            Regular
+          </Badge>
+        );
+    }
+  };
+
   const getReceiptVerificationBadge = (receipt: ReceiptWithRelations) => {
     if (receipt.isVerified) {
       return <Badge className="bg-green-100 text-green-800">Verified</Badge>;
@@ -346,6 +400,14 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
     netPosition,
     remainingBudget,
   } = calculateFinancialSummary();
+
+  // Calculate unbilled warnings for the CreateInvoiceDialog
+  const unbilledWarnings = {
+    milestones: (milestones || []).filter(m =>
+      m.status === 'completed' && m.isBillable && !m.billedAt
+    ).length,
+    tasks: 0, // TODO: Add task-based billing tracking
+  };
 
   if (isLoadingMilestones || isLoadingInvoices || isLoadingProject || isLoadingReceipts || isLoadingExpenseSummary || isLoadingLaborCosts) {
     return (
@@ -633,13 +695,25 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
       {/* Invoices */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Invoices
-          </CardTitle>
-          <CardDescription>
-            Track all invoices generated for this project
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Invoices
+              </CardTitle>
+              <CardDescription>
+                Track all invoices generated for this project
+              </CardDescription>
+            </div>
+            <Button
+              onClick={() => setCreateInvoiceDialogOpen(true)}
+              size="sm"
+              className="gap-2"
+            >
+              <DollarSign className="h-4 w-4" />
+              Create Invoice
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {invoices.length === 0 ? (
@@ -654,6 +728,7 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <h3 className="font-medium">Invoice #{invoice.invoiceNumber}</h3>
+                        {getInvoiceTypeBadge(invoice)}
                         {getInvoiceStatusBadge(invoice)}
                       </div>
                       <p className="text-sm text-gray-600 mb-2">{invoice.description}</p>
@@ -699,6 +774,14 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Create Invoice Dialog */}
+      <CreateInvoiceDialog
+        projectId={projectId}
+        open={createInvoiceDialogOpen}
+        onOpenChange={setCreateInvoiceDialogOpen}
+        unbilledWarnings={unbilledWarnings}
+      />
     </div>
   );
 }

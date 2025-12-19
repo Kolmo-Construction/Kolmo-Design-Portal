@@ -42,4 +42,22 @@ router.get(
   invoiceController.getInvoiceDetails
 );
 
+// POST /api/projects/:projectId/invoices/:invoiceId/publish
+// Publish an invoice (make it visible to clients)
+router.post(
+  "/:invoiceId/publish",
+  isAuthenticated,
+  requireProjectPermission('canCreateInvoices'),
+  invoiceController.publishInvoice
+);
+
+// POST /api/projects/:projectId/invoices/:invoiceId/unpublish
+// Unpublish an invoice (hide it from clients)
+router.post(
+  "/:invoiceId/unpublish",
+  isAuthenticated,
+  requireProjectPermission('canCreateInvoices'),
+  invoiceController.unpublishInvoice
+);
+
 export default router;

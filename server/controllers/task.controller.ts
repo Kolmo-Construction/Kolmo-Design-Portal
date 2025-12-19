@@ -41,29 +41,46 @@ interface AuthenticatedRequest extends Request {
  */
 async function updateProjectProgress(projectId: number): Promise<void> {
     try {
-        logger(`[updateProjectProgress] Calculating progress for project ${projectId}`, 'TaskController');
-        
+        logger(`[updateProjectProgress] Calculating weighted progress for project ${projectId}`, 'TaskController');
+
         // Get all tasks for the project
         const tasks = await storage.tasks.getTasksForProject(projectId);
-        
+
         if (tasks.length === 0) {
             logger(`[updateProjectProgress] No tasks found for project ${projectId}, setting progress to 0`, 'TaskController');
             await storage.projects.updateProjectDetailsAndClients(projectId, { progress: 0 });
             return;
         }
-        
-        // Calculate progress based on completed tasks
-        const completedTasks = tasks.filter(task => 
-            task.status === 'done' || task.status === 'completed'
-        ).length;
-        
-        const progressPercentage = Math.round((completedTasks / tasks.length) * 100);
-        
-        logger(`[updateProjectProgress] Project ${projectId}: ${completedTasks}/${tasks.length} tasks completed (${progressPercentage}%)`, 'TaskController');
-        
+
+        let progressPercentage = 0;
+        let totalEstimatedHours = 0;
+        let completedHours = 0;
+
+        // Calculate weighted progress based on task progress and estimated hours
+        for (const task of tasks) {
+            const estimatedHours = task.estimatedHours ? parseFloat(task.estimatedHours.toString()) : 0;
+            const taskProgress = task.progress || 0; // Use progress field, default to 0
+
+            totalEstimatedHours += estimatedHours;
+            completedHours += (estimatedHours * taskProgress) / 100;
+        }
+
+        // Calculate overall progress percentage
+        if (totalEstimatedHours > 0) {
+            progressPercentage = Math.round((completedHours / totalEstimatedHours) * 100);
+            logger(`[updateProjectProgress] Project ${projectId}: ${completedHours.toFixed(2)}/${totalEstimatedHours} hours completed (${progressPercentage}%)`, 'TaskController');
+        } else {
+            // Fallback to simple task count if no estimated hours
+            const completedTasks = tasks.filter(task =>
+                task.status === 'done' || task.status === 'completed'
+            ).length;
+            progressPercentage = Math.round((completedTasks / tasks.length) * 100);
+            logger(`[updateProjectProgress] Project ${projectId}: ${completedTasks}/${tasks.length} tasks completed (${progressPercentage}%) - using task count fallback`, 'TaskController');
+        }
+
         // Update the project progress
         await storage.projects.updateProjectDetailsAndClients(projectId, { progress: progressPercentage });
-        
+
         logger(`[updateProjectProgress] Successfully updated project ${projectId} progress to ${progressPercentage}%`, 'TaskController');
     } catch (error) {
         logger(`[updateProjectProgress] Error updating progress for project ${projectId}: ${error instanceof Error ? error.message : String(error)}`, 'TaskController');
@@ -280,9 +297,17 @@ export const updateTask = async (
         console.log(`Billable task ${taskIdNum} completed - invoice creation should be triggered`);
     }
 
-    // Update project progress if task status changed
-    if (validatedData.status && validatedData.status !== currentTask.status) {
-        logger(`[updateTask] Task status changed from ${currentTask.status} to ${validatedData.status}, updating project progress`, 'TaskController');
+    // Update project progress if task status or progress changed
+    const statusChanged = validatedData.status && validatedData.status !== currentTask.status;
+    const progressChanged = validatedData.progress !== undefined && validatedData.progress !== currentTask.progress;
+
+    if (statusChanged || progressChanged) {
+        if (statusChanged) {
+            logger(`[updateTask] Task status changed from ${currentTask.status} to ${validatedData.status}, updating project progress`, 'TaskController');
+        }
+        if (progressChanged) {
+            logger(`[updateTask] Task progress changed from ${currentTask.progress}% to ${validatedData.progress}%, updating project progress`, 'TaskController');
+        }
         await updateProjectProgress(currentTask.projectId);
     }
 
