@@ -85,12 +85,20 @@ export function CreateInvoiceDialog({
 
   const createInvoiceMutation = useMutation({
     mutationFn: async (values: InvoiceFormValues) => {
+      // Generate invoice number in format: INV-YYYYMM-XXXXXX
+      const year = new Date().getFullYear();
+      const month = String(new Date().getMonth() + 1).padStart(2, '0');
+      const randomSuffix = Math.random().toString(36).substr(2, 6).toUpperCase();
+      const invoiceNumber = `INV-${year}${month}-${randomSuffix}`;
+
       const invoiceData = {
-        ...values,
-        amount: parseFloat(values.amount),
+        invoiceNumber,
+        invoiceType: values.invoiceType,
+        description: values.description,
+        amount: values.amount, // Keep as string for validation
         issueDate: new Date().toISOString(),
         dueDate: values.dueDate.toISOString(),
-        status: 'pending',
+        // Don't set status - let it default to 'draft'
       };
 
       return apiRequest('POST', `/api/projects/${projectId}/invoices`, invoiceData);
