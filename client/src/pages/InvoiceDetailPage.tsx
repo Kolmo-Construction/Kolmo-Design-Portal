@@ -204,39 +204,58 @@ export default function InvoiceDetailPage() {
             {/* Left: Company Info */}
             <div className="space-y-3">
               {/* Logo */}
-              <div
-                className="w-16 h-16 flex items-center justify-center text-3xl font-bold text-white mb-4"
-                style={{ backgroundColor: colors.primary }}
-              >
-                K
+              <div className="mb-4">
+                <img
+                  src="/assets/kolmo-logo.png"
+                  alt="Kolmo Construction"
+                  className="h-16 w-auto object-contain"
+                  onError={(e) => {
+                    // Fallback if logo fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    target.nextElementSibling?.classList.remove('hidden');
+                  }}
+                />
+                <div
+                  className="hidden w-16 h-16 flex items-center justify-center text-3xl font-bold text-white"
+                  style={{ backgroundColor: colors.primary }}
+                >
+                  K
+                </div>
               </div>
 
               <h1
                 className="text-2xl font-bold tracking-wide"
                 style={{ color: colors.primary }}
               >
-                KOLMO Constructions
+                Kolmo Construction
               </h1>
+              <p className="text-sm italic" style={{ color: colors.secondary }}>
+                Technology-Driven Home Remodeling
+              </p>
 
               <div
-                className="space-y-1.5 text-sm"
+                className="space-y-1.5 text-sm pt-2"
                 style={{ color: colors.secondary }}
               >
                 <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4" />
-                  <span>Miami, FL</span>
+                  <MapPin className="w-4 h-4" style={{ color: colors.accent }} />
+                  <span>4018 NE 125th St</span>
+                </div>
+                <div className="flex items-center gap-2 ml-6">
+                  <span>Seattle, WA 98125</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Mail className="w-4 h-4" />
+                  <Phone className="w-4 h-4" style={{ color: colors.accent }} />
+                  <span>(206) 410-5100</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Mail className="w-4 h-4" style={{ color: colors.accent }} />
                   <span>projects@kolmo.io</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Phone className="w-4 h-4" />
-                  <span>(305) 555-0123</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  <span className="font-semibold">License #: KOLMOC*000XX</span>
+                  <Building2 className="w-4 h-4" style={{ color: colors.accent }} />
+                  <span className="text-xs">kolmo.io</span>
                 </div>
               </div>
             </div>

@@ -255,15 +255,30 @@ export default function PaymentPage() {
           {/* Header with Gold Border */}
           <div className="text-center mb-8">
             {/* Logo */}
-            <div
-              className="w-16 h-16 flex items-center justify-center text-3xl font-bold text-white mx-auto mb-4"
-              style={{ backgroundColor: colors.primary }}
-            >
-              K
+            <div className="mb-4 flex justify-center">
+              <img
+                src="/assets/kolmo-logo.png"
+                alt="Kolmo Construction"
+                className="h-16 w-auto object-contain"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  target.nextElementSibling?.classList.remove('hidden');
+                }}
+              />
+              <div
+                className="hidden w-16 h-16 flex items-center justify-center text-3xl font-bold text-white"
+                style={{ backgroundColor: colors.primary }}
+              >
+                K
+              </div>
             </div>
             <h1 className="text-3xl font-bold mb-2" style={{ color: colors.primary }}>
-              Complete Your Payment
+              Kolmo Construction
             </h1>
+            <p className="text-sm mb-4" style={{ color: colors.secondary }}>
+              Complete Your Payment
+            </p>
             <div className="flex items-center justify-center gap-2" style={{ color: colors.secondary }}>
               <Shield className="w-4 h-4" />
               <p className="text-sm">

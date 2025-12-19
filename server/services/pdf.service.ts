@@ -87,18 +87,18 @@ function generateInvoiceHTML(invoice: Invoice, project: Project): string {
           justify-content: space-between;
           align-items: flex-start;
           margin-bottom: 50px;
-          border-bottom: 3px solid #2563eb;
+          border-bottom: 3px solid #d8973c;
           padding-bottom: 30px;
         }
-        
+
         .company-info {
           flex: 1;
         }
-        
+
         .company-name {
           font-size: 32px;
           font-weight: bold;
-          color: #2563eb;
+          color: #3d4f52;
           margin-bottom: 10px;
         }
         
@@ -121,7 +121,7 @@ function generateInvoiceHTML(invoice: Invoice, project: Project): string {
         
         .invoice-title h1 {
           font-size: 48px;
-          color: #2563eb;
+          color: #3d4f52;
           margin-bottom: 10px;
         }
         
@@ -142,7 +142,7 @@ function generateInvoiceHTML(invoice: Invoice, project: Project): string {
           background: #f8fafc;
           padding: 25px;
           border-radius: 8px;
-          border-left: 4px solid #2563eb;
+          border-left: 4px solid #d8973c;
         }
         
         .section-title {
@@ -198,7 +198,7 @@ function generateInvoiceHTML(invoice: Invoice, project: Project): string {
         }
         
         .items-table th {
-          background: #2563eb;
+          background: #3d4f52;
           color: white;
           padding: 20px 15px;
           text-align: left;
@@ -257,16 +257,16 @@ function generateInvoiceHTML(invoice: Invoice, project: Project): string {
         }
         
         .grand-total {
-          border-top: 2px solid #2563eb;
+          border-top: 2px solid #d8973c;
           padding-top: 15px;
           margin-top: 15px;
         }
-        
+
         .grand-total .total-label,
         .grand-total .total-amount {
           font-size: 24px;
           font-weight: bold;
-          color: #2563eb;
+          color: #d8973c;
         }
         
         .payment-info {
@@ -330,12 +330,14 @@ function generateInvoiceHTML(invoice: Invoice, project: Project): string {
         <!-- Header -->
         <div class="header">
           <div class="company-info">
-            <div class="company-name">KOLMO</div>
-            <div class="company-tagline">Construction Excellence</div>
+            <div class="company-name">Kolmo Construction</div>
+            <div class="company-tagline">Technology-Driven Home Remodeling</div>
             <div class="company-details">
-              Professional Construction Services<br>
-              Licensed & Insured<br>
-              contact@kolmo.io
+              4018 NE 125th St<br>
+              Seattle, WA 98125<br>
+              (206) 410-5100<br>
+              projects@kolmo.io<br>
+              www.kolmo.io
             </div>
           </div>
           <div class="invoice-title">
