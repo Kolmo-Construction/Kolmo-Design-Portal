@@ -4,30 +4,12 @@ import { useAuth } from "@/hooks/use-auth-unified";
 import TopNavBar from "@/components/TopNavBar";
 import Sidebar from "@/components/Sidebar";
 import FinancialSummary from "@/components/FinancialSummary";
+import CompanyFinancialSummary from "@/components/CompanyFinancialSummary";
+import FinancialTrendCharts from "@/components/FinancialTrendCharts";
+import ProfitByProjectType from "@/components/ProfitByProjectType";
+import ProjectFinancialTable from "@/components/ProjectFinancialTable";
+import { useCompanyFinancials } from "@/hooks/useCompanyFinancials";
 import { Project, Invoice, Payment } from "@shared/schema";
-
-// Budget tracking interfaces
-interface Expense {
-  id: string;
-  projectId: number;
-  amount: number;
-  category: string;
-  description: string;
-  date: string;
-  merchant: string;
-  receipt?: string;
-  status: 'pending' | 'approved' | 'reimbursed';
-}
-
-interface ProjectBudgetTracking {
-  projectId: number;
-  projectName: string;
-  totalBudget: number;
-  totalExpenses: number;
-  remainingBudget: number;
-  budgetUtilization: number;
-  expenses: Expense[];
-}
 
 import {
   Card,
@@ -46,19 +28,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  CreditCard,
   FileText,
   Download,
-  CircleDollarSign,
   Loader2,
-  ArrowDownUp,
-  Calendar,
   TrendingUp,
-  TrendingDown,
-  AlertTriangle,
-  ExternalLink,
-  RefreshCw,
-  DollarSign
+  CreditCard
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
@@ -79,6 +53,9 @@ export default function Financials() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [projectFilter, setProjectFilter] = useState<string>("all");
 
+  // Fetch company-wide financial data
+  const { data: companyFinancials, isLoading: isLoadingCompany } = useCompanyFinancials();
+
   // Fetch projects
   const { 
     data: projects = [],
@@ -88,13 +65,16 @@ export default function Financials() {
   });
 
   // Fetch all invoices across all projects
-  const { 
-    data: allInvoices = [],
-    isLoading: isLoadingInvoices 
-  } = useQuery<Invoice[]>({
+  const {
+    data: invoicesData,
+    isLoading: isLoadingInvoices
+  } = useQuery<{ invoices: Invoice[] }>({
     queryKey: ["/api/invoices"],
     enabled: projects.length > 0,
   });
+
+  // Extract invoices array from response
+  const allInvoices = invoicesData?.invoices || [];
 
   // Fetch all payments across all invoices
   const { 
@@ -105,46 +85,45 @@ export default function Financials() {
     enabled: allInvoices.length > 0,
   });
 
-  // Fetch budget tracking data
-  const {
-    data: budgetTrackingData = [],
-    isLoading: isLoadingBudgetData,
-    refetch: refetchBudgetData
-  } = useQuery<ProjectBudgetTracking[]>({
-    queryKey: ["/api/expense-tracking/budget"],
-  });
+  // Budget tracking data removed - expense tracking feature not implemented
+  // Keeping invoice-based financial tracking only
 
-  // Filter projects based on the selected filter
-  const filteredProjects = projects.filter(project =>
+  // Filter projects based on the selected filter - with defensive guards
+  const safeProjects = Array.isArray(projects) ? projects : [];
+  const safeAllInvoices = Array.isArray(allInvoices) ? allInvoices : [];
+  const safeAllPayments = Array.isArray(allPayments) ? allPayments : [];
+
+  const filteredProjects = safeProjects.filter(project =>
     projectFilter === "all" || project.id.toString() === projectFilter
   );
 
-  // Filter budget tracking data based on selected project
-  const filteredBudgetData = budgetTrackingData.filter(project =>
-    projectFilter === "all" || project.projectId.toString() === projectFilter
-  );
-  
+
   // Calculate total budget from the *filtered* projects
   const totalBudget = filteredProjects.reduce((sum, project) => {
     return sum + Number(project.totalBudget);
   }, 0);
 
-  // Calculate total expenses across filtered projects
-  const totalExpenses = filteredBudgetData.reduce((sum, project) => sum + project.totalExpenses, 0);
-
-  // Filter invoices based on project
-  const filteredInvoices = allInvoices.filter(inv => 
-    projectFilter === "all" || (inv.projectId && inv.projectId.toString() === projectFilter)
+  // Filter invoices based on project and exclude drafts for accurate financial reporting
+  const filteredInvoices = safeAllInvoices.filter(inv =>
+    (projectFilter === "all" || (inv.projectId && inv.projectId.toString() === projectFilter)) &&
+    inv.status !== 'draft'
   );
 
   // Filter payments based on filtered invoices
-  const filteredPayments = allPayments.filter(payment =>
+  const filteredPayments = safeAllPayments.filter(payment =>
     filteredInvoices.some(inv => inv.id === payment.invoiceId)
   );
 
-  // Format date
-  const formatDate = (dateString: string | Date) => {
-    return format(new Date(dateString), "MMM d, yyyy");
+  // Format date with error handling
+  const formatDate = (dateString: string | Date | null | undefined) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'N/A';
+      return format(date, "MMM d, yyyy");
+    } catch {
+      return 'N/A';
+    }
   };
 
   // Prepare data for charts
@@ -169,8 +148,72 @@ export default function Financials() {
 
       <main className="flex-1 ml-0 lg:ml-64 p-4 lg:p-8 pt-20 overflow-auto">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-800 mb-2">Financial Overview</h1>
-          <p className="text-slate-600">Track budgets, invoices, and payments for your construction projects</p>
+          <h1 className="text-2xl font-bold text-slate-800 mb-2">Company Financial Health Dashboard</h1>
+          <p className="text-slate-600">Comprehensive financial overview across all projects</p>
+        </div>
+
+        {/* Company-Wide Summary Cards */}
+        <section className="mb-8">
+          <CompanyFinancialSummary
+            summary={companyFinancials?.summary}
+            isLoading={isLoadingCompany}
+          />
+        </section>
+
+        {/* Financial Trends */}
+        <section className="mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Financial Trends</CardTitle>
+              <CardDescription>Historical revenue, expenses, and profit over time</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FinancialTrendCharts
+                trends={companyFinancials?.trends}
+                isLoading={isLoadingCompany}
+              />
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* Profit by Project Type */}
+        <section className="mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Profit Analysis by Project Type</CardTitle>
+              <CardDescription>Average profit margins and performance across different project types</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ProfitByProjectType
+                byProjectType={companyFinancials?.byProjectType}
+                isLoading={isLoadingCompany}
+              />
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* Project Financial Breakdown */}
+        <section className="mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Project Financial Breakdown</CardTitle>
+              <CardDescription>Detailed profit and loss for each project</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ProjectFinancialTable
+                projects={companyFinancials?.byProject}
+                isLoading={isLoadingCompany}
+              />
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* Divider */}
+        <div className="my-12 border-t border-slate-200"></div>
+
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-slate-800 mb-2">Legacy Financial Views</h2>
+          <p className="text-slate-600 text-sm">Detailed invoice and payment management</p>
         </div>
 
         {/* Project Filter */}
@@ -184,153 +227,13 @@ export default function Financials() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Projects</SelectItem>
-                  {projects.map(project => (
+                  {safeProjects.map(project => (
                     <SelectItem key={project.id} value={project.id.toString()}>
                       {project.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Expense Tracking Section */}
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-green-600" />
-                  Budget Tracking
-                </CardTitle>
-                <CardDescription>
-                  Track project expenses against budgets with AI-powered receipt scanning
-                </CardDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => refetchBudgetData()}
-                  className="flex items-center gap-2"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Refresh Data
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* Budget Overview Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="border-l-4 border-l-blue-500">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-slate-600">Total Budget</p>
-                        <p className="text-2xl font-bold text-slate-900">
-                          ${totalBudget.toLocaleString()}
-                        </p>
-                      </div>
-                      <CircleDollarSign className="h-8 w-8 text-blue-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-orange-500">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-slate-600">Total Expenses</p>
-                        <p className="text-2xl font-bold text-slate-900">
-                          ${totalExpenses.toLocaleString()}
-                        </p>
-                      </div>
-                      <TrendingUp className="h-8 w-8 text-orange-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-green-500">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-slate-600">Remaining Budget</p>
-                        <p className="text-2xl font-bold text-slate-900">
-                          ${(totalBudget - totalExpenses).toLocaleString()}
-                        </p>
-                      </div>
-                      <TrendingDown className="h-8 w-8 text-green-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Project Budget Details */}
-              {filteredBudgetData.length > 0 ? (
-                <div className="space-y-4">
-                  {filteredBudgetData.map((project) => (
-                    <Card key={project.projectId} className="border">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg">{project.projectName}</CardTitle>
-                          <Badge variant={project.budgetUtilization > 90 ? "destructive" : project.budgetUtilization > 75 ? "default" : "secondary"}>
-                            {project.budgetUtilization.toFixed(1)}% Used
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          {/* Budget Progress Bar */}
-                          <div>
-                            <div className="flex justify-between text-sm mb-2">
-                              <span>Budget Usage</span>
-                              <span>${project.totalExpenses.toLocaleString()} / ${project.totalBudget.toLocaleString()}</span>
-                            </div>
-                            <div className="w-full bg-slate-200 rounded-full h-2">
-                              <div
-                                className={`h-2 rounded-full ${
-                                  project.budgetUtilization > 90 ? 'bg-red-500' :
-                                  project.budgetUtilization > 75 ? 'bg-yellow-500' : 'bg-green-500'
-                                }`}
-                                style={{ width: `${Math.min(project.budgetUtilization, 100)}%` }}
-                              />
-                            </div>
-                          </div>
-
-                          {/* Recent Expenses */}
-                          {project.expenses && project.expenses.length > 0 && (
-                            <div>
-                              <h4 className="font-medium text-slate-800 mb-2">Recent Expenses</h4>
-                              <div className="space-y-2">
-                                {project.expenses.slice(0, 3).map((expense) => (
-                                  <div key={expense.id} className="flex justify-between items-center p-2 bg-slate-50 rounded">
-                                    <div className="flex-1">
-                                      <p className="text-sm font-medium">{expense.description}</p>
-                                      <p className="text-xs text-slate-500">{expense.merchant} • {expense.category}</p>
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="text-sm font-medium">${expense.amount.toLocaleString()}</p>
-                                      <p className="text-xs text-slate-500">{formatDate(expense.date)}</p>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-8 text-center text-slate-500">
-                  <p className="text-sm">No expense data available yet.</p>
-                  <p className="text-xs mt-1">Upload receipts to track project expenses.</p>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
@@ -368,14 +271,18 @@ export default function Financials() {
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin" />
                   </div>
+                ) : filteredInvoices.length === 0 ? (
+                  <div className="text-center py-8 text-slate-500">
+                    <p>No invoices found for the selected filter</p>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     {filteredInvoices.map((invoice) => (
                       <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex-1">
-                          <h3 className="font-medium">{invoice.invoiceNumber}</h3>
+                          <h3 className="font-medium">{invoice.invoiceNumber || 'N/A'}</h3>
                           <p className="text-sm text-slate-600">
-                            Amount: ${Number(invoice.amount).toLocaleString()}
+                            Amount: ${Number(invoice.amount || 0).toLocaleString()}
                           </p>
                           <p className="text-sm text-slate-500">
                             Created: {formatDate(invoice.createdAt)}
@@ -389,33 +296,6 @@ export default function Financials() {
                           }>
                             {invoice.status}
                           </Badge>
-                          {invoice.status !== "paid" && (
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={async () => {
-                                try {
-                                  const response = await fetch(`/api/invoices/${invoice.id}/create-payment-intent`, {
-                                    method: 'POST',
-                                    credentials: 'include',
-                                  });
-
-                                  if (!response.ok) {
-                                    throw new Error('Failed to create payment intent');
-                                  }
-
-                                  const data = await response.json();
-                                  window.location.href = data.paymentLink;
-                                } catch (error) {
-                                  console.error('Error creating payment:', error);
-                                  alert('Failed to initiate payment. Please try again.');
-                                }
-                              }}
-                            >
-                              <CreditCard className="h-4 w-4 mr-2" />
-                              Pay Now
-                            </Button>
-                          )}
                           <Button variant="outline" size="sm">
                             <Download className="h-4 w-4 mr-2" />
                             Download
@@ -445,6 +325,10 @@ export default function Financials() {
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin" />
                   </div>
+                ) : filteredPayments.length === 0 ? (
+                  <div className="text-center py-8 text-slate-500">
+                    <p>No payments found for the selected filter</p>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     {filteredPayments.map((payment) => (
@@ -452,7 +336,7 @@ export default function Financials() {
                         <div className="flex-1">
                           <h3 className="font-medium">Payment #{payment.id}</h3>
                           <p className="text-sm text-slate-600">
-                            Amount: ${Number(payment.amount).toLocaleString()}
+                            Amount: ${Number(payment.amount || 0).toLocaleString()}
                           </p>
                           <p className="text-sm text-slate-500">
                             Date: {formatDate(payment.paymentDate)}

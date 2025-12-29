@@ -65,19 +65,29 @@ export function useCompanyFinancials() {
   // Fetch all projects
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery<Project[]>({
     queryKey: ['/api/projects'],
+    select: (data) => Array.isArray(data) ? data : [],
   });
 
   // Fetch all quotes to map project types
   const { data: quotes = [], isLoading: isLoadingQuotes } = useQuery<Quote[]>({
     queryKey: ['/api/quotes'],
+    select: (data) => Array.isArray(data) ? data : [],
   });
 
   // Fetch all invoices
   const { data: invoicesData, isLoading: isLoadingInvoices } = useQuery<{ invoices: Invoice[] }>({
     queryKey: ['/api/invoices'],
+    select: (data) => {
+      // Handle both { invoices: [...] } and [...] formats
+      if (Array.isArray(data)) return { invoices: data };
+      if (data && typeof data === 'object' && 'invoices' in data && Array.isArray(data.invoices)) {
+        return data as { invoices: Invoice[] };
+      }
+      return { invoices: [] };
+    },
   });
 
-  const allInvoices = invoicesData?.invoices || [];
+  const allInvoices = Array.isArray(invoicesData?.invoices) ? invoicesData.invoices : [];
 
   // Fetch all payments for monthly revenue tracking (by payment date)
   const { data: allPayments = [], isLoading: isLoadingPayments } = useQuery<any[]>({
@@ -169,9 +179,14 @@ export function useCompanyFinancials() {
       }
     });
 
-    // Calculate per-project financials
-    const projectFinancials: ProjectFinancial[] = projects.map((project, index) => {
-      const projectInvoices = allInvoices.filter(inv => inv.projectId === project.id);
+    // Calculate per-project financials - with defensive guards
+    const safeProjects = Array.isArray(projects) ? projects : [];
+    const safeAllInvoices = Array.isArray(allInvoices) ? allInvoices : [];
+    const safeAllPayments = Array.isArray(allPayments) ? allPayments : [];
+    const safeAllTimeEntries = Array.isArray(allTimeEntries) ? allTimeEntries : [];
+
+    const projectFinancials: ProjectFinancial[] = safeProjects.map((project, index) => {
+      const projectInvoices = safeAllInvoices.filter(inv => inv.projectId === project.id);
 
       // Revenue = sum of paid invoices only
       const revenue = projectInvoices
@@ -220,35 +235,48 @@ export function useCompanyFinancials() {
     const monthlyExpensesMap = new Map<string, number>();
 
     // Group revenue by month (from payment dates - when money was actually received)
-    allPayments.forEach((payment: any) => {
-      if (payment.paymentDate && payment.amount) {
-        const monthKey = format(new Date(payment.paymentDate), 'yyyy-MM');
-        const current = monthlyRevenueMap.get(monthKey) || 0;
-        monthlyRevenueMap.set(monthKey, current + parseFloat(payment.amount.toString()));
+    safeAllPayments.forEach((payment: any) => {
+      if (payment && payment.paymentDate && payment.amount) {
+        try {
+          const monthKey = format(new Date(payment.paymentDate), 'yyyy-MM');
+          const current = monthlyRevenueMap.get(monthKey) || 0;
+          monthlyRevenueMap.set(monthKey, current + parseFloat(payment.amount.toString()));
+        } catch (e) {
+          console.warn('Error processing payment date:', payment.paymentDate, e);
+        }
       }
     });
 
     // Group receipt expenses by month (from receipt date)
-    projects.forEach((project, index) => {
-      const receipts = receiptQueries[index]?.data as any[];
-      if (receipts && receipts.length > 0) {
-        receipts.forEach((receipt: any) => {
-          if (receipt.receiptDate && receipt.totalAmount) {
-            const monthKey = format(new Date(receipt.receiptDate), 'yyyy-MM');
-            const current = monthlyExpensesMap.get(monthKey) || 0;
-            monthlyExpensesMap.set(monthKey, current + parseFloat(receipt.totalAmount.toString()));
+    safeProjects.forEach((project, index) => {
+      const receipts = receiptQueries[index]?.data;
+      const safeReceipts = Array.isArray(receipts) ? receipts : [];
+      if (safeReceipts.length > 0) {
+        safeReceipts.forEach((receipt: any) => {
+          if (receipt && receipt.receiptDate && receipt.totalAmount) {
+            try {
+              const monthKey = format(new Date(receipt.receiptDate), 'yyyy-MM');
+              const current = monthlyExpensesMap.get(monthKey) || 0;
+              monthlyExpensesMap.set(monthKey, current + parseFloat(receipt.totalAmount.toString()));
+            } catch (e) {
+              console.warn('Error processing receipt date:', receipt.receiptDate, e);
+            }
           }
         });
       }
     });
 
     // Group labor expenses by month (from time entry start time)
-    if (allTimeEntries && allTimeEntries.length > 0) {
-      allTimeEntries.forEach((entry: any) => {
-        if (entry.startTime && entry.laborCost) {
-          const monthKey = format(new Date(entry.startTime), 'yyyy-MM');
-          const current = monthlyExpensesMap.get(monthKey) || 0;
-          monthlyExpensesMap.set(monthKey, current + parseFloat(entry.laborCost.toString()));
+    if (safeAllTimeEntries.length > 0) {
+      safeAllTimeEntries.forEach((entry: any) => {
+        if (entry && entry.startTime && entry.laborCost) {
+          try {
+            const monthKey = format(new Date(entry.startTime), 'yyyy-MM');
+            const current = monthlyExpensesMap.get(monthKey) || 0;
+            monthlyExpensesMap.set(monthKey, current + parseFloat(entry.laborCost.toString()));
+          } catch (e) {
+            console.warn('Error processing time entry date:', entry.startTime, e);
+          }
         }
       });
     }
