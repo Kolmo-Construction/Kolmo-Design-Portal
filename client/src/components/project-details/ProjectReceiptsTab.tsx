@@ -33,11 +33,6 @@ interface ProjectReceiptsTabProps {
 }
 
 interface OCRConfig {
-  taggun?: {
-    configured: boolean;
-    connected: boolean;
-    message: string;
-  };
   gemini?: {
     configured: boolean;
     connected: boolean;

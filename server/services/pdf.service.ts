@@ -1,6 +1,21 @@
 import puppeteer from 'puppeteer';
 import { storage } from '../storage';
 import { Invoice, Project } from '../../shared/schema';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+// Get logo as base64 data URL
+function getLogoBase64(): string {
+  try {
+    const logoPath = join(process.cwd(), 'client', 'src', 'assets', 'kolmo-logo-invoice.png');
+    const logoBuffer = readFileSync(logoPath);
+    const base64 = logoBuffer.toString('base64');
+    return `data:image/png;base64,${base64}`;
+  } catch (error) {
+    console.error('Failed to load logo:', error);
+    return ''; // Return empty string if logo can't be loaded
+  }
+}
 
 export async function generateInvoicePdf(invoiceId: number): Promise<Buffer> {
   const invoice = await storage.invoices.getInvoiceById(invoiceId);
@@ -14,8 +29,11 @@ export async function generateInvoicePdf(invoiceId: number): Promise<Buffer> {
     throw new Error('Project not found for invoice');
   }
 
+  // Get logo as base64
+  const logoDataUrl = getLogoBase64();
+
   // Create professional invoice HTML template
-  const htmlContent = generateInvoiceHTML(invoice, project);
+  const htmlContent = generateInvoiceHTML(invoice, project, logoDataUrl);
 
   // Launch Puppeteer and create PDF
   const browser = await puppeteer.launch({
@@ -41,7 +59,7 @@ export async function generateInvoicePdf(invoiceId: number): Promise<Buffer> {
   return Buffer.from(pdfBuffer);
 }
 
-function generateInvoiceHTML(invoice: Invoice, project: Project): string {
+function generateInvoiceHTML(invoice: Invoice, project: Project, logoDataUrl: string): string {
   const issueDate = new Date(invoice.issueDate).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -93,6 +111,12 @@ function generateInvoiceHTML(invoice: Invoice, project: Project): string {
 
         .company-info {
           flex: 1;
+        }
+
+        .company-logo {
+          width: 120px;
+          height: auto;
+          margin-bottom: 20px;
         }
 
         .company-name {
@@ -330,6 +354,7 @@ function generateInvoiceHTML(invoice: Invoice, project: Project): string {
         <!-- Header -->
         <div class="header">
           <div class="company-info">
+            ${logoDataUrl ? `<img src="${logoDataUrl}" alt="Kolmo Construction" class="company-logo" />` : ''}
             <div class="company-name">Kolmo Construction</div>
             <div class="company-tagline">Technology-Driven Home Remodeling</div>
             <div class="company-details">

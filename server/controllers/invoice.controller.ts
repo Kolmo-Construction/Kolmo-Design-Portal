@@ -8,10 +8,8 @@ import {
   insertInvoiceSchema,
   insertPaymentSchema,
   User, // Keep User type for req.user casting
-  invoices,
 } from '../../shared/schema';
 import { HttpError } from '../errors';
-import { approvalWorkflowService } from '../services/approval-workflow.service';
 // import Big from 'big.js'; // Keep if using Big.js
 
 // --- Zod Schemas for API Input Validation (Unchanged) ---
@@ -26,6 +24,7 @@ const positiveNumericString = z.string().refine(
 
 const invoiceCreateSchema = insertInvoiceSchema.omit({ /* ... */ }).extend({
   amount: positiveNumericString,
+  issueDate: z.string().datetime({ message: 'Invalid issue date format.' }),
   dueDate: z.string().datetime({ message: 'Invalid due date format.' }),
 });
 
@@ -163,12 +162,15 @@ export const createInvoice = async (
         ...validatedData,
         projectId: projectIdNum,
         amount: validatedData.amount, // Pass string/number as handled by repo
+        issueDate: new Date(validatedData.issueDate),
         dueDate: new Date(validatedData.dueDate),
         // status: handled by repo/default
     };
 
     // Use the nested repository: storage.invoices
+    // Note: Budget update is now handled automatically in the repository
     const createdInvoice = await storage.invoices.createInvoice(invoiceData);
+
     res.status(201).json(createdInvoice);
   } catch (error) {
     next(error);
@@ -237,12 +239,17 @@ export const updateInvoice = async (
         ...validatedData,
         ...(validatedData.amount && { amount: validatedData.amount }),
     };
-    
+
+    if (validatedData.issueDate) {
+      updateData.issueDate = new Date(validatedData.issueDate);
+    }
+
     if (validatedData.dueDate) {
       updateData.dueDate = new Date(validatedData.dueDate);
     }
 
     // Use the nested repository: storage.invoices
+    // Note: Budget update is now handled automatically in the repository
     const updatedInvoice = await storage.invoices.updateInvoice(invoiceIdNum, updateData);
 
     if (!updatedInvoice) { throw new HttpError(404, 'Invoice not found or update failed.'); }
@@ -375,6 +382,7 @@ export const deleteInvoice = async (
     if (isNaN(invoiceIdNum)) { throw new HttpError(400, 'Invalid invoice ID parameter.'); }
 
     // Use the nested repository: storage.invoices
+    // Note: Budget update is now handled automatically in the repository
     const success = await storage.invoices.deleteInvoice(invoiceIdNum);
 
     if (!success) { throw new HttpError(404, 'Invoice not found or could not be deleted.'); }
@@ -455,12 +463,29 @@ export const approveInvoice = async (
       throw new HttpError(403, 'Admin access required.');
     }
 
-    const approvedInvoice = await approvalWorkflowService.approve(
-      invoices,
-      invoiceIdNum,
-      user.id,
-      publish
-    );
+    // For invoices, "approving" means changing from draft to pending
+    // and optionally publishing (making visible to client)
+    console.log('[Invoice Approve] Request body:', req.body);
+    console.log('[Invoice Approve] Publish flag:', publish);
+
+    const updateData: any = {
+      status: 'pending',
+      visibility: publish ? 'published' : 'admin_only',
+    };
+
+    console.log('[Invoice Approve] Update data:', updateData);
+
+    const approvedInvoice = await storage.invoices.updateInvoice(invoiceIdNum, updateData);
+
+    if (!approvedInvoice) {
+      throw new HttpError(404, 'Invoice not found.');
+    }
+
+    console.log('[Invoice Approve] Result:', {
+      id: approvedInvoice.id,
+      status: approvedInvoice.status,
+      visibility: approvedInvoice.visibility
+    });
 
     res.status(200).json(approvedInvoice);
   } catch (error) {
@@ -492,12 +517,17 @@ export const rejectInvoice = async (
       throw new HttpError(403, 'Admin access required.');
     }
 
-    const rejectedInvoice = await approvalWorkflowService.reject(
-      invoices,
-      invoiceIdNum,
-      user.id,
-      reason
-    );
+    // For invoices, "rejecting" means cancelling it
+    const updateData: any = {
+      status: 'cancelled',
+      visibility: 'admin_only',
+    };
+
+    const rejectedInvoice = await storage.invoices.updateInvoice(invoiceIdNum, updateData);
+
+    if (!rejectedInvoice) {
+      throw new HttpError(404, 'Invoice not found.');
+    }
 
     res.status(200).json(rejectedInvoice);
   } catch (error) {
@@ -528,10 +558,13 @@ export const publishInvoice = async (
       throw new HttpError(403, 'Admin access required.');
     }
 
-    const publishedInvoice = await approvalWorkflowService.publish(
-      invoices,
-      invoiceIdNum
-    );
+    const publishedInvoice = await storage.invoices.updateInvoice(invoiceIdNum, {
+      visibility: 'published'
+    });
+
+    if (!publishedInvoice) {
+      throw new HttpError(404, 'Invoice not found.');
+    }
 
     res.status(200).json(publishedInvoice);
   } catch (error) {
@@ -562,10 +595,13 @@ export const unpublishInvoice = async (
       throw new HttpError(403, 'Admin access required.');
     }
 
-    const unpublishedInvoice = await approvalWorkflowService.unpublish(
-      invoices,
-      invoiceIdNum
-    );
+    const unpublishedInvoice = await storage.invoices.updateInvoice(invoiceIdNum, {
+      visibility: 'admin_only'
+    });
+
+    if (!unpublishedInvoice) {
+      throw new HttpError(404, 'Invoice not found.');
+    }
 
     res.status(200).json(unpublishedInvoice);
   } catch (error) {

@@ -300,6 +300,8 @@ export const getClientDashboard = async (
     }, 0);
 
     // Calculate total invoiced amount from all invoices for client's projects
+    // Only count non-draft invoices (pending, paid, overdue)
+    // For clients, only count published invoices to match what they can see
     let totalInvoiced = 0;
     if (projectIds.length > 0) {
       try {
@@ -307,10 +309,19 @@ export const getClientDashboard = async (
           storage.invoices?.getInvoicesForProject(id).catch(() => [])
         );
         const allInvoices = await Promise.all(invoicePromises);
-        totalInvoiced = allInvoices.flat().reduce((sum: number, inv: any) => {
-          const amount = parseFloat(inv.totalAmount || '0');
-          return sum + amount;
-        }, 0);
+        totalInvoiced = allInvoices.flat()
+          .filter((inv: any) => {
+            // Exclude draft invoices for everyone
+            if (inv.status === 'draft') return false;
+            // For clients, only count published invoices
+            if (userRole === 'client' && inv.visibility !== 'published') return false;
+            // For admins, count all non-draft invoices
+            return true;
+          })
+          .reduce((sum: number, inv: any) => {
+            const amount = parseFloat(inv.amount || '0');
+            return sum + amount;
+          }, 0);
       } catch (error) {
         console.log('Could not calculate total invoiced amount');
       }

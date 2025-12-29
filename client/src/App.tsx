@@ -36,6 +36,7 @@ import ClientPortalPage from "@/pages/client-portal";
 import ClientAccount from "@/pages/client-account";
 import ProjectManagerDashboard from "@/pages/project-manager-dashboard";
 import AdminImageGallery from "@/pages/AdminImageGallery";
+import PhotosPage from "@/pages/photos";
 import ImageAnalysisPOCPage from "@/pages/ImageAnalysisPOCPage";
 import AIReportReviewPage from "@/pages/AIReportReviewPage";
 import DesignProposalsPage from "@/pages/design-proposals";
@@ -80,6 +81,7 @@ function Router() {
         <ProtectedRoute path="/project-generation/:projectId" component={ProjectGeneration} adminOnly />
         <ProtectedRoute path="/project-management" component={ProjectManagement} adminOnly />
         <ProtectedRoute path="/documents" component={Documents} />
+        <ProtectedRoute path="/photos" component={PhotosPage} />
         <ProtectedRoute path="/financials" component={Financials} adminOnly />
         <ProtectedRoute path="/messages" component={AdminMessages} adminOnly />
         <ProtectedRoute path="/client/messages" component={ClientMessages} />

@@ -42,6 +42,24 @@ router.get(
   invoiceController.getInvoiceDetails
 );
 
+// POST /api/projects/:projectId/invoices/:invoiceId/approve
+// Approve an invoice (changes status to pending and optionally publishes)
+router.post(
+  "/:invoiceId/approve",
+  isAuthenticated,
+  requireProjectPermission('canCreateInvoices'),
+  invoiceController.approveInvoice
+);
+
+// POST /api/projects/:projectId/invoices/:invoiceId/reject
+// Reject an invoice (changes status to cancelled)
+router.post(
+  "/:invoiceId/reject",
+  isAuthenticated,
+  requireProjectPermission('canCreateInvoices'),
+  invoiceController.rejectInvoice
+);
+
 // POST /api/projects/:projectId/invoices/:invoiceId/publish
 // Publish an invoice (make it visible to clients)
 router.post(

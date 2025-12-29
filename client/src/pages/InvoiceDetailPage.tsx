@@ -17,6 +17,7 @@ import { formatDate, getInvoiceStatusLabel, getInvoiceStatusBadgeClasses } from 
 import { useAuth } from "@/hooks/use-auth-unified";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import kolmoLogo from "@/assets/kolmo-logo-invoice.png";
 
 // Kolmo Brand Colors
 const colors = {
@@ -131,7 +132,7 @@ export default function InvoiceDetailPage() {
   const amount = Number(invoice.amount);
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8 px-4">
+    <div className="min-h-screen bg-gray-100 pt-24 pb-8 px-4">
       {/* Action Buttons - Float above invoice */}
       <div className="max-w-[210mm] mx-auto mb-6">
         <div className="flex justify-between items-center">
@@ -206,7 +207,7 @@ export default function InvoiceDetailPage() {
               {/* Logo */}
               <div className="mb-4">
                 <img
-                  src="/assets/kolmo-logo.png"
+                  src={kolmoLogo}
                   alt="Kolmo Construction"
                   className="h-16 w-auto object-contain"
                   onError={(e) => {

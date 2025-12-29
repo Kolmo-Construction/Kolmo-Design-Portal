@@ -36,7 +36,6 @@ import { milestoneRoutes } from "./routes/milestone.routes"; // Milestone manage
 import { unifiedContentRoutes } from "./routes/unified-content.routes"; // Unified content API router
 import clientRouter from "./routes/client.routes"; // Client portal router
 import billingValidationRouter from "./routes/billing-validation.routes"; // Billing validation router
-import taggunRouter from "./routes/taggun.routes"; // Taggun receipt scanning router
 import { adminImagesRoutes } from "./routes/admin-images.routes"; // Admin image gallery router
 import driveIngestionRouter from "./routes/drive-ingestion.routes"; // Google Drive ingestion router
 import designProposalRouter from "./routes/design-proposal.routes"; // Design proposal router
@@ -154,6 +153,27 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   app.get("/api/invoices", isAuthenticated, requireWebAccess, async (req: any, res: any, next: any) => {
     const { getClientInvoices } = await import("./controllers/client.controller");
     return getClientInvoices(req, res, next);
+  });
+
+  // Global invoice approval/publishing routes (Admin only, Web-only)
+  app.put("/api/invoices/:invoiceId/approve", isAuthenticated, requireWebAccess, isAdmin, async (req: any, res: any, next: any) => {
+    const { approveInvoice } = await import("./controllers/invoice.controller");
+    return approveInvoice(req, res, next);
+  });
+
+  app.put("/api/invoices/:invoiceId/reject", isAuthenticated, requireWebAccess, isAdmin, async (req: any, res: any, next: any) => {
+    const { rejectInvoice } = await import("./controllers/invoice.controller");
+    return rejectInvoice(req, res, next);
+  });
+
+  app.put("/api/invoices/:invoiceId/publish", isAuthenticated, requireWebAccess, isAdmin, async (req: any, res: any, next: any) => {
+    const { publishInvoice } = await import("./controllers/invoice.controller");
+    return publishInvoice(req, res, next);
+  });
+
+  app.put("/api/invoices/:invoiceId/unpublish", isAuthenticated, requireWebAccess, isAdmin, async (req: any, res: any, next: any) => {
+    const { unpublishInvoice } = await import("./controllers/invoice.controller");
+    return unpublishInvoice(req, res, next);
   });
 
   // Admin endpoint to get projects for a specific client (Web-only)
@@ -324,10 +344,6 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // =========================================================================
 
   // Note: Admin Images routes already registered earlier (line ~109) to ensure proper middleware order
-
-  // Mount Taggun receipt scanning routes
-  // Note: Used by receipt upload which may be mobile, do not protect here
-  app.use("/api/taggun", taggunRouter);
 
   // =========================================================================
   // WEB-ONLY ROUTES (Can use broad "/api" middleware)

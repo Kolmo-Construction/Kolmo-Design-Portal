@@ -172,7 +172,38 @@ class InvoiceRepository implements IInvoiceRepository {
                 })
                 .returning();
 
-            return result.length > 0 ? result[0] : null;
+            const createdInvoice = result.length > 0 ? result[0] : null;
+
+            // Automatically update project's totalBudget by adding the invoice amount
+            if (createdInvoice && invoiceData.projectId) {
+                try {
+                    // Get current project budget
+                    const project = await this.dbOrTx
+                        .select({ totalBudget: schema.projects.totalBudget })
+                        .from(schema.projects)
+                        .where(eq(schema.projects.id, invoiceData.projectId))
+                        .limit(1);
+
+                    if (project && project.length > 0) {
+                        const currentBudget = parseFloat(project[0].totalBudget || '0');
+                        const invoiceAmount = parseFloat(invoiceData.amount);
+                        const newBudget = currentBudget + invoiceAmount;
+
+                        // Update project budget
+                        await this.dbOrTx
+                            .update(schema.projects)
+                            .set({ totalBudget: newBudget.toFixed(2) })
+                            .where(eq(schema.projects.id, invoiceData.projectId));
+
+                        console.log(`[Invoice Repository] Updated project ${invoiceData.projectId} budget: $${currentBudget} + $${invoiceAmount} = $${newBudget}`);
+                    }
+                } catch (budgetError) {
+                    console.error('[Invoice Repository] Failed to update project budget:', budgetError);
+                    // Don't fail invoice creation if budget update fails
+                }
+            }
+
+            return createdInvoice;
         } catch (error) {
             console.error('Error creating invoice:', error);
             if ((error as any).code === '23503') { // FK violation
@@ -189,6 +220,18 @@ class InvoiceRepository implements IInvoiceRepository {
              const currentInvoice = await this.getInvoiceById(invoiceId); // Fetch full details
              return currentInvoice;
          }
+
+         // Get old invoice data if amount is being updated (for budget adjustment)
+         let oldInvoice: schema.Invoice | null = null;
+         if (invoiceData.amount) {
+             const oldInvoiceResult = await this.dbOrTx
+                 .select()
+                 .from(schema.invoices)
+                 .where(eq(schema.invoices.id, invoiceId))
+                 .limit(1);
+             oldInvoice = oldInvoiceResult.length > 0 ? oldInvoiceResult[0] : null;
+         }
+
          try {
             const result = await this.dbOrTx.update(schema.invoices)
                 .set({
@@ -198,7 +241,37 @@ class InvoiceRepository implements IInvoiceRepository {
                 .where(eq(schema.invoices.id, invoiceId))
                 .returning();
 
-            return result.length > 0 ? result[0] : null; // Return basic updated invoice
+            const updatedInvoice = result.length > 0 ? result[0] : null;
+
+            // Update project budget if amount changed
+            if (updatedInvoice && oldInvoice && invoiceData.amount) {
+                try {
+                    const project = await this.dbOrTx
+                        .select({ totalBudget: schema.projects.totalBudget })
+                        .from(schema.projects)
+                        .where(eq(schema.projects.id, oldInvoice.projectId))
+                        .limit(1);
+
+                    if (project && project.length > 0) {
+                        const currentBudget = parseFloat(project[0].totalBudget || '0');
+                        const oldAmount = parseFloat(oldInvoice.amount);
+                        const newAmount = parseFloat(invoiceData.amount);
+                        const amountDifference = newAmount - oldAmount;
+                        const newBudget = Math.max(0, currentBudget + amountDifference);
+
+                        await this.dbOrTx
+                            .update(schema.projects)
+                            .set({ totalBudget: newBudget.toFixed(2) })
+                            .where(eq(schema.projects.id, oldInvoice.projectId));
+
+                        console.log(`[Invoice Repository] Updated project ${oldInvoice.projectId} budget: $${currentBudget} + ($${newAmount} - $${oldAmount}) = $${newBudget}`);
+                    }
+                } catch (budgetError) {
+                    console.error('[Invoice Repository] Failed to update project budget:', budgetError);
+                }
+            }
+
+            return updatedInvoice;
         } catch (error) {
             console.error(`Error updating invoice ${invoiceId}:`, error);
              if ((error as any).code === '23503') { // FK violation (e.g., changing projectId to non-existent one)
@@ -214,12 +287,49 @@ class InvoiceRepository implements IInvoiceRepository {
         // Option 2: Manually delete payments here within a transaction.
         // Option 3: Prevent deletion if payments exist.
         // Assuming Option 1 (DB Cascade) for simplicity here. If not, add transaction + payment deletion.
+
+        // Get invoice data before deleting (for budget adjustment)
+        const invoiceResult = await this.dbOrTx
+            .select()
+            .from(schema.invoices)
+            .where(eq(schema.invoices.id, invoiceId))
+            .limit(1);
+        const invoice = invoiceResult.length > 0 ? invoiceResult[0] : null;
+
         try {
             const result = await this.dbOrTx.delete(schema.invoices)
                 .where(eq(schema.invoices.id, invoiceId))
                 .returning({ id: schema.invoices.id });
 
-            return result.length > 0;
+            const deleted = result.length > 0;
+
+            // Update project budget by subtracting the deleted invoice amount
+            if (deleted && invoice) {
+                try {
+                    const project = await this.dbOrTx
+                        .select({ totalBudget: schema.projects.totalBudget })
+                        .from(schema.projects)
+                        .where(eq(schema.projects.id, invoice.projectId))
+                        .limit(1);
+
+                    if (project && project.length > 0) {
+                        const currentBudget = parseFloat(project[0].totalBudget || '0');
+                        const invoiceAmount = parseFloat(invoice.amount);
+                        const newBudget = Math.max(0, currentBudget - invoiceAmount);
+
+                        await this.dbOrTx
+                            .update(schema.projects)
+                            .set({ totalBudget: newBudget.toFixed(2) })
+                            .where(eq(schema.projects.id, invoice.projectId));
+
+                        console.log(`[Invoice Repository] Updated project ${invoice.projectId} budget after deletion: $${currentBudget} - $${invoiceAmount} = $${newBudget}`);
+                    }
+                } catch (budgetError) {
+                    console.error('[Invoice Repository] Failed to update project budget after deletion:', budgetError);
+                }
+            }
+
+            return deleted;
         } catch (error: any) {
             console.error(`Error deleting invoice ${invoiceId}:`, error);
             // Handle FK constraint if payments exist and cascade is NOT set

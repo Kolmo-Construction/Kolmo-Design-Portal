@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { Loader2, AlertCircle, CheckCircle, Shield, Lock } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import kolmoLogo from '@/assets/kolmo-logo-invoice.png';
 
 // Kolmo Brand Colors
 const colors = {
@@ -257,7 +258,7 @@ export default function PaymentPage() {
             {/* Logo */}
             <div className="mb-4 flex justify-center">
               <img
-                src="/assets/kolmo-logo.png"
+                src={kolmoLogo}
                 alt="Kolmo Construction"
                 className="h-16 w-auto object-contain"
                 onError={(e) => {

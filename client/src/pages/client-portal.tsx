@@ -247,22 +247,22 @@ export default function ClientPortal() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 text-center">
                 <div className="text-3xl font-bold mb-1">{stats.totalProjects}</div>
-                <div className="text-sm opacity-90">Active Projects</div>
+                <div className="text-sm opacity-90">Projects</div>
               </div>
 
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 text-center">
-                <div className="text-3xl font-bold mb-1">{stats.completedTasks}</div>
-                <div className="text-sm opacity-90">Tasks Done</div>
+                <div className="text-3xl font-bold mb-1">{stats.completedTasks}/{stats.totalTasks}</div>
+                <div className="text-sm opacity-90">Tasks Completed</div>
               </div>
 
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 text-center">
                 <div className="text-3xl font-bold mb-1">{Math.round(progressPercentage)}%</div>
-                <div className="text-sm opacity-90">Progress</div>
+                <div className="text-sm opacity-90">Overall Progress</div>
               </div>
 
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 text-center">
-                <div className="text-3xl font-bold mb-1">{stats.totalTasks - stats.completedTasks}</div>
-                <div className="text-sm opacity-90">Remaining</div>
+                <div className="text-3xl font-bold mb-1">{dashboardData?.pendingInvoices?.length || 0}</div>
+                <div className="text-sm opacity-90">Pending Invoices</div>
               </div>
             </div>
           </div>

@@ -320,26 +320,48 @@ export default function AgentConsole() {
     console.log('Approving action:', action);
 
     try {
+      // Get projectId from payload or fall back to selectedProjectId
+      const projectId = action.payload?.projectId || selectedProjectId;
+
+      if (!projectId) {
+        throw new Error('No project selected. Please select a project first.');
+      }
+
       // Execute the action based on its type
       switch (action.action) {
         case 'CREATE_TASK':
-          await apiRequest('POST', `/api/projects/${selectedProjectId}/tasks`, action.payload);
+          // Check if payload contains multiple tasks (bulk create)
+          if (action.payload?.tasks && Array.isArray(action.payload.tasks)) {
+            // Create tasks one by one, adding projectId to each
+            for (const task of action.payload.tasks) {
+              await apiRequest('POST', `/api/projects/${projectId}/tasks`, {
+                ...task,
+                projectId: parseInt(projectId.toString())
+              });
+            }
+          } else {
+            // Single task creation
+            await apiRequest('POST', `/api/projects/${projectId}/tasks`, {
+              ...action.payload,
+              projectId: parseInt(projectId.toString())
+            });
+          }
           break;
         case 'UPDATE_TASK':
           if (action.payload?.taskId) {
-            await apiRequest('PUT', `/api/projects/${selectedProjectId}/tasks/${action.payload.taskId}`, action.payload);
+            await apiRequest('PUT', `/api/projects/${projectId}/tasks/${action.payload.taskId}`, action.payload);
           }
           break;
         case 'CREATE_MILESTONE':
-          await apiRequest('POST', `/api/projects/${selectedProjectId}/milestones`, action.payload);
+          await apiRequest('POST', `/api/projects/${projectId}/milestones`, action.payload);
           break;
         case 'SEND_INVOICE':
           // Implement invoice sending logic
           console.log('Send invoice action - to be implemented');
           break;
         case 'UPDATE_PROJECT_STATUS':
-          if (selectedProjectId) {
-            await apiRequest('PUT', `/api/projects/${selectedProjectId}`, { status: action.payload?.status });
+          if (projectId) {
+            await apiRequest('PUT', `/api/projects/${projectId}`, { status: action.payload?.status });
           }
           break;
         default:
@@ -350,11 +372,9 @@ export default function AgentConsole() {
       setApprovedActions((prev) => [...prev, { messageId, actionIndex }]);
 
       // Invalidate relevant queries
-      if (selectedProjectId) {
-        queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}`] });
-        queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/tasks`] });
-        queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/milestones`] });
-      }
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
 
       toast({

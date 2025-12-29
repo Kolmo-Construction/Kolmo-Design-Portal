@@ -184,7 +184,7 @@ class DocumentRepository implements IDocumentRepository {
 
             // For project managers, get documents from projects they manage
             // For clients, get documents from projects they are clients of
-            const documents = await this.dbOrTx.query.documents.findMany({
+            let documents = await this.dbOrTx.query.documents.findMany({
                 where: or(
                     // Documents from projects the user manages
                     exists(
@@ -216,6 +216,11 @@ class DocumentRepository implements IDocumentRepository {
                     }
                 }
             });
+
+            // Filter by visibility for clients - they can only see published documents
+            if (user.role.toLowerCase() === 'client') {
+                documents = documents.filter(doc => doc.visibility === 'published');
+            }
 
             // Map the relation name from 'uploader' to 'uploadedBy' for consistency
             return documents.map((doc: DocumentWithRelations) => ({

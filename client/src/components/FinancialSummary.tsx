@@ -27,9 +27,12 @@ export default function FinancialSummary({ totalBudget, invoices, projects, isLo
   }
 
   // Calculate total invoiced and remaining budget
-  const totalInvoiced = invoices.reduce((sum, invoice) => {
-    return sum + Number(invoice.amount);
-  }, 0);
+  // Only count non-draft invoices to match actual issued invoices
+  const totalInvoiced = invoices
+    .filter(invoice => invoice.status !== 'draft')
+    .reduce((sum, invoice) => {
+      return sum + Number(invoice.amount);
+    }, 0);
   
   const remainingBudget = totalBudget - totalInvoiced;
   
