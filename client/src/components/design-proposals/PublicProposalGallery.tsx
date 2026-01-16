@@ -48,23 +48,26 @@ export function PublicProposalGallery({ proposalId }: PublicProposalGalleryProps
     mutationFn: async () => {
       if (!selectedFile) throw new Error("No file selected");
 
-      // Mock image URL for now
-      const mockImageUrl = URL.createObjectURL(selectedFile);
-      const mockImageKey = `gallery/${Date.now()}-${selectedFile.name}`;
+      const formData = new FormData();
+      formData.append("image", selectedFile);
+      formData.append("proposalId", proposalId.toString());
+      formData.append("caption", uploadCaption);
+      formData.append("description", uploadDescription);
+      if (uploaderName) formData.append("uploaderName", uploaderName);
+      if (uploaderEmail) formData.append("uploaderEmail", uploaderEmail);
 
-      return await apiRequest("POST", "/api/design-proposals/gallery", {
-        proposalId,
-        imageUrl: mockImageUrl,
-        imageKey: mockImageKey,
-        caption: uploadCaption,
-        description: uploadDescription,
-        uploaderName: uploaderName || undefined,
-        uploaderEmail: uploaderEmail || undefined,
-        originalFilename: selectedFile.name,
-        fileSize: selectedFile.size,
-        mimeType: selectedFile.type,
-        orderIndex: (galleryImages?.length || 0),
+      // Upload using fetch since we need to send FormData
+      const response = await fetch("/api/design-proposals/gallery", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
       });
+
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/design-proposals/${proposalId}/gallery`] });

@@ -34,27 +34,19 @@ export function ProposalGalleryManager({ proposalId }: ProposalGalleryManagerPro
       formData.append("proposalId", proposalId.toString());
       formData.append("caption", caption);
       formData.append("description", description);
-      formData.append("originalFilename", selectedFile.name);
-      formData.append("fileSize", selectedFile.size.toString());
-      formData.append("mimeType", selectedFile.type);
 
-      // For now, we'll use a mock URL. In production, you'd upload to R2/S3 first
-      const mockImageUrl = URL.createObjectURL(selectedFile);
-      const mockImageKey = `gallery/${Date.now()}-${selectedFile.name}`;
-
-      const response = await apiRequest("POST", "/api/design-proposals/gallery", {
-        proposalId,
-        imageUrl: mockImageUrl,
-        imageKey: mockImageKey,
-        caption,
-        description,
-        originalFilename: selectedFile.name,
-        fileSize: selectedFile.size,
-        mimeType: selectedFile.type,
-        orderIndex: (galleryImages?.length || 0),
+      // Upload using fetch since we need to send FormData
+      const response = await fetch("/api/design-proposals/gallery", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
       });
 
-      return response;
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/design-proposals/${proposalId}/gallery`] });

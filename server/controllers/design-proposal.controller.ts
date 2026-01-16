@@ -8,6 +8,7 @@ import {
   insertProposalImageFavoriteSchema
 } from "@shared/schema";
 import { z } from "zod";
+import { uploadToR2 } from "../r2-upload";
 
 export class DesignProposalController {
   private repository: DesignProposalRepository;
@@ -190,13 +191,39 @@ export class DesignProposalController {
 
   async createGalleryImage(req: Request, res: Response) {
     try {
-      const validatedData = insertProposalGalleryImageSchema.parse(req.body);
+      // Validate that we have a file
+      if (!req.file) {
+        return res.status(400).json({ error: "No image file provided" });
+      }
+
+      const file = req.file as Express.Multer.File;
       const userId = (req.user as any)?.id;
 
-      // Add userId if authenticated
+      // Upload to R2 storage
+      const uploadResult = await uploadToR2({
+        fileName: file.originalname,
+        buffer: file.buffer,
+        mimetype: file.mimetype,
+        path: 'proposal-gallery/',
+      });
+
+      // Parse body data
+      const { proposalId, caption, description, uploaderName, uploaderEmail } = req.body;
+
+      // Create image data
       const imageData = {
-        ...validatedData,
+        proposalId: parseInt(proposalId),
+        imageUrl: uploadResult.url,
+        imageKey: uploadResult.key,
+        caption: caption || null,
+        description: description || null,
         uploadedByUserId: userId || null,
+        uploaderName: uploaderName || null,
+        uploaderEmail: uploaderEmail || null,
+        originalFilename: file.originalname,
+        fileSize: file.size,
+        mimeType: file.mimetype,
+        orderIndex: 0, // Will be updated if needed
       };
 
       const image = await this.repository.createGalleryImage(imageData);
