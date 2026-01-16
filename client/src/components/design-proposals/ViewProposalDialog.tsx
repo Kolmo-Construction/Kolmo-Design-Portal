@@ -9,12 +9,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExternalLink } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ExternalLink, Image as ImageIcon } from "lucide-react";
 import type { DesignProposalWithComparisons } from "@shared/schema";
 import {
   ReactCompareSlider,
   ReactCompareSliderImage,
 } from "react-compare-slider";
+import { ProposalGalleryManager } from "./ProposalGalleryManager";
 
 interface ViewProposalDialogProps {
   proposal: { id: number; accessToken: string };
@@ -65,9 +67,9 @@ export function ViewProposalDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-6">
+            <Tabs defaultValue="comparisons" className="space-y-6">
               {fullProposal.customerName && (
-                <div>
+                <div className="mb-4">
                   <span className="text-sm font-medium">Customer: </span>
                   <span className="text-sm text-muted-foreground">
                     {fullProposal.customerName}
@@ -75,67 +77,81 @@ export function ViewProposalDialog({
                 </div>
               )}
 
-              {fullProposal.comparisons && fullProposal.comparisons.length > 0 ? (
-                <div className="space-y-8">
-                  {fullProposal.comparisons.map((comparison, index) => (
-                    <div key={comparison.id} className="space-y-3">
-                      <div>
-                        <h3 className="text-lg font-semibold">
-                          {comparison.title}
-                        </h3>
-                        {comparison.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {comparison.description}
-                          </p>
-                        )}
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="comparisons">Before/After</TabsTrigger>
+                <TabsTrigger value="gallery">
+                  <ImageIcon className="h-4 w-4 mr-2" />
+                  Gallery Images
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="comparisons" className="space-y-6">
+                {fullProposal.comparisons && fullProposal.comparisons.length > 0 ? (
+                  <div className="space-y-8">
+                    {fullProposal.comparisons.map((comparison, index) => (
+                      <div key={comparison.id} className="space-y-3">
+                        <div>
+                          <h3 className="text-lg font-semibold">
+                            {comparison.title}
+                          </h3>
+                          {comparison.description && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {comparison.description}
+                            </p>
+                          )}
+                        </div>
+                        <div className="rounded-lg overflow-hidden border shadow-sm bg-gray-50">
+                          <ReactCompareSlider
+                            itemOne={
+                              <ReactCompareSliderImage
+                                src={comparison.beforeImageUrl}
+                                alt="Before"
+                                style={{
+                                  objectFit: 'contain',
+                                  width: '100%',
+                                  height: '100%',
+                                  maxHeight: 'none',
+                                  display: 'block'
+                                }}
+                              />
+                            }
+                            itemTwo={
+                              <ReactCompareSliderImage
+                                src={comparison.afterImageUrl}
+                                alt="After"
+                                style={{
+                                  objectFit: 'contain',
+                                  width: '100%',
+                                  height: '100%',
+                                  maxHeight: 'none',
+                                  display: 'block'
+                                }}
+                              />
+                            }
+                            position={50}
+                            style={{
+                              height: "400px",
+                              width: "100%",
+                            }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-muted-foreground px-2">
+                          <span>Before</span>
+                          <span>After</span>
+                        </div>
                       </div>
-                      <div className="rounded-lg overflow-hidden border shadow-sm bg-gray-50">
-                        <ReactCompareSlider
-                          itemOne={
-                            <ReactCompareSliderImage
-                              src={comparison.beforeImageUrl}
-                              alt="Before"
-                              style={{ 
-                                objectFit: 'contain', 
-                                width: '100%', 
-                                height: '100%',
-                                maxHeight: 'none',
-                                display: 'block'
-                              }}
-                            />
-                          }
-                          itemTwo={
-                            <ReactCompareSliderImage
-                              src={comparison.afterImageUrl}
-                              alt="After"
-                              style={{ 
-                                objectFit: 'contain', 
-                                width: '100%', 
-                                height: '100%',
-                                maxHeight: 'none',
-                                display: 'block'
-                              }}
-                            />
-                          }
-                          position={50}
-                          style={{
-                            height: "400px",
-                            width: "100%",
-                          }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-xs text-muted-foreground px-2">
-                        <span>Before</span>
-                        <span>After</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-center py-8">
-                  No comparisons available
-                </p>
-              )}
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">
+                    No comparisons available
+                  </p>
+                )}
+              </TabsContent>
+
+              <TabsContent value="gallery">
+                <ProposalGalleryManager proposalId={proposal.id} />
+              </TabsContent>
 
               <div className="flex justify-end gap-3 pt-4 border-t">
                 <Button
@@ -151,7 +167,7 @@ export function ViewProposalDialog({
                   Close
                 </Button>
               </div>
-            </div>
+            </Tabs>
           </>
         ) : (
           <p className="text-center py-8">Proposal not found</p>

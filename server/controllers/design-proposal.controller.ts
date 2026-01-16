@@ -1,6 +1,12 @@
 import { Request, Response } from "express";
 import { DesignProposalRepository } from "../storage/repositories/design-proposal.repository";
-import { insertDesignProposalSchema, insertBeforeAfterComparisonSchema } from "@shared/schema";
+import {
+  insertDesignProposalSchema,
+  insertBeforeAfterComparisonSchema,
+  insertProposalGalleryImageSchema,
+  insertProposalImageCommentSchema,
+  insertProposalImageFavoriteSchema
+} from "@shared/schema";
 import { z } from "zod";
 
 export class DesignProposalController {
@@ -163,6 +169,172 @@ export class DesignProposalController {
     } catch (error) {
       console.error("Error deleting comparison:", error);
       res.status(500).json({ error: "Failed to delete comparison" });
+    }
+  }
+
+  // Gallery Image Methods
+  async getGalleryImages(req: Request, res: Response) {
+    try {
+      const proposalId = parseInt(req.params.proposalId);
+      if (isNaN(proposalId)) {
+        return res.status(400).json({ error: "Invalid proposal ID" });
+      }
+
+      const images = await this.repository.getGalleryImages(proposalId);
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching gallery images:", error);
+      res.status(500).json({ error: "Failed to fetch gallery images" });
+    }
+  }
+
+  async createGalleryImage(req: Request, res: Response) {
+    try {
+      const validatedData = insertProposalGalleryImageSchema.parse(req.body);
+      const userId = (req.user as any)?.id;
+
+      // Add userId if authenticated
+      const imageData = {
+        ...validatedData,
+        uploadedByUserId: userId || null,
+      };
+
+      const image = await this.repository.createGalleryImage(imageData);
+      res.status(201).json(image);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
+      console.error("Error creating gallery image:", error);
+      res.status(500).json({ error: "Failed to create gallery image" });
+    }
+  }
+
+  async updateGalleryImage(req: Request, res: Response) {
+    try {
+      const imageId = parseInt(req.params.id);
+      if (isNaN(imageId)) {
+        return res.status(400).json({ error: "Invalid image ID" });
+      }
+
+      const validatedData = insertProposalGalleryImageSchema.partial().parse(req.body);
+      const updatedImage = await this.repository.updateGalleryImage(imageId, validatedData);
+
+      if (!updatedImage) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+
+      res.json(updatedImage);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
+      console.error("Error updating gallery image:", error);
+      res.status(500).json({ error: "Failed to update gallery image" });
+    }
+  }
+
+  async deleteGalleryImage(req: Request, res: Response) {
+    try {
+      const imageId = parseInt(req.params.id);
+      if (isNaN(imageId)) {
+        return res.status(400).json({ error: "Invalid image ID" });
+      }
+
+      await this.repository.deleteGalleryImage(imageId);
+      res.json({ message: "Gallery image deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting gallery image:", error);
+      res.status(500).json({ error: "Failed to delete gallery image" });
+    }
+  }
+
+  // Comment Methods
+  async getImageComments(req: Request, res: Response) {
+    try {
+      const imageId = parseInt(req.params.imageId);
+      if (isNaN(imageId)) {
+        return res.status(400).json({ error: "Invalid image ID" });
+      }
+
+      const comments = await this.repository.getImageComments(imageId);
+      res.json(comments);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      res.status(500).json({ error: "Failed to fetch comments" });
+    }
+  }
+
+  async createComment(req: Request, res: Response) {
+    try {
+      const validatedData = insertProposalImageCommentSchema.parse(req.body);
+      const userId = (req.user as any)?.id;
+
+      const commentData = {
+        ...validatedData,
+        commentedByUserId: userId || null,
+      };
+
+      const comment = await this.repository.createComment(commentData);
+      res.status(201).json(comment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
+      console.error("Error creating comment:", error);
+      res.status(500).json({ error: "Failed to create comment" });
+    }
+  }
+
+  async deleteComment(req: Request, res: Response) {
+    try {
+      const commentId = parseInt(req.params.id);
+      if (isNaN(commentId)) {
+        return res.status(400).json({ error: "Invalid comment ID" });
+      }
+
+      await this.repository.deleteComment(commentId);
+      res.json({ message: "Comment deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      res.status(500).json({ error: "Failed to delete comment" });
+    }
+  }
+
+  // Favorite Methods
+  async toggleFavorite(req: Request, res: Response) {
+    try {
+      const validatedData = insertProposalImageFavoriteSchema.parse(req.body);
+      const userId = (req.user as any)?.id;
+
+      const favoriteData = {
+        ...validatedData,
+        markedByUserId: userId || null,
+      };
+
+      const result = await this.repository.toggleFavorite(favoriteData);
+      res.json(result);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
+      console.error("Error toggling favorite:", error);
+      res.status(500).json({ error: "Failed to toggle favorite" });
+    }
+  }
+
+  async getImageFavorites(req: Request, res: Response) {
+    try {
+      const imageId = parseInt(req.params.imageId);
+      if (isNaN(imageId)) {
+        return res.status(400).json({ error: "Invalid image ID" });
+      }
+
+      const favorites = await this.repository.getImageFavorites(imageId);
+      res.json(favorites);
+    } catch (error) {
+      console.error("Error fetching favorites:", error);
+      res.status(500).json({ error: "Failed to fetch favorites" });
     }
   }
 }

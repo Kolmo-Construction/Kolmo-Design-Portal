@@ -33,4 +33,19 @@ router.post("/comparisons", isAuthenticated, controller.createComparison.bind(co
 router.patch("/comparisons/:id", isAuthenticated, controller.updateComparison.bind(controller));
 router.delete("/comparisons/:id", isAuthenticated, controller.deleteComparison.bind(controller));
 
+// Gallery image routes
+router.get("/:proposalId/gallery", controller.getGalleryImages.bind(controller)); // Public access
+router.post("/gallery", upload.single('image'), controller.createGalleryImage.bind(controller)); // Public upload allowed
+router.patch("/gallery/:id", isAuthenticated, controller.updateGalleryImage.bind(controller));
+router.delete("/gallery/:id", isAuthenticated, controller.deleteGalleryImage.bind(controller));
+
+// Comment routes
+router.get("/gallery/:imageId/comments", controller.getImageComments.bind(controller)); // Public access
+router.post("/gallery/comments", controller.createComment.bind(controller)); // Public comments allowed
+router.delete("/gallery/comments/:id", isAuthenticated, controller.deleteComment.bind(controller));
+
+// Favorite routes
+router.post("/gallery/favorites", controller.toggleFavorite.bind(controller)); // Public favorites allowed
+router.get("/gallery/:imageId/favorites", controller.getImageFavorites.bind(controller)); // Public access
+
 export default router;

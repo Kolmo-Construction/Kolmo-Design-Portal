@@ -620,6 +620,62 @@ export const beforeAfterComparisons = pgTable("before_after_comparisons", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Proposal gallery images - for current state/progress photos
+export const proposalGalleryImages = pgTable("proposal_gallery_images", {
+  id: serial("id").primaryKey(),
+  proposalId: integer("proposal_id").notNull().references(() => designProposals.id, { onDelete: 'cascade' }),
+  imageUrl: text("image_url").notNull(),
+  imageKey: text("image_key").notNull(), // R2 storage key for deletion
+  caption: text("caption"),
+  description: text("description"),
+
+  // Upload metadata
+  uploadedByUserId: integer("uploaded_by_user_id").references(() => users.id), // If uploaded by authenticated user
+  uploaderName: text("uploader_name"), // Optional name if uploaded by customer
+  uploaderEmail: text("uploader_email"), // Optional email if uploaded by customer
+
+  // Image metadata
+  originalFilename: text("original_filename").notNull(),
+  fileSize: integer("file_size").notNull(),
+  mimeType: text("mime_type").notNull(),
+
+  orderIndex: integer("order_index").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Comments on proposal gallery images
+export const proposalImageComments = pgTable("proposal_image_comments", {
+  id: serial("id").primaryKey(),
+  imageId: integer("image_id").notNull().references(() => proposalGalleryImages.id, { onDelete: 'cascade' }),
+  parentCommentId: integer("parent_comment_id").references((): any => proposalImageComments.id, { onDelete: 'cascade' }), // For threaded replies
+
+  // Comment content
+  comment: text("comment").notNull(),
+
+  // Commenter info (optional identification)
+  commentedByUserId: integer("commented_by_user_id").references(() => users.id), // If authenticated user
+  commenterName: text("commenter_name"), // Optional name
+  commenterEmail: text("commenter_email"), // Optional email
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Favorites/important markers on images
+export const proposalImageFavorites = pgTable("proposal_image_favorites", {
+  id: serial("id").primaryKey(),
+  imageId: integer("image_id").notNull().references(() => proposalGalleryImages.id, { onDelete: 'cascade' }),
+
+  // Who marked it as favorite
+  markedByUserId: integer("marked_by_user_id").references(() => users.id), // If authenticated user
+  markerName: text("marker_name"), // Optional name
+  markerEmail: text("marker_email"), // Optional email
+
+  note: text("note"), // Optional note about why it's important
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Milestones for project timeline with billing support
 export const milestones = pgTable("milestones", {
   id: serial("id").primaryKey(),
@@ -1516,14 +1572,53 @@ export const insertBeforeAfterComparisonSchema = createInsertSchema(beforeAfterC
   createdAt: true,
 });
 
+// Gallery image schemas
+export const insertProposalGalleryImageSchema = createInsertSchema(proposalGalleryImages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertProposalImageCommentSchema = createInsertSchema(proposalImageComments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertProposalImageFavoriteSchema = createInsertSchema(proposalImageFavorites).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types for design proposals
 export type DesignProposal = typeof designProposals.$inferSelect;
 export type InsertDesignProposal = z.infer<typeof insertDesignProposalSchema>;
 export type BeforeAfterComparison = typeof beforeAfterComparisons.$inferSelect;
 export type InsertBeforeAfterComparison = z.infer<typeof insertBeforeAfterComparisonSchema>;
 
+// Gallery types
+export type ProposalGalleryImage = typeof proposalGalleryImages.$inferSelect;
+export type InsertProposalGalleryImage = z.infer<typeof insertProposalGalleryImageSchema>;
+export type ProposalImageComment = typeof proposalImageComments.$inferSelect;
+export type InsertProposalImageComment = z.infer<typeof insertProposalImageCommentSchema>;
+export type ProposalImageFavorite = typeof proposalImageFavorites.$inferSelect;
+export type InsertProposalImageFavorite = z.infer<typeof insertProposalImageFavoriteSchema>;
+
+// Gallery image with comments and favorites
+export type ProposalGalleryImageWithDetails = ProposalGalleryImage & {
+  comments: ProposalImageComment[];
+  favorites: ProposalImageFavorite[];
+  isFavorite?: boolean;
+  commentCount?: number;
+  favoriteCount?: number;
+};
+
 export type DesignProposalWithComparisons = DesignProposal & {
   comparisons: BeforeAfterComparison[];
+};
+
+export type DesignProposalWithGallery = DesignProposalWithComparisons & {
+  galleryImages: ProposalGalleryImageWithDetails[];
 };
 
 export const insertDailyLogPhotoSchema = createInsertSchema(dailyLogPhotos).omit({

@@ -1,0 +1,21 @@
+DATABASE_URL=postgresql://pascalmatta@localhost:5432/kolmo_local
+NODE_ENV=development
+R2_ACCOUNT_ID=f52ca06b8e3695fc22e56ad5de0d63ac
+R2_ACCESS_KEY_ID=fed0c42ed328a113823a85e6198cdded
+R2_SECRET_ACCESS_KEY=0fadb2d937204ea95112722ffaccc309bee01169306c375ea92453c8ce35b963
+R2_BUCKET_NAME=messages-bucket
+
+# Email Configuration (Resend - recommended for production)
+RESEND_API_KEY=your_resend_api_key_here
+
+# Google Gemini API for LLM-powered progress reports
+GEMINI_API_KEY=AIzaSyB82Aylxq0al92NZD_G8rPJW64NHTdwCAY
+
+# DeepSeek API for AI Agent Service
+DEEPSEEK_API_KEY=sk-1c5eb3310cba43ab94394f4eecb1065d
+
+# Base URL for image access (used by ImageAnalysisService)
+BASE_URL=http://localhost:3000
+
+# Stripe Test Keys
+VITE_STRIPE_PUBLIC_KEY=pk_test_51RT6b72cYT0l23ZFdUUD0AQ1IuGrqwkqz64eEmvITqlU2AtQp2RHi7MGFgFavjLr2iZf5fGXkOX3MnnSZk1PFbEn00sASheUE9

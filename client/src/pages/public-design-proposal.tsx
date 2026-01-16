@@ -10,20 +10,22 @@ import {
   ReactCompareSlider,
   ReactCompareSliderImage,
 } from "react-compare-slider";
-import { 
-  Phone, 
-  Mail, 
-  Shield, 
-  Award, 
-  Star, 
+import {
+  Phone,
+  Mail,
+  Shield,
+  Award,
+  Star,
   Paintbrush,
   ArrowLeftRight,
   Check,
   Sparkles,
   ThumbsUp,
-  ThumbsDown
+  ThumbsDown,
+  Image as ImageIcon
 } from "lucide-react";
 import kolmoLogo from "@assets/kolmo-logo (1).png";
+import { PublicProposalGallery } from "@/components/design-proposals/PublicProposalGallery";
 
 export default function PublicDesignProposalPage() {
   const [, params] = useRoute("/design-proposal/:token");
@@ -321,6 +323,26 @@ export default function PublicDesignProposalPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Gallery Section */}
+        <div className="mt-12">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 rounded-full px-4 py-2 mb-4" style={{backgroundColor: 'rgba(219, 151, 60, 0.1)'}}>
+              <ImageIcon className="h-5 w-5" style={{color: '#db973c'}} />
+              <span className="text-sm font-medium" style={{color: '#db973c'}}>
+                Project Gallery
+              </span>
+            </div>
+            <h2 className="text-3xl font-bold" style={{color: '#3d4552'}}>
+              Photo Gallery & Feedback
+            </h2>
+            <p className="text-lg mt-2" style={{color: '#4a6670'}}>
+              View progress photos, share your images, and leave comments
+            </p>
+          </div>
+
+          <PublicProposalGallery proposalId={proposal.id} />
+        </div>
 
         {/* Pros and Cons Section */}
         {proposal.showProsCons && (proposal.pros?.length || proposal.cons?.length) && (
