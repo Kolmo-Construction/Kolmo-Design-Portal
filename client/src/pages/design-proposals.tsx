@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Eye, Trash2, Copy, Home } from "lucide-react";
+import { Plus, Eye, Trash2, Copy, Home, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { CreateProposalDialog } from "@/components/design-proposals/CreateProposalDialog";
 import { ViewProposalDialog } from "@/components/design-proposals/ViewProposalDialog";
-import type { DesignProposal } from "@shared/schema";
+import { EditProposalDialog } from "@/components/design-proposals/EditProposalDialog";
+import type { DesignProposal, DesignProposalWithComparisons } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Link } from "wouter";
 
@@ -14,6 +15,7 @@ export default function DesignProposalsPage() {
   const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [viewingProposal, setViewingProposal] = useState<DesignProposal | null>(null);
+  const [editingProposal, setEditingProposal] = useState<DesignProposalWithComparisons | null>(null);
 
   const { data: proposals, isLoading } = useQuery<DesignProposal[]>({
     queryKey: ["/api/design-proposals"],
@@ -47,6 +49,19 @@ export default function DesignProposalsPage() {
       title: "Link copied!",
       description: "Share link copied to clipboard",
     });
+  };
+
+  const handleEdit = async (id: number) => {
+    try {
+      const proposal = await apiRequest("GET", `/api/design-proposals/${id}`);
+      setEditingProposal(proposal);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load proposal for editing",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -123,6 +138,16 @@ export default function DesignProposalsPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => handleEdit(proposal.id)}
+                      className="gap-2"
+                      data-testid={`button-edit-${proposal.id}`}
+                    >
+                      <Edit className="h-4 w-4" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => copyShareLink(proposal.accessToken)}
                       className="gap-2"
                       data-testid={`button-copy-link-${proposal.id}`}
@@ -174,6 +199,14 @@ export default function DesignProposalsPage() {
           proposal={viewingProposal}
           open={!!viewingProposal}
           onOpenChange={(open: boolean) => !open && setViewingProposal(null)}
+        />
+      )}
+
+      {editingProposal && (
+        <EditProposalDialog
+          proposal={editingProposal}
+          open={!!editingProposal}
+          onOpenChange={(open: boolean) => !open && setEditingProposal(null)}
         />
       )}
     </div>
