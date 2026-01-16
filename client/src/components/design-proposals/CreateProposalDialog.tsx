@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Upload, X, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Plus, Upload, X, ThumbsUp, ThumbsDown, Image as ImageIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +49,12 @@ interface Comparison {
   afterImageUrl?: string;
 }
 
+interface GalleryImage {
+  file: File;
+  caption: string;
+  description: string;
+}
+
 interface CreateProposalDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -61,6 +67,7 @@ export function CreateProposalDialog({
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [comparisons, setComparisons] = useState<Comparison[]>([]);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [pros, setPros] = useState<string[]>([""]);
   const [cons, setCons] = useState<string[]>([""]);
 
@@ -104,6 +111,24 @@ export function CreateProposalDialog({
     setComparisons(updated);
   };
 
+  const addGalleryImage = (file: File) => {
+    setGalleryImages([...galleryImages, { file, caption: "", description: "" }]);
+  };
+
+  const removeGalleryImage = (index: number) => {
+    setGalleryImages(galleryImages.filter((_, i) => i !== index));
+  };
+
+  const updateGalleryImage = (
+    index: number,
+    field: keyof GalleryImage,
+    value: any
+  ) => {
+    const updated = [...galleryImages];
+    updated[index] = { ...updated[index], [field]: value };
+    setGalleryImages(updated);
+  };
+
   const handleImageUpload = async (file: File) => {
     try {
       const url = await uploadToR2(file);
@@ -115,15 +140,17 @@ export function CreateProposalDialog({
   };
 
   const onSubmit = async (data: ProposalFormData) => {
-    if (comparisons.length === 0) {
+    // Must have at least one comparison OR gallery image
+    if (comparisons.length === 0 && galleryImages.length === 0) {
       toast({
         title: "Error",
-        description: "Please add at least one before/after comparison",
+        description: "Please add at least one before/after comparison or gallery image",
         variant: "destructive",
       });
       return;
     }
 
+    // Validate comparisons if any exist
     const incompleteComparisons = comparisons.filter(
       (c) => !c.title || !c.beforeImage || !c.afterImage
     );
@@ -153,6 +180,7 @@ export function CreateProposalDialog({
       
       const proposal = await apiRequest("POST", "/api/design-proposals", proposalData);
 
+      // Upload comparisons
       for (let i = 0; i < comparisons.length; i++) {
         const comp = comparisons[i];
 
@@ -169,6 +197,23 @@ export function CreateProposalDialog({
         });
       }
 
+      // Upload gallery images
+      for (let i = 0; i < galleryImages.length; i++) {
+        const galleryImage = galleryImages[i];
+
+        const formData = new FormData();
+        formData.append("image", galleryImage.file);
+        formData.append("proposalId", proposal.id.toString());
+        formData.append("caption", galleryImage.caption);
+        formData.append("description", galleryImage.description);
+
+        await fetch("/api/design-proposals/gallery", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+      }
+
       queryClient.invalidateQueries({ queryKey: ["/api/design-proposals"] });
       toast({
         title: "Success",
@@ -177,6 +222,7 @@ export function CreateProposalDialog({
       onOpenChange(false);
       form.reset();
       setComparisons([]);
+      setGalleryImages([]);
       setPros([""]);
       setCons([""]);
     } catch (error) {
@@ -542,6 +588,115 @@ export function CreateProposalDialog({
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Gallery Images Section */}
+            <div className="border-t pt-6">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold">Gallery Images</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Upload initial site photos or reference images (optional)
+                  </p>
+                </div>
+              </div>
+
+              {galleryImages.length === 0 ? (
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-muted rounded-lg p-8 cursor-pointer hover:border-primary transition-colors">
+                  <ImageIcon className="h-12 w-12 text-muted-foreground mb-3" />
+                  <p className="text-sm font-medium text-muted-foreground mb-1">
+                    Click to upload gallery images
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    PNG, JPG, GIF up to 10MB
+                  </p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      files.forEach(file => addGalleryImage(file));
+                      e.target.value = ''; // Reset input
+                    }}
+                    className="hidden"
+                  />
+                </label>
+              ) : (
+                <div className="space-y-4">
+                  {galleryImages.map((image, index) => (
+                    <div
+                      key={index}
+                      className="border rounded-lg p-4 space-y-3 relative"
+                    >
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeGalleryImage(index)}
+                        className="absolute top-2 right-2"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+
+                      <div className="flex items-center gap-3">
+                        <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{image.file.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {(image.file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium">
+                          Caption (Optional)
+                        </label>
+                        <Input
+                          value={image.caption}
+                          onChange={(e) =>
+                            updateGalleryImage(index, "caption", e.target.value)
+                          }
+                          placeholder="Add a caption for this image"
+                          className="mt-1.5"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium">
+                          Description (Optional)
+                        </label>
+                        <Textarea
+                          value={image.description}
+                          onChange={(e) =>
+                            updateGalleryImage(index, "description", e.target.value)
+                          }
+                          placeholder="Add details about this image"
+                          className="mt-1.5"
+                          rows={2}
+                        />
+                      </div>
+                    </div>
+                  ))}
+
+                  <label className="flex items-center justify-center gap-2 border-2 border-dashed border-muted rounded-lg p-4 cursor-pointer hover:border-primary transition-colors">
+                    <Plus className="h-4 w-4" />
+                    <span className="text-sm font-medium">Add More Images</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        files.forEach(file => addGalleryImage(file));
+                        e.target.value = ''; // Reset input
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t">
