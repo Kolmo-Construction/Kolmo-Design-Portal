@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Form,
   FormControl,
@@ -26,6 +27,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { DesignProposalWithComparisons } from "@shared/schema";
+import { ProposalGalleryManager } from "./ProposalGalleryManager";
 
 const proposalSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -153,215 +155,226 @@ export function EditProposalDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Proposal Title</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="e.g., Kitchen Renovation Design"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <Tabs defaultValue="basic" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="basic">Basic Info</TabsTrigger>
+            <TabsTrigger value="gallery">Gallery Images</TabsTrigger>
+          </TabsList>
 
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Add any additional details about this proposal"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <TabsContent value="basic">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Proposal Title</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="e.g., Kitchen Renovation Design"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="customerName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customer Name (Optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="John Doe"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description (Optional)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Add any additional details about this proposal"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="customerEmail"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customer Email (Optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="john@example.com"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Pros and Cons Section */}
-            <div className="border-t pt-6">
-              <FormField
-                control={form.control}
-                name="showProsCons"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">
-                        Show Pros & Cons Section
-                      </FormLabel>
-                      <FormDescription>
-                        Display a pros and cons analysis in the customer-facing proposal
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              {form.watch("showProsCons") && (
-                <div className="mt-4 grid grid-cols-2 gap-4">
-                  {/* Pros Section */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <ThumbsUp className="h-4 w-4 text-green-600" />
-                        <h4 className="text-sm font-semibold">Pros</h4>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={addPro}
-                        className="h-8 gap-1"
-                      >
-                        <Plus className="h-3 w-3" />
-                        Add
-                      </Button>
-                    </div>
-                    <div className="space-y-2">
-                      {pros.map((pro, index) => (
-                        <div key={index} className="flex gap-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="customerName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Customer Name (Optional)</FormLabel>
+                        <FormControl>
                           <Input
-                            value={pro}
-                            onChange={(e) => updatePro(index, e.target.value)}
-                            placeholder="Enter a pro"
-                            className="flex-1"
+                            placeholder="John Doe"
+                            {...field}
                           />
-                          {pros.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removePro(index)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                  {/* Cons Section */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <ThumbsDown className="h-4 w-4 text-red-600" />
-                        <h4 className="text-sm font-semibold">Cons</h4>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={addCon}
-                        className="h-8 gap-1"
-                      >
-                        <Plus className="h-3 w-3" />
-                        Add
-                      </Button>
-                    </div>
-                    <div className="space-y-2">
-                      {cons.map((con, index) => (
-                        <div key={index} className="flex gap-2">
+                  <FormField
+                    control={form.control}
+                    name="customerEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Customer Email (Optional)</FormLabel>
+                        <FormControl>
                           <Input
-                            value={con}
-                            onChange={(e) => updateCon(index, e.target.value)}
-                            placeholder="Enter a con"
-                            className="flex-1"
+                            type="email"
+                            placeholder="john@example.com"
+                            {...field}
                           />
-                          {cons.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeCon(index)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-              )}
-            </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
-                <strong>Note:</strong> To edit before/after comparisons and manage gallery images,
-                please use the "View" dialog after saving these changes.
-              </p>
-            </div>
+                {/* Pros and Cons Section */}
+                <div className="border-t pt-6">
+                  <FormField
+                    control={form.control}
+                    name="showProsCons"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">
+                            Show Pros & Cons Section
+                          </FormLabel>
+                          <FormDescription>
+                            Display a pros and cons analysis in the customer-facing proposal
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : "Save Changes"}
+                  {form.watch("showProsCons") && (
+                    <div className="mt-4 grid grid-cols-2 gap-4">
+                      {/* Pros Section */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <ThumbsUp className="h-4 w-4 text-green-600" />
+                            <h4 className="text-sm font-semibold">Pros</h4>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={addPro}
+                            className="h-8 gap-1"
+                          >
+                            <Plus className="h-3 w-3" />
+                            Add
+                          </Button>
+                        </div>
+                        <div className="space-y-2">
+                          {pros.map((pro, index) => (
+                            <div key={index} className="flex gap-2">
+                              <Input
+                                value={pro}
+                                onChange={(e) => updatePro(index, e.target.value)}
+                                placeholder="Enter a pro"
+                                className="flex-1"
+                              />
+                              {pros.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removePro(index)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Cons Section */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <ThumbsDown className="h-4 w-4 text-red-600" />
+                            <h4 className="text-sm font-semibold">Cons</h4>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={addCon}
+                            className="h-8 gap-1"
+                          >
+                            <Plus className="h-3 w-3" />
+                            Add
+                          </Button>
+                        </div>
+                        <div className="space-y-2">
+                          {cons.map((con, index) => (
+                            <div key={index} className="flex gap-2">
+                              <Input
+                                value={con}
+                                onChange={(e) => updateCon(index, e.target.value)}
+                                placeholder="Enter a con"
+                                className="flex-1"
+                              />
+                              {cons.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeCon(index)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => onOpenChange(false)}
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </TabsContent>
+
+          <TabsContent value="gallery">
+            <ProposalGalleryManager proposalId={proposal.id} />
+            <div className="flex justify-end pt-4 border-t mt-6">
+              <Button onClick={() => onOpenChange(false)}>
+                Close
               </Button>
             </div>
-          </form>
-        </Form>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
