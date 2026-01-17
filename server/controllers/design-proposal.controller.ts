@@ -49,15 +49,23 @@ export class DesignProposalController {
   async getProposalByToken(req: Request, res: Response) {
     try {
       const { token } = req.params;
-      
+      console.log(`[DesignProposal] Attempting to fetch proposal with token: ${token?.substring(0, 8)}...`);
+
+      if (!token) {
+        console.log(`[DesignProposal] ERROR: No token provided in request`);
+        return res.status(400).json({ error: "Token is required" });
+      }
+
       const proposal = await this.repository.getProposalByToken(token);
       if (!proposal) {
+        console.log(`[DesignProposal] ERROR: No proposal found for token: ${token.substring(0, 8)}...`);
         return res.status(404).json({ error: "Proposal not found" });
       }
 
+      console.log(`[DesignProposal] SUCCESS: Found proposal ID ${proposal.id} with title "${proposal.title}"`);
       res.json(proposal);
     } catch (error) {
-      console.error("Error fetching proposal by token:", error);
+      console.error("[DesignProposal] ERROR fetching proposal by token:", error);
       res.status(500).json({ error: "Failed to fetch proposal" });
     }
   }

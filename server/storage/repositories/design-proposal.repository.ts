@@ -64,14 +64,30 @@ export class DesignProposalRepository {
 
   async getProposalByToken(token: string): Promise<DesignProposalWithComparisons | null> {
     try {
+      console.log(`[DesignProposalRepo] Querying database for token: ${token?.substring(0, 8)}...`);
+
       const [proposal] = await db
         .select()
         .from(designProposals)
         .where(eq(designProposals.accessToken, token));
 
       if (!proposal) {
+        console.log(`[DesignProposalRepo] No proposal found in database for this token`);
+
+        // Log all proposals for debugging (first 3)
+        const allProposals = await db
+          .select({ id: designProposals.id, title: designProposals.title, token: designProposals.accessToken })
+          .from(designProposals)
+          .limit(5);
+        console.log(`[DesignProposalRepo] Total proposals in database: ${allProposals.length}`);
+        if (allProposals.length > 0) {
+          console.log(`[DesignProposalRepo] Sample tokens: ${allProposals.map(p => `ID ${p.id}: ${p.token?.substring(0, 8)}...`).join(', ')}`);
+        }
+
         return null;
       }
+
+      console.log(`[DesignProposalRepo] Found proposal: ID ${proposal.id}, Title: "${proposal.title}"`);
 
       const comparisons = await db
         .select()
@@ -79,12 +95,14 @@ export class DesignProposalRepository {
         .where(eq(beforeAfterComparisons.proposalId, proposal.id))
         .orderBy(beforeAfterComparisons.orderIndex);
 
+      console.log(`[DesignProposalRepo] Loaded ${comparisons.length} comparisons for proposal ${proposal.id}`);
+
       return {
         ...proposal,
         comparisons
       };
     } catch (error) {
-      console.error("Error fetching proposal by token:", error);
+      console.error("[DesignProposalRepo] ERROR fetching proposal by token:", error);
       return null;
     }
   }
