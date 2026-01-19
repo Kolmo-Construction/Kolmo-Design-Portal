@@ -413,6 +413,11 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // Mount Webhook routes (no authentication - Stripe handles verification)
   app.use("/api/webhooks", webhookRoutes);
 
+  // Mount Design Proposal routes (mixed auth - admin routes and public viewing)
+  // IMPORTANT: Must come BEFORE global /api middleware to avoid authentication on public endpoints
+  // Note: Contains public endpoints, do not protect at router level
+  app.use("/api/design-proposals", designProposalRouter);
+
   // Mount Global Finance routes (admin only, Web-only)
   // Note: This uses broad "/api" prefix, so specific routes must be registered before this
   app.use("/api", requireWebAccess, globalFinanceRoutes);
@@ -422,10 +427,6 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // Mount Google Drive Ingestion routes (admin only, Web-only)
   app.use("/api/drive-ingestion", isAuthenticated, requireWebAccess, driveIngestionRouter);
-
-  // Mount Design Proposal routes (mixed auth - admin routes and public viewing)
-  // Note: Contains public endpoints, do not protect at router level
-  app.use("/api/design-proposals", designProposalRouter);
 
   // --- REMOVED: Old inline route definitions and local router variables ---
   // const taskRouter = Router(...) // REMOVED
