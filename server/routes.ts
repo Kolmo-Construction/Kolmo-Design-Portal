@@ -111,6 +111,11 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // Mobile app uploads images via API key, authentication checked within routes
   app.use("/api/admin/images", adminImagesRoutes);
 
+  // --- Mount Design Proposal Routes (Mixed auth - public + admin) ---
+  // CRITICAL: Registered EARLY to avoid broad /api middleware blocking public endpoints
+  // Contains public endpoints for customer access, authentication handled within routes
+  app.use("/api/design-proposals", designProposalRouter);
+
   // --- Mount User Management Routes ---
   // Routes for user management and hourly rate configuration
   // Admin only
@@ -412,11 +417,6 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // Mount Webhook routes (no authentication - Stripe handles verification)
   app.use("/api/webhooks", webhookRoutes);
-
-  // Mount Design Proposal routes (mixed auth - admin routes and public viewing)
-  // IMPORTANT: Must come BEFORE global /api middleware to avoid authentication on public endpoints
-  // Note: Contains public endpoints, do not protect at router level
-  app.use("/api/design-proposals", designProposalRouter);
 
   // Mount Global Finance routes (admin only, Web-only)
   // Note: This uses broad "/api" prefix, so specific routes must be registered before this
