@@ -33,9 +33,6 @@ const proposalSchema = z.object({
   customerName: z.string().optional(),
   customerEmail: z.string().email().optional().or(z.literal("")),
   projectId: z.number().optional().nullable(),
-  showProsCons: z.boolean().default(false),
-  pros: z.array(z.string()).optional(),
-  cons: z.array(z.string()).optional(),
 });
 
 type ProposalFormData = z.infer<typeof proposalSchema>;
@@ -47,6 +44,8 @@ interface Comparison {
   afterImage: File | null;
   beforeImageUrl?: string;
   afterImageUrl?: string;
+  pros: string[];
+  cons: string[];
 }
 
 interface GalleryImage {
@@ -68,8 +67,6 @@ export function CreateProposalDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [comparisons, setComparisons] = useState<Comparison[]>([]);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
-  const [pros, setPros] = useState<string[]>([""]);
-  const [cons, setCons] = useState<string[]>([""]);
 
   const form = useForm<ProposalFormData>({
     resolver: zodResolver(proposalSchema),
@@ -79,9 +76,6 @@ export function CreateProposalDialog({
       customerName: "",
       customerEmail: "",
       projectId: null,
-      showProsCons: false,
-      pros: [],
-      cons: [],
     },
   });
 
@@ -93,6 +87,8 @@ export function CreateProposalDialog({
         description: "",
         beforeImage: null,
         afterImage: null,
+        pros: [""],
+        cons: [""],
       },
     ]);
   };
@@ -168,24 +164,18 @@ export function CreateProposalDialog({
     setIsSubmitting(true);
 
     try {
-      // Filter out empty strings from pros/cons
-      const filteredPros = pros.filter(p => p.trim() !== "");
-      const filteredCons = cons.filter(c => c.trim() !== "");
-      
-      const proposalData = {
-        ...data,
-        pros: filteredPros.length > 0 ? filteredPros : undefined,
-        cons: filteredCons.length > 0 ? filteredCons : undefined,
-      };
-      
-      const proposal = await apiRequest("POST", "/api/design-proposals", proposalData);
+      const proposal = await apiRequest("POST", "/api/design-proposals", data);
 
-      // Upload comparisons
+      // Upload comparisons with pros/cons
       for (let i = 0; i < comparisons.length; i++) {
         const comp = comparisons[i];
 
         const beforeImageUrl = await handleImageUpload(comp.beforeImage!);
         const afterImageUrl = await handleImageUpload(comp.afterImage!);
+
+        // Filter out empty strings from pros/cons
+        const filteredPros = comp.pros.filter(p => p.trim() !== "");
+        const filteredCons = comp.cons.filter(c => c.trim() !== "");
 
         await apiRequest("POST", "/api/design-proposals/comparisons", {
           proposalId: proposal.id,
@@ -193,6 +183,8 @@ export function CreateProposalDialog({
           description: comp.description || "",
           beforeImageUrl,
           afterImageUrl,
+          pros: filteredPros.length > 0 ? filteredPros : undefined,
+          cons: filteredCons.length > 0 ? filteredCons : undefined,
           orderIndex: i,
         });
       }
@@ -223,8 +215,6 @@ export function CreateProposalDialog({
       form.reset();
       setComparisons([]);
       setGalleryImages([]);
-      setPros([""]);
-      setCons([""]);
     } catch (error) {
       console.error("Error creating proposal:", error);
       toast({
@@ -237,20 +227,41 @@ export function CreateProposalDialog({
     }
   };
 
-  const addPro = () => setPros([...pros, ""]);
-  const removePro = (index: number) => setPros(pros.filter((_, i) => i !== index));
-  const updatePro = (index: number, value: string) => {
-    const updated = [...pros];
-    updated[index] = value;
-    setPros(updated);
+  // Pros/Cons management for individual comparisons
+  const addComparisonPro = (comparisonIndex: number) => {
+    const updated = [...comparisons];
+    updated[comparisonIndex].pros = [...updated[comparisonIndex].pros, ""];
+    setComparisons(updated);
   };
 
-  const addCon = () => setCons([...cons, ""]);
-  const removeCon = (index: number) => setCons(cons.filter((_, i) => i !== index));
-  const updateCon = (index: number, value: string) => {
-    const updated = [...cons];
-    updated[index] = value;
-    setCons(updated);
+  const removeComparisonPro = (comparisonIndex: number, proIndex: number) => {
+    const updated = [...comparisons];
+    updated[comparisonIndex].pros = updated[comparisonIndex].pros.filter((_, i) => i !== proIndex);
+    setComparisons(updated);
+  };
+
+  const updateComparisonPro = (comparisonIndex: number, proIndex: number, value: string) => {
+    const updated = [...comparisons];
+    updated[comparisonIndex].pros[proIndex] = value;
+    setComparisons(updated);
+  };
+
+  const addComparisonCon = (comparisonIndex: number) => {
+    const updated = [...comparisons];
+    updated[comparisonIndex].cons = [...updated[comparisonIndex].cons, ""];
+    setComparisons(updated);
+  };
+
+  const removeComparisonCon = (comparisonIndex: number, conIndex: number) => {
+    const updated = [...comparisons];
+    updated[comparisonIndex].cons = updated[comparisonIndex].cons.filter((_, i) => i !== conIndex);
+    setComparisons(updated);
+  };
+
+  const updateComparisonCon = (comparisonIndex: number, conIndex: number, value: string) => {
+    const updated = [...comparisons];
+    updated[comparisonIndex].cons[conIndex] = value;
+    setComparisons(updated);
   };
 
   return (
@@ -341,126 +352,6 @@ export function CreateProposalDialog({
               />
             </div>
 
-            {/* Pros and Cons Section */}
-            <div className="border-t pt-6">
-              <FormField
-                control={form.control}
-                name="showProsCons"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">
-                        Show Pros & Cons Section
-                      </FormLabel>
-                      <FormDescription>
-                        Display a pros and cons analysis in the customer-facing proposal
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        data-testid="switch-show-pros-cons"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              {form.watch("showProsCons") && (
-                <div className="mt-4 grid grid-cols-2 gap-4">
-                  {/* Pros Section */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <ThumbsUp className="h-4 w-4 text-green-600" />
-                        <h4 className="text-sm font-semibold">Pros</h4>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={addPro}
-                        className="h-8 gap-1"
-                        data-testid="button-add-pro"
-                      >
-                        <Plus className="h-3 w-3" />
-                        Add
-                      </Button>
-                    </div>
-                    <div className="space-y-2">
-                      {pros.map((pro, index) => (
-                        <div key={index} className="flex gap-2">
-                          <Input
-                            value={pro}
-                            onChange={(e) => updatePro(index, e.target.value)}
-                            placeholder="Enter a pro"
-                            className="flex-1"
-                            data-testid={`input-pro-${index}`}
-                          />
-                          {pros.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removePro(index)}
-                              data-testid={`button-remove-pro-${index}`}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Cons Section */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <ThumbsDown className="h-4 w-4 text-red-600" />
-                        <h4 className="text-sm font-semibold">Cons</h4>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={addCon}
-                        className="h-8 gap-1"
-                        data-testid="button-add-con"
-                      >
-                        <Plus className="h-3 w-3" />
-                        Add
-                      </Button>
-                    </div>
-                    <div className="space-y-2">
-                      {cons.map((con, index) => (
-                        <div key={index} className="flex gap-2">
-                          <Input
-                            value={con}
-                            onChange={(e) => updateCon(index, e.target.value)}
-                            placeholder="Enter a con"
-                            className="flex-1"
-                            data-testid={`input-con-${index}`}
-                          />
-                          {cons.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeCon(index)}
-                              data-testid={`button-remove-con-${index}`}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
 
             <div className="border-t pt-6">
               <div className="flex justify-between items-center mb-4">
@@ -582,6 +473,97 @@ export function CreateProposalDialog({
                               {comparison.afterImage.name}
                             </p>
                           )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Pros and Cons for this comparison */}
+                    <div className="border-t pt-4 mt-4 space-y-4">
+                      <h4 className="text-sm font-semibold">Pros & Cons</h4>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Pros */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <ThumbsUp className="h-4 w-4 text-green-600" />
+                            <label className="text-sm font-medium">Pros</label>
+                          </div>
+                          <div className="space-y-2">
+                            {comparison.pros.map((pro, proIndex) => (
+                              <div key={proIndex} className="flex gap-2">
+                                <Input
+                                  value={pro}
+                                  onChange={(e) =>
+                                    updateComparisonPro(index, proIndex, e.target.value)
+                                  }
+                                  placeholder="Enter a pro"
+                                  className="flex-1"
+                                />
+                                {comparison.pros.length > 1 && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeComparisonPro(index, proIndex)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => addComparisonPro(index)}
+                              className="w-full"
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Add Pro
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Cons */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <ThumbsDown className="h-4 w-4 text-red-600" />
+                            <label className="text-sm font-medium">Cons</label>
+                          </div>
+                          <div className="space-y-2">
+                            {comparison.cons.map((con, conIndex) => (
+                              <div key={conIndex} className="flex gap-2">
+                                <Input
+                                  value={con}
+                                  onChange={(e) =>
+                                    updateComparisonCon(index, conIndex, e.target.value)
+                                  }
+                                  placeholder="Enter a con"
+                                  className="flex-1"
+                                />
+                                {comparison.cons.length > 1 && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeComparisonCon(index, conIndex)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => addComparisonCon(index)}
+                              className="w-full"
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Add Con
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
