@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ExternalLink, Image as ImageIcon } from "lucide-react";
+import { ExternalLink, Image as ImageIcon, ThumbsUp, ThumbsDown, Check, X } from "lucide-react";
 import type { DesignProposalWithComparisons } from "@shared/schema";
 import {
   ReactCompareSlider,
@@ -139,6 +139,53 @@ export function ViewProposalDialog({
                           <span>Before</span>
                           <span>After</span>
                         </div>
+
+                        {/* Pros and Cons for this comparison */}
+                        {(comparison.pros?.length > 0 || comparison.cons?.length > 0) && (
+                          <div className="mt-4 p-4 border rounded-lg bg-white">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* Pros */}
+                              {comparison.pros && comparison.pros.length > 0 && (
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="p-1 rounded-full bg-green-100">
+                                      <ThumbsUp className="h-3 w-3 text-green-600" />
+                                    </div>
+                                    <h4 className="font-semibold text-sm text-green-700">Advantages</h4>
+                                  </div>
+                                  <ul className="space-y-1.5">
+                                    {comparison.pros.map((pro, proIndex) => (
+                                      <li key={proIndex} className="flex gap-2 items-start text-xs">
+                                        <Check className="h-3 w-3 shrink-0 mt-0.5 text-green-600" />
+                                        <span>{pro}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Cons */}
+                              {comparison.cons && comparison.cons.length > 0 && (
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="p-1 rounded-full bg-red-100">
+                                      <ThumbsDown className="h-3 w-3 text-red-600" />
+                                    </div>
+                                    <h4 className="font-semibold text-sm text-red-700">Considerations</h4>
+                                  </div>
+                                  <ul className="space-y-1.5">
+                                    {comparison.cons.map((con, conIndex) => (
+                                      <li key={conIndex} className="flex gap-2 items-start text-xs">
+                                        <X className="h-3 w-3 shrink-0 mt-0.5 text-red-600" />
+                                        <span>{con}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
