@@ -11,10 +11,11 @@ export function ClientLayout({ children }: ClientLayoutProps) {
   const { user } = useAuth(); // Always call hooks at the top level
   
   // Check if this is a public route that doesn't need authentication
-  const isPublicRoute = location.startsWith('/quote/') || 
-                       location.startsWith('/customer/quote/') || 
+  const isPublicRoute = location.startsWith('/quote/') ||
+                       location.startsWith('/customer/quote/') ||
                        location.startsWith('/quote-payment/') ||
                        location.startsWith('/payment/') ||
+                       location.startsWith('/design-proposal/') ||
                        location.startsWith('/auth');
 
   // Skip authentication for public routes

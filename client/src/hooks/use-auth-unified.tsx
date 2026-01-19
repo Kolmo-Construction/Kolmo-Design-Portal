@@ -43,10 +43,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const { toast } = useToast();
 
   // Check if this is a public route that doesn't need authentication
-  const isPublicRoute = location.startsWith('/quote/') || 
-                       location.startsWith('/customer/quote/') || 
+  const isPublicRoute = location.startsWith('/quote/') ||
+                       location.startsWith('/customer/quote/') ||
                        location.startsWith('/quote-payment/') ||
                        location.startsWith('/payment/') ||
+                       location.startsWith('/design-proposal/') ||
                        location.startsWith('/auth');
 
   const {
