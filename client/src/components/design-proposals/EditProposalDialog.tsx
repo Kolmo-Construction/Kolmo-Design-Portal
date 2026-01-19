@@ -35,7 +35,6 @@ const proposalSchema = z.object({
   customerName: z.string().optional(),
   customerEmail: z.string().email().optional().or(z.literal("")),
   projectId: z.number().optional().nullable(),
-  showProsCons: z.boolean().default(false),
 });
 
 type ProposalFormData = z.infer<typeof proposalSchema>;
@@ -53,8 +52,6 @@ export function EditProposalDialog({
 }: EditProposalDialogProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [pros, setPros] = useState<string[]>([""]);
-  const [cons, setCons] = useState<string[]>([""]);
 
   const form = useForm<ProposalFormData>({
     resolver: zodResolver(proposalSchema),
@@ -64,32 +61,17 @@ export function EditProposalDialog({
       customerName: proposal.customerName || "",
       customerEmail: proposal.customerEmail || "",
       projectId: proposal.projectId,
-      showProsCons: proposal.showProsCons,
     },
   });
 
-  // Load pros and cons when proposal changes
+  // Reset form when proposal changes
   useEffect(() => {
-    if (proposal.pros && proposal.pros.length > 0) {
-      setPros(proposal.pros);
-    } else {
-      setPros([""]);
-    }
-
-    if (proposal.cons && proposal.cons.length > 0) {
-      setCons(proposal.cons);
-    } else {
-      setCons([""]);
-    }
-
-    // Reset form with new proposal data
     form.reset({
       title: proposal.title,
       description: proposal.description || "",
       customerName: proposal.customerName || "",
       customerEmail: proposal.customerEmail || "",
       projectId: proposal.projectId,
-      showProsCons: proposal.showProsCons,
     });
   }, [proposal, form]);
 
@@ -97,17 +79,7 @@ export function EditProposalDialog({
     setIsSubmitting(true);
 
     try {
-      // Filter out empty strings from pros/cons
-      const filteredPros = pros.filter(p => p.trim() !== "");
-      const filteredCons = cons.filter(c => c.trim() !== "");
-
-      const proposalData = {
-        ...data,
-        pros: filteredPros.length > 0 ? filteredPros : undefined,
-        cons: filteredCons.length > 0 ? filteredCons : undefined,
-      };
-
-      await apiRequest("PATCH", `/api/design-proposals/${proposal.id}`, proposalData);
+      await apiRequest("PATCH", `/api/design-proposals/${proposal.id}`, data);
 
       queryClient.invalidateQueries({ queryKey: ["/api/design-proposals"] });
       queryClient.invalidateQueries({ queryKey: [`/api/design-proposals/${proposal.id}`] });
@@ -129,29 +101,13 @@ export function EditProposalDialog({
     }
   };
 
-  const addPro = () => setPros([...pros, ""]);
-  const removePro = (index: number) => setPros(pros.filter((_, i) => i !== index));
-  const updatePro = (index: number, value: string) => {
-    const updated = [...pros];
-    updated[index] = value;
-    setPros(updated);
-  };
-
-  const addCon = () => setCons([...cons, ""]);
-  const removeCon = (index: number) => setCons(cons.filter((_, i) => i !== index));
-  const updateCon = (index: number, value: string) => {
-    const updated = [...cons];
-    updated[index] = value;
-    setCons(updated);
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Design Proposal</DialogTitle>
           <DialogDescription>
-            Update proposal details, customer information, and pros/cons
+            Update proposal details and customer information
           </DialogDescription>
         </DialogHeader>
 
@@ -235,131 +191,6 @@ export function EditProposalDialog({
                   />
                 </div>
 
-                {/* Pros and Cons Section */}
-                <div className="border-t pt-6">
-                  <FormField
-                    control={form.control}
-                    name="showProsCons"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">
-                            Show Pros & Cons Section
-                          </FormLabel>
-                          <FormDescription>
-                            Display a pros and cons analysis in the customer-facing proposal
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  {form.watch("showProsCons") && (
-                    <div className="mt-4 grid grid-cols-2 gap-4">
-                      {/* Pros Section */}
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <ThumbsUp className="h-4 w-4 text-green-600" />
-                            <h4 className="text-sm font-semibold">Pros</h4>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={addPro}
-                            className="h-8 gap-1"
-                          >
-                            <Plus className="h-3 w-3" />
-                            Add
-                          </Button>
-                        </div>
-                        <div className="space-y-2">
-                          {pros.map((pro, index) => (
-                            <div key={index} className="flex gap-2">
-                              <Input
-                                value={pro}
-                                onChange={(e) => updatePro(index, e.target.value)}
-                                placeholder="Enter a pro"
-                                className="flex-1"
-                              />
-                              {pros.length > 1 && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => removePro(index)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Cons Section */}
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <ThumbsDown className="h-4 w-4 text-red-600" />
-                            <h4 className="text-sm font-semibold">Cons</h4>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={addCon}
-                            className="h-8 gap-1"
-                          >
-                            <Plus className="h-3 w-3" />
-                            Add
-                          </Button>
-                        </div>
-                        <div className="space-y-2">
-                          {cons.map((con, index) => (
-                            <div key={index} className="flex gap-2">
-                              <Input
-                                value={con}
-                                onChange={(e) => updateCon(index, e.target.value)}
-                                placeholder="Enter a con"
-                                className="flex-1"
-                              />
-                              {cons.length > 1 && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => removeCon(index)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex justify-end gap-3 pt-4 border-t">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => onOpenChange(false)}
-                    disabled={isSubmitting}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
               </form>
