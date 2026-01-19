@@ -116,6 +116,11 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // Contains public endpoints for customer access, authentication handled within routes
   app.use("/api/design-proposals", designProposalRouter);
 
+  // --- Mount Storage/R2 Routes (Mixed auth - public proxy, authenticated uploads) ---
+  // CRITICAL: Registered EARLY to allow public image access via /api/storage/proxy/*
+  // Public proxy endpoint serves images for design proposals without authentication
+  app.use("/api/storage", storageRoutes);
+
   // --- Mount User Management Routes ---
   // Routes for user management and hourly rate configuration
   // Admin only
@@ -395,9 +400,7 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // Mount Project Payment Summary routes (admin only, Web-only)
   app.use("/api/projects", isAuthenticated, requireWebAccess, projectPaymentRoutes);
 
-  // Mount Storage/R2 routes with mixed authentication
-  // Note: May include mobile uploads, check individual routes
-  app.use("/api/storage", storageRoutes);
+  // Note: Storage/R2 routes already mounted earlier (line ~122) to ensure public proxy access
 
   // Mount Chat routes (mixed auth - admin authenticated, customer public tokens)
   // Note: Contains public endpoints, do not protect at router level
