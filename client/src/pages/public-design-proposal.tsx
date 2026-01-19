@@ -308,6 +308,53 @@ export default function PublicDesignProposalPage() {
                         <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full" style={{backgroundColor: '#db973c'}}></div>
                       </div>
                     </div>
+
+                    {/* Pros and Cons for this comparison */}
+                    {(comparison.pros?.length > 0 || comparison.cons?.length > 0) && (
+                      <div className="px-3 sm:px-6 py-4 sm:py-6 bg-white border-t-2" style={{borderColor: '#f5f5f5'}}>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Pros */}
+                          {comparison.pros && comparison.pros.length > 0 && (
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 rounded-full bg-green-100">
+                                  <ThumbsUp className="h-4 w-4 text-green-600" />
+                                </div>
+                                <h4 className="font-semibold text-green-700">Advantages</h4>
+                              </div>
+                              <ul className="space-y-2">
+                                {comparison.pros.map((pro, proIndex) => (
+                                  <li key={proIndex} className="flex gap-2 items-start">
+                                    <Check className="h-4 w-4 shrink-0 mt-0.5 text-green-600" />
+                                    <span className="text-sm" style={{color: '#3d4552'}}>{pro}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {/* Cons */}
+                          {comparison.cons && comparison.cons.length > 0 && (
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 rounded-full bg-red-100">
+                                  <ThumbsDown className="h-4 w-4 text-red-600" />
+                                </div>
+                                <h4 className="font-semibold text-red-700">Considerations</h4>
+                              </div>
+                              <ul className="space-y-2">
+                                {comparison.cons.map((con, conIndex) => (
+                                  <li key={conIndex} className="flex gap-2 items-start">
+                                    <X className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
+                                    <span className="text-sm" style={{color: '#3d4552'}}>{con}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -344,73 +391,6 @@ export default function PublicDesignProposalPage() {
           <PublicProposalGallery proposalId={proposal.id} />
         </div>
 
-        {/* Pros and Cons Section */}
-        {proposal.showProsCons && (proposal.pros?.length || proposal.cons?.length) && (
-          <div className="mt-8 sm:mt-12">
-            <div className="text-center mb-6 sm:mb-8">
-              <h2 className="text-2xl sm:text-3xl font-bold" style={{color: '#3d4552'}}>
-                Design Analysis
-              </h2>
-              <p className="text-base sm:text-lg mt-2" style={{color: '#4a6670'}}>
-                Considerations for this design proposal
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-              {/* Pros Card */}
-              {proposal.pros && proposal.pros.length > 0 && (
-                <Card className="shadow-lg border-2 overflow-hidden" style={{borderColor: '#e5e5e5'}}>
-                  <CardHeader className="bg-green-50 border-b-2" style={{borderColor: '#f5f5f5'}}>
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 rounded-full bg-green-100">
-                        <ThumbsUp className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
-                      </div>
-                      <CardTitle className="text-xl sm:text-2xl text-green-700">
-                        Advantages
-                      </CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-6">
-                    <ul className="space-y-3">
-                      {proposal.pros.map((pro, index) => (
-                        <li key={index} className="flex gap-3 items-start" data-testid={`pros-item-${index}`}>
-                          <Check className="h-5 w-5 shrink-0 mt-0.5 text-green-600" />
-                          <span className="text-sm sm:text-base" style={{color: '#3d4552'}}>{pro}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Cons Card */}
-              {proposal.cons && proposal.cons.length > 0 && (
-                <Card className="shadow-lg border-2 overflow-hidden" style={{borderColor: '#e5e5e5'}}>
-                  <CardHeader className="bg-red-50 border-b-2" style={{borderColor: '#f5f5f5'}}>
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 rounded-full bg-red-100">
-                        <ThumbsDown className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
-                      </div>
-                      <CardTitle className="text-xl sm:text-2xl text-red-700">
-                        Considerations
-                      </CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-6">
-                    <ul className="space-y-3">
-                      {proposal.cons.map((con, index) => (
-                        <li key={index} className="flex gap-3 items-start" data-testid={`cons-item-${index}`}>
-                          <X className="h-5 w-5 shrink-0 mt-0.5 text-red-600" />
-                          <span className="text-sm sm:text-base" style={{color: '#3d4552'}}>{con}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Call to Action */}
         <div className="rounded-xl sm:rounded-2xl shadow-lg text-white p-6 sm:p-8 mt-8 sm:mt-12" style={{backgroundColor: '#4a6670'}}>
